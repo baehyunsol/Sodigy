@@ -1,15 +1,21 @@
 use crate::Session;
-use sodigy_number::{InternedNumber, InternedNumberValue};
+use sodigy_number::{BigInt, InternedNumber, InternedNumberValue};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, unintern_string};
 use sodigy_token::Constant;
 
 // This is how values are represented in Sodigy runtime.
-// TODO: intern compound values
+// TODO: intern values
 #[derive(Clone, Debug)]
 pub enum Value {
     Scalar(u32),
+    Int(BigInt),
+
+    // List types are converted to `Value::List`. It's runtime's choice to
+    // treat `Value::List` and `Value::Compound` differently or not.
+    List(Vec<Value>),
     Compound(Vec<Value>),
+
     FuncPointer {
         def_span: Span,
         program_counter: Option<usize>,
@@ -18,19 +24,6 @@ pub enum Value {
     // It's only used for some debug information.
     // The runtime may implement a span-renderer, or completely ignore this.
     Span(Span),
-}
-
-impl Value {
-    pub fn list(elems: Vec<Value>) -> Value {
-        let mut result = Vec::with_capacity(elems.len() + 1);
-        result.push((&InternedNumber::from_u32(
-            elems.len() as u32,
-            /* is_integer: */ true,
-        )).into());
-
-        result.extend(elems);
-        Value::Compound(result)
-    }
 }
 
 impl Session<'_, '_> {
@@ -57,7 +50,7 @@ impl Session<'_, '_> {
             ).collect()
         };
 
-        Value::list(elems)
+        Value::List(elems)
     }
 }
 
@@ -70,32 +63,17 @@ impl From<&InternedNumber> for Value {
             } => {
                 let is_neg = *n < 0;
                 let abs = n.abs() as u64;
+                let nums = match abs {
+                    0..=0xffff_ffff => vec![abs as u32],
+                    _ => vec![(abs & 0xffff_ffff) as u32, (abs >> 32) as u32],
+                };
 
-                match abs {
-                    0..=0xffff_ffff => Value::Compound(vec![
-                        Value::Scalar(if is_neg { 0x8000_0001 } else { 1 }),
-                        Value::Scalar(abs as u32),
-                    ]),
-                    _ => Value::Compound(vec![
-                        Value::Scalar(if is_neg { 0x8000_0002 } else { 2 }),
-                        Value::Scalar((abs & 0xffff_ffff) as u32),
-                        Value::Scalar((abs >> 32) as u32),
-                    ]),
-                }
+                Value::Int(BigInt { is_neg, nums })
             },
             InternedNumber {
                 value: InternedNumberValue::BigInt(n),
                 is_integer: true,
-            } => {
-                let mut value = vec![
-                    Value::Scalar(if n.is_neg { 0x8000_0000 | n.nums.len() as u32 } else { n.nums.len() as u32 }),
-                ];
-                value.extend(n.nums.iter().map(
-                    |n| Value::Scalar(*n)
-                ).collect::<Vec<_>>());
-
-                Value::Compound(value)
-            },
+            } => Value::Int(n.clone()),
             _ => todo!(),
         }
     }

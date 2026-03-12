@@ -61,71 +61,23 @@ fn execute(
         match &executable.bytecodes[cursor] {
             Bytecode::Const { value, dst } => {
                 let value = heap.alloc_value(value);
-
-                match dst {
-                    Memory::Return => {
-                        stack.r#return = value;
-                    },
-                    Memory::Stack(i) => {
-                        *stack.stack.get_mut(stack.stack_pointer + i).expect("stack overflow") = value;
-                    },
-                    Memory::Global(s) => {
-                        heap.global_values.insert(*s, value);
-                    },
-                }
+                update(*dst, value, stack, heap);
             },
             Bytecode::Move { src, dst } => {
-                let src = match src {
-                    Memory::Return => stack.r#return,
-                    Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
-                    Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
-                };
-
-                match dst {
-                    Memory::Return => {
-                        stack.r#return = src;
-                    },
-                    Memory::Stack(i) => {
-                        *stack.stack.get_mut(stack.stack_pointer + i).expect("stack overflow") = src;
-                    },
-                    Memory::Global(s) => {
-                        heap.global_values.insert(*s, src);
-                    },
-                }
+                let value = read(*src, stack, heap);
+                update(*dst, value, stack, heap);
             },
             Bytecode::Read { src, offset, dst } => {
-                let src = match src {
-                    Memory::Return => stack.r#return,
-                    Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
-                    Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
-                } as usize;
+                let src = read(*src, stack, heap) as usize;
                 let offset = match offset {
                     Offset::Static(n) => *n,
                     Offset::Dynamic(src) => {
-                        let offset_ptr = match src {
-                            Memory::Return => stack.r#return,
-                            Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
-                            Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
-                        };
-
+                        let offset_ptr = read(*src, stack, heap);
                         todo!()
                     },
                 } as usize;
-
-                let result = heap.data[src + offset + 2];
-                // TODO: increment ref count of result, if it has to
-
-                match dst {
-                    Memory::Return => {
-                        stack.r#return = result;
-                    },
-                    Memory::Stack(i) => {
-                        *stack.stack.get_mut(stack.stack_pointer + i).expect("stack overflow") = result;
-                    },
-                    Memory::Global(s) => {
-                        heap.global_values.insert(*s, result);
-                    },
-                }
+                let result = heap.data[src + offset];
+                update(*dst, result, stack, heap);
             },
             Bytecode::IncStackPointer(n) => {
                 stack.stack_pointer += n;
@@ -134,19 +86,11 @@ fn execute(
                 stack.stack_pointer -= n;
             },
             Bytecode::IncRefCount(dst) => {
-                let dst = match dst {
-                    Memory::Return => stack.r#return,
-                    Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
-                    Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
-                };
+                let dst = read(*dst, stack, heap);
                 heap.inc_rc(dst as usize);
             },
             Bytecode::DecRefCount { dst, drop } => {
-                let dst = match dst {
-                    Memory::Return => stack.r#return,
-                    Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
-                    Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
-                };
+                let dst = read(*dst, stack, heap);
                 heap.dec_rc(dst as usize, drop);
             },
             Bytecode::Jump(label) => match label {
@@ -157,20 +101,12 @@ fn execute(
                 _ => unreachable!(),
             },
             Bytecode::JumpDynamic(dst) => {
-                let dst = match dst {
-                    Memory::Return => stack.r#return,
-                    Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
-                    Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
-                };
+                let dst = read(*dst, stack, heap);
                 cursor = dst as usize;
                 continue;
             },
             Bytecode::JumpIf { value, label } => {
-                let value = match value {
-                    Memory::Return => stack.r#return,
-                    Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
-                    Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
-                };
+                let value = read(*value, stack, heap);
 
                 if value == 1 {
                     match label {
@@ -220,18 +156,7 @@ fn execute(
                     };
 
                     let ptr = heap.alloc_value(&(&v).into());
-
-                    match dst {
-                        Memory::Return => {
-                            stack.r#return = ptr;
-                        },
-                        Memory::Stack(i) => {
-                            *stack.stack.get_mut(stack.stack_pointer + i).expect("stack overflow") = ptr;
-                        },
-                        Memory::Global(s) => {
-                            heap.global_values.insert(*s, ptr);
-                        },
-                    }
+                    update(*dst, ptr, stack, heap);
                 },
                 Intrinsic::AddInt |
                 Intrinsic::SubInt |
@@ -277,17 +202,7 @@ fn execute(
                         _ => unreachable!(),
                     };
 
-                    match dst {
-                        Memory::Return => {
-                            stack.r#return = result;
-                        },
-                        Memory::Stack(i) => {
-                            *stack.stack.get_mut(stack.stack_pointer + i).expect("stack overflow") = result;
-                        },
-                        Memory::Global(s) => {
-                            heap.global_values.insert(*s, result);
-                        },
-                    }
+                    update(*dst, result, stack, heap);
                 },
                 Intrinsic::LtScalar |
                 Intrinsic::EqScalar |
@@ -300,20 +215,15 @@ fn execute(
                         Intrinsic::GtScalar => lhs > rhs,
                         _ => unreachable!(),
                     };
-
-                    match dst {
-                        Memory::Return => {
-                            stack.r#return = result as u32;
-                        },
-                        Memory::Stack(i) => {
-                            *stack.stack.get_mut(stack.stack_pointer + i).expect("stack overflow") = result as u32;
-                        },
-                        Memory::Global(s) => {
-                            heap.global_values.insert(*s, result as u32);
-                        },
-                    }
+                    update(*dst, result as u32, stack, heap);
                 },
                 Intrinsic::IndexList => todo!(),
+                Intrinsic::LenList => {
+                    let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow");
+                    let result = heap.data[slice_ptr as usize + 2];
+                    let result = heap.alloc_small_int(result as i32);  // TODO: what if it's greater than i32::MAX?
+                    update(*dst, result, stack, heap);
+                },
                 Intrinsic::Exit => {
                     // TODO: clean up stack and heap
                     return Ok(());
@@ -345,31 +255,15 @@ fn execute(
                 let result = heap.alloc(*elements);
 
                 for i in 0..*elements {
-                    heap.data[result + i + 2] = stack.stack[stack.stack_pointer + *stack_offset + i];
+                    heap.data[result + i] = stack.stack[stack.stack_pointer + *stack_offset + i];
                     // TODO: inc_rc the copied value, if it has to
                 }
 
                 let result = result as u32;
-
-                match dst {
-                    Memory::Return => {
-                        stack.r#return = result;
-                    },
-                    Memory::Stack(i) => {
-                        *stack.stack.get_mut(stack.stack_pointer + i).expect("stack overflow") = result;
-                    },
-                    Memory::Global(s) => {
-                        heap.global_values.insert(*s, result);
-                    },
-                }
+                update(*dst, result, stack, heap);
             },
             Bytecode::PushDebugInfo { kind, src } => {
-                let src = match src {
-                    Memory::Return => stack.r#return,
-                    Memory::Stack(i) => stack.stack[stack.stack_pointer + i],
-                    Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
-                };
-
+                let src = read(*src, stack, heap);
                 heap.debug_info.push((*kind, src));
             },
             Bytecode::PopDebugInfo => {
@@ -379,6 +273,28 @@ fn execute(
         }
 
         cursor += 1;
+    }
+}
+
+fn read(src: Memory, stack: &mut Stack, heap: &mut Heap) -> u32 {
+    match src {
+        Memory::Return => stack.r#return,
+        Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
+        Memory::Global(s) => *heap.global_values.get(&s).expect("global should be initialized before used"),
+    }
+}
+
+fn update(dst: Memory, value: u32, stack: &mut Stack, heap: &mut Heap) {
+    match dst {
+        Memory::Return => {
+            stack.r#return = value;
+        },
+        Memory::Stack(i) => {
+            *stack.stack.get_mut(stack.stack_pointer + i).expect("stack overflow") = value;
+        },
+        Memory::Global(s) => {
+            heap.global_values.insert(s, value);
+        },
     }
 }
 
@@ -447,24 +363,17 @@ fn debug(
 }
 
 fn inspect_int(heap: &[u32], ptr: usize) -> (bool, &[u32]) {
-    let metadata = heap[ptr + 2];
+    let metadata = heap[ptr];
     let is_neg = metadata > 0x7fff_ffff;
     let length = metadata & 0x7fff_ffff;
 
     // TODO: should I do runtime checks..??
-    assert!(length > 0);
+    // assert!(length > 0);
 
-    let nums = &heap[(ptr + 3)..(ptr + 3 + length as usize)];
+    let nums = &heap[(ptr + 1)..(ptr + 1 + length as usize)];
     (is_neg, nums)
 }
 
 fn inspect_list(heap: &[u32], ptr: usize) -> &[u32] {
-    let len_ptr = heap[ptr + 2];
-    let (is_neg, length) = inspect_int(heap, len_ptr as usize);
-
-    // TODO: should I do the runtime checks..??
-    assert!(!is_neg);
-    assert_eq!(length.len(), 1);
-
-    &heap[(ptr + 3)..(ptr + 3 + length[0] as usize)]
+    todo!()
 }

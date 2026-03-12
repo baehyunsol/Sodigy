@@ -4,8 +4,9 @@ use sodigy_inter_hir as inter_hir;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct GlobalContext<'hir, 'mir> {
     pub func_shapes: Option<&'hir HashMap<Span, FuncShape>>,
     pub struct_shapes: Option<&'hir HashMap<Span, StructShape>>,
@@ -17,7 +18,7 @@ pub struct GlobalContext<'hir, 'mir> {
 
     pub lang_items: Option<&'hir HashMap<String, Span>>,
 
-    pub types: Option<&'mir HashMap<Span, Type>>,
+    pub types: Option<Arc<RwLock<HashMap<Span, Type>>>>,
     pub generic_args: Option<&'mir HashMap<(Span, Span), Type>>,
     pub span_string_map: Option<&'mir HashMap<Span, InternedString>>,
 }
@@ -58,6 +59,24 @@ impl<'hir> GlobalContext<'hir, '_> {
                 Some(Some(enum_shape)) => Some(ItemShape::Enum(enum_shape)),
                 _ => None,
             },
+        }
+    }
+
+    pub fn get_type(&self, span: Span) -> Option<Type> {
+        match self.types.as_ref().map(|types| types.read()) {
+            Some(Ok(types)) => types.get(&span).map(|r#type| r#type.clone()),
+            Some(Err(_)) => panic!("global context is poisoned"),
+            None => panic!("global context is not initialized"),
+        }
+    }
+
+    pub fn get_lang_item_span(&self, lang_item: &str) -> Span {
+        match self.lang_items {
+            Some(lang_items) => match lang_items.get(lang_item) {
+                Some(span) => *span,
+                None => panic!("lang_item {lang_item:?} not found"),
+            },
+            None => panic!("lang_items in global_context not initialized!"),
         }
     }
 }

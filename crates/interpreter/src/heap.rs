@@ -17,7 +17,7 @@ use debug::HeapDebugInfo;
 // rrr: ref count of this block
 // d00..: actual data
 //
-// pointer points to `hhh`, not `d00`.
+// pointer points to `d00`, not `hhh`.
 
 // You can change this constants to fine-tune performance.
 // But the heap implementation assumes something and you have to follow this conditions:
@@ -64,33 +64,104 @@ impl Heap {
 
     pub fn expand(&mut self, s1: usize, s2: usize, s3: usize) {
         for _ in 0..s1 {
-            self.freelist_small.push(self.data.len());
+            self.freelist_small.push(self.data.len() + 2);
             self.data.push(SMALL_BLOCK_SIZE as u32);
             self.data.extend(vec![0; SMALL_BLOCK_SIZE + 1]);
         }
 
         for _ in 0..s2 {
-            self.freelist_medium.push(self.data.len());
+            self.freelist_medium.push(self.data.len() + 2);
             self.data.push(MEDIUM_BLOCK_SIZE as u32);
             self.data.extend(vec![0; MEDIUM_BLOCK_SIZE + 1]);
         }
 
         for _ in 0..s3 {
-            self.freelist_large.push(self.data.len());
+            self.freelist_large.push(self.data.len() + 2);
             self.data.push(LARGE_BLOCK_SIZE as u32);
             self.data.extend(vec![0; LARGE_BLOCK_SIZE + 1]);
         }
     }
 
+    pub fn alloc_small_int(&mut self, n: i32) -> u32 {
+        let ptr = self.alloc(2) as u32;
+        let metadata = if n < 0 { 0x8000_0001 } else { 1 };
+        self.data[ptr as usize] = metadata;
+        self.data[ptr as usize + 1] = n.abs() as u32;
+
+        ptr
+    }
+
     pub fn alloc_value(&mut self, value: &Value) -> u32 {
         match value {
             Value::Scalar(v) => *v,
+
+            // heap:   hhh  rrr  d00  d01  d02 ...
+            //                   ^
+            //                   *-- pointer points to this
+            //
+            // `hhh` and `rrr` are memory allocator's metadata.
+            // `d00` is the integer's metadata.
+            //
+            // The most significant bit of `d00` is whether the integer is negative or not.
+            // If it's negative the most significant bit is 1.
+            // The other bits is the length of the integer (how many scalar values).
+            // `d01` and the remaining are the actual data.
+            // `d01` is the least significant part of the integer.
+            // So, the integer's value is `d01 + d02 * 4294967296 + d03 * 18446744073709551616 + ...`.
+            //
+            // If the integer is -5, it'd be represented like this:
+            //
+            // heap: [hhh, rrr, 0x8000_0001, 0x5]
+            //                  ^
+            //                  *-- the most significant bit is 1 because it's negative.
+            //                  |
+            //                  *-- pointer points to this
+            Value::Int(n) => {
+                let ptr = self.alloc(n.nums.len() + 1) as u32;
+                let mut metadata = n.nums.len() as u32;
+
+                if n.is_neg {
+                    metadata |= 0x8000_0000;
+                }
+
+                self.data[ptr as usize] = metadata;
+
+                for (i, n) in n.nums.iter().enumerate() {
+                    self.data[ptr as usize + 1 + i] = *n;
+                }
+
+                ptr
+            },
+
+            // heap:   hhh  rrr  d00  d01  d02
+            //                   ^
+            //                   *-- pointer points here
+            //
+            // `hhh` and `rrr` are memory allocator's metadata.
+            // `d00` is a pointer to the actual data
+            // `d01` is a scalar value. It's the start index of the slice.
+            // `d02` is a scalar value. It's the length of the slice.
+            Value::List(vs) => {
+                let data_ptr = self.alloc(vs.len()) as u32;
+
+                for (i, v) in vs.iter().enumerate() {
+                    let v_p = self.alloc_value(v);
+                    self.data[data_ptr as usize + i] = v_p;
+                }
+
+                let slice_ptr = self.alloc(3) as u32;
+                self.data[slice_ptr as usize] = data_ptr;
+                self.data[slice_ptr as usize + 1] = 0;
+                self.data[slice_ptr as usize + 2] = vs.len() as u32;
+
+                slice_ptr
+            },
             Value::Compound(vs) => {
                 let ptr = self.alloc(vs.len()) as u32;
 
                 for (i, v) in vs.iter().enumerate() {
                     let v_p = self.alloc_value(v);
-                    self.data[ptr as usize + 2 + i] = v_p;
+                    self.data[ptr as usize + i] = v_p;
                 }
 
                 ptr
@@ -102,10 +173,10 @@ impl Heap {
                     let ptr = self.alloc(4);
 
                     // TODO: any better representation?
-                    self.data[ptr + 2] = *project;
-                    self.data[ptr + 3] = *file;
-                    self.data[ptr + 4] = *start as u32;
-                    self.data[ptr + 5] = *end as u32;
+                    self.data[ptr] = *project;
+                    self.data[ptr + 1] = *file;
+                    self.data[ptr + 2] = *start as u32;
+                    self.data[ptr + 3] = *end as u32;
                     ptr as u32
                 },
                 Span::Range { file: File::Std(id), start, end } |
@@ -113,10 +184,10 @@ impl Heap {
                     let ptr = self.alloc(4);
 
                     // TODO: any better representation?
-                    self.data[ptr + 2] = u32::MAX;
-                    self.data[ptr + 3] = *id as u32;
-                    self.data[ptr + 4] = *start as u32;
-                    self.data[ptr + 5] = *end as u32;
+                    self.data[ptr] = u32::MAX;
+                    self.data[ptr + 1] = *id as u32;
+                    self.data[ptr + 2] = *start as u32;
+                    self.data[ptr + 3] = *end as u32;
                     ptr as u32
                 },
                 _ => panic!("TODO: {span:?}"),
@@ -125,11 +196,15 @@ impl Heap {
     }
 
     // It implicitly `inc_rc` after allocating memory.
+    // `size` is of data, not block. A block has 1 scalar for header,
+    // 1 scalar for ref_count, and scalars for data. If you call `alloc(8)`,
+    // the returned block will have at least 10 scalars, where the first
+    // 2 scalars are header and ref_count, and the remaining scalars are for data.
     pub fn alloc(&mut self, size: usize) -> usize {
-        let result = if size <= SMALL_BLOCK_SIZE {
+        let result = if size + 2 <= SMALL_BLOCK_SIZE {
             if let Some(ptr) = self.freelist_small.pop() {
-                self.data[ptr] |= 0x8000_0000;
-                self.data[ptr + 1] = 1;
+                self.data[ptr - 2] |= 0x8000_0000;
+                self.data[ptr - 1] = 1;
                 ptr
             }
 
@@ -137,8 +212,8 @@ impl Heap {
                 // this block is too big. I'll just use the quarter of this block.
                 self.divide_block(ptr);
 
-                self.data[ptr] |= 0x8000_0000;
-                self.data[ptr + 1] = 1;
+                self.data[ptr - 2] |= 0x8000_0000;
+                self.data[ptr - 1] = 1;
                 ptr
             }
 
@@ -149,16 +224,16 @@ impl Heap {
             }
         }
 
-        else if size <= MEDIUM_BLOCK_SIZE {
+        else if size + 2 <= MEDIUM_BLOCK_SIZE {
             if let Some(ptr) = self.freelist_medium.pop() {
-                let block_size = self.data[ptr];
+                let block_size = self.data[ptr - 2];
 
                 if block_size > (size as u32 + 2) * 4 {
                     self.divide_block(ptr);
                 }
 
-                self.data[ptr] |= 0x8000_0000;
-                self.data[ptr + 1] = 1;
+                self.data[ptr - 2] |= 0x8000_0000;
+                self.data[ptr - 1] = 1;
                 ptr
             }
 
@@ -178,7 +253,7 @@ impl Heap {
         };
 
         #[cfg(feature="debug-heap")] {
-            let block_size = self.data[result] & 0x7fff_ffff;
+            let block_size = self.data[result - 2] & 0x7fff_ffff;
             self.heap_debug_info.allocations.insert(result, block_size);
         }
 
@@ -186,8 +261,8 @@ impl Heap {
     }
 
     fn free(&mut self, ptr: usize) {
-        let size = self.data[ptr] & 0x7fff_ffff;
-        self.data[ptr] = size;
+        let size = self.data[ptr - 2] & 0x7fff_ffff;
+        self.data[ptr - 2] = size;
 
         #[cfg(feature="debug-heap")] {
             assert_eq!(self.heap_debug_info.allocations.remove(&ptr).unwrap(), size);
@@ -209,13 +284,13 @@ impl Heap {
     }
 
     pub fn inc_rc(&mut self, ptr: usize) {
-        self.data[ptr + 1] += 1;
+        self.data[ptr - 1] += 1;
     }
 
     pub fn dec_rc(&mut self, ptr: usize, drop: &DropType) {
-        self.data[ptr + 1] -= 1;
+        self.data[ptr - 1] -= 1;
 
-        if self.data[ptr + 1] == 0 {
+        if self.data[ptr - 1] == 0 {
             // TODO: drop
 
             self.free(ptr);
@@ -225,16 +300,16 @@ impl Heap {
     // `ptr` must be a header of an unused block.
     // It divides the block into 4.
     pub fn divide_block(&mut self, ptr: usize) {
-        let original_size = self.data[ptr];
+        let original_size = self.data[ptr - 2];
         let new_size = original_size >> 2;
-        self.data[ptr] = new_size;
+        self.data[ptr - 2] = new_size;
 
         for (header_ptr, block_size) in [
             (ptr + new_size as usize + 2, new_size),
             (ptr + new_size as usize * 2 + 4, new_size),
             (ptr + new_size as usize * 3 + 6, original_size - new_size * 3 - 6),
         ] {
-            self.data[header_ptr] = block_size;
+            self.data[header_ptr - 2] = block_size;
 
             if block_size < MEDIUM_BLOCK_SIZE as u32 {
                 self.freelist_small.push(header_ptr);

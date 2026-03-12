@@ -67,11 +67,12 @@ intrinsics!(
     (EqScalar  , "built_in.eq_scalar"  , 10),
     (GtScalar  , "built_in.gt_scalar"  , 11),
     (IndexList , "built_in.index_list" , 12),
-    (Exit      , "built_in.exit"       , 13),
-    (Panic     , "built_in.panic"      , 14),
-    (Print     , "built_in.print"      , 15),
-    (EPrint    , "built_in.eprint"     , 16),
-    (RandomInt , "built_in.random_int" , 17),
+    (LenList   , "built_in.len_list"   , 13),
+    (Exit      , "built_in.exit"       , 14),
+    (Panic     , "built_in.panic"      , 15),
+    (Print     , "built_in.print"      , 16),
+    (EPrint    , "built_in.eprint"     , 17),
+    (RandomInt , "built_in.random_int" , 18),
 //   ^^^^^^^^^   ^^^^^^^^^^^^^^^^^^^^^   ^^
 //   |           |                       |
 //  (0)         (1)                     (2)

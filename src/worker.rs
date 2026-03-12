@@ -17,7 +17,7 @@ use sodigy_fs_api::{WriteMode, write_bytes};
 use sodigy_hir as hir;
 use sodigy_mir::{self as mir, GlobalContext as MirGlobalContext};
 use sodigy_span::Span;
-use std::sync::mpsc;
+use std::sync::{Arc, RwLock, mpsc};
 use std::thread::{self, JoinHandle};
 use std::time::Instant;
 
@@ -262,7 +262,7 @@ impl Worker {
                                 warnings: lex_session.warnings.clone(),
                             })?;
 
-                            return compile_error_if_non_empty(&lex_session.errors);
+                            return compile_error_if_not_empty(&lex_session.errors);
                         }
 
                         self.stage_start(CompileStage::Parse, Some(input_module_path.to_string()));
@@ -285,7 +285,7 @@ impl Worker {
                                 warnings: parse_session.warnings.clone(),
                             })?;
 
-                            return compile_error_if_non_empty(&parse_session.errors);
+                            return compile_error_if_not_empty(&parse_session.errors);
                         }
 
                         self.stage_start(CompileStage::Hir, Some(input_module_path.to_string()));
@@ -320,7 +320,7 @@ impl Worker {
                             warnings: hir_session.warnings.clone(),
                         })?;
 
-                        return compile_error_if_non_empty(&hir_session.errors);
+                        return compile_error_if_not_empty(&hir_session.errors);
                     }
 
                     // the inter-hir session must have been created at this point
@@ -352,7 +352,7 @@ impl Worker {
                     }
 
                     self.stage_start(CompileStage::Mir, Some(input_module_path.to_string()));
-                    let mut mir_session = sodigy_mir::lower(hir_session, global_context.inter_hir_session.as_ref().unwrap());
+                    let mir_session = sodigy_mir::lower(hir_session, global_context.inter_hir_session.as_ref().unwrap());
                     self.stage_end(!mir_session.errors.is_empty());
 
                     emit_irs_if_has_to(
@@ -374,7 +374,7 @@ impl Worker {
                         warnings: mir_session.warnings.clone(),
                     })?;
 
-                    return compile_error_if_non_empty(&mir_session.errors);
+                    return compile_error_if_not_empty(&mir_session.errors);
                 }
 
                 // the inter-mir session must have initialized `mir_global_context` at this point
@@ -401,7 +401,7 @@ impl Worker {
                         warnings: mir_session.warnings.clone(),
                     })?;
 
-                    return compile_error_if_non_empty(&mir_session.errors);
+                    return compile_error_if_not_empty(&mir_session.errors);
                 }
 
                 self.stage_start(CompileStage::MirOptimize, Some(input_module_path.to_string()));
@@ -424,7 +424,7 @@ impl Worker {
                         warnings: optimized_mir_session.warnings.clone(),
                     })?;
 
-                    return compile_error_if_non_empty(&optimized_mir_session.errors);
+                    return compile_error_if_not_empty(&optimized_mir_session.errors);
                 }
 
                 self.stage_start(CompileStage::Bytecode, Some(input_module_path.to_string()));
@@ -447,7 +447,7 @@ impl Worker {
                         warnings: bytecode_session.warnings.clone(),
                     })?;
 
-                    return compile_error_if_non_empty(&bytecode_session.errors);
+                    return compile_error_if_not_empty(&bytecode_session.errors);
                 }
 
                 self.stage_start(CompileStage::BytecodeOptimize, Some(input_module_path.to_string()));
@@ -722,6 +722,7 @@ impl Worker {
                     None,
                 )?.ok_or(Error::IrCacheNotFound(CompileStage::InterMir))?;
                 let inter_mir_session = sodigy_inter_mir::Session::decode(&inter_mir_session_bytes)?;
+                global_context.types = Some(Arc::new(RwLock::new(inter_mir_session.types.clone())));
                 global_context.inter_mir_session = Some(inter_mir_session);
             },
         }
@@ -730,7 +731,7 @@ impl Worker {
     }
 }
 
-fn compile_error_if_non_empty<E>(errors: &[E]) -> Result<(), Error> {
+fn compile_error_if_not_empty<E>(errors: &[E]) -> Result<(), Error> {
     if errors.is_empty() {
         Ok(())
     }

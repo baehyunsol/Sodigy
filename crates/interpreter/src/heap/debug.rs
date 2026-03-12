@@ -14,17 +14,17 @@ impl HeapDebugInfo {
 }
 
 impl Heap {
-    // It doesn't check whether there's a memory leak or not.
+    // It doesn't check whether there's a memory leak or not (ref_count).
     // We can't check memory leaks for now because we can't tell whether
     // it's a leaked memory or a static value.
     pub fn check_integrity(&self) {
-        let mut cursor = 0;
+        let mut cursor = 2;
         let freelist_small = self.freelist_small.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
         let freelist_medium = self.freelist_medium.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
         let freelist_large = self.freelist_large.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
 
         loop {
-            let header = self.data[cursor];
+            let header = self.data[cursor - 2];
             let block_size = header & 0x7fff_ffff;
             let is_used = header >= 0x8000_0000;
             assert!(block_size > 0);

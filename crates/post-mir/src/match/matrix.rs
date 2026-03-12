@@ -185,7 +185,7 @@ pub fn get_list_sub_matrix(
         for row in arg_matrix.iter_mut() {
             row.field = vec![
                 field_prefix.to_vec(),
-                vec![PatternField::Index(*index as i64)],
+                vec![PatternField::ListIndex(*index as i64)],
                 row.field.clone(),
             ].concat();
         }

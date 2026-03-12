@@ -440,7 +440,7 @@ fn discard_empty_range(range: Option<Range>) -> Option<Range> {
     }
 }
 
-pub fn filter_out_invalid_ranges<T: Clone + Merge>(mut branches: Vec<(Range, T)>) -> Vec<(Range, T)> {
+pub fn filter_out_invalid_ranges<T: Clone + Merge>(branches: Vec<(Range, T)>) -> Vec<(Range, T)> {
     // Every range has the same type. Otherwise, that's a type error, but this function is not a type-checker!
     let valid_ranges = match &branches[0].0.r#type {
         LiteralType::Int | LiteralType::Number => {

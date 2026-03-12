@@ -3,6 +3,7 @@ use sodigy_endec::Endec;
 use sodigy_error::{Error, ErrorKind};
 use sodigy_hir::{self as hir, FuncPurity};
 use sodigy_name_analysis::{NameKind, NameOrigin};
+use sodigy_parse::Field;
 use sodigy_span::Span;
 use sodigy_string::hash;
 use sodigy_token::Constant;
@@ -438,21 +439,18 @@ impl Type {
 /// It returns the type of `expr`, assuming that type-check and type-infer are
 /// complete. If type-check or type-infer is incomplete, it'll return None,
 /// or even worse, a wrong type.
-pub fn type_of(
-    expr: &Expr,
-    global_context: GlobalContext,
-) -> Option<Type> {
+pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
     match expr {
-        Expr::Ident(id) => global_context.types.unwrap().get(&id.def_span).map(|r#type| r#type.clone()),
+        Expr::Ident(id) => global_context.get_type(id.def_span),
         Expr::Constant(Constant::Number { n, .. }) => match n.is_integer {
             true => Some(Type::Data {
-                constructor_def_span: *global_context.lang_items.unwrap().get("type.Int").unwrap(),
+                constructor_def_span: global_context.get_lang_item_span("type.Int"),
                 constructor_span: Span::None,
                 args: None,
                 group_span: None,
             }),
             false => Some(Type::Data {
-                constructor_def_span: *global_context.lang_items.unwrap().get("type.Number").unwrap(),
+                constructor_def_span: global_context.get_lang_item_span("type.Number"),
                 constructor_span: Span::None,
                 args: None,
                 group_span: None,
@@ -460,10 +458,10 @@ pub fn type_of(
         },
         Expr::Constant(Constant::String { binary, .. }) => match *binary {
             true => Some(Type::Data {
-                constructor_def_span: *global_context.lang_items.unwrap().get("type.List").unwrap(),
+                constructor_def_span: global_context.get_lang_item_span("type.List"),
                 constructor_span: Span::None,
                 args: Some(vec![Type::Data {
-                    constructor_def_span: *global_context.lang_items.unwrap().get("type.Byte").unwrap(),
+                    constructor_def_span: global_context.get_lang_item_span("type.Byte"),
                     constructor_span: Span::None,
                     args: None,
                     group_span: None,
@@ -471,10 +469,10 @@ pub fn type_of(
                 group_span: Some(Span::None),
             }),
             false => Some(Type::Data {
-                constructor_def_span: *global_context.lang_items.unwrap().get("type.List").unwrap(),
+                constructor_def_span: global_context.get_lang_item_span("type.List"),
                 constructor_span: Span::None,
                 args: Some(vec![Type::Data {
-                    constructor_def_span: *global_context.lang_items.unwrap().get("type.Char").unwrap(),
+                    constructor_def_span: global_context.get_lang_item_span("type.Char"),
                     constructor_span: Span::None,
                     args: None,
                     group_span: None,
@@ -483,13 +481,13 @@ pub fn type_of(
             }),
         },
         Expr::Constant(Constant::Char { .. }) => Some(Type::Data {
-            constructor_def_span: *global_context.lang_items.unwrap().get("type.Char").unwrap(),
+            constructor_def_span: global_context.get_lang_item_span("type.Char"),
             constructor_span: Span::None,
             args: None,
             group_span: None,
         }),
         Expr::Constant(Constant::Byte { .. }) => Some(Type::Data {
-            constructor_def_span: *global_context.lang_items.unwrap().get("type.Byte").unwrap(),
+            constructor_def_span: global_context.get_lang_item_span("type.Byte"),
             constructor_span: Span::None,
             args: None,
             group_span: None,
@@ -497,8 +495,13 @@ pub fn type_of(
         Expr::If(r#if) => type_of(&r#if.true_value, global_context),
         Expr::Match(r#match) => type_of(&r#match.arms[0].value, global_context),
         Expr::Block(block) => type_of(&block.value, global_context),
+        Expr::Field { lhs, fields } => {
+            let Some(lhs_type) = type_of(lhs, global_context.clone()) else { return None; };
+            type_of_field(&lhs_type, fields, global_context)
+        },
+        Expr::FieldUpdate { lhs, .. } => type_of(lhs, global_context),
         Expr::Call { func, args, .. } => match func {
-            Callable::Static { def_span, .. } => match global_context.types.unwrap().get(def_span) {
+            Callable::Static { def_span, .. } => match global_context.get_type(*def_span) {
                 Some(Type::Func { r#return, .. }) => Some(*r#return.clone()),
                 _ => None,
             },
@@ -510,14 +513,14 @@ pub fn type_of(
                 let mut arg_types = Vec::with_capacity(args.len());
 
                 for arg in args.iter() {
-                    match type_of(arg, global_context) {
+                    match type_of(arg, global_context.clone()) {
                         Some(t) => { arg_types.push(t); },
                         None => { return None; },
                     }
                 }
 
                 Some(Type::Data {
-                    constructor_def_span: *global_context.lang_items.unwrap().get("type.Tuple").unwrap(),
+                    constructor_def_span: global_context.get_lang_item_span("type.Tuple"),
                     constructor_span: Span::None,
                     args: Some(arg_types),
                     group_span: Some(Span::None),
@@ -525,6 +528,43 @@ pub fn type_of(
             },
             _ => todo!(),
         },
+    }
+}
+
+/// Like `type_of`, it has to be used when type-solving is complete and there're no type errors.
+pub fn type_of_field(r#type: &Type, field: &[Field], global_context: GlobalContext) -> Option<Type> {
+    if field.is_empty() {
+        return Some(r#type.clone());
+    }
+
+    let t = match r#type {
+        Type::Data { constructor_def_span, args, .. } => {
+            if *constructor_def_span == global_context.get_lang_item_span("type.Tuple") {
+                match &field[0] {
+                    Field::Index(i) if *i >= 0 => args.as_ref().unwrap()[*i as usize].clone(),
+                    _ => todo!(),
+                }
+            }
+
+            else if *constructor_def_span == global_context.get_lang_item_span("type.List") {
+                match &field[0] {
+                    Field::Index(_) => args.as_ref().unwrap()[0].clone(),
+                    _ => todo!(),
+                }
+            }
+
+            else {
+                todo!()
+            }
+        },
         _ => todo!(),
+    };
+
+    if field.len() == 1 {
+        Some(t)
+    }
+
+    else {
+        type_of_field(&t, &field[1..], global_context)
     }
 }

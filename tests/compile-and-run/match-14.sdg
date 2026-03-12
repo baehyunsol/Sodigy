@@ -1,0 +1,13 @@
+fn foo(s: String) = match s {
+    "ab" => 0,
+    "cd" => 1,
+    "abc" => 2,
+    "cde" => 3,
+    _ => 4,
+};
+
+assert foo("ab") == 0;
+assert foo("cd") == 1;
+assert foo("abc") == 2;
+assert foo("cde") == 3;
+assert foo("abcde") == 4;

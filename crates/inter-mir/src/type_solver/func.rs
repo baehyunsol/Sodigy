@@ -48,7 +48,12 @@ impl Session {
             _ => unreachable!(),
         };
 
-        let (infered_type, mut has_error) = self.solve_expr(&func.value, &mut impure_calls);
+        let (infered_type, mut has_error) = if func.built_in {
+            (None, false)
+        } else {
+            self.solve_expr(&func.value, &mut impure_calls)
+        };
+
         write_log!(self, LogEntry::SolveFunc {
             func: func.clone(),
             annotated_type: annotated_type.as_ref().clone(),

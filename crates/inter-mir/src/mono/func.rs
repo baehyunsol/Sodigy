@@ -56,9 +56,7 @@ impl Session {
             type_annot_span: func.type_annot_span.map(|span| span.monomorphize(monomorphization.id)),
             value: new_value,
             origin: FuncOrigin::Monomorphization,
-
-            // TODO: can there be a generic built-in function?
-            built_in: false,
+            built_in: func.built_in,
         }
     }
 }

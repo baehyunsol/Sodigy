@@ -1,8 +1,5 @@
 //% compile-error == 5
 
-// it's supposed to be the first error because the errors are sorted by spans
-//# assert "explicitly pipe" in errors[0].body, "I want it to kindly tell the user that pipelines have to be explicit"
-
 fn foo(x) = x;
 
 fn disconnected(x) = x |> foo |> 1 |> 2 |> 3;

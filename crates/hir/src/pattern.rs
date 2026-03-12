@@ -3,7 +3,7 @@ use sodigy_error::Error;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::{self as ast, RestPattern};
 use sodigy_span::{Span, SpanDeriveKind};
-use sodigy_string::{InternedString, intern_string};
+use sodigy_string::{InternedString, intern_string, unintern_string};
 use sodigy_token::{Constant, InfixOp};
 
 mod from_expr;
@@ -140,6 +140,35 @@ impl PatternKind {
             // But the problem is that we don't know whether `x` is an expression or not
             // until inter-hir is complete. So we do the lowering later.
             ast::PatternKind::Path(p) => Ok(PatternKind::Path(Path::from_ast(p, session)?)),
+            ast::PatternKind::Constant(Constant::String { binary, s, span }) => {
+                // FIXME: Too many unwraps...
+                let s = unintern_string(*s, &session.intermediate_dir).unwrap().unwrap();
+
+                let elements = if *binary {
+                    s.into_iter().map(
+                        |b| Pattern {
+                            name: None,
+                            name_span: None,
+                            kind: PatternKind::Constant(Constant::Byte { b, span: Span::None })
+                        }
+                    ).collect()
+                } else {
+                    let s = String::from_utf8(s).unwrap();
+                    s.chars().map(
+                        |ch| Pattern {
+                            name: None,
+                            name_span: None,
+                            kind: PatternKind::Constant(Constant::Char { ch: ch as u32, span: Span::None })
+                        }
+                    ).collect()
+                };
+
+                Ok(PatternKind::List {
+                    elements,
+                    rest: None,
+                    group_span: *span,
+                })
+            },
             ast::PatternKind::Constant(c) => Ok(PatternKind::Constant(c.clone())),
             ast::PatternKind::NameBinding { id, span } => Ok(PatternKind::NameBinding { id: *id, span: *span }),
             ast::PatternKind::Regex { s, span } => {

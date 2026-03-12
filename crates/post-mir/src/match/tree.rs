@@ -15,7 +15,7 @@ use super::{
 };
 use crate::Session;
 use sodigy_hir::LetOrigin;
-use sodigy_mir::{Block, Callable, Expr, If, Let, MatchArm};
+use sodigy_mir::{Block, Callable, Expr, If, Let, MatchArm, type_of};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_span::{Span, SpanDeriveKind};
 use sodigy_string::intern_string;
@@ -80,7 +80,7 @@ impl DecisionTree {
         &self,
         scrutinee: &Expr,
         arms: &[(usize, &MatchArm)],
-        session: &Session,
+        session: &mut Session,
     ) -> Expr {
         // TODO: We need some kinda cache for the scrutinee.
         //       For example, if there's `let curr = scrutinee._0._0` and `let curr = scrutinee._0._0._1`,
@@ -95,15 +95,22 @@ impl DecisionTree {
                 kind: NameKind::Let { is_top_level: false },
             },
         });
+
         let mut lets = match &self.field {
-            Some(field) => vec![Let {
-                keyword_span: Span::None,
-                name: curr_field_name,
-                name_span: curr_field_span,
-                type_annot_span: None,
-                value: to_field_expr(scrutinee, field, session),
-                origin: LetOrigin::Match,
-            }],
+            Some(field) => {
+                let curr_value = to_field_expr(scrutinee, field, session);
+                let curr_value_type = type_of(&curr_value, session.global_context.clone()).unwrap();
+                session.add_type_info(curr_field_span, curr_value_type);
+
+                vec![Let {
+                    keyword_span: Span::None,
+                    name: curr_field_name,
+                    name_span: curr_field_span,
+                    type_annot_span: None,
+                    value: curr_value,
+                    origin: LetOrigin::Match,
+                }]
+            },
             None => vec![],
         };
 
@@ -117,19 +124,23 @@ impl DecisionTree {
                     continue;
                 }
 
+                let new_value = Expr::Ident(IdentWithOrigin {
+                    id: curr_field_name,
+                    span: Span::None,
+                    def_span: curr_field_span,
+                    origin: NameOrigin::Local {
+                        kind: NameKind::Let { is_top_level: false },
+                    },
+                });
+                let new_value_type = type_of(&new_value, session.global_context.clone()).unwrap();
+                session.add_type_info(name_binding.name_span, new_value_type);
+
                 lets.push(Let {
                     keyword_span: Span::None,
                     name: name_binding.name,
                     name_span: name_binding.name_span,
                     type_annot_span: None,
-                    value: Expr::Ident(IdentWithOrigin {
-                        id: curr_field_name,
-                        span: Span::None,
-                        def_span: curr_field_span,
-                        origin: NameOrigin::Local {
-                            kind: NameKind::Let { is_top_level: false },
-                        },
-                    }),
+                    value: new_value,
                     origin: LetOrigin::Match,
                 });
                 name_binding_spans.insert(name_binding.name_span);
@@ -233,7 +244,7 @@ fn branches_to_expr(
     scrutinee: &Expr,
     curr_field: &Expr,
     arms: &[(usize, &MatchArm)],
-    session: &Session,
+    session: &mut Session,
 ) -> Expr {
     match branches {
         [branch] => match &branch.node {
@@ -277,7 +288,18 @@ fn constructor_to_expr(
             let (lang_item, operand) = match (&range.lhs, &range.rhs) {
                 (Some(lhs), Some(rhs)) => match lhs.cmp(rhs) {
                     Ordering::Equal if range.lhs_inclusive && range.rhs_inclusive => match range.r#type {
-                        LiteralType::Int => ("built_in.eq_int", Expr::Constant(Constant::Number { n: lhs.clone(), span: Span::None })),
+                        LiteralType::Int => (
+                            "built_in.eq_int",
+                            Expr::Constant(Constant::Number { n: lhs.clone(), span: Span::None }),
+                        ),
+                        LiteralType::Byte => (
+                            "built_in.eq_scalar",
+                            Expr::Constant(Constant::Byte { b: lhs.try_into().unwrap(), span: Span::None }),
+                        ),
+                        LiteralType::Char => (
+                            "built_in.eq_scalar",
+                            Expr::Constant(Constant::Char { ch: lhs.try_into().unwrap(), span: Span::None }),
+                        ),
                         _ => todo!(),
                     },
                     Ordering::Less => {
@@ -623,20 +645,11 @@ pub(crate) fn build_tree(
                 }],
             })
         },
-        MatrixConstructor::Range(Range { r#type, .. }) => {
+        MatrixConstructor::Range(r @ Range { r#type, .. }) => {
             let mut branches_with_overlap: Vec<(Range, (Vec<(usize, &MatchArm)>, Vec<NameBinding>))> = vec![];
 
             // default: wildcard
-            branches_with_overlap.push((
-                Range {
-                    r#type: *r#type,
-                    lhs: None,
-                    lhs_inclusive: false,
-                    rhs: None,
-                    rhs_inclusive: false,
-                },
-                (vec![], vec![]),
-            ));
+            branches_with_overlap.push((r.clone(), (vec![], vec![])));
 
             for (id, arm, pattern) in destructured_patterns.iter() {
                 match &pattern.constructor {
@@ -762,6 +775,13 @@ pub(crate) fn build_tree(
 
             // println!(
             //     "{:?}",
+            //     destructured_patterns.iter().map(
+            //         |(id, _, constructor)| (id, constructor.constructor.to_string())
+            //     ).collect::<Vec<_>>(),
+            // );
+
+            // println!(
+            //     "{:?}",
             //     branches_without_overlap.iter().map(
             //         |(condition, (arms, _))| (condition.to_string(), arms.iter().map(|(id, _)| *id).collect::<Vec<_>>())
             //     ).collect::<Vec<_>>(),
@@ -797,12 +817,20 @@ pub(crate) fn build_tree(
 
             for (_, _, constructor) in destructured_patterns.iter() {
                 match &constructor.constructor {
-                    PatternConstructor::ListSubMatrix { elements, rest: None } => {
-                        for i in 0..elements.len() {
+                    PatternConstructor::ListSubMatrix { elements, rest } => {
+                        let rest_index = match rest {
+                            Some(rest) => rest.index,
+                            None => elements.len(),
+                        };
+
+                        for i in 0..rest_index {
                             indexes.insert(i as i32);
                         }
+
+                        for i in 0..(elements.len() - rest_index) {
+                            indexes.insert(-(i as i32 + 1));
+                        }
                     },
-                    PatternConstructor::ListSubMatrix { elements, rest: Some(_) } => todo!(),
                     PatternConstructor::Wildcard => {},
                     _ => todo!(),
                 }
@@ -811,11 +839,15 @@ pub(crate) fn build_tree(
             let mut indexes = indexes.into_iter().collect::<Vec<_>>();
             indexes.sort();
             let sub_matrix = get_list_sub_matrix(r#type, &matrix[0].field, &indexes, session);
+            let new_matrix = vec![
+                sub_matrix,
+                matrix[1..].to_vec()
+            ].concat();
 
             *tree_id += 1;
             build_tree(
                 tree_id,
-                &sub_matrix,
+                &new_matrix,
                 arms,
                 session,
             )

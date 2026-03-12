@@ -1,5 +1,5 @@
 use crate::Session;
-use sodigy_mir::{Expr, Type, type_of};
+use sodigy_mir::{Expr, Type, type_of, type_of_field};
 use sodigy_parse::Field;
 use sodigy_string::InternedString;
 
@@ -7,7 +7,7 @@ use sodigy_string::InternedString;
 // It lowers `p.age` to `p._0`.
 // inter-mir did the type-check and there're no type errors.
 pub(crate) fn lower_fields(lhs: &Expr, fields: &mut Vec<Field>, session: &mut Session) {
-    let mut curr_type = type_of(lhs, session.global_context).unwrap();
+    let mut curr_type = type_of(lhs, session.global_context.clone()).unwrap();
     let last_index = fields.len();
 
     for (i, field) in fields.iter_mut().enumerate() {
@@ -57,7 +57,7 @@ pub(crate) fn lower_fields(lhs: &Expr, fields: &mut Vec<Field>, session: &mut Se
         }
 
         if i + 1 != last_index {
-            curr_type = session.get_type_of_field(&curr_type, &[field.clone()]).unwrap();
+            curr_type = type_of_field(&curr_type, &[field.clone()], session.global_context.clone()).unwrap();
         }
     }
 }

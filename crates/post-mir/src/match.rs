@@ -168,7 +168,7 @@ use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::{InternedNumber, InternedNumberValue};
 use sodigy_parse::{Field, RestPattern};
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
-use sodigy_string::{InternedString, intern_string, unintern_string};
+use sodigy_string::{InternedString, intern_string};
 use sodigy_token::Constant;
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
@@ -198,6 +198,8 @@ pub enum PatternField {
     },
     Index(i64),
     Range(i64, i64),
+    ListIndex(i64),
+    ListRange(i64, i64),
     EnumDiscriminant,
     EnumPayload,
     ListLength,
@@ -205,7 +207,7 @@ pub enum PatternField {
 }
 
 pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Result<Expr, ()> {
-    let scrutinee_type = type_of(&match_expr.scrutinee, session.global_context).expect("Internal Compiler Error: Type-check is complete, but it failed to solve an expression!");
+    let scrutinee_type = type_of(&match_expr.scrutinee, session.global_context.clone()).expect("Internal Compiler Error: Type-check is complete, but it failed to solve an expression!");
 
     // We use `index: usize` of each arm as an id of the arm.
     let mut arms: Vec<(usize, MatchArm)> = split_or_patterns(&match_expr.arms);
@@ -264,7 +266,9 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
         _ => (Expr::Ident(another_name_binding), true),
     };
 
+    session.add_type_info(another_name_binding.def_span, scrutinee_type);
     let tree_expr = tree.into_expr(&scrutinee, &borrowed_arms, session);
+
     let tree_expr = if needs_another_name_binding {
         // We have to bind the name!!
         Expr::Block(Block {
@@ -353,28 +357,13 @@ fn read_field_of_pattern(
                 PatternField::ListElements => {},
                 PatternField::Name { .. } => todo!(),
                 PatternField::Index(i) => match &curr_pattern.kind {
+                    // hir must have lowered this variant to `PatternKind::List`.
+                    PatternKind::Constant(Constant::String { .. }) => unreachable!(),
+
                     PatternKind::Tuple { elements, rest, .. } => {
                         if let Some(_) = rest {
                             // `(a, .. , b)` is just a syntax sugar for `(a, _, _, b)`.
                             // we have to desugar this at some point
-                            todo!()
-                        }
-
-                        else if *i >= 0 {
-                            match elements.get(*i as usize) {
-                                Some(p) => {
-                                    curr_pattern = p;
-                                },
-                                None => todo!(),  // err
-                            }
-                        }
-
-                        else {
-                            todo!()
-                        }
-                    },
-                    PatternKind::List { elements, rest, .. } => {
-                        if let Some(_) = rest {
                             todo!()
                         }
 
@@ -396,7 +385,28 @@ fn read_field_of_pattern(
                     },
                     p => panic!("TODO: {p:?}, {f:?}"),
                 },
+                PatternField::ListIndex(i) => match &curr_pattern.kind {
+                    PatternKind::List { elements, rest, .. } => {
+                        let rest_index = match rest {
+                            Some(rest) => rest.index,
+                            None => elements.len(),
+                        };
+
+                        if *i >= 0 && (*i as usize) < rest_index {
+                            curr_pattern = &elements[*i as usize];
+                        }
+
+                        else {
+                            todo!()
+                        }
+                    },
+                    PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => {
+                        curr_pattern = &wildcard;
+                    },
+                    p => panic!("TODO: {p:?}, {f:?}"),
+                },
                 PatternField::Range(_, _) => todo!(),
+                PatternField::ListRange(_, _) => todo!(),
                 PatternField::EnumDiscriminant |
                 PatternField::EnumPayload |
                 PatternField::ListLength => unreachable!(),
@@ -422,6 +432,17 @@ fn read_field_of_pattern(
                     lhs: Some(n.clone()),
                     lhs_inclusive: true,
                     rhs: Some(n.clone()),
+                    rhs_inclusive: true,
+                }),
+                name_binding,
+                name_binding_offset: None,
+            },
+            PatternKind::Constant(Constant::Char { ch, .. }) => DestructuredPattern {
+                constructor: PatternConstructor::Range(Range {
+                    r#type: LiteralType::Char,
+                    lhs: Some(InternedNumber::from_u32(*ch, true)),
+                    lhs_inclusive: true,
+                    rhs: Some(InternedNumber::from_u32(*ch, true)),
                     rhs_inclusive: true,
                 }),
                 name_binding,
@@ -522,22 +543,12 @@ fn read_field_of_pattern(
             _ => panic!("TODO: {curr_pattern:?}"),
         },
         PatternField::Index(_) => unreachable!(),
+        PatternField::ListIndex(_) => unreachable!(),
         PatternField::ListLength => {
             let (lhs, lhs_inclusive, rhs, rhs_inclusive) = match &curr_pattern.kind {
-                PatternKind::Constant(Constant::String { binary, s, .. }) => {
-                    if *binary {
-                        (Some(s.len()), true, Some(s.len()), true)
-                    }
+                // hir must have lowered this variant to `PatternKind::List`.
+                PatternKind::Constant(Constant::String { .. }) => unreachable!(),
 
-                    else {
-                        // FIXME: too many unwraps...
-                        let s = unintern_string(*s, &session.intermediate_dir).unwrap().unwrap();
-                        let s = String::from_utf8(s).unwrap();
-                        let char_count = s.chars().count();
-
-                        (Some(char_count), true, Some(char_count), true)
-                    }
-                },
                 PatternKind::List { elements, rest, .. } => {
                     if let Some(_) = rest {
                         // a rest pattern can be an arbitrary number of elements
@@ -548,7 +559,7 @@ fn read_field_of_pattern(
                         (Some(elements.len()), true, Some(elements.len()), true)
                     }
                 },
-                PatternKind::Wildcard(_) => (None, false, None, false),
+                PatternKind::Wildcard(_) => (Some(0), true, None, false),
                 _ => panic!("TODO: {pattern:?}"),
             };
 
@@ -565,41 +576,8 @@ fn read_field_of_pattern(
             }
         },
         PatternField::ListElements => match &curr_pattern.kind {
-            PatternKind::Constant(Constant::String { binary, s, .. }) => {
-                let s = unintern_string(*s, &session.intermediate_dir).unwrap().unwrap();
-                let elements = if *binary {
-                    s.iter().map(
-                        |b| Pattern {
-                            name: None,
-                            name_span: None,
-                            kind: PatternKind::Constant(Constant::Byte {
-                                b: *b,
-                                span: Span::None,
-                            }),
-                        }
-                    ).collect()
-                } else {
-                    String::from_utf8(s).unwrap().chars().map(
-                        |ch| Pattern {
-                            name: None,
-                            name_span: None,
-                            kind: PatternKind::Constant(Constant::Char {
-                                ch: ch as u32,
-                                span: Span::None,
-                            }),
-                        }
-                    ).collect()
-                };
-
-                DestructuredPattern {
-                    constructor: PatternConstructor::ListSubMatrix {
-                        elements,
-                        rest: None,
-                    },
-                    name_binding,
-                    name_binding_offset: None,
-                }
-            },
+            // hir must have lowered this variant to `PatternKind::List`.
+            PatternKind::Constant(Constant::String { .. }) => unreachable!(),
             PatternKind::List { elements, rest, .. } => DestructuredPattern {
                 constructor: PatternConstructor::ListSubMatrix {
                     elements: elements.clone(),
@@ -647,7 +625,7 @@ fn check_unreachable_and_exhaustiveness(
 
         if !reachable_arms.contains(arm_id) {
             // It's WarningKind::UnreachableOrPattern
-            if let Some(_) = arm.group_id {
+            if let Some(_) = arm.group_id && false {
                 todo!()
             }
 
@@ -718,9 +696,31 @@ fn check_arm_reachability(
 }
 
 fn to_field_expr(expr: &Expr, fields: &[PatternField], session: &Session) -> Expr {
+    if let Some(list_index_at) = fields.iter().position(|field| matches!(field, PatternField::ListIndex(_))) {
+        let pre = to_field_expr(expr, &fields[..list_index_at], session);
+        let PatternField::ListIndex(index) = fields[list_index_at] else { unreachable!() };
+        let index = Expr::Constant(Constant::Number { n: index, span: Span::None });
+        let expr = Expr::Call {
+            // TODO: It has to convert `x.y.__LIST_INDEX_3__.z.w` to `x.y[3].z.w`, but how can we do that?
+            //       There's no lang_item for `index_list`...
+            func: todo!(),
+            args: vec![pre, index],
+            arg_group_span: Span::None,
+            given_keyword_arguments: vec![],
+        };
+
+        if list_index_at + 1 < fields.len() {
+            return to_field_expr(&expr, &fields[(list_index_at + 1)..], session);
+        }
+
+        else {
+            return expr;
+        }
+    }
+
     let fields: Vec<Field> = fields.iter().filter_map(
         |field| match field {
-            PatternField::Constructor => None,
+            PatternField::Constructor | PatternField::ListElements => None,
             PatternField::Name { name, name_span, dot_span, is_from_alias } => Some(Field::Name {
                 name: *name,
                 name_span: *name_span,

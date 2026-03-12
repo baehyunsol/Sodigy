@@ -1,4 +1,4 @@
-// TODO: assert that there's no compiler warnings
+//% compile-warning == 0
 
 fn num3(a, b, c) = match (a, b, c) {
     (0, 0, _) => 1,
