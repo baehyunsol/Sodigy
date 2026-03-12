@@ -699,6 +699,7 @@ fn to_field_expr(expr: &Expr, fields: &[PatternField], session: &Session) -> Exp
     if let Some(list_index_at) = fields.iter().position(|field| matches!(field, PatternField::ListIndex(_))) {
         let pre = to_field_expr(expr, &fields[..list_index_at], session);
         let PatternField::ListIndex(index) = fields[list_index_at] else { unreachable!() };
+        let index = InternedNumber { value: InternedNumberValue::SmallInt(index), is_integer: true };
         let index = Expr::Constant(Constant::Number { n: index, span: Span::None });
         let expr = Expr::Call {
             // TODO: It has to convert `x.y.__LIST_INDEX_3__.z.w` to `x.y[3].z.w`, but how can we do that?

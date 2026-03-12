@@ -1,10 +1,12 @@
 use std.bool.Bool;
+use std.scalar.{Scalar, eq_scalar};
 
 #[built_in]
 #[lang_item("type.Char")]
 pub enum Char;
 
-#[built_in]
 #[impl(std.op.eq)]
-#[lang_item("built_in.eq_char")]
-fn eq_char(a: Char, b: Char) -> Bool;
+fn eq_char(a: Char, b: Char) -> Bool = eq_scalar(a as <Scalar>, b as <Scalar>);
+
+#[impl(std.convert.convert)]
+fn char_to_scalar(ch: Char) -> Scalar = std.transmute(ch);

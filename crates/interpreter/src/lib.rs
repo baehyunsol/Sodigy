@@ -221,7 +221,6 @@ fn execute(
                 Intrinsic::LenList => {
                     let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow");
                     let result = heap.data[slice_ptr as usize + 2];
-                    let result = heap.alloc_small_int(result as i32);  // TODO: what if it's greater than i32::MAX?
                     update(*dst, result, stack, heap);
                 },
                 Intrinsic::Exit => {
@@ -375,5 +374,8 @@ fn inspect_int(heap: &[u32], ptr: usize) -> (bool, &[u32]) {
 }
 
 fn inspect_list(heap: &[u32], ptr: usize) -> &[u32] {
-    todo!()
+    let slice_ptr = heap[ptr] as usize;
+    let start = heap[ptr + 1] as usize;
+    let length = heap[ptr + 2] as usize;
+    &heap[(slice_ptr + start)..(slice_ptr + start + length)]
 }

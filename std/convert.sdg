@@ -1,0 +1,4 @@
+#[poly]
+#[lang_item("fn.convert")]
+#[lang_item_generics("fn.convert.generic.0", "fn.convert.generic.1")]
+fn convert<T, U>(x: T) -> U;

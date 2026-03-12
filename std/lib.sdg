@@ -2,6 +2,7 @@ mod bool;
 mod byte;
 mod bytes;
 mod char;
+mod convert;
 mod r#fn;
 mod int;
 mod list;
@@ -37,3 +38,10 @@ impure fn print(v: String) -> Int;
 #[built_in]
 #[lang_item("built_in.eprint")]
 impure fn eprint(v: String) -> Int;
+
+// TODO: It must be hidden to users.
+// This is a magic function. It does nothing at runtime.
+// It exists just to trick the type checker. It's used for
+// trivial type conversions (e.g. `Char` -> `Scalar`).
+#[built_in]
+fn transmute<T, U>(v: T) -> U;

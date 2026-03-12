@@ -99,3 +99,8 @@ fn to_string(n: Int) -> String = match n {
     _ => to_string(n / 10) ++ to_string(n % 10),
 };
 */
+
+#[built_in]
+#[impl(std.convert.convert)]
+#[lang_item("convert.scalar_to_int")]
+fn to_scalar(n: Int) -> Scalar;
