@@ -13,7 +13,7 @@ use sodigy_hir::{
 use sodigy_name_analysis::NameKind;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 impl Endec for Session {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
@@ -28,6 +28,7 @@ impl Endec for Session {
 
         self.item_name_map.encode_impl(buffer);
         self.lang_items.encode_impl(buffer);
+        self.built_in_funcs.encode_impl(buffer);
         self.polys.encode_impl(buffer);
         self.poly_impls.encode_impl(buffer);
         self.new_funcs.encode_impl(buffer);
@@ -46,6 +47,7 @@ impl Endec for Session {
         let (type_aliases, cursor) = HashMap::<_, _>::decode_impl(buffer, cursor)?;
         let (item_name_map, cursor) = HashMap::<Span, (NameKind, HashMap<InternedString, (Span, NameKind)>)>::decode_impl(buffer, cursor)?;
         let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
+        let (built_in_funcs, cursor) = HashSet::<Span>::decode_impl(buffer, cursor)?;
         let (polys, cursor) = HashMap::<Span, Poly>::decode_impl(buffer, cursor)?;
         let (poly_impls, cursor) = Vec::<(Expr, Span)>::decode_impl(buffer, cursor)?;
         let (new_funcs, cursor) = Vec::<Func>::decode_impl(buffer, cursor)?;
@@ -66,6 +68,7 @@ impl Endec for Session {
                 type_aliases,
                 item_name_map,
                 lang_items,
+                built_in_funcs,
                 polys,
                 poly_impls,
                 new_funcs,

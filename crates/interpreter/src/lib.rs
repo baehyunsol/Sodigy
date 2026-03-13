@@ -217,6 +217,11 @@ fn execute(
                     };
                     update(*dst, result as u32, stack, heap);
                 },
+                Intrinsic::ScalarToInt => {
+                    let lhs = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow");
+                    let result = heap.alloc_u32(lhs);
+                    update(*dst, result, stack, heap);
+                },
                 Intrinsic::IndexList => todo!(),
                 Intrinsic::LenList => {
                     let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow");
@@ -249,6 +254,10 @@ fn execute(
                     }
                 },
                 Intrinsic::RandomInt => todo!(),
+                Intrinsic::Nop => {
+                    let v = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow");
+                    update(*dst, v, stack, heap);
+                },
             },
             Bytecode::InitTuple { stack_offset, elements, dst } => {
                 let result = heap.alloc(*elements);

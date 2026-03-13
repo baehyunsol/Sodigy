@@ -88,6 +88,11 @@ pub enum Expr {
         op_span: Span,
         lhs: Box<Expr>,
     },
+    TypeConversion {
+        keyword_span: Span,
+        lhs: Box<Expr>,
+        rhs: Type,
+    },
 
     // `x |> $ + 1` will become
     // `Pipeline { values: [Id(x), Add(PipelineData, Num(1))], spans: [span_of_the_first_op] }`
@@ -111,6 +116,7 @@ impl Expr {
             Expr::PrefixOp { op_span: span, .. } |
             Expr::InfixOp { op_span: span, .. } |
             Expr::PostfixOp { op_span: span, .. } |
+            Expr::TypeConversion { keyword_span: span, .. } |
             Expr::PipelineData(span) => *span,
             Expr::If(r#if) => r#if.if_span,
             Expr::Match(r#match) => r#match.keyword_span,
@@ -151,6 +157,9 @@ impl Expr {
                 .merge(*op_span)
                 .merge(rhs.error_span_wide()),
             Expr::PostfixOp { lhs, op_span, .. } => lhs.error_span_wide().merge(*op_span),
+            Expr::TypeConversion { lhs, keyword_span, rhs } => lhs.error_span_wide()
+                .merge(*keyword_span)
+                .merge(rhs.error_span_wide()),
             Expr::Pipeline { values, .. } => {
                 let mut span = values[0].error_span_wide();
 
@@ -669,6 +678,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     span,
                 }) => {
                     let (l_bp, r_bp) = as_binding_power();
+                    let keyword_span = *span;
 
                     if l_bp < min_bp {
                         break;
@@ -691,6 +701,13 @@ impl<'t, 's> Tokens<'t, 's> {
                         // `parse_types_in_angle_brackets` guarantees that `types` is not empty
                         todo!();
                     }
+
+                    lhs = Expr::TypeConversion {
+                        keyword_span,
+                        lhs: Box::new(lhs),
+                        rhs: types[0].clone(),
+                    };
+                    continue;
                 },
                 _ => {
                     break;

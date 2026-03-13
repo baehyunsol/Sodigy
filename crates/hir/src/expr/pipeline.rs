@@ -127,7 +127,9 @@ pub fn replace_dollar(
         ast::Expr::Field { .. } => todo!(),
         ast::Expr::FieldUpdate { .. } => todo!(),
         ast::Expr::Lambda { .. } => todo!(),
-        ast::Expr::PrefixOp { rhs: expr, .. } | ast::Expr::PostfixOp { lhs: expr, .. } => {
+        ast::Expr::PrefixOp { rhs: expr, .. } |
+        ast::Expr::PostfixOp { lhs: expr, .. } |
+        ast::Expr::TypeConversion { lhs: expr, .. } => {
             replace_dollar(
                 expr,
                 ident,

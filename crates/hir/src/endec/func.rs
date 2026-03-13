@@ -26,6 +26,7 @@ impl Endec for Func {
         self.name.encode_impl(buffer);
         self.name_span.encode_impl(buffer);
         self.generics.encode_impl(buffer);
+        self.generic_group_span.encode_impl(buffer);
         self.params.encode_impl(buffer);
         self.type_annot.encode_impl(buffer);
         self.value.encode_impl(buffer);
@@ -44,6 +45,7 @@ impl Endec for Func {
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
+        let (generic_group_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (params, cursor) = Vec::<FuncParam>::decode_impl(buffer, cursor)?;
         let (type_annot, cursor) = Option::<Type>::decode_impl(buffer, cursor)?;
         let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
@@ -62,6 +64,7 @@ impl Endec for Func {
                 name,
                 name_span,
                 generics,
+                generic_group_span,
                 params,
                 type_annot,
                 value,
@@ -179,11 +182,13 @@ impl Endec for FuncShape {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         self.params.encode_impl(buffer);
         self.generics.encode_impl(buffer);
+        self.generic_group_span.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (params, cursor) = Vec::<FuncParam>::decode_impl(buffer, cursor)?;
         let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
-        Ok((FuncShape { params, generics }, cursor))
+        let (generic_group_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
+        Ok((FuncShape { params, generics, generic_group_span }, cursor))
     }
 }

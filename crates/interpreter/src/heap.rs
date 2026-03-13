@@ -82,12 +82,18 @@ impl Heap {
         }
     }
 
-    pub fn alloc_small_int(&mut self, n: i32) -> u32 {
+    pub fn alloc_i32(&mut self, n: i32) -> u32 {
         let ptr = self.alloc(2) as u32;
         let metadata = if n < 0 { 0x8000_0001 } else { 1 };
         self.data[ptr as usize] = metadata;
         self.data[ptr as usize + 1] = n.abs() as u32;
+        ptr
+    }
 
+    pub fn alloc_u32(&mut self, n: u32) -> u32 {
+        let ptr = self.alloc(2) as u32;
+        self.data[ptr as usize] = 1;
+        self.data[ptr as usize + 1] = n;
         ptr
     }
 

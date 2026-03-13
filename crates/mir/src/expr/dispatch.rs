@@ -56,7 +56,7 @@ impl Expr {
                 lhs.dispatch(map, func_shapes, generic_args);
                 rhs.dispatch(map, func_shapes, generic_args);
             },
-            Expr::Call { func, args, .. } => {
+            Expr::Call { func, args, types, .. } => {
                 let dispatch = match func {
                     Callable::Static { span, .. } => match map.get(span) {
                         Some(new_def_span) => Some((*new_def_span, *span)),
@@ -67,6 +67,7 @@ impl Expr {
 
                 if let Some((def_span, span)) = dispatch {
                     *func = Callable::Static { def_span, span };
+                    *types = None;
 
                     match func_shapes.get(&def_span) {
                         Some(func_shape) => {

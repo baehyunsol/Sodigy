@@ -86,6 +86,11 @@ pub enum Expr {
         op_span: Span,
         lhs: Box<Expr>,
     },
+    TypeConversion {
+        keyword_span: Span,
+        lhs: Box<Expr>,
+        rhs: Type,
+    },
     Closure {
         fp: Path,
         captures: Vec<Span /* def_span */>,
@@ -354,6 +359,18 @@ impl Expr {
                 op_span: *op_span,
                 lhs: Box::new(Expr::from_ast(lhs, session)?),
             }),
+            ast::Expr::TypeConversion { keyword_span, lhs, rhs } => match (
+                Expr::from_ast(lhs, session),
+                Type::from_ast(rhs, session),
+            ) {
+                (Ok(lhs), Ok(rhs)) => Ok(Expr::TypeConversion {
+                    keyword_span: *keyword_span,
+                    lhs: Box::new(lhs),
+                    rhs,
+                }),
+                _ => Err(()),
+            },
+
             // `a() |> b($) + (c() |> d($)) |> e($);`
             // ->
             // `{ let $0 = a(); let $1 = b($0) + { let $$0 = c(); d($$0) }; e($1) }`
@@ -471,7 +488,8 @@ impl Expr {
             Expr::FieldUpdate { fields, .. } => merge_field_spans(fields),
             Expr::PrefixOp { op_span, .. } |
             Expr::InfixOp { op_span, .. } |
-            Expr::PostfixOp { op_span, .. } => *op_span,
+            Expr::PostfixOp { op_span, .. } |
+            Expr::TypeConversion { keyword_span: op_span, .. } => *op_span,
         }
     }
 
@@ -500,6 +518,9 @@ impl Expr {
             Expr::PrefixOp { op_span, rhs, .. } => op_span.merge(rhs.error_span_wide()),
             Expr::InfixOp { lhs, op_span, rhs, .. } => lhs.error_span_wide().merge(*op_span).merge(rhs.error_span_wide()),
             Expr::PostfixOp { op_span, lhs, .. } => lhs.error_span_wide().merge(*op_span),
+            Expr::TypeConversion { lhs, keyword_span, rhs } => lhs.error_span_wide()
+                .merge(*keyword_span)
+                .merge(rhs.error_span_wide()),
         }
     }
 }

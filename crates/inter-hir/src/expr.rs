@@ -188,6 +188,13 @@ impl Session {
                 (Ok(()), Ok(())) => Ok(()),
                 _ => Err(()),
             },
+            Expr::TypeConversion { lhs, rhs, .. } => match (
+                self.resolve_expr(lhs),
+                self.resolve_type(rhs, &mut vec![]),
+            ) {
+                (Ok(()), Ok(())) => Ok(()),
+                _ => Err(()),
+            },
         }
     }
 
@@ -393,6 +400,13 @@ impl Session {
             Expr::InfixOp { lhs, rhs, .. } => match (
                 self.check_expr_path(lhs),
                 self.check_expr_path(rhs),
+            ) {
+                (Ok(()), Ok(())) => Ok(()),
+                _ => Err(()),
+            },
+            Expr::TypeConversion { lhs, rhs, .. } => match (
+                self.check_expr_path(lhs),
+                self.check_type_annot_path(rhs),
             ) {
                 (Ok(()), Ok(())) => Ok(()),
                 _ => Err(()),

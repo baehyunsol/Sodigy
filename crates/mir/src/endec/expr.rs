@@ -8,6 +8,7 @@ use crate::{
     Match,
     MatchArm,
     ShortCircuitKind,
+    Type,
 };
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_hir as hir;
@@ -51,12 +52,13 @@ impl Endec for Expr {
                 lhs.encode_impl(buffer);
                 rhs.encode_impl(buffer);
             },
-            Expr::Call { func, args, arg_group_span, given_keyword_arguments } => {
+            Expr::Call { func, args, arg_group_span, types, given_keyword_args } => {
                 buffer.push(7);
                 func.encode_impl(buffer);
                 args.encode_impl(buffer);
                 arg_group_span.encode_impl(buffer);
-                given_keyword_arguments.encode_impl(buffer);
+                types.encode_impl(buffer);
+                given_keyword_args.encode_impl(buffer);
             },
         }
     }
@@ -98,8 +100,9 @@ impl Endec for Expr {
                 let (func, cursor) = Callable::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<Expr>::decode_impl(buffer, cursor)?;
                 let (arg_group_span, cursor) = Span::decode_impl(buffer, cursor)?;
-                let (given_keyword_arguments, cursor) = Vec::<(InternedString, usize)>::decode_impl(buffer, cursor)?;
-                Ok((Expr::Call { func, args, arg_group_span, given_keyword_arguments }, cursor))
+                let (types, cursor) = Option::<(Vec<Type>, Span)>::decode_impl(buffer, cursor)?;
+                let (given_keyword_args, cursor) = Vec::<(InternedString, usize)>::decode_impl(buffer, cursor)?;
+                Ok((Expr::Call { func, args, arg_group_span, types, given_keyword_args }, cursor))
             },
             Some(n @ 8..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),

@@ -97,8 +97,14 @@ impl Endec for Expr {
                 op_span.encode_impl(buffer);
                 lhs.encode_impl(buffer);
             },
-            Expr::Closure { fp, captures } => {
+            Expr::TypeConversion { keyword_span, lhs, rhs } => {
                 buffer.push(15);
+                keyword_span.encode_impl(buffer);
+                lhs.encode_impl(buffer);
+                rhs.encode_impl(buffer);
+            },
+            Expr::Closure { fp, captures } => {
+                buffer.push(16);
                 fp.encode_impl(buffer);
                 captures.encode_impl(buffer);
             },
@@ -187,6 +193,12 @@ impl Endec for Expr {
                 Ok((Expr::PostfixOp { op, op_span, lhs }, cursor))
             },
             Some(15) => {
+                let (keyword_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
+                let (rhs, cursor) = Type::decode_impl(buffer, cursor)?;
+                Ok((Expr::TypeConversion { keyword_span, lhs, rhs }, cursor))
+            },
+            Some(16) => {
                 let (fp, cursor) = Path::decode_impl(buffer, cursor + 1)?;
                 let (captures, cursor) = Vec::<Span>::decode_impl(buffer, cursor)?;
                 Ok((Expr::Closure { fp, captures }, cursor))

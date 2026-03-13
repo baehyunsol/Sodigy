@@ -272,7 +272,7 @@ impl Attribute {
                         (Requirement::Must, None) => {
                             has_error = true;
                             session.errors.push(Error {
-                                kind: ErrorKind::MissingDecoratorArgument {
+                                kind: ErrorKind::MissingDecoratorArg {
                                     expected: 1,  // how many?
                                     got: 0,
                                 },
@@ -283,7 +283,7 @@ impl Attribute {
                         (Requirement::Never, Some(ast_args)) => {
                             has_error = true;
                             session.errors.push(Error {
-                                kind: ErrorKind::UnexpectedDecoratorArgument {
+                                kind: ErrorKind::UnexpectedDecoratorArg {
                                     expected: 0,
                                     got: ast_args.len(),
                                 },
@@ -319,7 +319,7 @@ impl Attribute {
                                             if let Requirement::Never = requirement {
                                                 has_error = true;
                                                 session.errors.push(Error {
-                                                    kind: ErrorKind::InvalidKeywordArgument(keyword),
+                                                    kind: ErrorKind::InvalidKeywordArg(keyword),
                                                     spans: span.simple_error(),
                                                     note: requirement_error_note.clone(),
                                                 });
@@ -351,7 +351,7 @@ impl Attribute {
                                         None => {
                                             has_error = true;
                                             session.errors.push(Error {
-                                                kind: ErrorKind::InvalidKeywordArgument(keyword),
+                                                kind: ErrorKind::InvalidKeywordArg(keyword),
                                                 spans: span.simple_error(),
                                                 note: None,
                                             });
@@ -367,7 +367,7 @@ impl Attribute {
                                 if spans.len() > 1 {
                                     has_error = true;
                                     session.errors.push(Error {
-                                        kind: ErrorKind::KeywordArgumentRepeated(*keyword),
+                                        kind: ErrorKind::KeywordArgRepeated(*keyword),
                                         spans: spans.iter().map(
                                             |span| RenderableSpan {
                                                 span: *span,
@@ -384,7 +384,7 @@ impl Attribute {
                                 if let Requirement::Must = requirement {
                                     if spans_by_keyword.get(keyword).is_none() {
                                         session.errors.push(Error {
-                                            kind: ErrorKind::MissingKeywordArgument(*keyword),
+                                            kind: ErrorKind::MissingKeywordArg(*keyword),
                                             spans: ast_decorator.name_span.simple_error(),
                                             note: requirement_error_note.clone(),
                                         });
@@ -394,7 +394,7 @@ impl Attribute {
 
                             let count_rule = match (rule.arg_count, positional_args.len()) {
                                 (ArgCount::Zero, 1..) => Err((
-                                    ErrorKind::UnexpectedDecoratorArgument {
+                                    ErrorKind::UnexpectedDecoratorArg {
                                         expected: 0,
                                         got: positional_args.len(),
                                     },
@@ -407,14 +407,14 @@ impl Attribute {
                                     ).collect(),
                                 )),
                                 (ArgCount::Eq(n), m) if n > m => Err((
-                                    ErrorKind::MissingDecoratorArgument {
+                                    ErrorKind::MissingDecoratorArg {
                                         expected: n,
                                         got: m,
                                     },
                                     ast_decorator.name_span.simple_error(),
                                 )),
                                 (ArgCount::Eq(n), m) if n < m => Err((
-                                    ErrorKind::UnexpectedDecoratorArgument {
+                                    ErrorKind::UnexpectedDecoratorArg {
                                         expected: n,
                                         got: m,
                                     },
@@ -427,14 +427,14 @@ impl Attribute {
                                     ).collect(),
                                 )),
                                 (ArgCount::Gt(n), m) if n >= m => Err((
-                                    ErrorKind::MissingDecoratorArgument {
+                                    ErrorKind::MissingDecoratorArg {
                                         expected: n + 1,
                                         got: m,
                                     },
                                     ast_decorator.name_span.simple_error(),
                                 )),
                                 (ArgCount::Lt(n), m) if n <= m => Err((
-                                    ErrorKind::UnexpectedDecoratorArgument {
+                                    ErrorKind::UnexpectedDecoratorArg {
                                         expected: n - 1,
                                         got: m,
                                     },

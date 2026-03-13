@@ -63,7 +63,7 @@ impl Pattern {
         }
     }
 
-    pub fn check_range_argument(&self, is_lhs: bool) -> Result<(), Vec<Error>> {
+    pub fn check_range_arg(&self, is_lhs: bool) -> Result<(), Vec<Error>> {
         match &self.kind {
             PatternKind::Constant(Constant::Number { .. }) |
             PatternKind::Constant(Constant::Char { .. }) |
@@ -159,7 +159,7 @@ impl PatternKind {
                 }
 
                 if let Some(lhs) = lhs {
-                    if let Err(e) = lhs.check_range_argument(true) {
+                    if let Err(e) = lhs.check_range_arg(true) {
                         errors.extend(e)
                     }
 
@@ -169,7 +169,7 @@ impl PatternKind {
                 }
 
                 if let Some(rhs) = rhs {
-                    if let Err(e) = rhs.check_range_argument(false) {
+                    if let Err(e) = rhs.check_range_arg(false) {
                         errors.extend(e)
                     }
 

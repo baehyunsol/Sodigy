@@ -29,7 +29,7 @@ pub enum ErrorKind {
     SameFlagMultipleTimes(String, String),
 
     /// of an arg_flag
-    MissingArgument(String, ArgType),
+    MissingArg(String, ArgType),
 
     WrongArgCount {
         expected: ArgCount,
@@ -63,12 +63,12 @@ impl ErrorKind {
             } else {
                 format!("Flag `{prev}` and `{next}` cannot be used together.")
             },
-            ErrorKind::MissingArgument(arg, arg_type) => format!(
+            ErrorKind::MissingArg(arg, arg_type) => format!(
                 "A {} value is required for flag `{arg}`, but is missing.",
                 format!("{arg_type:?}").to_ascii_lowercase(),
             ),
             ErrorKind::WrongArgCount { expected, got } => format!(
-                "Expected {} arguments, got {got} arguments",
+                "Expected {} args, got {got} args",
                 match expected {
                     ArgCount::Exact(n) => format!("exactly {n}"),
                     ArgCount::Geq(n) => format!("at least {n}"),

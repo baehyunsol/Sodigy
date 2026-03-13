@@ -52,6 +52,7 @@ impl Session {
             name: func.name,
             name_span: new_name_span,
             generics: vec![],
+            generic_group_span: None,
             params,
             type_annot_span: func.type_annot_span.map(|span| span.monomorphize(monomorphization.id)),
             value: new_value,

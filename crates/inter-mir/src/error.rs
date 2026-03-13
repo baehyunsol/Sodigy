@@ -26,16 +26,22 @@ pub enum TypeError {
     },
     // Since it's a very common error, the compiler tries to
     // give an as helpful error message as possible
-    WrongNumberOfArguments {
+    WrongNumberOfArgs {
         expected: Vec<Type>,
         got: Vec<Type>,
 
         // It has type `Vec<(keyword: InternedString, n: usize)>` where
         // `n`th argument of `got` has keyword `keyword`.
-        given_keyword_arguments: Vec<(InternedString, usize)>,
+        given_keyword_args: Vec<(InternedString, usize)>,
 
         func_span: Span,
         arg_spans: Vec<Span>,
+    },
+    WrongNumberOfGenericArgs {
+        expected: usize,
+        got: usize,
+        param_group_span: Span,
+        arg_group_span: Span,
     },
     CannotInferType {
         id: Option<InternedString>,
@@ -247,7 +253,7 @@ impl Session {
                                 auxiliary: false,
                                 note: Some(format!(
                                     "You didn't annotate the {}, so I tried to infer it. Some information says the type is `{}`, while another information says it's `{}`. Perhaps add a type annotation?",
-                                    if *is_return { "return type of thie function" } else { "type of this value" },
+                                    if *is_return { "return type of this function" } else { "type of this value" },
                                     expected_type,
                                     got_type,
                                 )),
@@ -336,10 +342,10 @@ impl Session {
                     note: context.note(&self.intermediate_dir).map(|s| s.to_string()),
                 }
             },
-            TypeError::WrongNumberOfArguments {
+            TypeError::WrongNumberOfArgs {
                 expected,
                 got,
-                given_keyword_arguments,
+                given_keyword_args,
                 func_span,
                 arg_spans,
             } => {
@@ -354,6 +360,33 @@ impl Session {
                 //    - there might be updates in the type variables
                 // 4. TODO: then what?
                 todo!()
+            },
+            TypeError::WrongNumberOfGenericArgs {
+                expected,
+                got,
+                param_group_span,
+                arg_group_span,
+            } => Error {
+                kind: ErrorKind::WrongNumberOfGenericArgs { expected: *expected, got: *got },
+                spans: vec![
+                    RenderableSpan {
+                        span: *param_group_span,
+                        auxiliary: true,
+                        note: Some(format!(
+                            "It has {expected} generic parameter{}.",
+                            if *expected == 1 { "" } else { "s" },
+                        )),
+                    },
+                    RenderableSpan {
+                        span: *arg_group_span,
+                        auxiliary: false,
+                        note: Some(format!(
+                            "You provided {got} generic argument{}.",
+                            if *got == 1 { "" } else { "s" },
+                        )),
+                    },
+                ],
+                note: None,
             },
             TypeError::CannotInferType { id, span, is_return } => Error {
                 kind: ErrorKind::CannotInferType { id: *id, is_return: *is_return },

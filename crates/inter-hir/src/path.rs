@@ -196,7 +196,6 @@ impl Session {
                                     fields: vec![],
                                     types: vec![None],
                                 };
-                                Ok(())
                             }
 
                             else {
@@ -208,8 +207,9 @@ impl Session {
                                         path.types[2..].to_vec(),
                                     ].concat(),
                                 };
-                                self.resolve_path(path, None, log)
                             }
+
+                            self.resolve_path(path, None, log)
                         },
                         None => {
                             let error_message = match kind {

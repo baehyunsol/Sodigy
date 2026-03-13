@@ -7,10 +7,14 @@ pub fn dump_pattern(pattern: &Pattern, lines: &mut IndentedLines, session: &Sess
         lines.push(" @ ");
     }
 
-    dump_pattern_kind(&pattern.kind, lines, session);
+    dump_pattern_kind(&pattern.kind, lines, session, 0);
 }
 
-pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, session: &Session) {
+pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, session: &Session, max_len: usize) {
+    if max_len != 0 && lines.total_chars() > max_len {
+        return;
+    }
+
     match pattern_kind {
         PatternKind::Path(p) => {
             lines.push(&p.unintern_or_default(&session.intermediate_dir));

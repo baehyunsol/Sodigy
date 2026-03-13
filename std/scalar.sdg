@@ -1,4 +1,5 @@
 use std.bool.Bool;
+use std.int.Int;
 
 // TODO: It has to be private and used only inside std.
 //       It has to be impossible in user code to generate this value.
@@ -25,3 +26,10 @@ fn neq_scalar(a: Scalar, b: Scalar) -> Bool = !eq_scalar(a, b);
 
 #[lang_item("fn.geq_scalar")]
 fn geq_scalar(a: Scalar, b: Scalar) -> Bool = !lt_scalar(a, b);
+
+#[impl(std.convert.convert)]
+fn scalar_to_int(s: Scalar) -> Int = scalar_to_int_built_in(s);  // TODO: safety checks
+
+#[built_in]
+#[lang_item("built_in.scalar_to_int")]
+fn scalar_to_int_built_in(s: Scalar) -> Int;

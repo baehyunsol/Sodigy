@@ -1,5 +1,5 @@
 use crate::{Session, TypeStructExpr, not_x_but_y};
-use sodigy_error::{Error, ErrorKind, NotXBut};
+use sodigy_error::{Error, NotXBut};
 use sodigy_hir::{Path, Type};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::Span;

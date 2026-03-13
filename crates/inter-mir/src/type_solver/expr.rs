@@ -372,7 +372,7 @@ impl Session {
                 },
                 (None, _) => (None, true),
             },
-            Expr::Call { func, args, given_keyword_arguments, .. } => {
+            Expr::Call { func, args, types: generic_args, given_keyword_args, .. } => {
                 let mut has_error = false;
                 let mut arg_types = Vec::with_capacity(args.len());
 
@@ -415,7 +415,45 @@ impl Session {
                             ).unwrap_or(vec![]);
                             let span = *span;
 
-                            if !generic_params.is_empty() {
+                            if let Some((generic_args, arg_group_span)) = generic_args {
+                                if generic_args.len() != generic_params.len() {
+                                    self.type_errors.push(TypeError::WrongNumberOfGenericArgs {
+                                        expected: generic_params.len(),
+                                        got: generic_args.len(),
+                                        param_group_span: self.func_shapes.get(def_span).unwrap().generic_group_span.unwrap_or(Span::None),
+                                        arg_group_span: *arg_group_span,
+                                    });
+                                    return (None, true);
+                                }
+
+                                else {
+                                    for (generic_param, generic_arg) in generic_params.iter().zip(generic_args.iter()) {
+                                        let generic_arg_type_var = Type::GenericArg { call: span, generic: *generic_param };
+
+                                        for param in params.iter_mut() {
+                                            param.substitute_generic_param(generic_param, generic_arg);
+                                        }
+
+                                        return_type.substitute_generic_param(generic_param, generic_arg);
+
+                                        if let Err(()) = self.solve_supertype(
+                                            &generic_arg_type_var,
+                                            generic_arg,
+                                            false,
+                                            None,
+                                            Some(generic_arg.error_span_wide()),
+                                            ErrorContext::None,
+                                            true,
+                                        ) {
+                                            has_error = true;
+                                        }
+
+                                        self.add_type_var(generic_arg_type_var, None);
+                                    }
+                                }
+                            }
+
+                            else if !generic_params.is_empty() {
                                 for param in params.iter_mut() {
                                     param.substitute_generic_param_for_arg(span, &generic_params);
                                 }
@@ -431,10 +469,10 @@ impl Session {
                             // Whether or not there're type errors with args, it returns the return type.
                             if arg_types.len() != params.len() {
                                 has_error = true;
-                                self.type_errors.push(TypeError::WrongNumberOfArguments {
+                                self.type_errors.push(TypeError::WrongNumberOfArgs {
                                     expected: params,
                                     got: arg_types,
-                                    given_keyword_arguments: given_keyword_arguments.to_vec(),
+                                    given_keyword_args: given_keyword_args.to_vec(),
                                     func_span: func.error_span_wide(),
                                     arg_spans: args.iter().map(|arg| arg.error_span_wide()).collect(),
                                 });
@@ -655,10 +693,10 @@ impl Session {
                                 // Whether or not there're type errors with args, it returns the return type.
                                 if arg_types.len() != params.len() {
                                     has_error = true;
-                                    self.type_errors.push(TypeError::WrongNumberOfArguments {
+                                    self.type_errors.push(TypeError::WrongNumberOfArgs {
                                         expected: params,
                                         got: arg_types,
-                                        given_keyword_arguments: given_keyword_arguments.to_vec(),
+                                        given_keyword_args: given_keyword_args.to_vec(),
                                         func_span: func.error_span_wide(),
                                         arg_spans: args.iter().map(|arg| arg.error_span_wide()).collect(),
                                     });

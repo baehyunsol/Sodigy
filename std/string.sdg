@@ -2,8 +2,3 @@ use std.char.Char;
 
 #[lang_item("type.String")]
 type String = [Char];
-
-#[poly]
-#[lang_item("fn.to_string")]
-#[lang_item_generics("fn.to_string.generic.0")]
-fn to_string<T>(v: T) -> String;

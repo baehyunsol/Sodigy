@@ -99,7 +99,7 @@ pub enum Bytecode {
     Intrinsic {
         intrinsic: Intrinsic,
 
-        // stack[stack_pointer + stack_offset] is the first argument of the intrinsic
+        // stack[stack_pointer + stack_offset] is the first arg of the intrinsic
         stack_offset: usize,
 
         // The result of the intrinsic, if exists, will be stored here.
@@ -198,7 +198,7 @@ pub enum DropType {
     SimpleCompound,
 
     // List is very special because it
-    //   1. has an arbitrary number of arguments
+    //   1. has an arbitrary number of args
     //   2. has an integer for length
     // So, it has to drop the integer (which is SimpleCompound),
     // and the elements with the given DropType.

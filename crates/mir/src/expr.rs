@@ -34,10 +34,14 @@ pub enum Expr {
         args: Vec<Expr>,
         arg_group_span: Span,
 
+        // It's lowered from dotfish operators.
+        // Only `Callable::Static` and `Callable::StructInit` can have this.
+        types: Option<(Vec<Type>, Span /* group span of the angle brackets */)>,
+
         // It helps generating error messages.
         // It has type `Vec<(keyword: InternedString, n: usize)>` where
         // nth argument in `args` has keyword `keyword`.
-        given_keyword_arguments: Vec<(InternedString, usize)>,
+        given_keyword_args: Vec<(InternedString, usize)>,
     },
 }
 
@@ -91,7 +95,9 @@ impl Expr {
             } => {
                 let mut has_error = false;
                 let mut def_span = None;
-                let mut given_keyword_arguments = vec![];
+                let mut given_keyword_args = vec![];
+
+                // TODO: This is the right place to lower dotfish operators.
 
                 let (call_span, func) = match Expr::from_hir(func, session) {
                     Ok(e @ Expr::Ident(id)) => match id.origin {
@@ -157,13 +163,13 @@ impl Expr {
                             let mut mir_args: Vec<Option<Expr>> = vec![None; params.len().max(hir_args.len())];
 
                             // used for error messages
-                            let mut given_keyword_arguments_ = vec![None; params.len().max(hir_args.len())];
+                            let mut given_keyword_args_ = vec![None; params.len().max(hir_args.len())];
 
                             // Positional args cannot come after a keyword arg, and hir guarantees that.
                             let mut positional_arg_cursor = 0;
 
                             // Another attempt for even better error messages
-                            let mut repeated_arguments: HashMap<InternedString, Vec<RenderableSpan>> = HashMap::new();
+                            let mut repeated_args: HashMap<InternedString, Vec<RenderableSpan>> = HashMap::new();
 
                             for hir_arg in hir_args.iter() {
                                 match hir_arg.keyword {
@@ -181,8 +187,8 @@ impl Expr {
                                         match arg_index {
                                             Some(i) => {
                                                 if let Some(mir_arg) = &mir_args[i] {
-                                                    if let Some((_, span)) = given_keyword_arguments_[i] {
-                                                        match repeated_arguments.entry(keyword) {
+                                                    if let Some((_, span)) = given_keyword_args_[i] {
+                                                        match repeated_args.entry(keyword) {
                                                             Entry::Occupied(mut e) => {
                                                                 e.get_mut().push(RenderableSpan {
                                                                     span: keyword_span,
@@ -215,7 +221,7 @@ impl Expr {
                                                     else {
                                                         let keyword_str = keyword.unintern_or_default(&session.intermediate_dir);
 
-                                                        match repeated_arguments.entry(keyword) {
+                                                        match repeated_args.entry(keyword) {
                                                             Entry::Occupied(mut e) => {
                                                                 e.get_mut().push(RenderableSpan {
                                                                     span: keyword_span,
@@ -255,11 +261,11 @@ impl Expr {
                                                     },
                                                 }
 
-                                                given_keyword_arguments_[i] = Some((keyword, keyword_span));
+                                                given_keyword_args_[i] = Some((keyword, keyword_span));
                                             },
                                             None => {
                                                 session.errors.push(Error {
-                                                    kind: ErrorKind::InvalidKeywordArgument(keyword),
+                                                    kind: ErrorKind::InvalidKeywordArg(keyword),
                                                     spans: keyword_span.simple_error(),
                                                     note: None,
                                                 });
@@ -282,7 +288,7 @@ impl Expr {
                                 }
                             }
 
-                            for (keyword, error_spans) in repeated_arguments.into_iter() {
+                            for (keyword, error_spans) in repeated_args.into_iter() {
                                 // remove repeats and sort by span
                                 let mut error_spans = error_spans.into_iter().map(
                                     |span| (span.span, span)
@@ -292,7 +298,7 @@ impl Expr {
                                 error_spans.sort_by_key(|span| span.span);
 
                                 session.errors.push(Error {
-                                    kind: ErrorKind::KeywordArgumentRepeated(keyword),
+                                    kind: ErrorKind::KeywordArgRepeated(keyword),
                                     spans: error_spans,
                                     note: None,
                                 });
@@ -314,7 +320,7 @@ impl Expr {
                                 if let Some(mir_arg) = mir_arg {
                                     result.push(mir_arg);
 
-                                    if let Some((keyword, _)) = given_keyword_arguments_[i] {
+                                    if let Some((keyword, _)) = given_keyword_args_[i] {
                                         g.push((keyword, result.len() - 1));
                                     }
                                 }
@@ -323,7 +329,7 @@ impl Expr {
                                 // We'll raise an error after type-check/inference, so that we can add more information to the error message.
                             }
 
-                            given_keyword_arguments = g;
+                            given_keyword_args = g;
                             Some(result)
                         },
                         None => None,
@@ -341,7 +347,7 @@ impl Expr {
                             match hir_arg.keyword {
                                 Some((_, keyword_span)) => {
                                     session.errors.push(Error {
-                                        kind: ErrorKind::KeywordArgumentNotAllowed,
+                                        kind: ErrorKind::KeywordArgNotAllowed,
                                         spans: keyword_span.simple_error(),
                                         note: None,
                                     });
@@ -373,7 +379,8 @@ impl Expr {
                         func,
                         args,
                         arg_group_span: *arg_group_span,
-                        given_keyword_arguments,
+                        types: None,
+                        given_keyword_args,
                     })
                 }
             },
@@ -400,15 +407,32 @@ impl Expr {
                             Ok(e) => {
                                 let derived_span = e.error_span_wide().derive(SpanDeriveKind::FStringToString);
 
-                                // converts `x` to `to_string(x)`.
+                                // converts `x` to `convert.<String>(x)`.
                                 let e = Expr::Call {
                                     func: Callable::Static {
-                                        def_span: session.get_lang_item_span("fn.to_string"),
+                                        def_span: session.get_lang_item_span("fn.convert"),
                                         span: derived_span,
                                     },
                                     args: vec![e],
                                     arg_group_span: derived_span,
-                                    given_keyword_arguments: vec![],
+                                    types: Some((
+                                        vec![
+                                            Type::Var { def_span: derived_span, is_return: false },
+                                            Type::Data {
+                                                constructor_def_span: session.get_lang_item_span("type.List"),
+                                                constructor_span: derived_span,
+                                                args: Some(vec![Type::Data {
+                                                    constructor_def_span: session.get_lang_item_span("type.Char"),
+                                                    constructor_span: derived_span,
+                                                    args: None,
+                                                    group_span: None,
+                                                }]),
+                                                group_span: Some(Span::None),
+                                            },
+                                        ],
+                                        Span::None,
+                                    )),
+                                    given_keyword_args: vec![],
                                 };
 
                                 elements.push(e);
@@ -468,7 +492,8 @@ impl Expr {
                         func,
                         args: mir_elements,
                         arg_group_span: *group_span,
-                        given_keyword_arguments: vec![],
+                        types: None,
+                        given_keyword_args: vec![],
                     })
                 }
             },
@@ -478,6 +503,8 @@ impl Expr {
                 let group_span = *group_span;
                 let mut has_error = false;
                 let (def_span, call_span) = (constructor.id.def_span, constructor.id.span);
+
+                // TODO: it has to lower dotfish operators
 
                 // for better error messages
                 let mut repeated_fields: HashMap<InternedString, Vec<RenderableSpan>> = HashMap::new();
@@ -713,7 +740,8 @@ impl Expr {
                                 },
                                 args: mir_fields_final,
                                 arg_group_span: group_span,
-                                given_keyword_arguments: vec![],
+                                types: None,
+                                given_keyword_args: vec![],
                             })
                         }
                     },
@@ -750,7 +778,8 @@ impl Expr {
                     func,
                     args: vec![Expr::from_hir(rhs, session)?],
                     arg_group_span: rhs.error_span_wide().derive(SpanDeriveKind::Trivial),
-                    given_keyword_arguments: vec![],
+                    types: None,
+                    given_keyword_args: vec![],
                 })
             },
             hir::Expr::InfixOp { op, op_span, lhs, rhs } => {
@@ -813,7 +842,8 @@ impl Expr {
                                     func,
                                     args: vec![lhs, rhs],
                                     arg_group_span: expr_span,
-                                    given_keyword_arguments: vec![],
+                                    types: None,
+                                    given_keyword_args: vec![],
                                 })
                             },
                         }
@@ -831,9 +861,26 @@ impl Expr {
                     func,
                     args: vec![Expr::from_hir(lhs, session)?],
                     arg_group_span: lhs.error_span_wide().derive(SpanDeriveKind::Trivial),
-                    given_keyword_arguments: vec![],
+                    types: None,
+                    given_keyword_args: vec![],
                 })
             },
+            hir::Expr::TypeConversion { keyword_span, lhs, rhs } => Ok(Expr::Call {
+                func: Callable::Static {
+                    def_span: session.get_lang_item_span("fn.convert"),
+                    span: *keyword_span,
+                },
+                args: vec![Expr::from_hir(lhs, session)?],
+                arg_group_span: rhs.error_span_wide(),
+                types: Some((
+                    vec![
+                        Type::Var { def_span: *keyword_span, is_return: false },
+                        Type::from_hir(rhs, session)?,
+                    ],
+                    rhs.error_span_wide(),
+                )),
+                given_keyword_args: vec![],
+            }),
             hir::Expr::Closure { fp, captures } => todo!(),
         }
     }
@@ -912,7 +959,8 @@ fn concat_strings(mut strings: Vec<Expr>, session: &Session) -> Expr {
                 },
                 args: vec![lhs, rhs],
                 arg_group_span: derived_span,
-                given_keyword_arguments: vec![],
+                types: None,
+                given_keyword_args: vec![],
             }
         },
         _ => {
@@ -927,7 +975,8 @@ fn concat_strings(mut strings: Vec<Expr>, session: &Session) -> Expr {
                 },
                 args: vec![head, tail],
                 arg_group_span: derived_span,
-                given_keyword_arguments: vec![],
+                types: None,
+                given_keyword_args: vec![],
             }
         },
     }

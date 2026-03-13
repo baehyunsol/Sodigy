@@ -11,6 +11,22 @@ pub struct List;
 #[lang_item_generics("built_in.init_list.generic.0")]
 fn init_list<T>(/* varargs */) -> [T];
 
+#[impl(std.op.index)]
+fn index_list<T>(ls: [T], i: Int) -> T = {
+    if 0 <= i && i < ls.len() {
+        index_list_built_in(ls, i as <Scalar>)
+    }
+
+    else if -ls.len() <= i {
+        index_list_built_in(ls, (i + ls.len()) as <Scalar>)
+    }
+
+    else {
+        // TODO: error message
+        std.panic()
+    }
+};
+
 /// It doesn't do any safety checks!
 #[built_in]
 #[lang_item("built_in.index_list")]
@@ -28,28 +44,3 @@ fn eq_list<T>(lhs: [T], rhs: [T]) -> Bool = match (lhs, rhs) {
 #[lang_item("built_in.len_list")]
 #[lang_item_generics("built_in.len_list.generic.0")]
 fn len_list<T>(ls: [T]) -> Scalar;
-
-// TODO: The compiler isn't strong enough to compile these functions.
-/*
-#[impl(std.op.index)]
-fn index_list<T>(ls: [T], i: Int) -> T = {
-    if 0 <= i && i < ls.len() {
-        index_list_built_in(ls, i as <Scalar>)
-    }
-
-    else if -ls.len() <= i {
-        index_list_built_in(ls, (i + ls.len()) as <Scalar>)
-    }
-
-    else {
-        // TODO: error message
-        std.panic()
-    }
-};
-
-#[impl(std.op.concat)]
-fn concat_list<T>(lhs: [T], rhs: [T]) -> [T] = match rhs {
-    [] => lhs,
-    [$r] ++ $rhs => (lhs <+ [r]) ++ rhs,
-};
-*/

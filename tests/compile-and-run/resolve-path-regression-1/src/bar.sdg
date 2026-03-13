@@ -1,0 +1,5 @@
+// I found and fixed a bug in inter-hir.
+// It failed to resolve path if it's a type alias in another module.
+// Now this project has to compile without any errors.
+
+fn bar(x: lib.foo.Foos) -> lib.foo.Foos = x;

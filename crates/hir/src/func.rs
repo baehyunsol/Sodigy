@@ -48,6 +48,7 @@ pub struct Func {
     pub name: InternedString,
     pub name_span: Span,
     pub generics: Vec<Generic>,
+    pub generic_group_span: Option<Span>,
     pub params: Vec<FuncParam>,
     pub type_annot: Option<Type>,
     pub value: Expr,
@@ -98,6 +99,7 @@ pub struct CallArg {
 pub struct FuncShape {
     pub params: Vec<FuncParam>,
     pub generics: Vec<Generic>,
+    pub generic_group_span: Option<Span>,
 }
 
 /// Type signature `Fn` is for both pure and impure functions.
@@ -388,6 +390,7 @@ impl Func {
                 name: ast_func.name,
                 name_span: ast_func.name_span,
                 generics: ast_func.generics.clone(),
+                generic_group_span: ast_func.generic_group_span,
                 params,
                 type_annot,
                 value: value.unwrap(),
@@ -476,6 +479,7 @@ impl Func {
                 }
             ).collect(),
             generics: self.generics.clone(),
+            generic_group_span: self.generic_group_span,
         }
     }
 }

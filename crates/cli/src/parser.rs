@@ -144,7 +144,7 @@ impl ArgParser {
                 if let Some(arg_flag) = expecting_flag_arg {
                     return Err(RawError {
                         span: Span::End,
-                        kind: ErrorKind::MissingArgument(arg_flag.flag.to_string(), arg_flag.arg_type),
+                        kind: ErrorKind::MissingArg(arg_flag.flag.to_string(), arg_flag.arg_type),
                     });
                 }
 
@@ -245,7 +245,7 @@ impl ArgParser {
         if let Some(arg_flag) = expecting_flag_arg {
             return Err(RawError {
                 span: Span::End,
-                kind: ErrorKind::MissingArgument(arg_flag.flag.to_string(), arg_flag.arg_type),
+                kind: ErrorKind::MissingArg(arg_flag.flag.to_string(), arg_flag.arg_type),
             });
         }
 
@@ -341,7 +341,7 @@ pub enum ArgType {
     /// Any string
     String,
 
-    /// The argument must be one of the variants.
+    /// The arg must be one of the variants.
     Enum(Vec<String>),
 
     /// I recommend you use `Self::integer()`, `Self::uinteger()`
@@ -629,7 +629,7 @@ pub fn parse_pre_args(args: &[String]) -> Result<(Vec<String>, ParsedArgs), Erro
             },
             None => Err(Error {
                 span: Span::Exact(2).render(args, 0),
-                kind: ErrorKind::MissingArgument(String::from("-C"), ArgType::String),
+                kind: ErrorKind::MissingArg(String::from("-C"), ArgType::String),
             }),
         },
         _ => Ok((args.to_vec(), ParsedArgs::new())),

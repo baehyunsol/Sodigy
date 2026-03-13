@@ -112,6 +112,6 @@ pub fn std_root() -> (ModulePath, FileOrStd) {
             path: vec![],
             is_std: true,
         },
-        FileOrStd::Std(6),
+        FileOrStd::Std(7),
     )
 }

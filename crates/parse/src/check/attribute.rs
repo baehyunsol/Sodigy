@@ -83,7 +83,7 @@ fn check_decorator_args(args: &[DecoratorArg], intermediate_dir: &str) -> Result
     for (name, spans) in spans_by_name.into_iter() {
         if spans.len() > 1 {
             errors.push(Error {
-                kind: ErrorKind::KeywordArgumentRepeated(name),
+                kind: ErrorKind::KeywordArgRepeated(name),
                 spans: spans.into_iter().map(
                     |span| RenderableSpan {
                         span,

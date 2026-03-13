@@ -699,15 +699,17 @@ fn to_field_expr(expr: &Expr, fields: &[PatternField], session: &Session) -> Exp
     if let Some(list_index_at) = fields.iter().position(|field| matches!(field, PatternField::ListIndex(_))) {
         let pre = to_field_expr(expr, &fields[..list_index_at], session);
         let PatternField::ListIndex(index) = fields[list_index_at] else { unreachable!() };
-        let index = InternedNumber { value: InternedNumberValue::SmallInt(index), is_integer: true };
-        let index = Expr::Constant(Constant::Number { n: index, span: Span::None });
+        // TODO: maybe we need `Constant::Scalar`
+        let index = Expr::Constant(Constant::Char { ch: u32::try_from(index).unwrap(), span: Span::None });
         let expr = Expr::Call {
-            // TODO: It has to convert `x.y.__LIST_INDEX_3__.z.w` to `x.y[3].z.w`, but how can we do that?
-            //       There's no lang_item for `index_list`...
-            func: todo!(),
+            func: Callable::Static {
+                def_span: session.get_lang_item_span("built_in.index_list"),
+                span: Span::None,
+            },
             args: vec![pre, index],
             arg_group_span: Span::None,
-            given_keyword_arguments: vec![],
+            types: None,
+            given_keyword_args: vec![],
         };
 
         if list_index_at + 1 < fields.len() {
@@ -757,7 +759,8 @@ fn to_field_expr(expr: &Expr, fields: &[PatternField], session: &Session) -> Exp
             },
             args: vec![arg],
             arg_group_span: Span::None,
-            given_keyword_arguments: vec![],
+            types: None,
+            given_keyword_args: vec![],
         };
 
         if list_length_at == fields.len() - 1 {

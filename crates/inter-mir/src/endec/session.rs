@@ -20,6 +20,7 @@ impl Endec for Session {
         self.polys.encode_impl(buffer);
         self.span_string_map.encode_impl(buffer);
         self.lang_items.encode_impl(buffer);
+        self.built_in_funcs.encode_impl(buffer);
         self.errors.encode_impl(buffer);
         self.warnings.encode_impl(buffer);
     }
@@ -35,6 +36,7 @@ impl Endec for Session {
         let (polys, cursor) = HashMap::<Span, Poly>::decode_impl(buffer, cursor)?;
         let (span_string_map, cursor) = HashMap::<Span, InternedString>::decode_impl(buffer, cursor)?;
         let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
+        let (built_in_funcs, cursor) = HashSet::<Span>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
         let (warnings, cursor) = Vec::<Warning>::decode_impl(buffer, cursor)?;
 
@@ -57,6 +59,7 @@ impl Endec for Session {
                 polys,
                 span_string_map,
                 lang_items,
+                built_in_funcs,
                 intermediate_dir: String::new(),
                 type_errors: vec![],
                 type_warnings: vec![],

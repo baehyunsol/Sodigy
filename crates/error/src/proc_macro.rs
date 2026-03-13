@@ -22,8 +22,8 @@
     CannotDeclareInlineModule, InclusiveRangeWithNoEnd, MultipleRestPatterns,
     DifferentNameBindingsInOrPattern, InvalidFnType, EmptyMatchStatement,
     RedundantDecorator(InternedString), InvalidDecorator(InternedString),
-    MissingDecoratorArgument { expected: usize, got: usize },
-    UnexpectedDecoratorArgument { expected: usize, got: usize },
+    MissingDecoratorArg { expected: usize, got: usize },
+    UnexpectedDecoratorArg { expected: usize, got: usize },
     WrongNumberOfLangItemGenerics
     { lang_items: usize, generic_params: usize }, CannotEvaluateConst,
     InvalidRangePattern, InvalidConcatPattern, CannotBindName(InternedString),
@@ -34,15 +34,14 @@
     { names: Vec<InternedString> }, CyclicAlias
     { names: Vec<InternedString> }, DollarOutsidePipeline,
     DisconnectedPipeline, UndefinedName(InternedString),
-    EnumVariantInTypeAnnot, KeywordArgumentRepeated(InternedString),
-    KeywordArgumentNotAllowed, AliasResolveRecursionLimitReached,
+    EnumVariantInTypeAnnot, KeywordArgRepeated(InternedString),
+    KeywordArgNotAllowed, AliasResolveRecursionLimitReached,
     MissingTypeParameter { expected: usize, got: usize },
     UnexpectedTypeParameter { expected: usize, got: usize },
-    MissingKeywordArgument(InternedString),
-    InvalidKeywordArgument(InternedString), MissingFunctionParameter
-    { expected: usize, got: usize }, UnexpectedFunctionParameter
-    { expected: usize, got: usize }, StructFieldRepeated(InternedString),
-    MissingStructFields
+    MissingKeywordArg(InternedString), InvalidKeywordArg(InternedString),
+    MissingFunctionParameter { expected: usize, got: usize },
+    UnexpectedFunctionParameter { expected: usize, got: usize },
+    StructFieldRepeated(InternedString), MissingStructFields
     { struct_name: InternedString, missing_fields: Vec<InternedString> },
     InvalidStructFields
     { struct_name: InternedString, invalid_fields: Vec<InternedString> },
@@ -51,7 +50,8 @@
     NotStruct { id: InternedString, but: NotXBut }, NotExpr
     { id: InternedString, but: NotXBut }, NotPolyGeneric
     { id: Option<IdentWithOrigin> }, CannotAliasLocalValue(InternedString),
-    UnexpectedType { expected: String, got: String }, CannotInferType
+    UnexpectedType { expected: String, got: String }, WrongNumberOfArgs,
+    WrongNumberOfGenericArgs { expected: usize, got: usize }, CannotInferType
     { id: Option<InternedString>, is_return: bool }, PartiallyInferedType
     { id: Option<InternedString>, r#type: String, is_return: bool },
     CannotInferGenericType { id: Option<String> }, PartiallyInferedGenericType
@@ -120,8 +120,8 @@
             InvalidFnType => 225u16, ErrorKind :: EmptyMatchStatement =>
             230u16, ErrorKind :: RedundantDecorator(_,) => 235u16, ErrorKind
             :: InvalidDecorator(_,) => 240u16, ErrorKind ::
-            MissingDecoratorArgument { .. } => 245u16, ErrorKind ::
-            UnexpectedDecoratorArgument { .. } => 250u16, ErrorKind ::
+            MissingDecoratorArg { .. } => 245u16, ErrorKind ::
+            UnexpectedDecoratorArg { .. } => 250u16, ErrorKind ::
             WrongNumberOfLangItemGenerics { .. } => 255u16, ErrorKind ::
             CannotEvaluateConst => 260u16, ErrorKind :: InvalidRangePattern =>
             265u16, ErrorKind :: InvalidConcatPattern => 270u16, ErrorKind ::
@@ -136,13 +136,13 @@
             DollarOutsidePipeline => 320u16, ErrorKind :: DisconnectedPipeline
             => 325u16, ErrorKind :: UndefinedName(_,) => 330u16, ErrorKind ::
             EnumVariantInTypeAnnot => 335u16, ErrorKind ::
-            KeywordArgumentRepeated(_,) => 340u16, ErrorKind ::
-            KeywordArgumentNotAllowed => 345u16, ErrorKind ::
+            KeywordArgRepeated(_,) => 340u16, ErrorKind ::
+            KeywordArgNotAllowed => 345u16, ErrorKind ::
             AliasResolveRecursionLimitReached => 350u16, ErrorKind ::
             MissingTypeParameter { .. } => 355u16, ErrorKind ::
             UnexpectedTypeParameter { .. } => 360u16, ErrorKind ::
-            MissingKeywordArgument(_,) => 366u16, ErrorKind ::
-            InvalidKeywordArgument(_,) => 370u16, ErrorKind ::
+            MissingKeywordArg(_,) => 366u16, ErrorKind ::
+            InvalidKeywordArg(_,) => 370u16, ErrorKind ::
             MissingFunctionParameter { .. } => 375u16, ErrorKind ::
             UnexpectedFunctionParameter { .. } => 380u16, ErrorKind ::
             StructFieldRepeated(_,) => 385u16, ErrorKind ::
@@ -154,8 +154,10 @@
             NotStruct { .. } => 405u16, ErrorKind :: NotExpr { .. } => 406u16,
             ErrorKind :: NotPolyGeneric { .. } => 410u16, ErrorKind ::
             CannotAliasLocalValue(_,) => 411u16, ErrorKind :: UnexpectedType
-            { .. } => 415u16, ErrorKind :: CannotInferType { .. } => 420u16,
-            ErrorKind :: PartiallyInferedType { .. } => 425u16, ErrorKind ::
+            { .. } => 415u16, ErrorKind :: WrongNumberOfArgs => 416u16,
+            ErrorKind :: WrongNumberOfGenericArgs { .. } => 417u16, ErrorKind
+            :: CannotInferType { .. } => 420u16, ErrorKind ::
+            PartiallyInferedType { .. } => 425u16, ErrorKind ::
             CannotInferGenericType { .. } => 430u16, ErrorKind ::
             PartiallyInferedGenericType { .. } => 435u16, ErrorKind ::
             CannotApplyInfixOp { .. } => 440u16, ErrorKind ::
@@ -241,12 +243,12 @@
             EmptyMatchStatement => ErrorLevel :: Error, ErrorKind ::
             RedundantDecorator(_,) => ErrorLevel :: Error, ErrorKind ::
             InvalidDecorator(_,) => ErrorLevel :: Error, ErrorKind ::
-            MissingDecoratorArgument { .. } => ErrorLevel :: Error, ErrorKind
-            :: UnexpectedDecoratorArgument { .. } => ErrorLevel :: Error,
-            ErrorKind :: WrongNumberOfLangItemGenerics { .. } => ErrorLevel ::
-            Error, ErrorKind :: CannotEvaluateConst => ErrorLevel :: Error,
-            ErrorKind :: InvalidRangePattern => ErrorLevel :: Error, ErrorKind
-            :: InvalidConcatPattern => ErrorLevel :: Error, ErrorKind ::
+            MissingDecoratorArg { .. } => ErrorLevel :: Error, ErrorKind ::
+            UnexpectedDecoratorArg { .. } => ErrorLevel :: Error, ErrorKind ::
+            WrongNumberOfLangItemGenerics { .. } => ErrorLevel :: Error,
+            ErrorKind :: CannotEvaluateConst => ErrorLevel :: Error, ErrorKind
+            :: InvalidRangePattern => ErrorLevel :: Error, ErrorKind ::
+            InvalidConcatPattern => ErrorLevel :: Error, ErrorKind ::
             CannotBindName(_,) => ErrorLevel :: Error, ErrorKind ::
             CannotApplyInfixOpToMultipleBindings => ErrorLevel :: Error,
             ErrorKind :: CannotApplyInfixOpToBinding => ErrorLevel :: Error,
@@ -260,15 +262,15 @@
             DisconnectedPipeline => ErrorLevel :: Error, ErrorKind ::
             UndefinedName(_,) => ErrorLevel :: Error, ErrorKind ::
             EnumVariantInTypeAnnot => ErrorLevel :: Error, ErrorKind ::
-            KeywordArgumentRepeated(_,) => ErrorLevel :: Error, ErrorKind ::
-            KeywordArgumentNotAllowed => ErrorLevel :: Error, ErrorKind ::
+            KeywordArgRepeated(_,) => ErrorLevel :: Error, ErrorKind ::
+            KeywordArgNotAllowed => ErrorLevel :: Error, ErrorKind ::
             AliasResolveRecursionLimitReached => ErrorLevel :: Error,
             ErrorKind :: MissingTypeParameter { .. } => ErrorLevel :: Error,
             ErrorKind :: UnexpectedTypeParameter { .. } => ErrorLevel ::
-            Error, ErrorKind :: MissingKeywordArgument(_,) => ErrorLevel ::
-            Error, ErrorKind :: InvalidKeywordArgument(_,) => ErrorLevel ::
-            Error, ErrorKind :: MissingFunctionParameter { .. } => ErrorLevel
-            :: Error, ErrorKind :: UnexpectedFunctionParameter { .. } =>
+            Error, ErrorKind :: MissingKeywordArg(_,) => ErrorLevel :: Error,
+            ErrorKind :: InvalidKeywordArg(_,) => ErrorLevel :: Error,
+            ErrorKind :: MissingFunctionParameter { .. } => ErrorLevel ::
+            Error, ErrorKind :: UnexpectedFunctionParameter { .. } =>
             ErrorLevel :: Error, ErrorKind :: StructFieldRepeated(_,) =>
             ErrorLevel :: Error, ErrorKind :: MissingStructFields { .. } =>
             ErrorLevel :: Error, ErrorKind :: InvalidStructFields { .. } =>
@@ -281,7 +283,9 @@
             { .. } => ErrorLevel :: Error, ErrorKind ::
             CannotAliasLocalValue(_,) => ErrorLevel :: Error, ErrorKind ::
             UnexpectedType { .. } => ErrorLevel :: Error, ErrorKind ::
-            CannotInferType { .. } => ErrorLevel :: Error, ErrorKind ::
+            WrongNumberOfArgs => ErrorLevel :: Error, ErrorKind ::
+            WrongNumberOfGenericArgs { .. } => ErrorLevel :: Error, ErrorKind
+            :: CannotInferType { .. } => ErrorLevel :: Error, ErrorKind ::
             PartiallyInferedType { .. } => ErrorLevel :: Error, ErrorKind ::
             CannotInferGenericType { .. } => ErrorLevel :: Error, ErrorKind ::
             PartiallyInferedGenericType { .. } => ErrorLevel :: Error,
@@ -422,12 +426,11 @@
             { buffer.push(0u8); buffer.push(235u8); t0.encode_impl(buffer); },
             ErrorKind :: InvalidDecorator(t0,) =>
             { buffer.push(0u8); buffer.push(240u8); t0.encode_impl(buffer); },
-            ErrorKind :: MissingDecoratorArgument { r#expected, r#got, } =>
+            ErrorKind :: MissingDecoratorArg { r#expected, r#got, } =>
             {
                 buffer.push(0u8); buffer.push(245u8);
                 r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
-            }, ErrorKind :: UnexpectedDecoratorArgument { r#expected, r#got, }
-            =>
+            }, ErrorKind :: UnexpectedDecoratorArg { r#expected, r#got, } =>
             {
                 buffer.push(0u8); buffer.push(250u8);
                 r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
@@ -474,9 +477,9 @@
             { buffer.push(1u8); buffer.push(74u8); t0.encode_impl(buffer); },
             ErrorKind :: EnumVariantInTypeAnnot =>
             { buffer.push(1u8); buffer.push(79u8); }, ErrorKind ::
-            KeywordArgumentRepeated(t0,) =>
+            KeywordArgRepeated(t0,) =>
             { buffer.push(1u8); buffer.push(84u8); t0.encode_impl(buffer); },
-            ErrorKind :: KeywordArgumentNotAllowed =>
+            ErrorKind :: KeywordArgNotAllowed =>
             { buffer.push(1u8); buffer.push(89u8); }, ErrorKind ::
             AliasResolveRecursionLimitReached =>
             { buffer.push(1u8); buffer.push(94u8); }, ErrorKind ::
@@ -488,9 +491,9 @@
             {
                 buffer.push(1u8); buffer.push(104u8);
                 r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
-            }, ErrorKind :: MissingKeywordArgument(t0,) =>
+            }, ErrorKind :: MissingKeywordArg(t0,) =>
             { buffer.push(1u8); buffer.push(110u8); t0.encode_impl(buffer); },
-            ErrorKind :: InvalidKeywordArgument(t0,) =>
+            ErrorKind :: InvalidKeywordArg(t0,) =>
             { buffer.push(1u8); buffer.push(114u8); t0.encode_impl(buffer); },
             ErrorKind :: MissingFunctionParameter { r#expected, r#got, } =>
             {
@@ -544,6 +547,12 @@
             ErrorKind :: UnexpectedType { r#expected, r#got, } =>
             {
                 buffer.push(1u8); buffer.push(159u8);
+                r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
+            }, ErrorKind :: WrongNumberOfArgs =>
+            { buffer.push(1u8); buffer.push(160u8); }, ErrorKind ::
+            WrongNumberOfGenericArgs { r#expected, r#got, } =>
+            {
+                buffer.push(1u8); buffer.push(161u8);
                 r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
             }, ErrorKind :: CannotInferType { r#id, r#is_return, } =>
             {
@@ -757,14 +766,14 @@
                 let (r#expected, cursor) = usize ::
                 decode_impl(buffer, cursor) ? ; let (r#got, cursor) = usize ::
                 decode_impl(buffer, cursor) ? ;
-                Ok((ErrorKind :: MissingDecoratorArgument
-                { r#expected, r#got, }, cursor))
+                Ok((ErrorKind :: MissingDecoratorArg { r#expected, r#got, },
+                cursor))
             }, 250u16 =>
             {
                 let (r#expected, cursor) = usize ::
                 decode_impl(buffer, cursor) ? ; let (r#got, cursor) = usize ::
                 decode_impl(buffer, cursor) ? ;
-                Ok((ErrorKind :: UnexpectedDecoratorArgument
+                Ok((ErrorKind :: UnexpectedDecoratorArg
                 { r#expected, r#got, }, cursor))
             }, 255u16 =>
             {
@@ -821,8 +830,8 @@
             {
                 let (t0, cursor) = InternedString ::
                 decode_impl(buffer, cursor) ? ;
-                Ok((ErrorKind :: KeywordArgumentRepeated(t0,), cursor))
-            }, 345u16 => Ok((ErrorKind :: KeywordArgumentNotAllowed, cursor)),
+                Ok((ErrorKind :: KeywordArgRepeated(t0,), cursor))
+            }, 345u16 => Ok((ErrorKind :: KeywordArgNotAllowed, cursor)),
             350u16 =>
             Ok((ErrorKind :: AliasResolveRecursionLimitReached, cursor)),
             355u16 =>
@@ -843,12 +852,12 @@
             {
                 let (t0, cursor) = InternedString ::
                 decode_impl(buffer, cursor) ? ;
-                Ok((ErrorKind :: MissingKeywordArgument(t0,), cursor))
+                Ok((ErrorKind :: MissingKeywordArg(t0,), cursor))
             }, 370u16 =>
             {
                 let (t0, cursor) = InternedString ::
                 decode_impl(buffer, cursor) ? ;
-                Ok((ErrorKind :: InvalidKeywordArgument(t0,), cursor))
+                Ok((ErrorKind :: InvalidKeywordArg(t0,), cursor))
             }, 375u16 =>
             {
                 let (r#expected, cursor) = usize ::
@@ -923,6 +932,14 @@
                 :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: UnexpectedType { r#expected, r#got, },
                 cursor))
+            }, 416u16 => Ok((ErrorKind :: WrongNumberOfArgs, cursor)), 417u16
+            =>
+            {
+                let (r#expected, cursor) = usize ::
+                decode_impl(buffer, cursor) ? ; let (r#got, cursor) = usize ::
+                decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: WrongNumberOfGenericArgs
+                { r#expected, r#got, }, cursor))
             }, 420u16 =>
             {
                 let (r#id, cursor) = Option :: < InternedString >::

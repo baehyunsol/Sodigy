@@ -1,0 +1,6 @@
+struct Foo = {
+    v1: Int,
+    v2: Int,
+};
+
+pub type Foos = [Foo];

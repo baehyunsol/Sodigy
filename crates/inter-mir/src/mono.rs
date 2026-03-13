@@ -39,7 +39,9 @@ pub struct Monomorphization {
 
 impl Session {
     pub fn get_mono_plan(&mut self, poly_solver: &HashMap<Span, PolySolver>, mir_session: &MirSession) -> Result<MonomorphizePlan, ()> {
+        // TODO: `get_mono_plan` is called multiple times, but I don't think we have to call `init_poly_solvers` multiple times
         let poly_solver = self.init_poly_solvers(mir_session)?;
+
         let mut generic_calls: HashMap<Span, GenericCall> = HashMap::new();
         let mut has_error = false;
 
@@ -101,6 +103,11 @@ impl Session {
 
                     for generic in generic_call.generics.keys() {
                         self.solved_generic_args.insert((generic_call.call, *generic));
+                    }
+
+                    // We don't monomorphize built_in functions.
+                    if self.built_in_funcs.contains(&generic_call.def) {
+                        continue;
                     }
 
                     let monomorphization_id = get_monomorphization_id(generic_call.def, &generic_call.generics);

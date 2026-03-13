@@ -3,7 +3,7 @@ use sodigy_hir::{EnumShape, FuncShape, ItemShape, Poly, StructShape};
 use sodigy_inter_hir as inter_hir;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 
 #[derive(Clone, Debug)]
@@ -17,6 +17,7 @@ pub struct GlobalContext<'hir, 'mir> {
     pub generic_def_span_rev: Option<&'hir HashMap<Span, Span>>,
 
     pub lang_items: Option<&'hir HashMap<String, Span>>,
+    pub built_in_funcs: Option<&'hir HashSet<Span>>,
 
     pub types: Option<Arc<RwLock<HashMap<Span, Type>>>>,
     pub generic_args: Option<&'mir HashMap<(Span, Span), Type>>,
@@ -32,6 +33,7 @@ impl<'hir> GlobalContext<'hir, '_> {
             polys: None,
             generic_def_span_rev: None,
             lang_items: None,
+            built_in_funcs: None,
             types: None,
             generic_args: None,
             span_string_map: None,
@@ -46,6 +48,7 @@ impl<'hir> GlobalContext<'hir, '_> {
             polys: Some(&session.polys),
             generic_def_span_rev: Some(&session.generic_def_span_rev),
             lang_items: Some(&session.lang_items),
+            built_in_funcs: Some(&session.built_in_funcs),
             types: None,
             generic_args: None,
             span_string_map: None,

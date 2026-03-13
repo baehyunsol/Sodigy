@@ -51,7 +51,7 @@ pub enum Type {
     // !
     Never(Span),
 
-    // T in `fn first<T>(ls: [T]) -> T = ls[0];`
+    // The first `T` in `fn first<T>(ls: [T]) -> T = ls[0];`
     GenericParam {
         def_span: Span,
         span: Span,
@@ -433,6 +433,40 @@ impl Type {
         }
 
         hash(&buffer)
+    }
+
+    pub fn error_span_narrow(&self) -> Span {
+        match self {
+            Type::Data { constructor_span, .. } => *constructor_span,
+            Type::Func { fn_span, .. } => *fn_span,
+            Type::Never(span) => *span,
+            Type::GenericParam { span, .. } => *span,
+
+            // This function is only for type annotations.
+            _ => Span::None,
+        }
+    }
+
+    pub fn error_span_wide(&self) -> Span {
+        match self {
+            Type::Data { constructor_span, group_span, .. } => {
+                let mut result = *constructor_span;
+
+                if let Some(group_span) = group_span {
+                    result = result.merge(*group_span);
+                }
+
+                result
+            },
+            Type::Func { fn_span, group_span, r#return, .. } => fn_span
+                .merge(*group_span)
+                .merge(r#return.error_span_wide()),
+            Type::Never(span) => *span,
+            Type::GenericParam { span, .. } => *span,
+
+            // This function is only for type annotations.
+            _ => Span::None,
+        }
     }
 }
 

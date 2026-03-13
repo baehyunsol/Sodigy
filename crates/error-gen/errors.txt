@@ -55,8 +55,8 @@ InvalidFnType/225/Error
 EmptyMatchStatement/230/Error
 RedundantDecorator/235/Error
 InvalidDecorator/240/Error
-MissingDecoratorArgument/245/Error
-UnexpectedDecoratorArgument/250/Error
+MissingDecoratorArg/245/Error
+UnexpectedDecoratorArg/250/Error
 WrongNumberOfLangItemGenerics/255/Error
 CannotEvaluateConst/260/Error
 InvalidRangePattern/265/Error
@@ -74,13 +74,13 @@ DollarOutsidePipeline/320/Error
 DisconnectedPipeline/325/Error
 UndefinedName/330/Error
 EnumVariantInTypeAnnot/335/Error
-KeywordArgumentRepeated/340/Error
-KeywordArgumentNotAllowed/345/Error
+KeywordArgRepeated/340/Error
+KeywordArgNotAllowed/345/Error
 AliasResolveRecursionLimitReached/350/Error
 MissingTypeParameter/355/Error
 UnexpectedTypeParameter/360/Error
-MissingKeywordArgument/366/Error
-InvalidKeywordArgument/370/Error
+MissingKeywordArg/366/Error
+InvalidKeywordArg/370/Error
 MissingFunctionParameter/375/Error
 UnexpectedFunctionParameter/380/Error
 StructFieldRepeated/385/Error
@@ -95,6 +95,8 @@ NotExpr/406/Error
 NotPolyGeneric/410/Error
 CannotAliasLocalValue/411/Error
 UnexpectedType/415/Error
+WrongNumberOfArgs/416/Error
+WrongNumberOfGenericArgs/417/Error
 CannotInferType/420/Error
 PartiallyInferedType/425/Error
 CannotInferGenericType/430/Error

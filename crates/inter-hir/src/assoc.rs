@@ -203,6 +203,12 @@ impl Session {
                                             },
                                         },
                                     ).collect(),
+
+                                    // 1. It's `Some(None)`, not `None`, because if `generics` is not empty, `generic_group_span` should not be `None`.
+                                    // 2. We don't derive the span here because `generic_group_span` is only for error messages and the derived span doesn't
+                                    //    help generating the error messages.
+                                    generic_group_span: Some(Span::None),
+
                                     params: (0..params).map(
                                         |i| FuncParam {
                                             name: param_names[i],

@@ -44,4 +44,5 @@ impure fn eprint(v: String) -> Int;
 // It exists just to trick the type checker. It's used for
 // trivial type conversions (e.g. `Char` -> `Scalar`).
 #[built_in]
+#[lang_item("built_in.nop")]
 fn transmute<T, U>(v: T) -> U;

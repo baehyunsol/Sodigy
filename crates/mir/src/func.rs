@@ -11,6 +11,7 @@ pub struct Func {
     pub name: InternedString,
     pub name_span: Span,
     pub generics: Vec<Generic>,
+    pub generic_group_span: Option<Span>,
     pub params: Vec<FuncParam>,
     pub type_annot_span: Option<Span>,
     pub value: Expr,
@@ -106,6 +107,7 @@ impl Func {
                 name: hir_func.name,
                 name_span: hir_func.name_span,
                 generics: hir_func.generics.to_vec(),
+                generic_group_span: hir_func.generic_group_span,
                 params,
                 type_annot_span,
                 value: value.unwrap(),
@@ -120,6 +122,7 @@ impl Func {
             // type annotations are already erased
             params: self.params.clone(),
             generics: self.generics.clone(),
+            generic_group_span: self.generic_group_span,
         }
     }
 }

@@ -26,7 +26,7 @@ impl ErrorKind {
                     NameCollisionKind::Struct => format!("A struct field `{name}` is defined multiple times."),
                 }
             },
-            ErrorKind::KeywordArgumentRepeated(keyword) => format!(
+            ErrorKind::KeywordArgRepeated(keyword) => format!(
                 "Keyword argument `{}` is repeated.",
                 keyword.unintern_or_default(intermediate_dir),
             ),

@@ -28,6 +28,7 @@ impl GlobalContext {
             polys: Some(&self.inter_mir_session.as_ref().unwrap().polys),
             generic_def_span_rev: Some(&self.inter_mir_session.as_ref().unwrap().generic_def_span_rev),
             lang_items: Some(&self.inter_mir_session.as_ref().unwrap().lang_items),
+            built_in_funcs: Some(&self.inter_mir_session.as_ref().unwrap().built_in_funcs),
             types: self.types.clone(),
             generic_args: Some(&self.inter_mir_session.as_ref().unwrap().generic_args),
             span_string_map: Some(&self.inter_mir_session.as_ref().unwrap().span_string_map),

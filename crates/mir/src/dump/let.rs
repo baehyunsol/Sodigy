@@ -32,7 +32,7 @@ pub fn dump_let(r#let: &Let, lines: &mut IndentedLines, session: &Session, with_
     }
 
     lines.push(" = ");
-    dump_expr(&r#let.value, lines, session);
+    dump_expr(&r#let.value, lines, session, 0);
     lines.push(";");
     lines.break_line();
 }

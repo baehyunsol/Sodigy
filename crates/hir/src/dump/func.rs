@@ -70,7 +70,7 @@ pub fn dump_func(func: &Func, lines: &mut IndentedLines, session: &Session) {
     }
 
     lines.push(" = ");
-    dump_expr(&func.value, lines, session);
+    dump_expr(&func.value, lines, session, 0);
     lines.push(";");
     lines.break_line();
 }

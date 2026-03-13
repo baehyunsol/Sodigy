@@ -71,7 +71,7 @@ impl CnrContext {
         let compile_started_at = Instant::now();
         let output = match subprocess::run(
             &self.sodigy_path,
-            &["build", "--test", "-o=target/run"],
+            &["build", "--test", "-o=target/run", "--emit-irs"],
             &self.project_dir,
             30.0,
             self.dump_output,

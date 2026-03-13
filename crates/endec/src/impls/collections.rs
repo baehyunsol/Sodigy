@@ -1,5 +1,5 @@
 use crate::{DecodeError, Endec};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
 impl<T: Endec> Endec for Vec<T> {
@@ -46,6 +46,30 @@ impl<K: Endec + Eq + Hash, V: Endec> Endec for HashMap<K, V> {
             cursor = cursor_;
 
             result.insert(k, v);
+        }
+
+        Ok((result, cursor))
+    }
+}
+
+impl<V: Endec + Eq + Hash> Endec for HashSet<V> {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.len().encode_impl(buffer);
+
+        for v in self.iter() {
+            v.encode_impl(buffer);
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (len, mut cursor) = usize::decode_impl(buffer, cursor)?;
+        let mut result = HashSet::with_capacity(len);
+
+        for _ in 0..len {
+            let (v, cursor_) = V::decode_impl(buffer, cursor)?;
+            cursor = cursor_;
+
+            result.insert(v);
         }
 
         Ok((result, cursor))

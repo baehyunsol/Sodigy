@@ -15,7 +15,7 @@ use sodigy_hir::{
 use sodigy_name_analysis::NameKind;
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub struct Session {
     pub intermediate_dir: String,
@@ -42,6 +42,8 @@ pub struct Session {
 
     // For example, you can get def_span of `Int` from this map by querying `lang_items.get("type.Int")`.
     pub lang_items: HashMap<String, Span>,
+
+    pub built_in_funcs: HashSet<Span>,
 
     // It collects the polys from each module. After it ingested all the modules,
     // it resolves paths in `poly_impls` and fills `.impls` fields in polys.
@@ -82,6 +84,7 @@ impl Session {
             type_aliases: HashMap::new(),
             item_name_map: HashMap::new(),
             lang_items: HashMap::new(),
+            built_in_funcs: HashSet::new(),
             polys: HashMap::new(),
             poly_impls: vec![],
             new_funcs: vec![],
@@ -98,13 +101,12 @@ impl Session {
         module_span: Span,  // of this hir
         mut hir_session: sodigy_hir::Session,
     ) {
-        for (def_span, func_shape) in hir_session.funcs.iter().map(
-            |func| (
-                func.name_span,
-                func.shape(),
-            )
-        ) {
-            self.func_shapes.insert(def_span, func_shape);
+        for func in hir_session.funcs.iter() {
+            self.func_shapes.insert(func.name_span, func.shape());
+
+            if func.built_in {
+                self.built_in_funcs.insert(func.name_span);
+            }
         }
 
         for (def_span, struct_shape) in hir_session.structs.iter().map(

@@ -15,7 +15,7 @@ pub fn dump_assert(assert: &Assert, lines: &mut IndentedLines, session: &Session
 
     if let Some(note) = &assert.note {
         lines.push("#[note(");
-        dump_expr(note, lines, session);
+        dump_expr(note, lines, session, 0);
         lines.push(")]");
         lines.break_line();
     }
@@ -26,7 +26,7 @@ pub fn dump_assert(assert: &Assert, lines: &mut IndentedLines, session: &Session
     }
 
     lines.push("assert ");
-    dump_expr(&assert.value, lines, session);
+    dump_expr(&assert.value, lines, session, 0);
     lines.push(";");
     lines.break_line();
 }

@@ -208,6 +208,25 @@ impl Expr {
             },
             Expr::PrefixOp { rhs: operand, .. } |
             Expr::PostfixOp { lhs: operand, .. } => operand.check(intermediate_dir),
+            Expr::TypeConversion { lhs, rhs, .. } => {
+                let mut errors = vec![];
+
+                if let Err(e) = lhs.check(intermediate_dir) {
+                    errors.extend(e);
+                }
+
+                if let Err(e) = rhs.check() {
+                    errors.extend(e);
+                }
+
+                if errors.is_empty() {
+                    Ok(())
+                }
+
+                else {
+                    Err(errors)
+                }
+            },
 
             // Hir will lower a pipeline to a block, and hir will do the checks.
             Expr::Pipeline { .. } => Ok(()),

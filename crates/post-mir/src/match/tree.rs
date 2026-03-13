@@ -362,7 +362,8 @@ fn constructor_to_expr(
                                         curr_field.clone(),
                                     ],
                                     arg_group_span: Span::None,
-                                    given_keyword_arguments: vec![],
+                                    types: None,
+                                    given_keyword_args: vec![],
                                 }),
                                 else_span: Span::None,
                                 true_value: Box::new(Expr::Call {
@@ -375,7 +376,8 @@ fn constructor_to_expr(
                                         rhs,
                                     ],
                                     arg_group_span: Span::None,
-                                    given_keyword_arguments: vec![],
+                                    types: None,
+                                    given_keyword_args: vec![],
                                 }),
                                 true_group_span: Span::None,
                                 false_value: Box::new(Expr::Ident(IdentWithOrigin {
@@ -425,7 +427,8 @@ fn constructor_to_expr(
                     operand,
                 ],
                 arg_group_span: Span::None,
-                given_keyword_arguments: vec![],
+                types: None,
+                given_keyword_args: vec![],
             }
         },
         ExprConstructor::Or(cs) => constructors_to_expr(cs, curr_field, session),

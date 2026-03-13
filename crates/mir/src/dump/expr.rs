@@ -4,7 +4,11 @@ use sodigy_endec::IndentedLines;
 use sodigy_hir::dump::dump_pattern;
 use sodigy_parse::Field;
 
-pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
+pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session, max_len: usize) {
+    if max_len != 0 && lines.total_chars() > max_len {
+        return;
+    }
+
     match expr {
         Expr::Ident(id) => {
             lines.push(&id.id.unintern_or_default(&session.intermediate_dir));
@@ -21,7 +25,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
                 lines.push("(");
             }
 
-            dump_expr(&r#if.cond, lines, session);
+            dump_expr(&r#if.cond, lines, session, max_len);
 
             if if_cond {
                 lines.push(")");
@@ -30,19 +34,19 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             match get_if_value_dump_type(&r#if.true_value, session) {
                 IfValueDumpType::Block => {
                     lines.push(" ");
-                    dump_expr(&r#if.true_value, lines, session);
+                    dump_expr(&r#if.true_value, lines, session, max_len);
                     lines.push(" else");
                 },
                 IfValueDumpType::ShortExpr => {
                     lines.push(" { ");
-                    dump_expr(&r#if.true_value, lines, session);
+                    dump_expr(&r#if.true_value, lines, session, max_len);
                     lines.push(" } else");
                 },
                 IfValueDumpType::LongExpr => {
                     lines.push(" {");
                     lines.inc_indent();
                     lines.break_line();
-                    dump_expr(&r#if.true_value, lines, session);
+                    dump_expr(&r#if.true_value, lines, session, max_len);
                     lines.dec_indent();
                     lines.break_line();
                     lines.push("} else");
@@ -52,18 +56,18 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             match get_if_value_dump_type(&r#if.false_value, session) {
                 IfValueDumpType::Block => {
                     lines.push(" ");
-                    dump_expr(&r#if.false_value, lines, session);
+                    dump_expr(&r#if.false_value, lines, session, max_len);
                 },
                 IfValueDumpType::ShortExpr => {
                     lines.push(" { ");
-                    dump_expr(&r#if.false_value, lines, session);
+                    dump_expr(&r#if.false_value, lines, session, max_len);
                     lines.push(" }");
                 },
                 IfValueDumpType::LongExpr => {
                     lines.push(" {");
                     lines.inc_indent();
                     lines.break_line();
-                    dump_expr(&r#if.false_value, lines, session);
+                    dump_expr(&r#if.false_value, lines, session, max_len);
                     lines.dec_indent();
                     lines.break_line();
                     lines.push("}");
@@ -76,7 +80,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             }
 
             lines.push("match ");
-            dump_expr(&r#match.scrutinee, lines, session);
+            dump_expr(&r#match.scrutinee, lines, session, max_len);
             lines.push(" {");
             lines.inc_indent();
             lines.break_line();
@@ -86,11 +90,11 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
 
                 if let Some(guard) = &arm.guard {
                     lines.push(" if ");
-                    dump_expr(guard, lines, session);
+                    dump_expr(guard, lines, session, max_len);
                 }
 
                 lines.push(" => ");
-                dump_expr(&arm.value, lines, session);
+                dump_expr(&arm.value, lines, session, max_len);
                 lines.push(",");
                 lines.break_line();
             }
@@ -112,13 +116,13 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
                 dump_assert(assert, lines, session);
             }
 
-            dump_expr(&block.value, lines, session);
+            dump_expr(&block.value, lines, session, max_len);
             lines.dec_indent();
             lines.break_line();
             lines.push("}");
         },
         Expr::Field { lhs, fields } => {
-            dump_expr(lhs, lines, session);
+            dump_expr(lhs, lines, session, max_len);
 
             for field in fields.iter() {
                 lines.push(".");
@@ -142,7 +146,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             }
         },
         Expr::FieldUpdate { lhs, fields, rhs } => {
-            dump_expr(lhs, lines, session);
+            dump_expr(lhs, lines, session, max_len);
 
             for field in fields.iter() {
                 lines.push(" `");
@@ -150,7 +154,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             }
 
             lines.push(" ");
-            dump_expr(rhs, lines, session);
+            dump_expr(rhs, lines, session, max_len);
         },
         Expr::Call { func, args, .. } => {
             let (open_delim, close_delim) = match func {
@@ -174,14 +178,14 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
                 Callable::ListInit { .. } => ("[", "]"),
                 Callable::Dynamic(f) => {
                     lines.push("(");
-                    dump_expr(f, lines, session);
+                    dump_expr(f, lines, session, max_len);
                     lines.push(")");
                     ("(", ")")
                 },
             };
 
             lines.push(open_delim);
-            let arg_per_line = lookahead_args(&args, session) > 20;
+            let arg_per_line = lookahead_args(&args, session, 21) > 20;
 
             if args.len() > 1 {
                 if arg_per_line {
@@ -190,7 +194,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
                 }
 
                 for (i, arg) in args.iter().enumerate() {
-                    dump_expr(&arg, lines, session);
+                    dump_expr(&arg, lines, session, max_len);
                     lines.push(",");
 
                     if i != args.len() - 1 {
@@ -212,7 +216,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
 
             else {
                 for arg in args.iter() {
-                    dump_expr(&arg, lines, session);
+                    dump_expr(&arg, lines, session, max_len);
                 }
             }
 
@@ -221,12 +225,12 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
     }
 }
 
-fn lookahead_args(args: &[Expr], session: &Session) -> usize {
+fn lookahead_args(args: &[Expr], session: &Session, max_len: usize) -> usize {
     let mut count = 0;
 
     for arg in args.iter() {
         let mut indented_lines = IndentedLines::new();
-        dump_expr(arg, &mut indented_lines, session);
+        dump_expr(arg, &mut indented_lines, session, max_len);
         count += indented_lines.dump().len();
     }
 
@@ -244,7 +248,7 @@ fn get_if_value_dump_type(value: &Expr, session: &Session) -> IfValueDumpType {
         Expr::Block(_) => IfValueDumpType::Block,
         _ => {
             let mut indented_lines = IndentedLines::new();
-            dump_expr(value, &mut indented_lines, session);
+            dump_expr(value, &mut indented_lines, session, 21);
 
             if indented_lines.dump().len() > 20 {
                 IfValueDumpType::LongExpr

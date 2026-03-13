@@ -91,8 +91,8 @@ error_kinds!(
     // TODO: tell what it's trying to decorate
     (InvalidDecorator(InternedString),                               240,    Error),
 
-    (MissingDecoratorArgument { expected: usize, got: usize },       245,    Error),
-    (UnexpectedDecoratorArgument { expected: usize, got: usize },    250,    Error),
+    (MissingDecoratorArg { expected: usize, got: usize },       245,    Error),
+    (UnexpectedDecoratorArg { expected: usize, got: usize },    250,    Error),
     (WrongNumberOfLangItemGenerics { lang_items: usize, generic_params: usize },    255,    Error),
     (CannotEvaluateConst,                                            260,    Error),
 
@@ -119,16 +119,16 @@ error_kinds!(
     (UndefinedName(InternedString),                                  330,    Error),
 
     (EnumVariantInTypeAnnot,                                         335,    Error),
-    (KeywordArgumentRepeated(InternedString),                        340,    Error),
-    (KeywordArgumentNotAllowed,                                      345,    Error),
+    (KeywordArgRepeated(InternedString),                        340,    Error),
+    (KeywordArgNotAllowed,                                      345,    Error),
     (AliasResolveRecursionLimitReached,                              350,    Error),
     (MissingTypeParameter { expected: usize, got: usize },           355,    Error),
     (UnexpectedTypeParameter { expected: usize, got: usize },        360,    Error),
-    (MissingKeywordArgument(InternedString),                         366,    Error),
+    (MissingKeywordArg(InternedString),                         366,    Error),
 
     // TODO: more context!
     // TODO: suggest similar names
-    (InvalidKeywordArgument(InternedString),                         370,    Error),
+    (InvalidKeywordArg(InternedString),                         370,    Error),
 
     (MissingFunctionParameter { expected: usize, got: usize },       375,    Error),
     (UnexpectedFunctionParameter { expected: usize, got: usize },    380,    Error),
@@ -150,6 +150,11 @@ error_kinds!(
     // represent types. But this crate cannot depend on `inter-mir`, so those types are converted
     // to string.
     (UnexpectedType { expected: String, got: String },                   415,    Error),
+
+    // TODO: more context
+    (WrongNumberOfArgs,                                                  416,    Error),
+
+    (WrongNumberOfGenericArgs { expected: usize, got: usize },           417,    Error),
     (CannotInferType { id: Option<InternedString>, is_return: bool },    420,    Error),
     (PartiallyInferedType { id: Option<InternedString>, r#type: String, is_return: bool }, 425,    Error),
     (CannotInferGenericType { id: Option<String> },                      430,    Error),
