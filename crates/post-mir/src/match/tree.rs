@@ -539,12 +539,13 @@ pub(crate) fn build_tree(
     let mut destructured_patterns = Vec::with_capacity(arms.len());
 
     for (id, arm) in arms.iter() {
-        let pattern = read_field_of_pattern(
+        let (pattern, name_bindings) = read_field_of_pattern(
+            *id,
             &arm.pattern,
             &matrix[0].field,
             session,
         );
-        destructured_patterns.push((*id, *arm, pattern));
+        destructured_patterns.push((*id, *arm, pattern, name_bindings));
     }
 
     match &matrix[0].constructor {
@@ -552,15 +553,12 @@ pub(crate) fn build_tree(
             let mut okay_patterns = vec![];
             let mut name_bindings = vec![];
 
-            for (id, arm, pattern) in destructured_patterns.iter() {
-                match &pattern.constructor {
+            for (id, arm, pattern, name_bindings_) in destructured_patterns.into_iter() {
+                match pattern {
                     PatternConstructor::Tuple(p_l) => {
-                        if s_l == p_l {
-                            okay_patterns.push((*id, *arm));
-
-                            if let Some(name_binding) = pattern.get_name_binding(*id) {
-                                name_bindings.push(name_binding);
-                            }
+                        if *s_l == p_l {
+                            okay_patterns.push((id, arm));
+                            name_bindings.extend(name_bindings_);
                         }
 
                         else {
@@ -568,13 +566,10 @@ pub(crate) fn build_tree(
                         }
                     },
                     PatternConstructor::Wildcard => {
-                        okay_patterns.push((*id, *arm));
-
-                        if let Some(name_binding) = pattern.get_name_binding(*id) {
-                            name_bindings.push(name_binding);
-                        }
+                        okay_patterns.push((id, arm));
+                        name_bindings.extend(name_bindings_);
                     },
-                    _ => panic!("TODO: {:?}", pattern.constructor),
+                    p => panic!("TODO: {p:?}"),
                 }
             }
 
@@ -601,15 +596,12 @@ pub(crate) fn build_tree(
             let mut okay_patterns = vec![];
             let mut name_bindings = vec![];
 
-            for (id, arm, pattern) in destructured_patterns.iter() {
-                match &pattern.constructor {
+            for (id, arm, pattern, name_bindings_) in destructured_patterns.into_iter() {
+                match &pattern {
                     PatternConstructor::DefSpan(d) => {
                         if d == def_span {
-                            okay_patterns.push((*id, *arm));
-
-                            if let Some(name_binding) = pattern.get_name_binding(*id) {
-                                name_bindings.push(name_binding);
-                            }
+                            okay_patterns.push((id, arm));
+                            name_bindings.extend(name_bindings_);
                         }
 
                         else {
@@ -617,11 +609,8 @@ pub(crate) fn build_tree(
                         }
                     },
                     PatternConstructor::Wildcard => {
-                        okay_patterns.push((*id, *arm));
-
-                        if let Some(name_binding) = pattern.get_name_binding(*id) {
-                            name_bindings.push(name_binding);
-                        }
+                        okay_patterns.push((id, arm));
+                        name_bindings.extend(name_bindings_);
                     },
                     _ => {
                         todo!()
@@ -654,8 +643,8 @@ pub(crate) fn build_tree(
             // default: wildcard
             branches_with_overlap.push((r.clone(), (vec![], vec![])));
 
-            for (id, arm, pattern) in destructured_patterns.iter() {
-                match &pattern.constructor {
+            for (id, arm, pattern, name_bindings_) in destructured_patterns.into_iter() {
+                match &pattern {
                     PatternConstructor::Range(r) => {
                         if r.r#type != *r#type {
                             todo!()
@@ -666,35 +655,22 @@ pub(crate) fn build_tree(
 
                             for (br, (arms, name_bindings)) in branches_with_overlap.iter_mut() {
                                 if br == r {
-                                    arms.push((*id, *arm));
-
-                                    if let Some(name_binding) = pattern.get_name_binding(*id) {
-                                        name_bindings.push(name_binding);
-                                    }
-
+                                    arms.push((id, arm));
+                                    name_bindings.extend(name_bindings_.clone());
                                     is_new = false;
                                     break;
                                 }
                             }
 
                             if is_new {
-                                let mut name_bindings = vec![];
-
-                                if let Some(name_binding) = pattern.get_name_binding(*id) {
-                                    name_bindings.push(name_binding);
-                                }
-
-                                branches_with_overlap.push((r.clone(), (vec![(*id, *arm)], name_bindings)));
+                                branches_with_overlap.push((r.clone(), (vec![(id, arm)], name_bindings_)));
                             }
                         }
                     },
                     PatternConstructor::Wildcard => {
                         for (_, (arms, name_bindings)) in branches_with_overlap.iter_mut() {
-                            arms.push((*id, *arm));
-
-                            if let Some(name_binding) = pattern.get_name_binding(*id) {
-                                name_bindings.push(name_binding);
-                            }
+                            arms.push((id, arm));
+                            name_bindings.extend(name_bindings_.clone());
                         }
                     },
                     _ => todo!(),
@@ -818,8 +794,8 @@ pub(crate) fn build_tree(
         MatrixConstructor::ListSubMatrix(r#type) => {
             let mut indexes = HashSet::new();
 
-            for (_, _, constructor) in destructured_patterns.iter() {
-                match &constructor.constructor {
+            for (_, _, constructor, _) in destructured_patterns.iter() {
+                match &constructor {
                     PatternConstructor::ListSubMatrix { elements, rest } => {
                         let rest_index = match rest {
                             Some(rest) => rest.index,
