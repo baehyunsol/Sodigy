@@ -27,7 +27,6 @@ fn index_list<T>(ls: [T], i: Int) -> T = {
     }
 };
 
-/// It doesn't do any safety checks!
 #[built_in]
 #[lang_item("built_in.index_list")]
 #[lang_item_generics("built_in.init_list.generic.0")]
@@ -44,3 +43,11 @@ fn eq_list<T>(lhs: [T], rhs: [T]) -> Bool = match (lhs, rhs) {
 #[lang_item("built_in.len_list")]
 #[lang_item_generics("built_in.len_list.generic.0")]
 fn len_list<T>(ls: [T]) -> Scalar;
+
+#[built_in]
+#[lang_item("built_in.slice_list")]
+fn slice_list<T>(ls: [T], start: Scalar, end: Scalar) -> [T];
+
+#[built_in]
+#[lang_item("built_in.slice_right_list")]
+fn slice_right_list<T>(ls: [T], start: Scalar) -> [T];

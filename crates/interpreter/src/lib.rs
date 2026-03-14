@@ -222,11 +222,45 @@ fn execute(
                     let result = heap.alloc_u32(lhs);
                     update(*dst, result, stack, heap);
                 },
-                Intrinsic::IndexList => todo!(),
-                Intrinsic::LenList => {
-                    let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow");
-                    let result = heap.data[slice_ptr as usize + 2];
+                Intrinsic::IndexList => {
+                    let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let index = *stack.stack.get(stack.stack_pointer + *stack_offset + 1).expect("stack overflow") as usize;
+                    let buffer_ptr = heap.data[slice_ptr] as usize;
+                    let start = heap.data[slice_ptr + 1] as usize;
+                    let result = heap.data[buffer_ptr + start + index];
                     update(*dst, result, stack, heap);
+                },
+                Intrinsic::LenList => {
+                    let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let result = heap.data[slice_ptr + 2];
+                    update(*dst, result, stack, heap);
+                },
+                Intrinsic::SliceList => {
+                    let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let slice_start = *stack.stack.get(stack.stack_pointer + *stack_offset + 1).expect("stack overflow");
+                    let slice_end = *stack.stack.get(stack.stack_pointer + *stack_offset + 2).expect("stack overflow");
+                    let buffer_ptr = heap.data[slice_ptr];
+                    let start = heap.data[slice_ptr + 1];
+                    let length = heap.data[slice_ptr + 2];
+
+                    let new_slice_ptr = heap.alloc(3);
+                    heap.data[new_slice_ptr] = buffer_ptr as u32;
+                    heap.data[new_slice_ptr + 1] = start + slice_start;
+                    heap.data[new_slice_ptr + 2] = slice_end - slice_start;
+                    update(*dst, new_slice_ptr as u32, stack, heap);
+                },
+                Intrinsic::SliceRightList => {
+                    let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let slice_start = *stack.stack.get(stack.stack_pointer + *stack_offset + 1).expect("stack overflow");
+                    let buffer_ptr = heap.data[slice_ptr];
+                    let start = heap.data[slice_ptr + 1];
+                    let length = heap.data[slice_ptr + 2];
+
+                    let new_slice_ptr = heap.alloc(3);
+                    heap.data[new_slice_ptr] = buffer_ptr as u32;
+                    heap.data[new_slice_ptr + 1] = start + slice_start;
+                    heap.data[new_slice_ptr + 2] = length - slice_start;
+                    update(*dst, new_slice_ptr as u32, stack, heap);
                 },
                 Intrinsic::Exit => {
                     // TODO: clean up stack and heap

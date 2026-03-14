@@ -123,6 +123,15 @@ impl Session {
                 }),
                 false,
             ),
+            Expr::Constant(Constant::Scalar(_)) => (
+                Some(Type::Data {
+                    constructor_def_span: self.get_lang_item_span("type.Scalar"),
+                    constructor_span: Span::None,
+                    args: None,
+                    group_span: None,
+                }),
+                false,
+            ),
             Expr::If(r#if) => match r#if.from_short_circuit {
                 Some(s) => {
                     let mut has_error = false;

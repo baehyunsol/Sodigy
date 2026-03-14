@@ -54,30 +54,32 @@ macro_rules! intrinsics {
 // `DivInt` doesn't care about zero-divisions, and `IndexList` doesn't care about out-of-bounds.
 // The compiler (or std) has to generate Sodigy code that does the safety checks.
 intrinsics!(
-    (NegInt      , "built_in.neg_int"        , 0),
-    (AddInt      , "built_in.add_int"        , 1),
-    (SubInt      , "built_in.sub_int"        , 2),
-    (MulInt      , "built_in.mul_int"        , 3),
-    (DivInt      , "built_in.div_int"        , 4),
-    (RemInt      , "built_in.rem_int"        , 5),
-    (LtInt       , "built_in.lt_int"         , 6),
-    (EqInt       , "built_in.eq_int"         , 7),
-    (GtInt       , "built_in.gt_int"         , 8),
-    (LtScalar    , "built_in.lt_scalar"      , 9),
-    (EqScalar    , "built_in.eq_scalar"      , 10),
-    (GtScalar    , "built_in.gt_scalar"      , 11),
-    (ScalarToInt , "built_in.scalar_to_int"  , 12),
-    (IndexList   , "built_in.index_list"     , 13),
-    (LenList     , "built_in.len_list"       , 14),
-    (Exit        , "built_in.exit"           , 15),
-    (Panic       , "built_in.panic"          , 16),
-    (Print       , "built_in.print"          , 17),
-    (EPrint      , "built_in.eprint"         , 18),
-    (RandomInt   , "built_in.random_int"     , 19),
-    (Nop         , "built_in.nop"            , 20),
-//   ^^^           ^^^^^^^^^^^^^^              ^^
-//   |             |                           |
-//  (0)           (1)                         (2)
+    (NegInt          , "built_in.neg_int"           , 0),
+    (AddInt          , "built_in.add_int"           , 1),
+    (SubInt          , "built_in.sub_int"           , 2),
+    (MulInt          , "built_in.mul_int"           , 3),
+    (DivInt          , "built_in.div_int"           , 4),
+    (RemInt          , "built_in.rem_int"           , 5),
+    (LtInt           , "built_in.lt_int"            , 6),
+    (EqInt           , "built_in.eq_int"            , 7),
+    (GtInt           , "built_in.gt_int"            , 8),
+    (LtScalar        , "built_in.lt_scalar"         , 9),
+    (EqScalar        , "built_in.eq_scalar"         , 10),
+    (GtScalar        , "built_in.gt_scalar"         , 11),
+    (ScalarToInt     , "built_in.scalar_to_int"     , 12),
+    (IndexList       , "built_in.index_list"        , 13),
+    (LenList         , "built_in.len_list"          , 14),
+    (SliceList       , "built_in.slice_list"        , 15),
+    (SliceRightList  , "built_in.slice_right_list"  , 16),
+    (Exit            , "built_in.exit"              , 17),
+    (Panic           , "built_in.panic"             , 18),
+    (Print           , "built_in.print"             , 19),
+    (EPrint          , "built_in.eprint"            , 20),
+    (RandomInt       , "built_in.random_int"        , 21),
+    (Nop             , "built_in.nop"               , 22),
+//   ^^^               ^^^^^^^^^^^^^^                 ^^
+//   |                 |                              |
+//  (0)               (1)                            (2)
 //
 // (0): Enum variants (Rust)
 // (1): lang items (Sodigy)

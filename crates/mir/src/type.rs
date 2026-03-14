@@ -526,6 +526,12 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
             args: None,
             group_span: None,
         }),
+        Expr::Constant(Constant::Scalar(_)) => Some(Type::Data {
+            constructor_def_span: global_context.get_lang_item_span("type.Scalar"),
+            constructor_span: Span::None,
+            args: None,
+            group_span: None,
+        }),
         Expr::If(r#if) => type_of(&r#if.true_value, global_context),
         Expr::Match(r#match) => type_of(&r#match.arms[0].value, global_context),
         Expr::Block(block) => type_of(&block.value, global_context),

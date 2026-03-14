@@ -31,8 +31,9 @@ impl Session<'_, '_> {
         match constant {
             Constant::Number { n, .. } => n.into(),
             Constant::String { s, binary, .. } => self.string_to_value(*s, *binary),
-            Constant::Char { ch, .. } => Value::Scalar(*ch as u32),
+            Constant::Char { ch, .. } => Value::Scalar(*ch),
             Constant::Byte { b, .. } => Value::Scalar(*b as u32),
+            Constant::Scalar(n) => Value::Scalar(*n),
         }
     }
 

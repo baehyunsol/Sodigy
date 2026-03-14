@@ -3,6 +3,7 @@ use super::{
     MatrixConstructor,
     MatrixRow,
     NameBinding,
+    NameBindingOffset,
     PatternConstructor,
     PatternField,
     Range,
@@ -124,7 +125,7 @@ impl DecisionTree {
                     continue;
                 }
 
-                let new_value = Expr::Ident(IdentWithOrigin {
+                let mut new_value = Expr::Ident(IdentWithOrigin {
                     id: curr_field_name,
                     span: Span::None,
                     def_span: curr_field_span,
@@ -132,6 +133,28 @@ impl DecisionTree {
                         kind: NameKind::Let { is_top_level: false },
                     },
                 });
+
+                match &name_binding.offset {
+                    NameBindingOffset::None => {},
+                    NameBindingOffset::Number(n) => todo!(),
+                    NameBindingOffset::Slice(start, 0) => {
+                        new_value = Expr::Call {
+                            func: Callable::Static {
+                                def_span: session.get_lang_item_span("built_in.slice_right_list"),
+                                span: Span::None,
+                            },
+                            args: vec![
+                                new_value,
+                                Expr::Constant(Constant::Scalar(*start as u32)),
+                            ],
+                            arg_group_span: Span::None,
+                            types: None,
+                            given_keyword_args: vec![],
+                        };
+                    },
+                    NameBindingOffset::Slice(start, end) => todo!(),
+                };
+
                 let new_value_type = type_of(&new_value, session.global_context.clone()).unwrap();
                 session.add_type_info(name_binding.name_span, new_value_type);
 
@@ -300,6 +323,10 @@ fn constructor_to_expr(
                             "built_in.eq_scalar",
                             Expr::Constant(Constant::Char { ch: lhs.try_into().unwrap(), span: Span::None }),
                         ),
+                        LiteralType::Scalar => (
+                            "built_in.eq_scalar",
+                            Expr::Constant(Constant::Scalar(lhs.try_into().unwrap())),
+                        ),
                         _ => todo!(),
                     },
                     Ordering::Less => {
@@ -332,22 +359,26 @@ fn constructor_to_expr(
                                     Expr::Constant(Constant::Char { ch: lhs.try_into().unwrap(), span: Span::None }),
                                     Expr::Constant(Constant::Char { ch: rhs.try_into().unwrap(), span: Span::None }),
                                 ),
+                                LiteralType::Scalar => (
+                                    Expr::Constant(Constant::Scalar(lhs.try_into().unwrap())),
+                                    Expr::Constant(Constant::Scalar(rhs.try_into().unwrap())),
+                                ),
                             };
                             let f1 = match (range.r#type, range.lhs_inclusive) {
                                 (LiteralType::Int, true) => "fn.leq_int",
                                 (LiteralType::Int, false) => "built_in.lt_int",
                                 (LiteralType::Number, true) => "fn.leq_number",
                                 (LiteralType::Number, false) => "fn.lt_number",
-                                (LiteralType::Char | LiteralType::Byte, true) => "fn.leq_scalar",
-                                (LiteralType::Char | LiteralType::Byte, false) => "built_in.lt_scalar",
+                                (LiteralType::Char | LiteralType::Byte | LiteralType::Scalar, true) => "fn.leq_scalar",
+                                (LiteralType::Char | LiteralType::Byte | LiteralType::Scalar, false) => "built_in.lt_scalar",
                             };
                             let f2 = match (range.r#type, range.rhs_inclusive) {
                                 (LiteralType::Int, true) => "fn.leq_int",
                                 (LiteralType::Int, false) => "built_in.lt_int",
                                 (LiteralType::Number, true) => "fn.leq_number",
                                 (LiteralType::Number, false) => "fn.lt_number",
-                                (LiteralType::Char | LiteralType::Byte, true) => "fn.leq_scalar",
-                                (LiteralType::Char | LiteralType::Byte, false) => "built_in.lt_scalar",
+                                (LiteralType::Char | LiteralType::Byte | LiteralType::Scalar, true) => "fn.leq_scalar",
+                                (LiteralType::Char | LiteralType::Byte | LiteralType::Scalar, false) => "built_in.lt_scalar",
                             };
 
                             return Expr::If(If {
@@ -554,20 +585,14 @@ pub(crate) fn build_tree(
             let mut name_bindings = vec![];
 
             for (id, arm, pattern, name_bindings_) in destructured_patterns.into_iter() {
-                match pattern {
-                    PatternConstructor::Tuple(p_l) => {
-                        if *s_l == p_l {
-                            okay_patterns.push((id, arm));
-                            name_bindings.extend(name_bindings_);
-                        }
+                name_bindings.extend(name_bindings_);
 
-                        else {
-                            todo!()
-                        }
+                match pattern {
+                    PatternConstructor::Tuple(p_l) if *s_l == p_l => {
+                        okay_patterns.push((id, arm));
                     },
                     PatternConstructor::Wildcard => {
                         okay_patterns.push((id, arm));
-                        name_bindings.extend(name_bindings_);
                     },
                     p => panic!("TODO: {p:?}"),
                 }
@@ -597,24 +622,16 @@ pub(crate) fn build_tree(
             let mut name_bindings = vec![];
 
             for (id, arm, pattern, name_bindings_) in destructured_patterns.into_iter() {
-                match &pattern {
-                    PatternConstructor::DefSpan(d) => {
-                        if d == def_span {
-                            okay_patterns.push((id, arm));
-                            name_bindings.extend(name_bindings_);
-                        }
+                name_bindings.extend(name_bindings_);
 
-                        else {
-                            todo!()
-                        }
+                match &pattern {
+                    PatternConstructor::DefSpan(d) if d == def_span => {
+                        okay_patterns.push((id, arm));
                     },
                     PatternConstructor::Wildcard => {
                         okay_patterns.push((id, arm));
-                        name_bindings.extend(name_bindings_);
                     },
-                    _ => {
-                        todo!()
-                    },
+                    _ => todo!(),
                 }
             }
 
@@ -793,8 +810,11 @@ pub(crate) fn build_tree(
         },
         MatrixConstructor::ListSubMatrix(r#type) => {
             let mut indexes = HashSet::new();
+            let mut name_bindings = vec![];
 
-            for (_, _, constructor, _) in destructured_patterns.iter() {
+            for (_, _, constructor, name_bindings_) in destructured_patterns.into_iter() {
+                name_bindings.extend(name_bindings_);
+
                 match &constructor {
                     PatternConstructor::ListSubMatrix { elements, rest } => {
                         let rest_index = match rest {
@@ -824,12 +844,23 @@ pub(crate) fn build_tree(
             ].concat();
 
             *tree_id += 1;
-            build_tree(
-                tree_id,
-                &new_matrix,
-                arms,
-                session,
-            )
+            DecisionTreeNode::Tree(DecisionTree {
+                id: *tree_id,
+                field: Some(matrix[0].field.clone()),
+
+                // no branches
+                branches: vec![DecisionTreeBranch {
+                    condition: ExprConstructor::Wildcard,
+                    guard: None,
+                    node: build_tree(
+                        tree_id,
+                        &new_matrix,
+                        arms,
+                        session,
+                    ),
+                    name_bindings,
+                }],
+            })
         },
     }
 }

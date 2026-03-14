@@ -28,6 +28,10 @@ impl Endec for Constant {
                 b.encode_impl(buffer);
                 span.encode_impl(buffer);
             },
+            Constant::Scalar(n) => {
+                buffer.push(4);
+                n.encode_impl(buffer);
+            },
         }
     }
 
@@ -54,7 +58,11 @@ impl Endec for Constant {
                 let (span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((Constant::Byte { b, span }, cursor))
             },
-            Some(n @ 4..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(4) => {
+                let (n, cursor) = u32::decode_impl(buffer, cursor + 1)?;
+                Ok((Constant::Scalar(n), cursor))
+            },
+            Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

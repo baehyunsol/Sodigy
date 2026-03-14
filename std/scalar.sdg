@@ -4,6 +4,7 @@ use std.int.Int;
 // TODO: It has to be private and used only inside std.
 //       It has to be impossible in user code to generate this value.
 #[built_in]
+#[lang_item("type.Scalar")]
 struct Scalar;
 
 #[built_in]

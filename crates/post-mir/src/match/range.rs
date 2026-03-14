@@ -17,12 +17,13 @@ pub enum LiteralType {
     Number,
     Byte,
     Char,
+    Scalar,
 }
 
 impl LiteralType {
     pub fn is_int_like(&self) -> bool {
         match self {
-            LiteralType::Int | LiteralType::Byte | LiteralType::Char => true,
+            LiteralType::Int | LiteralType::Byte | LiteralType::Char | LiteralType::Scalar => true,
             LiteralType::Number => false,
         }
     }
@@ -468,6 +469,15 @@ pub fn filter_out_invalid_ranges<T: Clone + Merge>(branches: Vec<(Range, T)>) ->
                 lhs: Some(InternedNumber::from_u32(0, true)),
                 lhs_inclusive: true,
                 rhs: Some(InternedNumber::from_u32(255, true)),
+                rhs_inclusive: true,
+            },
+        ],
+        LiteralType::Scalar => vec![
+            Range {
+                r#type: LiteralType::Byte,
+                lhs: Some(InternedNumber::from_u32(0, true)),
+                lhs_inclusive: true,
+                rhs: Some(InternedNumber::from_u32(u32::MAX, true)),
                 rhs_inclusive: true,
             },
         ],

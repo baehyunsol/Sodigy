@@ -26,6 +26,11 @@ pub enum Constant {
         b: u8,
         span: Span,
     },
+
+    // The compiler internally converts Byte/Char to Scalar.
+    // The users cannot use this value in their Sodigy code.
+    // That's why it has no span.
+    Scalar(u32),
 }
 
 impl Constant {
@@ -35,15 +40,13 @@ impl Constant {
             Constant::String { span, .. } |
             Constant::Char { span, .. } |
             Constant::Byte { span, .. } => *span,
+            Constant::Scalar(_) => Span::None,
         }
     }
 
     /// If you see this value in bytecode, it's 99% likely that there's a bug in the compiler.
     pub fn dummy() -> Self {
-        Constant::Char {
-            ch: '쉵' as u32,
-            span: Span::None,
-        }
+        Constant::Scalar(703459145)
     }
 
     pub fn dump(&self, intermediate_dir: &str) -> String {
@@ -56,6 +59,7 @@ impl Constant {
             ),
             Constant::Char { ch, .. } => format!("{:?}", char::from_u32(*ch).unwrap()),
             Constant::Byte { b, .. } => format!("#{b}"),
+            Constant::Scalar(n) => format!("__SCALAR__({n})"),
         }
     }
 
@@ -79,6 +83,7 @@ impl Constant {
                 b: *b,
                 span: span.monomorphize(monomorphize_id),
             },
+            Constant::Scalar(n) => Constant::Scalar(*n),
         }
     }
 }

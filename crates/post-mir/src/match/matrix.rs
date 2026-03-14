@@ -134,7 +134,7 @@ pub fn get_matrix(
                     MatrixRow {
                         field: vec![PatternField::ListLength],
                         constructor: MatrixConstructor::Range(Range {
-                            r#type: LiteralType::Int,
+                            r#type: LiteralType::Scalar,
                             lhs: Some(InternedNumber::from_u32(0, true)),
                             lhs_inclusive: true,
                             rhs: None,

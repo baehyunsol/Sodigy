@@ -165,7 +165,7 @@ use sodigy_mir::{
     type_of,
 };
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
-use sodigy_number::{InternedNumber, InternedNumberValue};
+use sodigy_number::InternedNumber;
 use sodigy_parse::{Field, RestPattern};
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
@@ -392,7 +392,7 @@ fn read_field_of_pattern(
     }
 
     let mut name_bindings = match (curr_pattern.name, curr_pattern.name_span) {
-        (Some(name), Some(name_span)) => vec![NameBinding { name, name_span, offset: None, id: arm_id }],
+        (Some(name), Some(name_span)) => vec![NameBinding { name, name_span, offset: NameBindingOffset::None, id: arm_id }],
         _ => vec![],
     };
 
@@ -400,7 +400,7 @@ fn read_field_of_pattern(
         PatternField::Constructor => match &curr_pattern.kind {
             PatternKind::NameBinding { id, span } => (
                 PatternConstructor::Wildcard,
-                vec![NameBinding { name: *id, name_span: *span, offset: None, id: arm_id }],
+                vec![NameBinding { name: *id, name_span: *span, offset: NameBindingOffset::None, id: arm_id }],
             ),
             PatternKind::Constant(Constant::Number { n, .. }) => (
                 PatternConstructor::Range(Range {
@@ -520,7 +520,7 @@ fn read_field_of_pattern(
 
             (
                 PatternConstructor::Range(Range {
-                    r#type: LiteralType::Int,
+                    r#type: LiteralType::Scalar,
                     lhs: lhs.map(|lhs| InternedNumber::from_u32(lhs as u32, true)),
                     lhs_inclusive,
                     rhs: rhs.map(|rhs| InternedNumber::from_u32(rhs as u32, true)),
@@ -534,7 +534,12 @@ fn read_field_of_pattern(
             PatternKind::Constant(Constant::String { .. }) => unreachable!(),
             PatternKind::List { elements, rest, .. } => {
                 if let Some(RestPattern { name: Some(name), name_span: Some(name_span), index, .. }) = rest {
-                    todo!();
+                    name_bindings.push(NameBinding {
+                        id: arm_id,
+                        name: *name,
+                        name_span: *name_span,
+                        offset: NameBindingOffset::Slice(*index as i64, -((elements.len() - *index) as i64)),
+                    });
                 }
 
                 (
@@ -560,7 +565,18 @@ pub struct NameBinding {
     id: usize,
     name: InternedString,
     name_span: Span,
-    offset: Option<InternedNumberValue>,
+    offset: NameBindingOffset,
+}
+
+#[derive(Clone, Debug)]
+pub enum NameBindingOffset {
+    None,
+
+    // let $x + 1 = foo();
+    Number(InternedNumber),
+
+    // let [$x, $xs @ ..] = foo();
+    Slice(i64, i64),
 }
 
 // The compiler inserted an extra arm `_ => { .. }` at the end of a match expression.
