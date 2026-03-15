@@ -1,4 +1,4 @@
-struct Node = {
+struct Node<K, V> = {
     hash: Int,
     key: K,
     value: V,
@@ -13,7 +13,7 @@ fn get<K, V>(head: Node<K, V>, key: K) -> Option<V> = {
         let hash = key.hash();
 
         if hash < head.hash {
-            if let Some(left) = head.left_child {
+            if let Some($left) = head.left_child {
                 get(left, key)
             }
 
@@ -23,7 +23,7 @@ fn get<K, V>(head: Node<K, V>, key: K) -> Option<V> = {
         }
 
         else {
-            if let Some(right) = head.right_child {
+            if let Some($right) = head.right_child {
                 get(right, key)
             }
 
@@ -46,7 +46,7 @@ fn insert<K, V>(head: Node<K, V>, key: K, value: V) -> (Node<K, V>, Option<V>) =
         let hash = key.hash();
 
         if hash < head.hash {
-            if let Some(left) = head.left_child {
+            if let Some($left) = head.left_child {
                 insert(left, key, value)
             }
 
@@ -66,7 +66,7 @@ fn insert<K, V>(head: Node<K, V>, key: K, value: V) -> (Node<K, V>, Option<V>) =
         }
 
         else {
-            if let Some(right) = head.right_child {
+            if let Some($right) = head.right_child {
                 insert(right, key, value)
             }
 
@@ -95,7 +95,7 @@ fn remove<K, V>(head: Node<K, V>, key: K) -> (Node<K, V>, Option<V>) = {
         let hash = key.hash();
 
         if hash < head.hash {
-            if let Some(left) = head.left_child {
+            if let Some($left) = head.left_child {
                 delete(left, key)
             }
 
@@ -105,7 +105,7 @@ fn remove<K, V>(head: Node<K, V>, key: K) -> (Node<K, V>, Option<V>) = {
         }
 
         else {
-            if let Some(right) = head.right_child {
+            if let Some($right) = head.right_child {
                 delete(right, key)
             }
 

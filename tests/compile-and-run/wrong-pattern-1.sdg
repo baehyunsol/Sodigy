@@ -1,3 +1,5 @@
+//% compile-error >= 3
+
 let type_errors = match 3 {
     [0] ++ [()] => 100,
     [0, ()] => 200,

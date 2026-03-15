@@ -1,3 +1,5 @@
+//% compile-error == 1
+
 let x = 3;
 
 // This is a valid syntax, but the parser cannot handle this.
