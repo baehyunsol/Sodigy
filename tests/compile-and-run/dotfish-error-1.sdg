@@ -1,0 +1,3 @@
+fn foo(n) = n;
+
+assert foo.<_>(30) == 30;

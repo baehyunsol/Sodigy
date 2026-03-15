@@ -1,0 +1,19 @@
+fn roundtrip(n: Int) = {
+    let s = n as <String>;
+    let nn = (s as? <Int>).unwrap();
+
+    nn == n
+};
+
+assert roundtrip(0);
+assert roundtrip(-0);
+assert roundtrip(1);
+assert roundtrip(-1);
+assert roundtrip(2);
+assert roundtrip(-2);
+assert roundtrip(300);
+assert roundtrip(-300);
+assert roundtrip(30000);
+assert roundtrip(-30000);
+assert roundtrip(12345678910111213141516171819);
+assert roundtrip(-12345678910111213141516171819);

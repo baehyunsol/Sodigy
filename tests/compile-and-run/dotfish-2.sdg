@@ -1,0 +1,1 @@
+assert std.convert.convert.<_, _>(300) == "300";

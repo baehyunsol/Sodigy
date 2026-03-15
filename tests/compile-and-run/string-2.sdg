@@ -1,0 +1,5 @@
+fn trim(s: String) -> String = match s {
+    (" " | "\t" | "\r" | "\n") ++ $s => trim(s),
+    $s ++ (" " | "\t" | "\r" | "\n") => trim(s),
+    _ => s,
+};

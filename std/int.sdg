@@ -90,6 +90,7 @@ fn int_to_scalar(n: Int) -> Scalar;
 
 // TODO: match is not implemented yet...
 /*
+#[impl(std.convert.convert)]
 fn int_to_string(n: Int) -> String = match n {
     ..0 => "-" ++ int_to_string(-n),
     0 => "0",

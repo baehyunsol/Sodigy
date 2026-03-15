@@ -1,0 +1,2 @@
+// It's supposed to be `std.convert.convert.<Int, String>(30)`.
+assert std.convert.convert.<String>(30) == "30";

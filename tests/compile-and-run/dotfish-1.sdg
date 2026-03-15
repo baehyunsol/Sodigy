@@ -1,0 +1,7 @@
+#[poly]
+fn foo<T, U>(x: T) -> U;
+
+#[poly]
+fn foo_int(n: Int) -> Int = n;
+
+assert foo.<_, _>(3) == 3;
