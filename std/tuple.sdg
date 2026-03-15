@@ -11,7 +11,7 @@ fn eq_tuple0(_: (), _: ()) -> Bool = True;
 fn eq_tuple1<T0>(a: (T0,), b: (T0,)) -> Bool = a._0 == b._0;
 
 #[impl(std.op.eq)]
-fn eq_tuple2<T0, T1>(a: (T0, T1), b: (T0, T1)) -> Bool = a._0 == b._0 && a._1 && b._1;
+fn eq_tuple2<T0, T1>(a: (T0, T1), b: (T0, T1)) -> Bool = a._0 == b._0 && a._1 == b._1;
 
 #[impl(std.op.eq)]
 fn eq_tuple3<T0, T1, T2>(a: (T0, T1, T2), b: (T0, T1, T2)) -> Bool = a._0 == b._0 && a._1 && b._1 && a._2 == b._2;

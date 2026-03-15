@@ -111,7 +111,7 @@ fn match_test(
         (None, _, None, _, _) => f"102",
         _ => f"103",
     }
-}
+};
 
 assert match_test(None, Some(75), Some(45), Some(60), Some(95)) == "85/45/60";
 assert match_test(Some(55), Some(75), Some(70), Some(55), Some(30)) == "0/55/75/70/55/30";
