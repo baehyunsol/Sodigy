@@ -450,7 +450,7 @@ fn compile(
                             );
                         }
                     },
-                    MessageToMain::IrComplete {
+                    MessageToMain::StageComplete {
                         module_path,
                         compile_stage,
                         errors: errors_,
@@ -552,6 +552,16 @@ fn compile(
                             },
                             _ => unreachable!(),
                         }
+                    },
+                    MessageToMain::CompileError(errors_) => {
+                        errors.extend(errors_);
+                        *errors = sodigy_error::deduplicate(errors);
+
+                        if shutdown_countdown.is_none() {
+                            shutdown_countdown = Some(Instant::now());
+                        }
+
+                        continue;
                     },
                     MessageToMain::TimingsLog { worker_id, entries } => {
                         worker_logs.insert(worker_id, entries);

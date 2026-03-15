@@ -36,13 +36,17 @@ pub enum MessageToMain {
         // def_span of the module
         span: Span,
     },
-    IrComplete {
+    StageComplete {
         // inter-file irs don't have `module_path`
         module_path: Option<ModulePath>,
         compile_stage: CompileStage,
         errors: Vec<SodigyError>,
         warnings: Vec<SodigyWarning>,
     },
+
+    // Stage is not complete, but there's an error and it cannot continue
+    CompileError(Vec<SodigyError>),
+
     TimingsLog {
         worker_id: WorkerId,
         entries: Vec<TimingsEntry>,
@@ -255,7 +259,7 @@ impl Worker {
                         )?;
 
                         if !lex_session.errors.is_empty() || stop_after <= CompileStage::Lex {
-                            tx_to_main.send(MessageToMain::IrComplete {
+                            tx_to_main.send(MessageToMain::StageComplete {
                                 module_path: Some(input_module_path),
                                 compile_stage: CompileStage::Lex,
                                 errors: lex_session.errors.clone(),
@@ -278,7 +282,7 @@ impl Worker {
                         )?;
 
                         if !parse_session.errors.is_empty() || stop_after <= CompileStage::Parse {
-                            tx_to_main.send(MessageToMain::IrComplete {
+                            tx_to_main.send(MessageToMain::StageComplete {
                                 module_path: Some(input_module_path),
                                 compile_stage: CompileStage::Parse,
                                 errors: parse_session.errors.clone(),
@@ -313,7 +317,7 @@ impl Worker {
                     }
 
                     if !hir_session.errors.is_empty() || stop_after <= CompileStage::Hir {
-                        tx_to_main.send(MessageToMain::IrComplete {
+                        tx_to_main.send(MessageToMain::StageComplete {
                             module_path: Some(input_module_path),
                             compile_stage: CompileStage::Hir,
                             errors: hir_session.errors.clone(),
@@ -342,6 +346,11 @@ impl Worker {
 
                     self.stage_end(!hir_session.errors.is_empty());
 
+                    if !hir_session.errors.is_empty() {
+                        tx_to_main.send(MessageToMain::CompileError(hir_session.errors.clone()))?;
+                        return Err(Error::CompileError);
+                    }
+
                     // inter-hir may create new funcs and poly-generics, and the new functions
                     // must belong to some module. They all go to `lib.sdg`.
                     // TODO: distribute the new functions for better parallelism
@@ -367,7 +376,7 @@ impl Worker {
                 };
 
                 if !mir_session.errors.is_empty() || stop_after <= CompileStage::Mir {
-                    tx_to_main.send(MessageToMain::IrComplete {
+                    tx_to_main.send(MessageToMain::StageComplete {
                         module_path: Some(input_module_path),
                         compile_stage: CompileStage::Mir,
                         errors: mir_session.errors.clone(),
@@ -394,7 +403,7 @@ impl Worker {
                 )?;
 
                 if !mir_session.errors.is_empty() || stop_after <= CompileStage::PostMir {
-                    tx_to_main.send(MessageToMain::IrComplete {
+                    tx_to_main.send(MessageToMain::StageComplete {
                         module_path: Some(input_module_path),
                         compile_stage: CompileStage::PostMir,
                         errors: mir_session.errors.clone(),
@@ -417,7 +426,7 @@ impl Worker {
                 )?;
 
                 if !optimized_mir_session.errors.is_empty() || stop_after <= CompileStage::MirOptimize {
-                    tx_to_main.send(MessageToMain::IrComplete {
+                    tx_to_main.send(MessageToMain::StageComplete {
                         module_path: Some(input_module_path),
                         compile_stage: CompileStage::MirOptimize,
                         errors: optimized_mir_session.errors.clone(),
@@ -440,7 +449,7 @@ impl Worker {
                 )?;
 
                 if !bytecode_session.errors.is_empty() || stop_after <= CompileStage::Bytecode {
-                    tx_to_main.send(MessageToMain::IrComplete {
+                    tx_to_main.send(MessageToMain::StageComplete {
                         module_path: Some(input_module_path),
                         compile_stage: CompileStage::Bytecode,
                         errors: bytecode_session.errors.clone(),
@@ -463,7 +472,7 @@ impl Worker {
                 )?;
 
                 // bytecode optimizer doesn't emit any warning/error, and this must be the last stage!
-                tx_to_main.send(MessageToMain::IrComplete {
+                tx_to_main.send(MessageToMain::StageComplete {
                     module_path: Some(input_module_path),
                     compile_stage: CompileStage::BytecodeOptimize,
                     errors: optimized_bytecode_session.errors.clone(),
@@ -513,7 +522,7 @@ impl Worker {
                     &intermediate_dir,
                 )?;
 
-                tx_to_main.send(MessageToMain::IrComplete {
+                tx_to_main.send(MessageToMain::StageComplete {
                     module_path: None,
                     compile_stage: CompileStage::InterHir,
                     errors: inter_hir_session.errors,
@@ -626,7 +635,7 @@ impl Worker {
                 )?;
 
                 let has_error = !inter_mir_session.errors.is_empty();
-                tx_to_main.send(MessageToMain::IrComplete {
+                tx_to_main.send(MessageToMain::StageComplete {
                     module_path: None,
                     compile_stage: CompileStage::InterMir,
                     errors: inter_mir_session.errors,
@@ -695,7 +704,7 @@ impl Worker {
                 }
 
                 let has_error = !errors.is_empty();
-                tx_to_main.send(MessageToMain::IrComplete {
+                tx_to_main.send(MessageToMain::StageComplete {
                     module_path: None,
                     compile_stage: CompileStage::CodeGen,
                     errors,

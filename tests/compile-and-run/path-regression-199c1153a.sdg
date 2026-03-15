@@ -1,0 +1,5 @@
+//% compile-error == 1
+
+// This is supposed to be a compile error, but the compiler is panicking.
+
+assert std.invalid_name("");
