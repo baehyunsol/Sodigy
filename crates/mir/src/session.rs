@@ -112,20 +112,25 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
     }
 
     // It only dispatches `Callable::Static`. It only replaces `def_span`, not `span`.
-    pub fn dispatch(&mut self, map: &HashMap<Span, Span>, func_shapes: &HashMap<Span, FuncShape>) {
+    pub fn dispatch(
+        &mut self,
+        map: &HashMap<Span, Span>,
+        func_shapes: &HashMap<Span, FuncShape>,
+        generic_args: &mut HashMap<(Span, Span), Type>,
+    ) {
         for r#let in self.lets.iter_mut() {
-            r#let.value.dispatch(map, func_shapes, &mut self.generic_args);
+            r#let.value.dispatch(map, func_shapes, generic_args);
         }
 
         for func in self.funcs.iter_mut() {
-            func.value.dispatch(map, func_shapes, &mut self.generic_args);
+            func.value.dispatch(map, func_shapes, generic_args);
         }
 
         for assert in self.asserts.iter_mut() {
-            assert.value.dispatch(map, func_shapes, &mut self.generic_args);
+            assert.value.dispatch(map, func_shapes, generic_args);
 
             if let Some(note) = &mut assert.note {
-                note.dispatch(map, func_shapes, &mut self.generic_args);
+                note.dispatch(map, func_shapes, generic_args);
             }
         }
     }

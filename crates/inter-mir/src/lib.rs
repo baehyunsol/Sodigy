@@ -133,8 +133,18 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                 }
 
                 if !plan.dispatch_map.is_empty() {
-                    mir_session.dispatch(&plan.dispatch_map, &session.func_shapes);
-                    // TODO: do we have to invalidate previous `generic_args` after dispatching?
+                    let mut generic_args = HashMap::new();
+                    mir_session.dispatch(
+                        &plan.dispatch_map,
+                        &session.func_shapes,
+                        &mut generic_args,
+                    );
+
+                    for ((call, generic), r#type) in generic_args.into_iter() {
+                        session.add_type_var(r#type.clone(), None);
+                        session.generic_args.insert((call, generic), r#type);
+                    }
+
                     continue;
                 }
             },

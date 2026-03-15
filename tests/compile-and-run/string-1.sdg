@@ -1,0 +1,4 @@
+assert "" == "";
+assert "" != "abc";
+assert "abc" == "abc";
+assert "abc" != "def";
