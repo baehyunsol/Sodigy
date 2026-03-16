@@ -527,7 +527,7 @@ impl Session {
                     b'!' | b'$' | b'%' | b'&' | b'*' |
                     b'+' | b',' | b'-' | b'.' | b'/' |
                     b':' | b';' | b'<' | b'=' | b'>' |
-                    b'?' | b'@' | b'^' | b'|' | b'~'
+                    b'?' | b'@' | b'^' | b'|'
                 )), _, _) => {
                     self.tokens.push(Token {
                         kind: TokenKind::Punct((*x).into()),
@@ -545,7 +545,17 @@ impl Session {
                     self.token_start = self.cursor;
                     self.state = LexState::Ident { raw: false };
                 },
-                (Some(x), _, _) => panic!("TODO: {:?}", *x as char),
+                (Some(x), _, _) => {
+                    return Err(Error {
+                        kind: ErrorKind::UnexpectedByte(*x),
+                        spans: Span::range(
+                            self.file,
+                            self.cursor,
+                            self.cursor + 1,
+                        ).simple_error(),
+                        note: None,
+                    });
+                },
                 (None, _, _) => {
                     if let Some((delim, span)) = self.group_stack.pop() {
                         return Err(Error {

@@ -50,6 +50,7 @@ error_kinds!(
     (TooManyQuotes,                                                  105,    Error),
 
     (UnclosedDelimiter(u8),                                          110,    Error),
+    (UnexpectedByte(u8),                                             114,    Error),
     (UnexpectedToken { expected: ErrorToken, got: ErrorToken },      115,    Error),
     (WildcardNotAllowed,                                             116,    Error),
     (UnexpectedEof { expected: ErrorToken },                         120,    Error),
