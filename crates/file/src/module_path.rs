@@ -1,5 +1,5 @@
 use crate::{FileOrStd, GetFilePathError, STD_FILES};
-use sodigy_fs_api::exists;
+use sodigy_fs_api::{exists, join, join3, set_extension};
 use std::fmt;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -24,18 +24,20 @@ impl ModulePath {
         ModulePath { path, is_std: self.is_std }
     }
 
-    pub fn get_file_path(&self) -> Result<FileOrStd, GetFilePathError> {
+    pub fn get_file_path(&self, root: &str) -> Result<FileOrStd, GetFilePathError> {
         if self.is_lib() {
             // TODO: how about `src/lib/mod.sdg`?
-            if exists("src/lib.sdg") {
-                Ok(FileOrStd::File(String::from("src/lib.sdg")))
+            let p = join(root, "lib.sdg").unwrap();
+
+            if exists(&p) {
+                Ok(FileOrStd::File(p))
             } else {
                 Err(GetFilePathError {
                     is_lib: true,
                     is_std: false,
                     module_path: self.clone(),
                     found_files: vec![],
-                    candidates: vec![String::from("src/lib.sdg")],
+                    candidates: vec![p],
                 })
             }
         }
@@ -54,8 +56,15 @@ impl ModulePath {
 
         else {
             let joined = self.path.join("/");
-            let candidate1 = format!("src/{}.sdg", joined);
-            let candidate2 = format!("src/{}/mod.sdg", joined);
+            let candidate1 = join(
+                root,
+                &set_extension(&joined, "sdg").unwrap(),
+            ).unwrap();
+            let candidate2 = join3(
+                root,
+                &joined,
+                "mod.sdg",
+            ).unwrap();
 
             match (exists(&candidate1), exists(&candidate2)) {
                 (true, true) => Err(GetFilePathError {

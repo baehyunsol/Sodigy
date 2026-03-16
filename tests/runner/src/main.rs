@@ -18,6 +18,14 @@ use sodigy_fs_api::{
     write_string,
 };
 
+// TODO: add fuzzer to the pipeline
+//       1. switch to nightly rustc before invoking fuzzer, then come back to the stable rustc
+//       2. do not run fuzzer on windows
+//       3. if it's `all` command,
+//          a. initiate the fuzzer before anything else
+//          b. run the tests (the fuzzer is running along background)
+//          c. the tests will run at least a few minutes, so the fuzzer has enough time to fuzz
+//          d. when the tests are complete, kill the fuzzer process and check if there's a new error
 fn main() {
     let args = std::env::args().collect::<Vec<_>>();
     let root = find_root().unwrap();

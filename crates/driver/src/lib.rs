@@ -126,7 +126,8 @@ pub fn main_() {
 }
 
 pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
-    // TODO: make it configurable
+    // TODO: make these configurable
+    let src_dir = String::from("src/");
     let ir_dir = String::from("target");
 
     match &command {
@@ -158,6 +159,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                 _ => todo!(),
             };
             init_workers_and_compile(
+                src_dir,
                 output_path,
                 backend,
                 ir_dir,
@@ -191,6 +193,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
 /// This is the main entry point of the compiler.
 /// It reads `src/lib.sdg` and starts compiling.
 pub fn init_workers_and_compile(
+    src_dir: String,
     output_path: StoreIrAt,
     backend: Backend,
     ir_dir: String,
@@ -211,6 +214,7 @@ pub fn init_workers_and_compile(
     let channels = init_workers_and_channels(jobs);
 
     let result = compile(
+        src_dir,
         output_path,
         backend,
         ir_dir.clone(),
@@ -287,6 +291,7 @@ pub fn init_workers_and_compile(
 //   - There can be duplicate errors/warnings, so the master is responsible for deduplication.
 
 fn compile(
+    src_dir: String,
     output_path: StoreIrAt,
     backend: Backend,
     ir_dir: String,
@@ -301,7 +306,6 @@ fn compile(
     warnings: &mut Vec<SodigyWarning>,
     worker_logs: &mut HashMap<WorkerId, Vec<TimingsEntry>>,
 ) -> Result<(), Error> {
-    goto_root_dir()?;
     let mut shutdown_countdown: Option<Instant> = None;
     let mut round_robin = 0;
     let mut modules: HashMap<ModulePath, ModuleCompileState> = HashMap::new();
@@ -329,7 +333,7 @@ fn compile(
     };
 
     let lib_module_path = ModulePath::lib();
-    let lib_file_path = match lib_module_path.get_file_path() {
+    let lib_file_path = match lib_module_path.get_file_path(&src_dir) {
         Ok(p) => p,
         Err(e) => {
             errors.push(SodigyError {
@@ -487,7 +491,7 @@ fn compile(
                 Ok(msg) => match msg {
                     MessageToMain::AddModule { path, span } => {
                         if !modules.contains_key(&path) {
-                            let file_path = match path.get_file_path() {
+                            let file_path = match path.get_file_path(&src_dir) {
                                 Ok(p) => p,
                                 Err(e) => {
                                     errors.push(SodigyError {
@@ -676,25 +680,7 @@ fn interpret(exe: StoreIrAt, profile: Profile, intermediate_dir: &str) -> Result
     Ok(())
 }
 
-fn goto_root_dir() -> Result<(), FileError> {
-    // In some os, running `set_current_dir("..")` at `/` is nop.
-    for _ in 0..64 {
-        for f in read_dir(".", false)? {
-            if basename(&f)? == "sodigy.toml" {
-                return Ok(());
-            }
-        }
-
-        set_current_dir("..")?;
-    }
-
-    Err(FileError {
-        kind: FileErrorKind::FileNotFound,
-        given_path: Some(String::from("sodigy.toml")),
-    })
-}
-
-fn init_project(name: &str) -> Result<(), FileError> {
+pub fn init_project(name: &str) -> Result<(), FileError> {
     // TODO: make sure that `project_name` is a valid identifier
 
     if exists(&name) {
