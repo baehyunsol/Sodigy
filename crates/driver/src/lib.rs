@@ -1,4 +1,4 @@
-use sodigy_code_gen::Backend;
+pub use sodigy_code_gen::Backend;
 use sodigy_endec::Endec;
 use sodigy_error::{
     CustomErrorLevel,
@@ -24,7 +24,7 @@ use sodigy_fs_api::{
     set_current_dir,
     write_string,
 };
-use sodigy_optimize::OptimizeLevel;
+pub use sodigy_optimize::OptimizeLevel;
 use sodigy_span::{Color, Span};
 use std::collections::HashMap;
 use std::sync::mpsc;

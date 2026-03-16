@@ -3,6 +3,7 @@ use sodigy_endec::DecodeError;
 use sodigy_fs_api::FileError;
 
 /// It decides the exit code of the compiler process.
+#[derive(Debug)]
 pub enum Error {
     /// When the interpreter panics (not Rust's panic, but Sodigy's panic).
     RuntimeError,
