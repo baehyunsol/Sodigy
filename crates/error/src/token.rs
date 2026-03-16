@@ -15,6 +15,8 @@ pub enum ErrorToken {
     Generic,
     Number,
     String,
+    FieldUpdate,
+    DocComment,
     TypeAnnot,
     Declaration,
     Expr,
@@ -41,10 +43,15 @@ impl From<&TokenKind> for ErrorToken {
             TokenKind::Ident(_) => ErrorToken::Ident,
             TokenKind::Number(_) => ErrorToken::Number,
             TokenKind::String { .. } => ErrorToken::String,
+            TokenKind::Char(_) |
+            TokenKind::Byte(_) |
+            TokenKind::FormattedString { .. } => ErrorToken::Expr,
+            TokenKind::FieldUpdate { .. } => ErrorToken::FieldUpdate,
+            TokenKind::DocComment { .. } => ErrorToken::DocComment,
             TokenKind::Punct(p) => ErrorToken::Punct(*p),
+            TokenKind::GroupDelim { .. } => unreachable!(),
             TokenKind::Group { delim, .. } => ErrorToken::Group(*delim),
             TokenKind::Wildcard => ErrorToken::Wildcard,
-            _ => panic!("TODO: {t:?}"),
         }
     }
 }

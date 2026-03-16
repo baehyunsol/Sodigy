@@ -434,7 +434,11 @@ impl Session {
                                 expected: ErrorToken::Any,
                                 got: ErrorToken::Character(*x),
                             },
-                            spans: Span::eof(self.file).simple_error(),
+                            spans: Span::range(
+                                self.file,
+                                self.cursor,
+                                self.cursor + 1,
+                            ).simple_error(),
                             note: None,
                         });
                     },
@@ -1282,6 +1286,7 @@ impl Session {
                 },
                 (Some(b'\\'), Some(b'u'), Some(b'{'), _, _) => {
                     let escape_start = self.cursor;
+                    let delimiter_start = escape_start + 2;
                     self.cursor += 3;
                     let mut n = 0;
 
@@ -1329,7 +1334,11 @@ impl Session {
                             None => {
                                 return Err(Error {
                                     kind: ErrorKind::UnclosedDelimiter(b'}'),
-                                    spans: Span::eof(self.file).simple_error(),
+                                    spans: Span::range(
+                                        self.file,
+                                        delimiter_start,
+                                        delimiter_start + 1,
+                                    ).simple_error(),
                                     note: None,
                                 });
                             },
@@ -1859,7 +1868,7 @@ impl Session {
                 },
             },
             LexState::DocComment { top_level } => match self.input_bytes.get(self.cursor) {
-                Some(b'\n') => {
+                Some(b'\n') | None => {
                     let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
 
                     self.tokens.push(Token {
@@ -1879,20 +1888,6 @@ impl Session {
                 Some(x) => {
                     self.buffer1.push(*x);
                     self.cursor += 1;
-                },
-                // TODO: I don't like this implementation
-                //       In this case, the DocComment itself is valid, but it's an error because the
-                //       DocComment is not attached to anything.
-                //       My original idea was "lexer should guarantee that there's no dangling DocComment at the end",
-                //       but the lexer shouldn't throw this kind of error.
-                None => {
-                    return Err(Error {
-                        kind: ErrorKind::UnexpectedEof {
-                            expected: ErrorToken::Declaration,
-                        },
-                        spans: Span::eof(self.file).simple_error(),
-                        note: None,
-                    });
                 },
             },
             LexState::BlockComment => match (self.input_bytes.get(self.cursor), self.input_bytes.get(self.cursor + 1)) {

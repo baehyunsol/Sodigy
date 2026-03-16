@@ -73,8 +73,8 @@ pub enum TokenKind {
     },
     // `'a'`
     Char(u32),
-    // `b'a'` or `200b`
-    // `181b` is a valid byte, but `b'µ'` is not.
+    // `b'a'` or `#200`
+    // `#181` is a valid byte, but `b'µ'` is not.
     // The `b'_'` syntax is only valid for ascii characters.
     Byte(u8),
     FormattedString {

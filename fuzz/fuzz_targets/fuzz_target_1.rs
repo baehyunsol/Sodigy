@@ -47,6 +47,7 @@ fuzz_target!(|data: &[u8]| {
         ColorWhen::Never,
         true,
         Some(Profile::Test),
+        true,
     ) {
         Ok(_) => {},
         Err(Error::CompileError) => {},  // it's okay

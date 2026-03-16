@@ -172,6 +172,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                 *color,
                 true,  // TODO: make it configurable
                 interpret_with_profile,
+                false,  // TODO: make it configurable
             )
         },
         CliCommand::Interpret { bytecodes_path, profile } => interpret(
@@ -206,6 +207,7 @@ pub fn init_workers_and_compile(
     color: ColorWhen,
     incremental_compilation: bool,
     interpret_with_profile: Option<Profile>,
+    quiet: bool,
 ) -> Result<(), Error> {
     let started_at = Instant::now();
     let mut errors = vec![];
@@ -224,6 +226,7 @@ pub fn init_workers_and_compile(
         emit_irs,
         graceful_shutdown,
         incremental_compilation,
+        quiet,
         &channels,
         &mut errors,
         &mut warnings,
@@ -248,13 +251,17 @@ pub fn init_workers_and_compile(
         &mut errors,
         &mut warnings,
     );
-    sodigy_error::dump_errors(
-        errors,
-        warnings,
-        &ir_dir,
-        dump_error_option,
-        Some(elapsed_ms as u64),
-    );
+
+    if !quiet {
+        sodigy_error::dump_errors(
+            errors,
+            warnings,
+            &ir_dir,
+            dump_error_option,
+            Some(elapsed_ms as u64),
+        );
+    }
+
     let mut all_worker_ids = Vec::with_capacity(channels.len());
 
     for channel in channels.iter() {
@@ -301,6 +308,7 @@ fn compile(
     emit_irs: bool,
     graceful_shutdown: u32,  // in milliseconds
     incremental_compilation: bool,
+    quiet: bool,
     workers: &[Channel],
     errors: &mut Vec<SodigyError>,
     warnings: &mut Vec<SodigyWarning>,

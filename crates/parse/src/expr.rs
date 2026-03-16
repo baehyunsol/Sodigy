@@ -359,7 +359,16 @@ impl<'t, 's> Tokens<'t, 's> {
                     }]);
                 },
             },
-            Some(t) => panic!("TODO: {t:?}"),
+            Some(t) => {
+                return Err(vec![Error {
+                    kind: ErrorKind::UnexpectedToken {
+                        expected: ErrorToken::Expr,
+                        got: (&t.kind).into(),
+                    },
+                    spans: t.span.simple_error(),
+                    note: None,
+                }]);
+            },
             None => {
                 return Err(vec![self.unexpected_end(ErrorToken::Expr)]);
             },

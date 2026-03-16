@@ -26,6 +26,8 @@ use sodigy_fs_api::{
 //          b. run the tests (the fuzzer is running along background)
 //          c. the tests will run at least a few minutes, so the fuzzer has enough time to fuzz
 //          d. when the tests are complete, kill the fuzzer process and check if there's a new error
+//
+// TODO: copy `.sdg` files in `compile-and-run/` to `../../fuzz/artifacts/fuzz_target_1/`
 fn main() {
     let args = std::env::args().collect::<Vec<_>>();
     let root = find_root().unwrap();

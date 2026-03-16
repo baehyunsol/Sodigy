@@ -21,6 +21,7 @@ InvalidUnicodeEscape/95/Error
 UnmatchedGroup/100/Error
 TooManyQuotes/105/Error
 UnclosedDelimiter/110/Error
+UnexpectedByte/114/Error
 UnexpectedToken/115/Error
 WildcardNotAllowed/116/Error
 UnexpectedEof/120/Error
