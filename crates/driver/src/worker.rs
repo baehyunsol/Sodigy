@@ -1,15 +1,15 @@
-use crate::TimingsEntry;
-use sodigy::{
+use crate::{
     Command,
+    CompileStage,
     EmitIrOption,
     Error,
     GlobalContext,
     StoreIrAt,
+    TimingsEntry,
     emit_irs_if_has_to,
     get_cached_ir,
     store_inter_mir_log,
 };
-use sodigy_driver::CompileStage;
 use sodigy_endec::Endec;
 use sodigy_error::{Error as SodigyError, Warning as SodigyWarning};
 use sodigy_file::{File, FileOrStd, ModulePath};

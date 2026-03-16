@@ -4,28 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-sodigy-bytecode = { version = "0.1.0", path = "crates/bytecode" }
-sodigy-cli = { version = "0.1.0", path = "crates/cli" }
-sodigy-code-gen = { version = "0.1.0", path = "crates/code-gen" }
 sodigy-driver = { version = "0.1.0", path = "crates/driver" }
-sodigy-error = { version = "0.1.0", path = "crates/error" }
-sodigy-endec = { version = "0.1.0", path = "crates/endec" }
-sodigy-file = { version = "0.1.0", path = "crates/file" }
-sodigy-fs-api = { version = "0.1.0", path = "crates/fs-api" }
-sodigy-hir = { version = "0.1.0", path = "crates/hir" }
-sodigy-inter-hir = { version = "0.1.0", path = "crates/inter-hir" }
-sodigy-inter-mir = { version = "0.1.0", path = "crates/inter-mir" }
-sodigy-interpreter = { version = "0.1.0", path = "crates/interpreter" }
-sodigy-lex = { version = "0.1.0", path = "crates/lex" }
-sodigy-mir = { version = "0.1.0", path = "crates/mir" }
-sodigy-name-analysis = { version = "0.1.0", path = "crates/name-analysis" }
-sodigy-optimize = { version = "0.1.0", path = "crates/optimize" }
-sodigy-parse = { version = "0.1.0", path = "crates/parse" }
-sodigy-post-mir = { version = "0.1.0", path = "crates/post-mir" }
-sodigy-prettify = { version = "0.1.0", path = "crates/prettify" }
-sodigy-span = { version = "0.1.0", path = "crates/span" }
-sodigy-string = { version = "0.1.0", path = "crates/string" }
 
 [features]
-debug-bytecode = ["sodigy-interpreter/debug-bytecode"]
-debug-heap = ["sodigy-interpreter/debug-heap"]
+debug-bytecode = ["sodigy-driver/debug-bytecode"]
+debug-heap = ["sodigy-driver/debug-heap"]
