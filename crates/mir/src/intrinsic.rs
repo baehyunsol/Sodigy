@@ -71,12 +71,14 @@ intrinsics!(
     (LenList         , "built_in.len_list"          , 14),
     (SliceList       , "built_in.slice_list"        , 15),
     (SliceRightList  , "built_in.slice_right_list"  , 16),
-    (Exit            , "built_in.exit"              , 17),
-    (Panic           , "built_in.panic"             , 18),
-    (Print           , "built_in.print"             , 19),
-    (EPrint          , "built_in.eprint"            , 20),
-    (RandomInt       , "built_in.random_int"        , 21),
-    (Nop             , "built_in.nop"               , 22),
+    (AppendList      , "built_in.append_list"       , 17),
+    (PrependList     , "built_in.prepend_list"      , 18),
+    (Exit            , "built_in.exit"              , 19),
+    (Panic           , "built_in.panic"             , 20),
+    (Print           , "built_in.print"             , 21),
+    (EPrint          , "built_in.eprint"            , 22),
+    (RandomInt       , "built_in.random_int"        , 23),
+    (Nop             , "built_in.nop"               , 24),
 //   ^^^               ^^^^^^^^^^^^^^                 ^^
 //   |                 |                              |
 //  (0)               (1)                            (2)

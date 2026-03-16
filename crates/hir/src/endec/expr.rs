@@ -97,11 +97,12 @@ impl Endec for Expr {
                 op_span.encode_impl(buffer);
                 lhs.encode_impl(buffer);
             },
-            Expr::TypeConversion { keyword_span, lhs, rhs } => {
+            Expr::TypeConversion { keyword_span, lhs, rhs, has_question_mark } => {
                 buffer.push(15);
                 keyword_span.encode_impl(buffer);
                 lhs.encode_impl(buffer);
                 rhs.encode_impl(buffer);
+                has_question_mark.encode_impl(buffer);
             },
             Expr::Closure { fp, captures } => {
                 buffer.push(16);
@@ -196,7 +197,8 @@ impl Endec for Expr {
                 let (keyword_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 let (rhs, cursor) = Type::decode_impl(buffer, cursor)?;
-                Ok((Expr::TypeConversion { keyword_span, lhs, rhs }, cursor))
+                let (has_question_mark, cursor) = bool::decode_impl(buffer, cursor)?;
+                Ok((Expr::TypeConversion { keyword_span, lhs, rhs, has_question_mark }, cursor))
             },
             Some(16) => {
                 let (fp, cursor) = Path::decode_impl(buffer, cursor + 1)?;

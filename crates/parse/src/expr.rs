@@ -92,6 +92,7 @@ pub enum Expr {
         keyword_span: Span,
         lhs: Box<Expr>,
         rhs: Type,
+        has_question_mark: bool,
     },
 
     // `x |> $ + 1` will become
@@ -157,7 +158,7 @@ impl Expr {
                 .merge(*op_span)
                 .merge(rhs.error_span_wide()),
             Expr::PostfixOp { lhs, op_span, .. } => lhs.error_span_wide().merge(*op_span),
-            Expr::TypeConversion { lhs, keyword_span, rhs } => lhs.error_span_wide()
+            Expr::TypeConversion { lhs, keyword_span, rhs, .. } => lhs.error_span_wide()
                 .merge(*keyword_span)
                 .merge(rhs.error_span_wide()),
             Expr::Pipeline { values, .. } => {
@@ -706,6 +707,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         keyword_span,
                         lhs: Box::new(lhs),
                         rhs: types[0].clone(),
+                        has_question_mark,
                     };
                     continue;
                 },

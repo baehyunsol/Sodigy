@@ -1,4 +1,11 @@
+use std.result.Result;
+
 #[poly]
 #[lang_item("fn.convert")]
 #[lang_item_generics("fn.convert.generic.0", "fn.convert.generic.1")]
 fn convert<T, U>(x: T) -> U;
+
+#[poly]
+#[lang_item("fn.try_convert")]
+#[lang_item_generics("fn.try_convert.generic.0", "fn.try_convert.generic.1", "fn.try_convert.generic.2")]
+fn try_convert<T, U, E>(x: T) -> Result<U, E>;

@@ -865,18 +865,35 @@ impl Expr {
                     given_keyword_args: vec![],
                 })
             },
-            hir::Expr::TypeConversion { keyword_span, lhs, rhs } => Ok(Expr::Call {
+            hir::Expr::TypeConversion { keyword_span, lhs, rhs, has_question_mark } => Ok(Expr::Call {
                 func: Callable::Static {
-                    def_span: session.get_lang_item_span("fn.convert"),
+                    def_span: if *has_question_mark {
+                        session.get_lang_item_span("fn.try_convert")
+                    } else {
+                        session.get_lang_item_span("fn.convert")
+                    },
                     span: *keyword_span,
                 },
                 args: vec![Expr::from_hir(lhs, session)?],
                 arg_group_span: rhs.error_span_wide(),
                 types: Some((
-                    vec![
-                        Type::Var { def_span: *keyword_span, is_return: false },
-                        Type::from_hir(rhs, session)?,
-                    ],
+                    if *has_question_mark {
+                        // `"3" as? <Int>` -> `std.convert.try_convert.<_, Int, _>("3")`
+                        vec![
+                            Type::Var { def_span: *keyword_span, is_return: false },
+                            Type::from_hir(rhs, session)?,
+
+                            // This is the error type, and I have to introduce another type-var. But I don't have a span...
+                            // Or maybe, I can force every `try_convert` return the same error type.
+                            todo!(),
+                        ]
+                    } else {
+                        // `3 as <String>` -> `std.convert.convert.<_, String>(3)`
+                        vec![
+                            Type::Var { def_span: *keyword_span, is_return: false },
+                            Type::from_hir(rhs, session)?,
+                        ]
+                    },
                     rhs.error_span_wide(),
                 )),
                 given_keyword_args: vec![],

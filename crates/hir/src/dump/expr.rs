@@ -274,9 +274,9 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session, max_
             dump_expr(lhs, lines, session, max_len);
             lines.push(op.render_error());
         },
-        Expr::TypeConversion { lhs, rhs, .. } => {
+        Expr::TypeConversion { lhs, rhs, has_question_mark, .. } => {
             dump_expr(lhs, lines, session, max_len);
-            lines.push(" as <");
+            lines.push(&format!(" as{} <", if *has_question_mark { "?" } else { "" }));
             dump_type(rhs, lines, session);
             lines.push(">");
         },

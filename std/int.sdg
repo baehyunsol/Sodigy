@@ -83,13 +83,12 @@ fn neq_int(a: Int, b: Int) -> Bool = !eq_int(a, b);
 #[lang_item("fn.geq_int")]
 fn geq_int(a: Int, b: Int) -> Bool = !lt_int(a, b);
 
+// TODO: safety checks in Sodigy
 #[built_in]
 #[impl(std.convert.convert)]
-#[lang_item("fn.int_to_scalar")]
+#[lang_item("built_in.int_to_scalar")]
 fn int_to_scalar(n: Int) -> Scalar;
 
-// TODO: match is not implemented yet...
-/*
 #[impl(std.convert.convert)]
 fn int_to_string(n: Int) -> String = match n {
     ..0 => "-" ++ int_to_string(-n),
@@ -105,9 +104,3 @@ fn int_to_string(n: Int) -> String = match n {
     9 => "9",
     _ => int_to_string(n / 10) ++ int_to_string(n % 10),
 };
-*/
-
-#[built_in]
-#[impl(std.convert.convert)]
-#[lang_item("convert.scalar_to_int")]
-fn to_scalar(n: Int) -> Scalar;

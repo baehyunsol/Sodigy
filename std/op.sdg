@@ -72,3 +72,13 @@ fn geq<T>(lhs: T, rhs: T) -> Bool = !lt(lhs, rhs);
 #[lang_item("op.concat")]
 #[lang_item_generics("op.concat.generic.0", "op.concat.generic.1", "op.concat.generic.2")]
 fn concat<T, U, V>(lhs: T, rhs: U) -> V;
+
+#[poly]
+#[lang_item("op.append")]
+#[lang_item_generics("op.append.generic.0", "op.append.generic.1", "op.append.generic.2")]
+fn append<T, U, V>(lhs: T, rhs: U) -> V;
+
+#[poly]
+#[lang_item("op.prepend")]
+#[lang_item_generics("op.prepend.generic.0", "op.prepend.generic.1", "op.prepend.generic.2")]
+fn prepend<T, U, V>(lhs: T, rhs: U) -> V;

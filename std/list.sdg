@@ -51,3 +51,20 @@ fn slice_list<T>(ls: [T], start: Scalar, end: Scalar) -> [T];
 #[built_in]
 #[lang_item("built_in.slice_right_list")]
 fn slice_right_list<T>(ls: [T], start: Scalar) -> [T];
+
+#[impl(std.op.concat)]
+fn concat_list<T>(lhs: [T], rhs: [T]) -> [T] = match (lhs, rhs) {
+    ([], $rhs) => rhs,
+    ($lhs, []) => lhs,
+    ($lhs, [$r] ++ $rhs) => concat_list(lhs <+ r, rhs),
+};
+
+#[built_in]
+#[impl(std.op.append)]
+#[lang_item("built_in.append_list")]
+fn append_list<T>(ls: [T], v: T) -> [T];
+
+#[built_in]
+#[impl(std.op.prepend)]
+#[lang_item("built_in.prepend_list")]
+fn prepend_list<T>(v: T, ls: [T]) -> [T];

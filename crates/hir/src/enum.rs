@@ -253,7 +253,12 @@ impl EnumVariantFields {
     pub fn erase_type_info(&mut self) {
         match self {
             EnumVariantFields::None => {},
-            EnumVariantFields::Tuple(elems) => todo!(),
+            EnumVariantFields::Tuple(elems) => {
+                for elem in elems.iter_mut() {
+                    // It's kinda `Type::dummy()`.
+                    *elem = Type::Wildcard(Span::None);
+                }
+            },
             EnumVariantFields::Struct(fields) => {
                 for field in fields.iter_mut() {
                     field.type_annot = None;

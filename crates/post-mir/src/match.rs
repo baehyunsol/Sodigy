@@ -396,36 +396,27 @@ fn read_field_of_pattern(
         _ => vec![],
     };
 
-    match field.last().unwrap() {
+    if let PatternKind::NameBinding { id, span } = &curr_pattern.kind {
+        name_bindings.push(NameBinding { name: *id, name_span: *span, offset: NameBindingOffset::None, id: arm_id });
+    }
+
+    let constructor = match field.last().unwrap() {
         PatternField::Constructor => match &curr_pattern.kind {
-            PatternKind::NameBinding { id, span } => (
-                PatternConstructor::Wildcard,
-                vec![NameBinding { name: *id, name_span: *span, offset: NameBindingOffset::None, id: arm_id }],
-            ),
-            PatternKind::Constant(Constant::Number { n, .. }) => (
-                PatternConstructor::Range(Range {
-                    r#type: if n.is_integer { LiteralType::Int } else { LiteralType::Number },
-                    lhs: Some(n.clone()),
-                    lhs_inclusive: true,
-                    rhs: Some(n.clone()),
-                    rhs_inclusive: true,
-                }),
-                name_bindings,
-            ),
-            PatternKind::Constant(Constant::Char { ch, .. }) => (
-                PatternConstructor::Range(Range {
-                    r#type: LiteralType::Char,
-                    lhs: Some(InternedNumber::from_u32(*ch, true)),
-                    lhs_inclusive: true,
-                    rhs: Some(InternedNumber::from_u32(*ch, true)),
-                    rhs_inclusive: true,
-                }),
-                name_bindings,
-            ),
-            PatternKind::Constant(Constant::String { .. }) => (
-                PatternConstructor::DefSpan(session.get_lang_item_span("type.List")),
-                name_bindings,
-            ),
+            PatternKind::Constant(Constant::Number { n, .. }) => PatternConstructor::Range(Range {
+                r#type: if n.is_integer { LiteralType::Int } else { LiteralType::Number },
+                lhs: Some(n.clone()),
+                lhs_inclusive: true,
+                rhs: Some(n.clone()),
+                rhs_inclusive: true,
+            }),
+            PatternKind::Constant(Constant::Char { ch, .. }) => PatternConstructor::Range(Range {
+                r#type: LiteralType::Char,
+                lhs: Some(InternedNumber::from_u32(*ch, true)),
+                lhs_inclusive: true,
+                rhs: Some(InternedNumber::from_u32(*ch, true)),
+                rhs_inclusive: true,
+            }),
+            PatternKind::Constant(Constant::String { .. }) => PatternConstructor::DefSpan(session.get_lang_item_span("type.List")),
             PatternKind::Tuple { elements, rest, .. } => {
                 if let Some(_) = rest {
                     // `(a, .. , b)` is just a syntax sugar for `(a, _, _, b)`.
@@ -434,13 +425,10 @@ fn read_field_of_pattern(
                 }
 
                 else {
-                    (PatternConstructor::Tuple(elements.len()), name_bindings)
+                    PatternConstructor::Tuple(elements.len())
                 }
             },
-            PatternKind::List { .. } => (
-                PatternConstructor::DefSpan(session.get_lang_item_span("type.List")),
-                name_bindings,
-            ),
+            PatternKind::List { .. } => PatternConstructor::DefSpan(session.get_lang_item_span("type.List")),
             PatternKind::Range { lhs, rhs, is_inclusive, .. } => {
                 let mut literal_type = None;
                 let lhs = lhs.as_ref().map(
@@ -478,23 +466,20 @@ fn read_field_of_pattern(
                     }
                 );
 
-                (
-                    PatternConstructor::Range(Range {
-                        r#type: literal_type.unwrap(),
-                        lhs,
-                        lhs_inclusive: true,
-                        rhs,
-                        rhs_inclusive: *is_inclusive,
-                    }),
-                    name_bindings,
-                )
+                PatternConstructor::Range(Range {
+                    r#type: literal_type.unwrap(),
+                    lhs,
+                    lhs_inclusive: true,
+                    rhs,
+                    rhs_inclusive: *is_inclusive,
+                })
             },
             PatternKind::Or { lhs, rhs, .. } => {
                 let (lhs, _) = read_field_of_pattern(arm_id, lhs, &[PatternField::Constructor], session);
                 let (rhs, _) = read_field_of_pattern(arm_id, rhs, &[PatternField::Constructor], session);
-                (PatternConstructor::Or(vec![lhs, rhs]), name_bindings)
+                PatternConstructor::Or(vec![lhs, rhs])
             },
-            PatternKind::Wildcard(_) => (PatternConstructor::Wildcard, name_bindings),
+            PatternKind::Wildcard(_) | PatternKind::NameBinding { .. } => PatternConstructor::Wildcard,
             _ => panic!("TODO: {curr_pattern:?}"),
         },
         PatternField::Index(_) => unreachable!(),
@@ -514,20 +499,17 @@ fn read_field_of_pattern(
                         (Some(elements.len()), true, Some(elements.len()), true)
                     }
                 },
-                PatternKind::Wildcard(_) => (Some(0), true, None, false),
-                _ => panic!("TODO: {pattern:?}"),
+                PatternKind::Wildcard(_) | PatternKind::NameBinding { .. } => (Some(0), true, None, false),
+                _ => panic!("TODO: {curr_pattern:?}"),
             };
 
-            (
-                PatternConstructor::Range(Range {
-                    r#type: LiteralType::Scalar,
-                    lhs: lhs.map(|lhs| InternedNumber::from_u32(lhs as u32, true)),
-                    lhs_inclusive,
-                    rhs: rhs.map(|rhs| InternedNumber::from_u32(rhs as u32, true)),
-                    rhs_inclusive,
-                }),
-                name_bindings,
-            )
+            PatternConstructor::Range(Range {
+                r#type: LiteralType::Scalar,
+                lhs: lhs.map(|lhs| InternedNumber::from_u32(lhs as u32, true)),
+                lhs_inclusive,
+                rhs: rhs.map(|rhs| InternedNumber::from_u32(rhs as u32, true)),
+                rhs_inclusive,
+            })
         },
         PatternField::ListElements => match &curr_pattern.kind {
             // hir must have lowered this variant to `PatternKind::List`.
@@ -542,22 +524,18 @@ fn read_field_of_pattern(
                     });
                 }
 
-                (
-                    PatternConstructor::ListSubMatrix {
-                        elements: elements.clone(),
-                        rest: rest.clone(),
-                    },
-                    name_bindings,
-                )
+                PatternConstructor::ListSubMatrix {
+                    elements: elements.clone(),
+                    rest: rest.clone(),
+                }
             },
-            PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => (
-                PatternConstructor::Wildcard,
-                name_bindings,
-            ),
+            PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => PatternConstructor::Wildcard,
             _ => todo!(),
         },
         f => panic!("TODO: {f:?}"),
-    }
+    };
+
+    (constructor, name_bindings)
 }
 
 #[derive(Clone, Debug)]

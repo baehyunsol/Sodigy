@@ -897,7 +897,7 @@ impl Session {
             },
             None => {
                 // an error..??
-                todo!()
+                panic!("{type:?}\n{field:?}")
             },
         }
     }

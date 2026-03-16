@@ -262,6 +262,8 @@ fn execute(
                     heap.data[new_slice_ptr + 2] = length - slice_start;
                     update(*dst, new_slice_ptr as u32, stack, heap);
                 },
+                Intrinsic::AppendList => todo!(),
+                Intrinsic::PrependList => todo!(),
                 Intrinsic::Exit => {
                     // TODO: clean up stack and heap
                     return Ok(());
