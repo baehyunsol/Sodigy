@@ -14,7 +14,6 @@ pub enum Error {
 
     FileError(FileError),
     DecodeError(DecodeError),
-    CliError(sodigy_cli::Error),
     MpscError,
     IrCacheNotFound(CompileStage),
 
@@ -29,7 +28,8 @@ impl Error {
         match self {
             Error::RuntimeError => 10,
             Error::CompileError => 11,
-            Error::CliError(_) => 12,
+
+            // CliError will return 12
 
             // `RuntimeError`, `CompileError` and `CliError` are obvious, but
             // the other variants are subject to change.
@@ -47,12 +47,6 @@ impl From<FileError> for Error {
 impl From<DecodeError> for Error {
     fn from(e: DecodeError) -> Error {
         Error::DecodeError(e)
-    }
-}
-
-impl From<sodigy_cli::Error> for Error {
-    fn from(e: sodigy_cli::Error) -> Error {
-        Error::CliError(e)
     }
 }
 

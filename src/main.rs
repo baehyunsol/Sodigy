@@ -53,59 +53,60 @@ use timings::{TimingsEntry, dump_timings};
 use worker::{Channel, MessageToMain, MessageToWorker, Worker, WorkerId, init_workers_and_channels};
 
 fn main() {
-    let result = run();
+    let args = std::env::args().collect::<Vec<_>>();
 
-    match result {
-        Ok(()) => {},
+    match parse_args(&args) {
+        Ok(command) => match run(command) {
+            Ok(()) => {},
+            Err(e) => {
+                match &e {
+                    Error::RuntimeError => {
+                        // TODO: what do I do here?
+                    },
+                    Error::CompileError => {
+                        // The errors are already dumped!
+                    },
+                    Error::FileError(e) => {
+                        eprintln!("FileError: {e:?}");
+                    },
+                    Error::DecodeError(e) => {
+                        eprintln!("DecodeError: {e:?}");
+                    },
+                    Error::MpscError => {
+                        eprintln!("MpscError");
+                    },
+                    Error::IrCacheNotFound(s) => {
+                        eprintln!("IrCacheNotFound({s:?})");
+                    },
+                    Error::MiscError => {
+                        eprintln!("Unknown Error");
+                    },
+                }
+
+                std::process::exit(e.exit_code())
+            },
+        },
         Err(e) => {
-            match &e {
-                Error::RuntimeError => {
-                    // TODO: what do I do here?
+            let message = e.kind.render();
+            eprintln!(
+                "cli error: {message}{}",
+                if let Some(span) = &e.span {
+                    format!("\n\n{}", sodigy_cli::underline_span(span))
+                } else {
+                    String::new()
                 },
-                Error::CompileError => {
-                    // The errors are already dumped!
-                },
-                Error::FileError(e) => {
-                    eprintln!("FileError: {e:?}");
-                },
-                Error::DecodeError(e) => {
-                    eprintln!("DecodeError: {e:?}");
-                },
-                Error::CliError(e) => {
-                    let message = e.kind.render();
-                    eprintln!(
-                        "cli error: {message}{}",
-                        if let Some(span) = &e.span {
-                            format!("\n\n{}", sodigy_cli::underline_span(span))
-                        } else {
-                            String::new()
-                        },
-                    );
-                },
-                Error::MpscError => {
-                    eprintln!("MpscError");
-                },
-                Error::IrCacheNotFound(s) => {
-                    eprintln!("IrCacheNotFound({s:?})");
-                },
-                Error::MiscError => {
-                    eprintln!("Unknown Error");
-                },
-            }
+            );
 
-            std::process::exit(e.exit_code())
+            std::process::exit(12)
         },
     }
 }
 
-
-fn run() -> Result<(), Error> {
-    let args = std::env::args().collect::<Vec<_>>();
-
+pub fn run(command: CliCommand) -> Result<(), Error> {
     // TODO: make it configurable
     let ir_dir = String::from("target");
 
-    match &parse_args(&args)? {
+    match &command {
         CliCommand::New { project_name } => {
             init_project(project_name)?;
             Ok(())
@@ -115,97 +116,43 @@ fn run() -> Result<(), Error> {
             CliCommand::Run { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, jobs, color } |
             CliCommand::Test { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, jobs, color }
         ) => {
-            let started_at = Instant::now();
-            let mut errors = vec![];
-            let mut warnings = vec![];
-            let mut worker_logs = HashMap::new();
-            let channels = init_workers_and_channels(*jobs);
-            let (output_path, backend) = match cli_command {
-                CliCommand::Run { .. } => (StoreIrAt::IntermediateDir, Backend::Bytecode),
-                CliCommand::Test { .. } => (StoreIrAt::IntermediateDir, Backend::Bytecode),
-                CliCommand::Build { output_path, backend, .. } => (StoreIrAt::File(output_path.to_string()), *backend),
+            let (output_path, backend, interpret_with_profile) = match cli_command {
+                CliCommand::Run { .. } => (
+                    StoreIrAt::IntermediateDir,
+                    Backend::Bytecode,
+                    Some(Profile::Script),
+                ),
+                CliCommand::Test { .. } => (
+                    StoreIrAt::IntermediateDir,
+                    Backend::Bytecode,
+                    Some(Profile::Test),
+                ),
+                CliCommand::Build { output_path, backend, .. } => (
+                    StoreIrAt::File(output_path.to_string()),
+                    *backend,
+                    None,
+                ),
                 _ => todo!(),
             };
-
-            let result = compile(
+            init_workers_and_compile(
                 output_path,
                 backend,
-                ir_dir.clone(),
+                ir_dir,
                 *optimize_level,
                 *import_std,
-                &custom_error_levels,
+                custom_error_levels,
                 *emit_irs,
                 *graceful_shutdown,
-
-                // TODO: make it configurable
-                true,  // incremental_compilation
-
-                &channels,
-                &mut errors,
-                &mut warnings,
-                &mut worker_logs,
-            );
-
-            let elapsed_ms = Instant::now().duration_since(started_at).as_millis();
-            let dump_error_option = match color {
-                // TODO: `ColorWhen::Auto` is WIP
-                ColorWhen::Auto | ColorWhen::Always => DumpErrorOption::default(),
-                ColorWhen::Never => DumpErrorOption {
-                    error_color: Color::None,
-                    warning_color: Color::None,
-                    auxiliary_color: Color::None,
-                    info_color: Color::None,
-                    ..DumpErrorOption::default()
-                },
-            };
-
-            apply_custom_error_levels(
-                &custom_error_levels,
-                &mut errors,
-                &mut warnings,
-            );
-            sodigy_error::dump_errors(
-                errors,
-                warnings,
-                &ir_dir,
-                dump_error_option,
-                Some(elapsed_ms as u64),
-            );
-            let mut all_worker_ids = Vec::with_capacity(channels.len());
-
-            for channel in channels.iter() {
-                let _ = channel.send(MessageToWorker::Kill);
-                all_worker_ids.push(channel.worker_id);
-            }
-
-            for channel in channels.into_iter() {
-                let worker_id = channel.worker_id;
-
-                // Erroneous workers are already dead and their logs are already collected.
-                // The other workers' logs are collected here.
-                if let Some(worker_log) = channel.join() {
-                    worker_logs.insert(worker_id, worker_log);
-                }
-            }
-
-            // TODO: make it configurable
-            dump_timings(all_worker_ids, &worker_logs, &ir_dir)?;
-            result?;
-
-            match cli_command {
-                CliCommand::Run { .. } => interpret(StoreIrAt::IntermediateDir, Profile::Script, &ir_dir),
-                CliCommand::Test { .. } => interpret(StoreIrAt::IntermediateDir, Profile::Test, &ir_dir),
-                _ => Ok(()),
-            }
+                *jobs,
+                *color,
+                true,  // TODO: make it configurable
+                interpret_with_profile,
+            )
         },
-        CliCommand::Interpret { bytecodes_path } => interpret(
+        CliCommand::Interpret { bytecodes_path, profile } => interpret(
             StoreIrAt::File(bytecodes_path.to_string()),
-
-            // TODO: make it configurable
-            Profile::Test,
-
-            // intermediate_dir not needed
-            "",
+            *profile,
+            "",  // intermediate_dir not needed
         ),
         CliCommand::Clean => {
             if exists(&ir_dir) {
@@ -215,6 +162,96 @@ fn run() -> Result<(), Error> {
             Ok(())
         },
         CliCommand::Help(command) => todo!(),
+    }
+}
+
+/// This is the main entry point of the compiler.
+/// It reads `src/lib.sdg` and starts compiling.
+pub fn init_workers_and_compile(
+    output_path: StoreIrAt,
+    backend: Backend,
+    ir_dir: String,
+    optimize_level: OptimizeLevel,
+    import_std: bool,
+    custom_error_levels: &HashMap<u16, CustomErrorLevel>,
+    emit_irs: bool,
+    graceful_shutdown: u32,  // in milliseconds
+    jobs: usize,
+    color: ColorWhen,
+    incremental_compilation: bool,
+    interpret_with_profile: Option<Profile>,
+) -> Result<(), Error> {
+    let started_at = Instant::now();
+    let mut errors = vec![];
+    let mut warnings = vec![];
+    let mut worker_logs = HashMap::new();
+    let channels = init_workers_and_channels(jobs);
+
+    let result = compile(
+        output_path,
+        backend,
+        ir_dir.clone(),
+        optimize_level,
+        import_std,
+        custom_error_levels,
+        emit_irs,
+        graceful_shutdown,
+        incremental_compilation,
+        &channels,
+        &mut errors,
+        &mut warnings,
+        &mut worker_logs,
+    );
+
+    let elapsed_ms = Instant::now().duration_since(started_at).as_millis();
+    let dump_error_option = match color {
+        // TODO: `ColorWhen::Auto` is WIP
+        ColorWhen::Auto | ColorWhen::Always => DumpErrorOption::default(),
+        ColorWhen::Never => DumpErrorOption {
+            error_color: Color::None,
+            warning_color: Color::None,
+            auxiliary_color: Color::None,
+            info_color: Color::None,
+            ..DumpErrorOption::default()
+        },
+    };
+
+    apply_custom_error_levels(
+        &custom_error_levels,
+        &mut errors,
+        &mut warnings,
+    );
+    sodigy_error::dump_errors(
+        errors,
+        warnings,
+        &ir_dir,
+        dump_error_option,
+        Some(elapsed_ms as u64),
+    );
+    let mut all_worker_ids = Vec::with_capacity(channels.len());
+
+    for channel in channels.iter() {
+        let _ = channel.send(MessageToWorker::Kill);
+        all_worker_ids.push(channel.worker_id);
+    }
+
+    for channel in channels.into_iter() {
+        let worker_id = channel.worker_id;
+
+        // Erroneous workers are already dead and their logs are already collected.
+        // The other workers' logs are collected here.
+        if let Some(worker_log) = channel.join() {
+            worker_logs.insert(worker_id, worker_log);
+        }
+    }
+
+    // TODO: make it configurable
+    dump_timings(all_worker_ids, &worker_logs, &ir_dir)?;
+    result?;
+
+    match interpret_with_profile {
+        Some(profile) => interpret(StoreIrAt::IntermediateDir, profile, &ir_dir),
+        None => Ok(()),
     }
 }
 

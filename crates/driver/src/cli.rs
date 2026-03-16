@@ -46,6 +46,7 @@ pub enum CliCommand {
     Help(String),
     Interpret {
         bytecodes_path: String,
+        profile: Profile,
     },
     New {
         project_name: String,
@@ -171,7 +172,12 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
 
             let bytecodes_path = parsed_args.get_args_exact(1)?[0].to_string();
 
-            Ok(CliCommand::Interpret { bytecodes_path })
+            Ok(CliCommand::Interpret {
+                bytecodes_path,
+
+                // TODO: make it configurable
+                profile: Profile::Test,
+            })
         },
         Some("new") => {
             let parsed_args = ArgParser::new()
