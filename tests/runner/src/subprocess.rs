@@ -23,6 +23,7 @@ impl Output {
 #[derive(Debug)]
 pub enum SubprocessError {
     Timeout,
+    NonzeroStatus,
     IoError(IoError),
 }
 
@@ -34,6 +35,7 @@ pub fn run(
     cwd: &str,
     timeout: f32,  // seconds
     dump_output: bool,
+    check_nonzero_status: bool,
 ) -> Result<Output, SubprocessError> {
     let timeout = (timeout * 1000.0) as u128;
     let mut child_process = Command::new(binary)
@@ -90,6 +92,11 @@ pub fn run(
     }
 
     let status = status?;
+
+    if check_nonzero_status && !status.success() {
+        return Err(SubprocessError::NonzeroStatus);
+    }
+
     Ok(Output {
         status,
         stdout,

@@ -1,4 +1,6 @@
 use sodigy_compiler_test::{
+    Fuzzer,
+    FuzzTarget,
     TestHarness,
     TestSuite,
     compile_and_run,
@@ -15,8 +17,11 @@ use sodigy_fs_api::{
     join3,
     join4,
     parent,
+    write_bytes,
     write_string,
 };
+use std::thread;
+use std::time::Duration;
 
 // TODO: add fuzzer to the pipeline
 //       1. switch to nightly rustc before invoking fuzzer, then come back to the stable rustc
@@ -45,6 +50,43 @@ fn main() {
         Some("crates") => {
             crate_test::run_all(&join(&root, "crates").unwrap());
         },
+        Some("fuzz") => {
+            let timeout = 300;
+            let fuzz_dir = join(&root, "fuzz").unwrap();
+            let cnr_dir = join3(&root, "tests", "compile-and-run").unwrap();
+            let mut empty_fuzzer = Fuzzer::init(&fuzz_dir, &cnr_dir, FuzzTarget::Empty, false);
+            let mut cnr_fuzzer = Fuzzer::init(&fuzz_dir, &cnr_dir, FuzzTarget::Cnr, false);
+
+            for _ in 0..timeout {
+                if let Some(fuzz_result) = empty_fuzzer.try_collect() {
+                    if let Some(artifact) = &fuzz_result.artifact {
+                        write_bytes(
+                            "fuzz-empty.sdg",
+                            artifact,
+                            WriteMode::CreateOrTruncate,
+                        ).unwrap();
+                    }
+                    break;
+                }
+
+                thread::sleep(Duration::from_millis(1_000));
+            }
+
+            for _ in 0..timeout {
+                if let Some(fuzz_result) = cnr_fuzzer.try_collect() {
+                    if let Some(artifact) = &fuzz_result.artifact {
+                        write_bytes(
+                            "fuzz-cnr.sdg",
+                            artifact,
+                            WriteMode::CreateOrTruncate,
+                        ).unwrap();
+                    }
+                    break;
+                }
+
+                thread::sleep(Duration::from_millis(1_000));
+            }
+        },
         Some("all") => {
             let metadata = meta::get();
 
@@ -54,6 +96,11 @@ fn main() {
                 println!("Please commit changes before running the tests.");
                 println!("@@@@@@@");
             }
+
+            let fuzz_dir = join(&root, "fuzz").unwrap();
+            let cnr_dir = join3(&root, "tests", "compile-and-run").unwrap();
+            let mut empty_fuzzer = Fuzzer::init(&fuzz_dir, &cnr_dir, FuzzTarget::Empty, true);
+            let mut cnr_fuzzer = Fuzzer::init(&fuzz_dir, &cnr_dir, FuzzTarget::Cnr, true);
 
             let crates = Some(crate_test::run_all(&join(&root, "crates").unwrap()));
             let compile_and_run_result = Some(compile_and_run::run_cases(
@@ -70,15 +117,19 @@ fn main() {
                 &file_name,
             ).unwrap();
 
+            let empty_fuzz_result = empty_fuzzer.collect();
+            let cnr_fuzz_result = cnr_fuzzer.collect();
+
             if !exists(&parent(&log_path).unwrap()) {
                 create_dir(&parent(&log_path).unwrap()).unwrap();
             }
 
             let result = TestHarness {
                 meta: metadata,
-                suites: vec![TestSuite::Crates, TestSuite::CompileAndRun],
+                suites: vec![TestSuite::Crates, TestSuite::CompileAndRun, TestSuite::Fuzz],
                 crates,
                 compile_and_run: compile_and_run_result,
+                fuzz: Some(vec![empty_fuzz_result, cnr_fuzz_result]),
             };
             let result = serde_json::to_string_pretty(&result).unwrap();
 

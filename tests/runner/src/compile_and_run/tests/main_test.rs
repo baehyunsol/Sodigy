@@ -45,7 +45,7 @@ impl CnrContext {
 
         // It's not using a tmp project, and there may be compilation artifacts from previous tests.
         if self.sdg_files > 1 {
-            match subprocess::run(&self.sodigy_path, &["clean"], &self.project_dir, 5.0, false) {
+            match subprocess::run(&self.sodigy_path, &["clean"], &self.project_dir, 5.0, false, false) {
                 Ok(output) if !output.success() => {
                     return CompileAndRun {
                         name: self.name.to_string(),
@@ -75,6 +75,7 @@ impl CnrContext {
             &self.project_dir,
             30.0,
             self.dump_output,
+            false,
         ) {
             Ok(output) => output,
             Err(e) => {
@@ -113,6 +114,7 @@ impl CnrContext {
                 &self.project_dir,
                 30.0,
                 self.dump_output,
+                false,
             ) {
                 Ok(output) => {
                     run_elapsed_ms = Some(Instant::now().duration_since(run_started_at).as_millis() as u64);

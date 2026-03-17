@@ -48,6 +48,7 @@ impl CnrContext {
             &self.project_dir,
             5.0,
             false,
+            false,
         ) {
             Ok(output) if !output.success() => Err(format!("error with `sodigy clean` (exit status {:?})", output.code())),
             Err(e) => Err(format!("error with `sodigy clean`: {e:?}")),
@@ -71,6 +72,7 @@ impl CnrContext {
             &["test"],
             &self.project_dir,
             30.0,
+            false,
             false,
         ) {
             Ok(output) => match (output.code(), expected_result) {

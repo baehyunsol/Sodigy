@@ -16,8 +16,15 @@ sodigy-fs-api = { path = "../crates/fs-api" }
 path = ".."
 
 [[bin]]
-name = "fuzz_target_1"
-path = "fuzz_targets/fuzz_target_1.rs"
+name = "cnr"
+path = "fuzz_targets/cnr.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "empty"
+path = "fuzz_targets/empty.rs"
 test = false
 doc = false
 bench = false
