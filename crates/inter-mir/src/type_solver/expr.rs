@@ -348,7 +348,10 @@ impl Session {
             Expr::Field { lhs, fields } => match self.solve_expr(lhs, impure_calls) {
                 (Some(lhs_type), has_error) => match self.get_type_of_field(&lhs_type, fields) {
                     Ok(field_type) => (Some(field_type), has_error),
-                    Err(()) => (None, true),
+                    Err(e) => {
+                        self.type_errors.push(e);
+                        (None, true)
+                    },
                 },
                 (None, _) => (None, true),
             },
@@ -377,7 +380,10 @@ impl Session {
                         },
                         (None, _) => (Some(lhs_type), true),
                     },
-                    Err(()) => (Some(lhs_type), true),
+                    Err(e) => {
+                        self.type_errors.push(e);
+                        (Some(lhs_type), true)
+                    },
                 },
                 (None, _) => (None, true),
             },
@@ -751,7 +757,7 @@ impl Session {
         }
     }
 
-    pub fn get_type_of_field(&mut self, r#type: &Type, field: &[Field]) -> Result<Type, ()> {
+    pub fn get_type_of_field(&mut self, r#type: &Type, field: &[Field]) -> Result<Type, TypeError> {
         let mut field_type = None;
 
         // Let's say there's a struct `Game<T, U>` and `r#type` is `Game<Int, String>`.
@@ -895,10 +901,10 @@ impl Session {
                     self.get_type_of_field(&field_type, &field[1..])
                 }
             },
-            None => {
-                // an error..??
-                panic!("{type:?}\n{field:?}")
-            },
+            None => Err(TypeError::UnknownField {
+                r#type: r#type.clone(),
+                field: field[0].clone(),
+            }),
         }
     }
 }

@@ -882,10 +882,7 @@ impl Expr {
                         vec![
                             Type::Var { def_span: *keyword_span, is_return: false },
                             Type::from_hir(rhs, session)?,
-
-                            // This is the error type, and I have to introduce another type-var. But I don't have a span...
-                            // Or maybe, I can force every `try_convert` return the same error type.
-                            todo!(),
+                            Type::Var { def_span: keyword_span.derive(SpanDeriveKind::ConvertError), is_return: false },
                         ]
                     } else {
                         // `3 as <String>` -> `std.convert.convert.<_, String>(3)`

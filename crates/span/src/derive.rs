@@ -36,6 +36,10 @@ pub enum SpanDeriveKind {
     FStringToString,
     FStringConcat,
 
+    // `"3" as? <Int>` -> `std.convert.try_convert.<_, Int, _>("3")`
+    // The first `_` is not derived, and the second `_` is derived with this.
+    ConvertError,
+
     // When a function is monomorphized, *every* span in the function are derived.
     // Each monomorphization has a unique id, which helps identifying function and
     // generating error messages. Each session manages the ids.
@@ -58,6 +62,7 @@ impl SpanDeriveKind {
             SpanDeriveKind::ConcatPatternList => Some(String::from("It is desugared to a list pattern.")),
             SpanDeriveKind::FStringToString => Some(String::from("It is desugared to `to_string(..)`.")),
             SpanDeriveKind::FStringConcat => Some(String::from("It is desugared to a `++` operator.")),
+            SpanDeriveKind::ConvertError => None,
             SpanDeriveKind::Monomorphize(id) => {
                 // TODO: `unwrap()` vs returning None
                 let mono_info = session.get_monomorphization_info(*id).unwrap();

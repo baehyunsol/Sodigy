@@ -160,6 +160,10 @@ error_kinds!(
     (PartiallyInferedType { id: Option<InternedString>, r#type: String, is_return: bool }, 425,    Error),
     (CannotInferGenericType { id: Option<String> },                      430,    Error),
     (PartiallyInferedGenericType { id: Option<String>, r#type: String }, 435,    Error),
+
+    // TODO: suggest similar names
+    (UnknownField { r#type: String, field: InternedString },             436,    Error),
+
     (CannotApplyInfixOp { op: InfixOp, arg_types: Vec<String> },         440,    Error),
     (CannotSpecializePolyGeneric { num_candidates: usize },              445,    Error),
     (ImpureCallInPureContext,                                            450,    Error),

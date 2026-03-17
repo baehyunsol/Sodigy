@@ -688,7 +688,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     span,
                 }) => {
                     let (l_bp, r_bp) = as_binding_power();
-                    let keyword_span = *span;
+                    let mut keyword_span = *span;
 
                     if l_bp < min_bp {
                         break;
@@ -697,7 +697,8 @@ impl<'t, 's> Tokens<'t, 's> {
                     self.cursor += 1;
 
                     let has_question_mark = match self.peek() {
-                        Some(Token { kind: TokenKind::Punct(Punct::QuestionMark), .. }) => {
+                        Some(Token { kind: TokenKind::Punct(Punct::QuestionMark), span }) => {
+                            keyword_span = keyword_span.merge(*span);
                             self.cursor += 1;
                             true
                         },

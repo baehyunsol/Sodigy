@@ -56,7 +56,8 @@
     { id: Option<InternedString>, is_return: bool }, PartiallyInferedType
     { id: Option<InternedString>, r#type: String, is_return: bool },
     CannotInferGenericType { id: Option<String> }, PartiallyInferedGenericType
-    { id: Option<String>, r#type: String }, CannotApplyInfixOp
+    { id: Option<String>, r#type: String }, UnknownField
+    { r#type: String, field: InternedString }, CannotApplyInfixOp
     { op: InfixOp, arg_types: Vec<String> }, CannotSpecializePolyGeneric
     { num_candidates: usize }, ImpureCallInPureContext, NonExhaustiveArms,
     MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },
@@ -162,20 +163,21 @@
             PartiallyInferedType { .. } => 425u16, ErrorKind ::
             CannotInferGenericType { .. } => 430u16, ErrorKind ::
             PartiallyInferedGenericType { .. } => 435u16, ErrorKind ::
-            CannotApplyInfixOp { .. } => 440u16, ErrorKind ::
-            CannotSpecializePolyGeneric { .. } => 445u16, ErrorKind ::
-            ImpureCallInPureContext => 450u16, ErrorKind :: NonExhaustiveArms
-            => 455u16, ErrorKind :: MultipleModuleFiles { .. } => 460u16,
-            ErrorKind :: ModuleFileNotFound { .. } => 465u16, ErrorKind ::
-            LibFileNotFound => 470u16, ErrorKind :: SelfParamWithTypeAnnot =>
-            475u16, ErrorKind :: AssociatedFuncWithoutSelfParam => 480u16,
-            ErrorKind :: CannotInferPolyGenericParam { .. } => 485u16,
-            ErrorKind :: CannotInferPolyGenericImpl { .. } => 490u16,
-            ErrorKind :: PolyImplDifferentNumberOfParams { .. } => 495u16,
-            ErrorKind :: CannotImplPoly { .. } => 500u16, ErrorKind ::
-            UnusedNames { .. } => 5000u16, ErrorKind :: UnreachableMatchArm =>
-            5005u16, ErrorKind :: UnreachableOrPattern => 5006u16, ErrorKind
-            :: NoImpureCallInImpureContext => 5010u16, ErrorKind ::
+            UnknownField { .. } => 436u16, ErrorKind :: CannotApplyInfixOp
+            { .. } => 440u16, ErrorKind :: CannotSpecializePolyGeneric { .. }
+            => 445u16, ErrorKind :: ImpureCallInPureContext => 450u16,
+            ErrorKind :: NonExhaustiveArms => 455u16, ErrorKind ::
+            MultipleModuleFiles { .. } => 460u16, ErrorKind ::
+            ModuleFileNotFound { .. } => 465u16, ErrorKind :: LibFileNotFound
+            => 470u16, ErrorKind :: SelfParamWithTypeAnnot => 475u16,
+            ErrorKind :: AssociatedFuncWithoutSelfParam => 480u16, ErrorKind
+            :: CannotInferPolyGenericParam { .. } => 485u16, ErrorKind ::
+            CannotInferPolyGenericImpl { .. } => 490u16, ErrorKind ::
+            PolyImplDifferentNumberOfParams { .. } => 495u16, ErrorKind ::
+            CannotImplPoly { .. } => 500u16, ErrorKind :: UnusedNames { .. }
+            => 5000u16, ErrorKind :: UnreachableMatchArm => 5005u16, ErrorKind
+            :: UnreachableOrPattern => 5006u16, ErrorKind ::
+            NoImpureCallInImpureContext => 5010u16, ErrorKind ::
             FuncWithoutTypeAnnot => 8000u16, ErrorKind :: LetWithoutTypeAnnot
             => 8005u16, ErrorKind :: FieldWithoutTypeAnnot => 8010u16,
             ErrorKind :: SelfParamNotNamedSelf => 8015u16, ErrorKind :: Todo
@@ -292,13 +294,14 @@
             PartiallyInferedType { .. } => ErrorLevel :: Error, ErrorKind ::
             CannotInferGenericType { .. } => ErrorLevel :: Error, ErrorKind ::
             PartiallyInferedGenericType { .. } => ErrorLevel :: Error,
-            ErrorKind :: CannotApplyInfixOp { .. } => ErrorLevel :: Error,
-            ErrorKind :: CannotSpecializePolyGeneric { .. } => ErrorLevel ::
-            Error, ErrorKind :: ImpureCallInPureContext => ErrorLevel ::
-            Error, ErrorKind :: NonExhaustiveArms => ErrorLevel :: Error,
-            ErrorKind :: MultipleModuleFiles { .. } => ErrorLevel :: Error,
-            ErrorKind :: ModuleFileNotFound { .. } => ErrorLevel :: Error,
-            ErrorKind :: LibFileNotFound => ErrorLevel :: Error, ErrorKind ::
+            ErrorKind :: UnknownField { .. } => ErrorLevel :: Error, ErrorKind
+            :: CannotApplyInfixOp { .. } => ErrorLevel :: Error, ErrorKind ::
+            CannotSpecializePolyGeneric { .. } => ErrorLevel :: Error,
+            ErrorKind :: ImpureCallInPureContext => ErrorLevel :: Error,
+            ErrorKind :: NonExhaustiveArms => ErrorLevel :: Error, ErrorKind
+            :: MultipleModuleFiles { .. } => ErrorLevel :: Error, ErrorKind ::
+            ModuleFileNotFound { .. } => ErrorLevel :: Error, ErrorKind ::
+            LibFileNotFound => ErrorLevel :: Error, ErrorKind ::
             SelfParamWithTypeAnnot => ErrorLevel :: Error, ErrorKind ::
             AssociatedFuncWithoutSelfParam => ErrorLevel :: Error, ErrorKind
             :: CannotInferPolyGenericParam { .. } => ErrorLevel :: Error,
@@ -577,6 +580,10 @@
             {
                 buffer.push(1u8); buffer.push(179u8);
                 r#id.encode_impl(buffer); r#type.encode_impl(buffer);
+            }, ErrorKind :: UnknownField { r#type, r#field, } =>
+            {
+                buffer.push(1u8); buffer.push(180u8);
+                r#type.encode_impl(buffer); r#field.encode_impl(buffer);
             }, ErrorKind :: CannotApplyInfixOp { r#op, r#arg_types, } =>
             {
                 buffer.push(1u8); buffer.push(184u8);
@@ -976,6 +983,12 @@
                 :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: PartiallyInferedGenericType
                 { r#id, r#type, }, cursor))
+            }, 436u16 =>
+            {
+                let (r#type, cursor) = String :: decode_impl(buffer, cursor) ?
+                ; let (r#field, cursor) = InternedString ::
+                decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: UnknownField { r#type, r#field, }, cursor))
             }, 440u16 =>
             {
                 let (r#op, cursor) = InfixOp :: decode_impl(buffer, cursor) ?

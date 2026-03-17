@@ -9,6 +9,7 @@ use sodigy_error::{
 };
 use sodigy_hir::{FuncOrigin, FuncPurity, LetOrigin};
 use sodigy_mir::{render_type, span_to_string};
+use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
@@ -68,6 +69,10 @@ pub enum TypeError {
         generic: Span,
         func_def: Option<Span>,
         r#type: Type,
+    },
+    UnknownField {
+        r#type: Type,
+        field: Field,
     },
     NotCallable {
         r#type: Type,
@@ -450,6 +455,17 @@ impl Session {
                     },
                     _ => unreachable!(),
                 }
+            },
+            TypeError::UnknownField { r#type, field } => match field {
+                Field::Name { name, name_span, .. } => Error {
+                    kind: ErrorKind::UnknownField {
+                        r#type: self.render_type(r#type),
+                        field: *name,
+                    },
+                    spans: name_span.simple_error(),
+                    note: None,
+                },
+                _ => todo!(),
             },
             TypeError::NotCallable { r#type, func_span } => Error {
                 kind: ErrorKind::NotCallable {
