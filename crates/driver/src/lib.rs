@@ -516,7 +516,12 @@ fn compile(
                                         spans: span.simple_error(),
                                         note: None,
                                     });
-                                    return Err(Error::CompileError);
+
+                                    if shutdown_countdown.is_none() {
+                                        shutdown_countdown = Some(Instant::now());
+                                    }
+
+                                    continue;
                                 },
                             };
                             modules.insert(
