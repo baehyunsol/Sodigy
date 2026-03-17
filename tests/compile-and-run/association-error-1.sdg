@@ -1,0 +1,14 @@
+//% compile-error == 1
+
+struct Complex = {
+    real: Number,
+    imag: Number,
+};
+
+#[associate(Complex)]
+fn norm(self) = (self.real * self.real + self.imag * self.imag).sqrt();
+
+let n = Complex { real: 3.0, imag: 4.0 };
+
+// oops, I wrote `.norm` twice!
+assert n.norm.norm() == 5.0;

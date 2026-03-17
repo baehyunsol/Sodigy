@@ -13,3 +13,6 @@ fn norm(self) = (self.real * self.real + self.imag * self.imag).sqrt();
 
 assert Complex.one.norm() == 1.0;
 assert (Complex { real: 3.0, imag: 4.0 }).norm() == 5.0;
+
+let n = Complex { real: 5.0, imag: 12.0 };
+assert (n.norm)() == 13.0;
