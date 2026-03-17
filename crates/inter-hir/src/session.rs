@@ -52,8 +52,6 @@ pub struct Session {
 
     // Inter-hir may create new functions and poly-generics while resolving associated items.
     pub new_funcs: Vec<Func>,
-    pub new_polys: HashMap<Span, Poly>,
-
     pub associated_items: Vec<AssociatedItem>,
 
     // generic def span to func/struct/enum def span
@@ -88,7 +86,6 @@ impl Session {
             polys: HashMap::new(),
             poly_impls: vec![],
             new_funcs: vec![],
-            new_polys: HashMap::new(),
             associated_items: vec![],
             generic_def_span_rev: HashMap::new(),
             errors: vec![],

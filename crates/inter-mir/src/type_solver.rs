@@ -1,10 +1,13 @@
-use crate::{LogEntry, Session, Type, write_log};
+use crate::{Session, Type, write_log};
 use crate::error::{ErrorContext, TypeError};
 use sodigy_hir::FuncPurity;
 use sodigy_mir::TypeAssertion;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::hash_map::Entry;
+
+#[cfg(feature = "log")]
+use crate::LogEntry;
 
 mod assert;
 mod expr;

@@ -1,4 +1,11 @@
-use crate::{ErrorContext, Monomorphization, Session};
+use crate::{
+    ErrorContext,
+    GenericCall,
+    Monomorphization,
+    Session,
+    SolvePolyResult,
+};
+use sodigy_hir::Poly;
 use sodigy_mir::{Func, Let, Type};
 use sodigy_span::Span;
 
@@ -28,6 +35,11 @@ pub enum LogEntry {
         r#let: Let,
         annotated_type: Type,
         infered_type: Option<Type>,
+    },
+    TrySolvePoly {
+        generic_call: GenericCall,
+        poly_def: Option<Poly>,
+        result: SolvePolyResult,
     },
     Monomorphization(Monomorphization),
 }

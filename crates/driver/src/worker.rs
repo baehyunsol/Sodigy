@@ -351,13 +351,11 @@ impl Worker {
                         return Err(Error::CompileError);
                     }
 
-                    // inter-hir may create new funcs and poly-generics, and the new functions
-                    // must belong to some module. They all go to `lib.sdg`.
+                    // inter-hir may create new funcs, and they must belong to some module. They all go to `lib.sdg`.
                     // TODO: distribute the new functions for better parallelism
                     //       there's a same issue in inter-mir
                     if input_module_path.is_lib() {
                         hir_session.funcs.extend(inter_hir_session.new_funcs.drain(..));
-                        hir_session.polys.extend(inter_hir_session.new_polys.drain());
                     }
 
                     self.stage_start(CompileStage::Mir, Some(input_module_path.to_string()));

@@ -137,7 +137,7 @@ impl Session {
                             monomorphize_id: None,
                         };
 
-                        match self.new_polys.entry(poly_span) {
+                        match self.polys.entry(poly_span) {
                             Entry::Occupied(mut e) => {
                                 e.get_mut().impls.push(associated_item.name_span);
                             },

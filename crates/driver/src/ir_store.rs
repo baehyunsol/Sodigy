@@ -219,6 +219,30 @@ pub fn store_inter_mir_log(session: &inter_mir::Session) -> Result<(), FileError
                     &mut render_span_session,
                 )).into_bytes());
             },
+            LogEntry::TrySolvePoly { generic_call, poly_def, result } => {
+                buffer.push(b"\n-------- TrySolvePoly --------\n".to_vec());
+                buffer.push(prettify(format!("{entry:?}\n").into_bytes()));
+                buffer.push(format!("call_span:\n{}\n", render_spans(
+                    &generic_call.call.simple_error(),
+                    &render_span_option,
+                    &mut render_span_session,
+                )).into_bytes());
+                buffer.push(format!("def_span:\n{}\n", render_spans(
+                    &generic_call.def.simple_error(),
+                    &render_span_option,
+                    &mut render_span_session,
+                )).into_bytes());
+                buffer.push(format!(
+                    "generics: {{{}}}\n",
+                    generic_call.generics.iter().map(
+                        |(param, r#type)| format!(
+                            "{}: {}",
+                            session.span_to_string(*param).unwrap_or(String::from("????")),
+                            session.render_type(r#type),
+                        )
+                    ).collect::<Vec<_>>().join(", "),
+                ).into_bytes());
+            },
         }
     }
 

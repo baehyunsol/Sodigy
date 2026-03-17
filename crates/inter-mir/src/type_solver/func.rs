@@ -1,7 +1,10 @@
-use crate::{LogEntry, Session, Type, write_log};
+use crate::{Session, Type, write_log};
 use crate::error::{ErrorContext, TypeError, TypeWarning};
 use sodigy_mir::Func;
 use std::collections::HashMap;
+
+#[cfg(feature = "log")]
+use crate::LogEntry;
 
 impl Session {
     pub fn solve_func(&mut self, func: &Func) -> (Option<Type>, bool /* has_error */) {

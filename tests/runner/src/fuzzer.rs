@@ -12,8 +12,7 @@ use sodigy_fs_api::{
     remove_dir_all,
 };
 use std::process::{Child, Command, Stdio};
-use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 pub struct Fuzzer {
     started_at: Instant,

@@ -1,7 +1,10 @@
-use crate::{LogEntry, Session, Type, write_log};
+use crate::{Session, Type, write_log};
 use crate::error::ErrorContext;
 use sodigy_mir::Let;
 use sodigy_span::Span;
+
+#[cfg(feature = "log")]
+use crate::LogEntry;
 
 impl Session {
     pub fn solve_let(&mut self, r#let: &Let, impure_calls: &mut Vec<Span>) -> (Option<Type>, bool /* has_error */) {

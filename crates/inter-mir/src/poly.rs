@@ -1,8 +1,11 @@
-use crate::{ErrorContext, GenericCall, Session, TypeError};
+use crate::{ErrorContext, GenericCall, Session, TypeError, write_log};
 use sodigy_error::ParamIndex;
 use sodigy_mir::{Func, Session as MirSession, Type};
 use sodigy_span::Span;
 use std::collections::hash_map::{Entry, HashMap};
+
+#[cfg(feature = "log")]
+use crate::LogEntry;
 
 // ```
 // #[poly]
@@ -28,7 +31,7 @@ impl Session {
         solvers: &HashMap<Span, PolySolver>,
         generic_call: &GenericCall,
     ) -> SolvePolyResult {
-        match self.polys.get(&generic_call.def) {
+        let r = match self.polys.get(&generic_call.def) {
             Some(poly) => {
                 let solver = solvers.get(&poly.name_span).unwrap();
                 let candidates = solver.solve(&generic_call.generics, self);
@@ -48,7 +51,14 @@ impl Session {
                 }
             },
             None => SolvePolyResult::NotPoly,
-        }
+        };
+
+        write_log!(self, LogEntry::TrySolvePoly {
+            generic_call: generic_call.clone(),
+            poly_def: self.polys.get(&generic_call.def).cloned(),
+            result: r.clone(),
+        });
+        r
     }
 
     pub fn init_poly_solvers(&mut self, mir_session: &MirSession) -> Result<HashMap<Span, PolySolver>, ()> {

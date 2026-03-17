@@ -32,7 +32,6 @@ impl Endec for Session {
         self.polys.encode_impl(buffer);
         self.poly_impls.encode_impl(buffer);
         self.new_funcs.encode_impl(buffer);
-        self.new_polys.encode_impl(buffer);
         self.associated_items.encode_impl(buffer);
         self.generic_def_span_rev.encode_impl(buffer);
         self.errors.encode_impl(buffer);
@@ -51,7 +50,6 @@ impl Endec for Session {
         let (polys, cursor) = HashMap::<Span, Poly>::decode_impl(buffer, cursor)?;
         let (poly_impls, cursor) = Vec::<(Expr, Span)>::decode_impl(buffer, cursor)?;
         let (new_funcs, cursor) = Vec::<Func>::decode_impl(buffer, cursor)?;
-        let (new_polys, cursor) = HashMap::<Span, Poly>::decode_impl(buffer, cursor)?;
         let (associated_items, cursor) = Vec::<AssociatedItem>::decode_impl(buffer, cursor)?;
         let (generic_def_span_rev, cursor) = HashMap::<Span, Span>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
@@ -72,7 +70,6 @@ impl Endec for Session {
                 polys,
                 poly_impls,
                 new_funcs,
-                new_polys,
                 associated_items,
                 generic_def_span_rev,
                 errors,
