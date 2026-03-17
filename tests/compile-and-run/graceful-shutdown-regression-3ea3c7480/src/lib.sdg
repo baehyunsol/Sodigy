@@ -1,0 +1,23 @@
+//% compile-error == 1
+
+mod m1;
+mod m2;
+mod m3;
+mod m4;
+mod m5;
+mod m6;
+mod m7;
+mod m8;
+mod m9;
+mod m10;
+mod m11;
+mod m12;
+mod m13;
+mod m14;
+mod m15;
+mod m16;
+mod m17;
+mod m18;
+
+// This is e-0330, but the compiler was quitting before dumping this error.
+let foo = this_is_an_invalid_name;

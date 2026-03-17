@@ -9,3 +9,6 @@ fn convert<T, U>(x: T) -> U;
 #[lang_item("fn.try_convert")]
 #[lang_item_generics("fn.try_convert.generic.0", "fn.try_convert.generic.1", "fn.try_convert.generic.2")]
 fn try_convert<T, U, E>(x: T) -> Result<U, E>;
+
+#[impl(convert)]
+fn convert_self<T>(x: T) -> T = x;

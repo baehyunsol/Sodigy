@@ -262,7 +262,27 @@ fn execute(
                     heap.data[new_slice_ptr + 2] = length - slice_start;
                     update(*dst, new_slice_ptr as u32, stack, heap);
                 },
-                Intrinsic::AppendList => todo!(),
+                Intrinsic::AppendList => {
+                    let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let value = *stack.stack.get(stack.stack_pointer + *stack_offset + 1).expect("stack overflow");
+
+                    // TODO: I don't want to call `.to_vec()`, but the borrow checker forces me to do so.
+                    let curr_list = inspect_list(&heap.data, slice_ptr).to_vec();
+
+                    let new_buffer = heap.alloc(curr_list.len() + 1);
+                    heap.data[new_buffer + curr_list.len()] = value;
+
+                    for (i, v) in curr_list.iter().enumerate() {
+                        heap.data[new_buffer + i] = *v;
+                    }
+
+                    let new_slice_ptr = heap.alloc(3);
+                    heap.data[new_slice_ptr] = new_buffer as u32;
+                    heap.data[new_slice_ptr + 1] = 0;
+                    heap.data[new_slice_ptr + 2] = curr_list.len() as u32 + 1;
+
+                    update(*dst, new_slice_ptr as u32, stack, heap);
+                },
                 Intrinsic::PrependList => todo!(),
                 Intrinsic::Exit => {
                     // TODO: clean up stack and heap

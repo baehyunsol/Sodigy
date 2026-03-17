@@ -1,6 +1,6 @@
 use super::Monomorphization;
 use crate::Session;
-use sodigy_mir::{Callable, Expr};
+use sodigy_mir::{Callable, Expr, Type};
 use sodigy_name_analysis::NameOrigin;
 
 impl Session {
@@ -47,19 +47,16 @@ impl Session {
                 self.monomorphize_expr(&mut block.value, monomorphization);
 
                 for r#let in block.lets.iter_mut() {
-                    let new_type = match self.types.get(&r#let.name_span) {
-                        Some(r#type) => {
-                            let mut r#type = r#type.clone();
-
-                            for (generic_param, generic_arg) in monomorphization.generics.iter() {
-                                r#type.substitute_generic_param(generic_param, generic_arg);
-                            }
-
-                            r#type
-                        },
-                        None => unreachable!(),
+                    let mut old_type = match self.types.get(&r#let.name_span) {
+                        Some(r#type) => r#type.clone(),
+                        None => Type::Var { def_span: r#let.name_span, is_return: false },
                     };
 
+                    for (generic_param, generic_arg) in monomorphization.generics.iter() {
+                        old_type.substitute_generic_param(generic_param, generic_arg);
+                    }
+
+                    let new_type = old_type;
                     r#let.keyword_span = r#let.keyword_span.monomorphize(monomorphization.id);
                     r#let.name_span = r#let.name_span.monomorphize(monomorphization.id);
                     r#let.type_annot_span = r#let.type_annot_span.map(|span| span.monomorphize(monomorphization.id));

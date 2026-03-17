@@ -12,16 +12,13 @@ use sodigy_fs_api::{
     FileError,
     FileErrorKind,
     WriteMode,
-    basename,
     create_dir,
     create_dir_all,
     exists,
     join,
     read_bytes,
-    read_dir,
     remove_dir,
     remove_dir_all,
-    set_current_dir,
     write_string,
 };
 pub use sodigy_optimize::OptimizeLevel;
@@ -392,7 +389,13 @@ fn compile(
 
         for module in modules.values_mut() {
             if let (CompileStage::Load, false) = (module.compile_stage, module.running) {
-                workers[round_robin % workers.len()].send(MessageToWorker::Run(
+                // An edge case:
+                //    1. `PerFileIr { module: lib, stop_after: Hir }` found modules, and sent `AddModule` to master.
+                //    2. The master already collected `AddModule`, so it reached this branch.
+                //    3. `PerFileIr { module: lib, stop_after: Hir }` has failed, so the worker is dead.
+                //       But `StageComplete` hasn't arrived yet.
+                //    4. So, the master tries to send a message to a dead worker. We shouldn't do that.
+                if let Err(_) = workers[round_robin % workers.len()].send(MessageToWorker::Run(
                     Command::PerFileIr {
                         input_file_path: module.file_path.clone(),
                         input_module_path: module.module_path.clone(),
@@ -408,7 +411,13 @@ fn compile(
                         ),
                         stop_after: CompileStage::Hir,
                     },
-                ))?;
+                )) {
+                    every_hir_complete = false;
+                    every_mir_complete = false;
+                    every_bytecode_complete = false;
+                    break;
+                }
+
                 round_robin += 1;
                 module.compile_stage = CompileStage::Hir;
                 module.running = true;

@@ -1,0 +1,50 @@
+use std.{blackbox, impure_blackbox};
+use std.bool.Bool.False;
+use std.int.Int;
+use std.scalar.Scalar;
+use std.string.String;
+
+// TODO: I have to implement ZST and Void.
+//       Then all the functions here have to return Void.
+
+// This is an impure function, but I didn't mark it `impure` in
+// order to implement `debug`.
+#[built_in]
+#[lang_item("built_in.print")]
+fn print_built_in(v: String) -> Scalar;
+
+#[built_in]
+#[lang_item("built_in.eprint")]
+fn eprint_built_in(v: String) -> Scalar;
+
+impure fn print(v: String) -> Int = impure_blackbox((print_built_in(v), 0))._1;
+
+impure fn eprint(v: String) -> Int = impure_blackbox((eprint_built_in(v), 0))._1;
+
+// TODO: remove this function before 1.0 release
+// This is a debug-only function. Don't use this for actual printing!
+fn debug<T>(
+    v: T,
+    prefix="",
+    suffix="\n",
+    stderr=False,
+) -> T = {
+    // TODO: better way to call impure functions sequentially?
+    if stderr {
+        blackbox((
+            eprint_built_in(prefix),
+            eprint_built_in(v as <String>),
+            eprint_built_in(suffix),
+            v,
+        ))._3
+    }
+
+    else {
+        blackbox((
+            print_built_in(prefix),
+            print_built_in(v as <String>),
+            print_built_in(suffix),
+            v,
+        ))._3
+    }
+};

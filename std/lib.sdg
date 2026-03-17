@@ -5,6 +5,7 @@ mod char;
 mod convert;
 mod r#fn;
 mod int;
+mod io;
 mod list;
 mod number;
 mod op;
@@ -22,28 +23,24 @@ use std.string.String;
 #[lang_item("built_in.exit")]
 impure fn exit() -> !;
 
-// TODO: implement high-level `panic(msg: String) -> !;`
-//       In order to do that, we need a syntax to execute actions.
 #[built_in]
 #[lang_item("built_in.panic")]
-fn panic() -> !;
+fn panic_built_in() -> !;
 
-// TODO: implement high-level `print<T>(v: T) -> T;`
-// TODO: return a ZST, when ZST optimization is implemented
-#[built_in]
-#[lang_item("built_in.print")]
-impure fn print(v: String) -> Int;
+pub fn panic(s: String) -> ! = blackbox((std.io.eprint_built_in(s), panic_built_in()))._1;
 
-// TODO: implement high-level `eprint<T>(v: T) -> T;`
-// TODO: return a ZST, when ZST optimization is implemented
-#[built_in]
-#[lang_item("built_in.eprint")]
-impure fn eprint(v: String) -> Int;
-
-// TODO: It must be hidden to users.
+// TODO: It must be hidden to the users.
 // This is a magic function. It does nothing at runtime.
 // It exists just to trick the type checker. It's used for
 // trivial type conversions (e.g. `Char` -> `Scalar`).
 #[built_in]
 #[lang_item("built_in.nop")]
 fn transmute<T, U>(v: T) -> U;
+
+/// The compiler will never optimize-away this function.
+// NOTE: There's no optimization, so it's just an id function.
+fn blackbox<T>(x: T) -> T = x;
+
+/// The compiler will never optimize-away this function.
+// NOTE: There's no optimization, so it's just an id function.
+impure fn impure_blackbox<T>(x: T) -> T = blackbox((random.random_int(), x))._1;

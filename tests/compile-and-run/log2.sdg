@@ -1,7 +1,7 @@
 // NOTE: ilog2 is built-in
 // It returns `floor(log2(n) * 18446744073709551616)`.
 fn log2_helper(n: Int) -> Int = match n {
-    ..1 => std.panic(),
+    ..1 => std.panic("argument of log2 must be positive"),
     1 => 0,
     2 => 1 << 64,
     3.. => {

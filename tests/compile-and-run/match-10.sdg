@@ -1,5 +1,5 @@
 fn isqrt(n: Int) -> Int = match n {
-    ..0 => std.panic(),
+    ..0 => std.panic("argument of isqrt must be non-negative"),
     0..1 => 0,
     1..4 => 1,
     4..9 => 2,

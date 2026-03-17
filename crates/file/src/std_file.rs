@@ -7,7 +7,7 @@ pub(crate) const STD_FILES: [(
     &'static str,   // file_path
     &'static [u8],  // contents
     u128,           // content_hash
-); 17] = [
+); 18] = [
     (
         "@std.lib.bool",
         "@std/bool.sdg",
@@ -51,64 +51,70 @@ pub(crate) const STD_FILES: [(
         1006,
     ),
     (
+        "@std.lib.io",
+        "@std/io.sdg",
+        include_bytes!("../../../std/io.sdg"),
+        1007,
+    ),
+    (
         "@std.lib",
         "@std/lib.sdg",
         include_bytes!("../../../std/lib.sdg"),
-        1007,
+        1008,
     ),
     (
         "@std.lib.list",
         "@std/list.sdg",
         include_bytes!("../../../std/list.sdg"),
-        1008,
+        1009,
     ),
     (
         "@std.lib.number",
         "@std/number.sdg",
         include_bytes!("../../../std/number.sdg"),
-        1009,
+        1010,
     ),
     (
         "@std.lib.op",
         "@std/op.sdg",
         include_bytes!("../../../std/op.sdg"),
-        1010,
+        1011,
     ),
     (
         "@std.lib.prelude",
         "@std/prelude.sdg",
         include_bytes!("../../../std/prelude.sdg"),
-        1011,
+        1012,
     ),
     (
         "@std.lib.random",
         "@std/random.sdg",
         include_bytes!("../../../std/random.sdg"),
-        1012,
+        1013,
     ),
     (
         "@std.lib.result",
         "@std/result.sdg",
         include_bytes!("../../../std/result.sdg"),
-        1013,
+        1014,
     ),
     (
         "@std.lib.scalar",
         "@std/scalar.sdg",
         include_bytes!("../../../std/scalar.sdg"),
-        1014,
+        1015,
     ),
     (
         "@std.lib.string",
         "@std/string.sdg",
         include_bytes!("../../../std/string.sdg"),
-        1015,
+        1016,
     ),
     (
         "@std.lib.tuple",
         "@std/tuple.sdg",
         include_bytes!("../../../std/tuple.sdg"),
-        1016,
+        1017,
     ),
 ];
 
@@ -118,6 +124,6 @@ pub fn std_root() -> (ModulePath, FileOrStd) {
             path: vec![],
             is_std: true,
         },
-        FileOrStd::Std(7),
+        FileOrStd::Std(8),
     )
 }

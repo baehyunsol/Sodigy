@@ -109,6 +109,9 @@ fn main() {
                 &join3(&root, "tests", "compile-and-run").unwrap(),
                 &sodigy_path,
             ));
+            let empty_fuzz_result = empty_fuzzer.collect();
+            let cnr_fuzz_result = cnr_fuzzer.collect();
+
             let file_name = metadata.get_result_file_name();
             let log_path = join4(
                 &root,
@@ -116,9 +119,6 @@ fn main() {
                 "log",
                 &file_name,
             ).unwrap();
-
-            let empty_fuzz_result = empty_fuzzer.collect();
-            let cnr_fuzz_result = cnr_fuzzer.collect();
 
             if !exists(&parent(&log_path).unwrap()) {
                 create_dir(&parent(&log_path).unwrap()).unwrap();

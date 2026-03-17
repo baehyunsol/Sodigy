@@ -22,8 +22,8 @@ fn index_list<T>(ls: [T], i: Int) -> T = {
     }
 
     else {
-        // TODO: error message
-        std.panic()
+        // TODO: better error message
+        std.panic("Index Error")
     }
 };
 

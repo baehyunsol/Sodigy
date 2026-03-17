@@ -1,13 +1,13 @@
 // TODO: I want it to be in std when it's stable.
 
 fn isqrt(n: Int) -> Int = match n {
-    ..0 => std.panic(),
+    ..0 => std.panic("argument of isqrt must be non-negative"),
     ..9 => isqrt_dumb(n),
     _ => isqrt_iter(n, isqrt_dumb(n)),
 };
 
 fn isqrt_dumb(n: Int) -> Int = match n {
-    ..0 => std.panic(),
+    ..0 => std.panic("argument of isqrt must be non-negative"),
     0 | 1 => n,
     _ => {
         let nl = n.ilog2();

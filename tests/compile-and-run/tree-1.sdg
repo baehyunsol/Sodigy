@@ -88,7 +88,7 @@ fn insert<K, V>(head: Node<K, V>, key: K, value: V) -> (Node<K, V>, Option<V>) =
 
 fn remove<K, V>(head: Node<K, V>, key: K) -> (Node<K, V>, Option<V>) = {
     if head.key == key {
-        panic("TODO")
+        std.panic("TODO")
     }
 
     else {
