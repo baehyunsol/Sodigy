@@ -1,0 +1,56 @@
+#[associate(Int)]
+fn dumb_isqrt(self) -> Int = match self {
+    ..0 => std.panic("isqrt argument must be non-negative"),
+    1..4 => 1,
+    4..9 => 2,
+    9..16 => 3,
+    16..25 => 4,
+    25..36 => 5,
+    36..49 => 6,
+    49..81 => 7,
+    81..100 => 9,
+    100..121 => 10,
+    121..144 => 11,
+    144..169 => 12,
+    169..196 => 13,
+    196..225 => 14,
+    225..256 => 15,
+    256..289 => 16,
+    289..324 => 17,
+    324..361 => 18,
+    361..400 => 19,
+    400..441 => 20,
+    441..484 => 21,
+    484..529 => 22,
+    529..576 => 23,
+    _ => {
+        let s = (self / 16).dumb_isqrt() * 4;
+
+        match () {
+            _ if (s + 3) * (s + 3) <= self => s + 3,
+            _ if (s + 2) * (s + 2) <= self => s + 2,
+            _ if (s + 1) * (s + 1) <= self => s + 1,
+            _ => s,
+        }
+    },
+};
+
+let n = 99;
+assert n.dumb_isqrt() == 9;
+assert (100).dumb_isqrt() == 10;
+assert (15 * 17).dumb_isqrt() == 15;
+
+struct TwoInts = {
+    n1: Int,
+    n2: Int,
+};
+
+let nn = TwoInts { n1: 2000, n2: 3000 };
+assert nn.n1.dumb_isqrt() == 44;
+assert nn.n2.dumb_isqrt() == 54;
+assert (nn.n2.dumb_isqrt)() == 54;
+
+let nn_f1 = nn.n1.dumb_isqrt;
+let nn_f2 = nn.n2.dumb_isqrt;
+assert nn_f1() == 44;
+assert nn_f2() == 54;

@@ -103,6 +103,7 @@ PartiallyInferedType/425/Error
 CannotInferGenericType/430/Error
 PartiallyInferedGenericType/435/Error
 UnknownField/436/Error
+CannotUpdateAssociatedFunc/439/Error
 CannotApplyInfixOp/440/Error
 CannotSpecializePolyGeneric/445/Error
 ImpureCallInPureContext/450/Error

@@ -16,7 +16,7 @@ use sodigy_hir::{
 };
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_span::{PolySpanKind, Span};
-use sodigy_string::intern_string;
+use sodigy_string::{InternedString, intern_string};
 use std::collections::hash_map::{Entry, HashMap};
 
 impl Session {
@@ -125,11 +125,7 @@ impl Session {
                             },
                         }
 
-                        let poly_name = format!(
-                            "associated_func::{}::{}::{params}",
-                            associated_item.name.unintern_or_default(&self.intermediate_dir),
-                            if is_pure { "pure" } else { "impure" },
-                        );
+                        let poly_name = get_associated_func_name(associated_item.name, is_pure, params, &self.intermediate_dir);
                         let poly_name_interned = intern_string(poly_name.as_bytes(), &self.intermediate_dir).unwrap();
                         let poly_span: Span = Span::Poly {
                             name: poly_name_interned,
@@ -277,4 +273,16 @@ impl Session {
             Ok(())
         }
     }
+}
+
+pub fn get_associated_func_name(
+    name: InternedString,
+    is_pure: bool,
+    params: usize,
+    intermediate_dir: &str,
+) -> String {
+    // Readability does not matter!! It tries hard to keep the name shorter than 16 bytes,
+    // so that interner doesn't have to do file IO.
+    let suffix = params * 2 + is_pure as usize;
+    format!("{}:{suffix:x}", name.unintern_or_default(intermediate_dir))
 }

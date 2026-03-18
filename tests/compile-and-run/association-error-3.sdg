@@ -1,0 +1,6 @@
+//% compile-error == 1
+
+let x = 3 `isqrt 5;
+
+#[associate(Int)]
+fn isqrt(n) -> Int = n;

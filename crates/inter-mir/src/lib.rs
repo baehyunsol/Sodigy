@@ -6,6 +6,7 @@ use crate::mono::GenericCall;
 use sodigy_error::Error;
 use sodigy_mir::{Expr, Session as MirSession, Type};
 use sodigy_span::Span;
+use sodigy_string::InternedString;
 use std::collections::{HashMap, HashSet};
 
 mod endec;
@@ -136,9 +137,16 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                     let mut generic_args = HashMap::new();
                     mir_session.dispatch(
                         &plan.dispatch_map,
+                        &session.associated_funcs.iter().map(
+                            |AssociatedFuncInstance { def_span, call_span, .. }| (
+                                *call_span,
+                                *def_span,
+                            )
+                        ).collect(),
                         &session.func_shapes,
                         &mut generic_args,
                     );
+                    session.associated_funcs.clear();
 
                     for ((call, generic), r#type) in generic_args.into_iter() {
                         session.add_type_var(r#type.clone(), None);
@@ -217,4 +225,16 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
     }
 
     session
+}
+
+#[derive(Clone, Debug)]
+pub struct AssociatedFuncInstance {
+    field_name: InternedString,
+
+    // def_span of `associated_func::unwrap::3`,
+    // which looks like `Span::Poly { name: intern("associated_func::unwrap::3"), kind: PolySpanKind::Name }`
+    def_span: Span,
+
+    // span of `unwrap` in `x.y.z.unwrap()`
+    call_span: Span,
 }

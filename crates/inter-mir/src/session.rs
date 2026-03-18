@@ -1,4 +1,4 @@
-use crate::{LogEntry, Monomorphization};
+use crate::{AssociatedFuncInstance, LogEntry, Monomorphization};
 use crate::error::{TypeError, TypeWarning};
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{EnumShape, FuncShape, ItemShape, Poly, StructShape};
@@ -69,6 +69,12 @@ pub struct Session {
     // 2. It helps the compiler more helpful error messages if there's an error in a monomorphized function.
     pub monomorphizations: HashMap<u128, Monomorphization>,
 
+    // When the session sees `x.y.z.unwrap()`, it remembers the span of `z` and def_span of
+    // the associated function (which looks like `Span::Poly { .. }`).
+    //
+    // This is just a tmp storage. This storage is emptied after dispatch.
+    pub associated_funcs: Vec<AssociatedFuncInstance>,
+
     // These 2 fields are the result of the type-solver.
     pub types: HashMap<Span, Type>,
     pub generic_args: HashMap<(Span /* call */, Span /* generic */), Type>,
@@ -107,6 +113,7 @@ impl Session {
             solved_generic_args: HashSet::new(),
             funcs_rev: HashMap::new(),
             monomorphizations: HashMap::new(),
+            associated_funcs: vec![],
             types: HashMap::new(),
             generic_args: HashMap::new(),
             func_shapes: HashMap::new(),
@@ -139,6 +146,7 @@ impl Session {
             solved_generic_args: HashSet::new(),
             funcs_rev: mir_session.funcs.iter().enumerate().map(|(i, func)| (func.name_span, i)).collect(),
             monomorphizations: HashMap::new(),
+            associated_funcs: vec![],
             types: mir_session.types.drain().collect(),
             generic_args: mir_session.generic_args.drain().collect(),
             func_shapes: mir_session.global_context.func_shapes.take().unwrap().clone(),

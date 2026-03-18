@@ -74,6 +74,11 @@ pub enum TypeError {
         r#type: Type,
         field: Field,
     },
+    CannotUpdateAssociatedFunc {
+        r#type: Type,
+        name: InternedString,
+        name_span: Span,
+    },
     NotCallable {
         r#type: Type,
         func_span: Span,
@@ -466,6 +471,15 @@ impl Session {
                     note: None,
                 },
                 _ => todo!(),
+            },
+            TypeError::CannotUpdateAssociatedFunc { r#type, name, name_span } => Error {
+                kind: ErrorKind::CannotUpdateAssociatedFunc { r#type: self.render_type(r#type), name: *name },
+                spans: vec![RenderableSpan {
+                    span: *name_span,
+                    auxiliary: false,
+                    note: Some(String::from("This is an associated function, not a field.")),
+                }],
+                note: None,
             },
             TypeError::NotCallable { r#type, func_span } => Error {
                 kind: ErrorKind::NotCallable {

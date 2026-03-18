@@ -27,7 +27,7 @@ impure fn exit() -> !;
 #[lang_item("built_in.panic")]
 fn panic_built_in() -> !;
 
-pub fn panic(s: String) -> ! = blackbox((std.io.eprint_built_in(s), panic_built_in()))._1;
+pub fn panic(s: String) -> ! = blackbox((std.io.eprint_built_in(s ++ "\n"), panic_built_in()))._1;
 
 // TODO: It must be hidden to the users.
 // This is a magic function. It does nothing at runtime.

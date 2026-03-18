@@ -50,6 +50,7 @@ impl Endec for Session {
                 solved_generic_args: HashSet::new(),
                 funcs_rev: HashMap::new(),
                 monomorphizations,
+                associated_funcs: vec![],
                 types,
                 generic_args,
                 func_shapes,

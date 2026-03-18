@@ -1,5 +1,6 @@
-use crate::{Expr, Session, Type};
+use crate::{AssociatedFuncInstance, Expr, Session, Type, write_log};
 use crate::error::{ErrorContext, TypeError};
+use sodigy_inter_hir::get_associated_func_name;
 use sodigy_hir::{AssociatedFunc, FuncPurity};
 use sodigy_mir::{Callable, ShortCircuitKind};
 use sodigy_name_analysis::{NameKind, NameOrigin};
@@ -8,6 +9,9 @@ use sodigy_span::{PolySpanKind, Span};
 use sodigy_string::intern_string;
 use sodigy_token::Constant;
 use std::collections::HashMap;
+
+#[cfg(feature = "log")]
+use crate::LogEntry;
 
 impl Session {
     // FIXME: there are A LOT OF heap allocations
@@ -347,8 +351,18 @@ impl Session {
             },
             Expr::Field { lhs, fields } => match self.solve_expr(lhs, impure_calls) {
                 (Some(lhs_type), has_error) => match self.get_type_of_field(&lhs_type, fields) {
-                    Ok(field_type) => (Some(field_type), has_error),
-                    Err(e) => {
+                    (associated_func, Ok(field_type)) => {
+                        if let Some(associated_func) = associated_func {
+                            write_log!(self, LogEntry::AssociatedFunc {
+                                def_span: associated_func.def_span,
+                                call_span: associated_func.call_span,
+                            });
+                            self.associated_funcs.push(associated_func);
+                        }
+
+                        (Some(field_type), has_error)
+                    },
+                    (_, Err(e)) => {
                         self.type_errors.push(e);
                         (None, true)
                     },
@@ -360,7 +374,7 @@ impl Session {
             // 3. Return the type of `lhs`.
             Expr::FieldUpdate { fields, lhs, rhs } => match self.solve_expr(lhs, impure_calls) {
                 (Some(lhs_type), mut has_error) => match self.get_type_of_field(&lhs_type, fields) {
-                    Ok(field_type) => match self.solve_expr(rhs, impure_calls) {
+                    (None, Ok(field_type)) => match self.solve_expr(rhs, impure_calls) {
                         (Some(rhs_type), e) => {
                             has_error |= e;
 
@@ -380,7 +394,15 @@ impl Session {
                         },
                         (None, _) => (Some(lhs_type), true),
                     },
-                    Err(e) => {
+                    (Some(associated_func), _) => {
+                        self.type_errors.push(TypeError::CannotUpdateAssociatedFunc {
+                            r#type: lhs_type.clone(),
+                            name: associated_func.field_name,
+                            name_span: associated_func.call_span,
+                        });
+                        (Some(lhs_type), true)
+                    },
+                    (_, Err(e)) => {
                         self.type_errors.push(e);
                         (Some(lhs_type), true)
                     },
@@ -757,8 +779,10 @@ impl Session {
         }
     }
 
-    pub fn get_type_of_field(&mut self, r#type: &Type, field: &[Field]) -> Result<Type, TypeError> {
+    // If `field.last()` is an associated func, (e.g. `x.y.z.unwrap`), it returns the information about the associated function.
+    pub fn get_type_of_field(&mut self, r#type: &Type, field: &[Field]) -> (Option<AssociatedFuncInstance>, Result<Type, TypeError>) {
         let mut field_type = None;
+        let mut associated_func_instance = None;
 
         // Let's say there's a struct `Game<T, U>` and `r#type` is `Game<Int, String>`.
         // If the `field_type` is `T`, we have to replace `T` with `Int`.
@@ -837,12 +861,14 @@ impl Session {
                         // `associated_func::unwrap::pure::1` is a poly-generic function and we can
                         // easily reference the function with its name.
                         if let Some(AssociatedFunc { params, is_pure, .. }) = item_shape.associated_funcs().get(name) {
-                            let func_name = name.unintern_or_default(&self.intermediate_dir);
                             let purity = if *is_pure { "pure" } else { "impure" };
-                            let poly_name = intern_string(
-                                format!("associated_func::{func_name}::{purity}::{params}").as_bytes(),
-                                &self.intermediate_dir,
-                            ).unwrap();
+                            let poly_name = get_associated_func_name(*name, *is_pure, *params, &self.intermediate_dir);
+                            let poly_name = intern_string(poly_name.as_bytes(), &self.intermediate_dir).unwrap();
+                            associated_func_instance = Some(AssociatedFuncInstance {
+                                field_name: *name,
+                                def_span: Span::Poly { name: poly_name, kind: PolySpanKind::Name, monomorphize_id: None },
+                                call_span: *name_span,
+                            });
 
                             field_type = Some(Type::Func {
                                 fn_span: Span::None,
@@ -882,7 +908,7 @@ impl Session {
             Type::GenericArg { call: span, .. } |
             Type::Blocked { origin: span } => {
                 self.blocked_type_vars.insert(*span);
-                return Ok(Type::Blocked { origin: *span });
+                return (associated_func_instance, Ok(Type::Blocked { origin: *span }));
             },
             _ => panic!("TODO: {type:?}"),
         }
@@ -894,17 +920,20 @@ impl Session {
                 }
 
                 if field.len() == 1 {
-                    Ok(field_type)
+                    (associated_func_instance, Ok(field_type))
                 }
 
                 else {
                     self.get_type_of_field(&field_type, &field[1..])
                 }
             },
-            None => Err(TypeError::UnknownField {
-                r#type: r#type.clone(),
-                field: field[0].clone(),
-            }),
+            None => (
+                associated_func_instance,
+                Err(TypeError::UnknownField {
+                    r#type: r#type.clone(),
+                    field: field[0].clone(),
+                }),
+            ),
         }
     }
 }

@@ -243,6 +243,23 @@ pub fn store_inter_mir_log(session: &inter_mir::Session) -> Result<(), FileError
                     ).collect::<Vec<_>>().join(", "),
                 ).into_bytes());
             },
+            LogEntry::AssociatedFunc { def_span, call_span } => {
+                buffer.push(b"\n-------- AssociatedFunc --------\n".to_vec());
+                buffer.push(prettify(format!("{entry:?}\n").into_bytes()));
+                buffer.push(format!("call_span:\n{}\n", render_spans(
+                    &call_span.simple_error(),
+                    &render_span_option,
+                    &mut render_span_session,
+                )).into_bytes());
+
+                // TODO: what's the point of rendering def_span?
+                //       it's always `Span::Poly { .. }`, which cannot be rendered...
+                buffer.push(format!("def_span:\n{}\n", render_spans(
+                    &def_span.simple_error(),
+                    &render_span_option,
+                    &mut render_span_session,
+                )).into_bytes());
+            },
         }
     }
 

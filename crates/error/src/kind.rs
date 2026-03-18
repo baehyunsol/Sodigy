@@ -164,9 +164,10 @@ error_kinds!(
     // TODO: suggest similar names
     (UnknownField { r#type: String, field: InternedString },             436,    Error),
 
-    (CannotApplyInfixOp { op: InfixOp, arg_types: Vec<String> },         440,    Error),
-    (CannotSpecializePolyGeneric { num_candidates: usize },              445,    Error),
-    (ImpureCallInPureContext,                                            450,    Error),
+    (CannotUpdateAssociatedFunc { r#type: String, name: InternedString },  439,  Error),
+    (CannotApplyInfixOp { op: InfixOp, arg_types: Vec<String> },           440,  Error),
+    (CannotSpecializePolyGeneric { num_candidates: usize },                445,  Error),
+    (ImpureCallInPureContext,                                              450,  Error),
 
     // TODO: tell what's missing
     (NonExhaustiveArms,                                                  455,    Error),

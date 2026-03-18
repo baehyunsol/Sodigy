@@ -42,6 +42,10 @@ pub enum LogEntry {
         result: SolvePolyResult,
     },
     Monomorphization(Monomorphization),
+    AssociatedFunc {
+        def_span: Span,
+        call_span: Span,
+    },
 }
 
 impl Session {
