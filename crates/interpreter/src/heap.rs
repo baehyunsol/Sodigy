@@ -82,7 +82,7 @@ impl Heap {
         }
     }
 
-    pub fn alloc_i32(&mut self, n: i32) -> u32 {
+    pub fn alloc_int_from_i32(&mut self, n: i32) -> u32 {
         let ptr = self.alloc(2) as u32;
         let metadata = if n < 0 { 0x8000_0001 } else { 1 };
         self.data[ptr as usize] = metadata;
@@ -90,7 +90,7 @@ impl Heap {
         ptr
     }
 
-    pub fn alloc_u32(&mut self, n: u32) -> u32 {
+    pub fn alloc_int_from_u32(&mut self, n: u32) -> u32 {
         let ptr = self.alloc(2) as u32;
         self.data[ptr as usize] = 1;
         self.data[ptr as usize + 1] = n;
@@ -149,10 +149,11 @@ impl Heap {
             // `d02` is a scalar value. It's the length of the slice.
             Value::List(vs) => {
                 let data_ptr = self.alloc(vs.len());
+                self.data[data_ptr] = vs.len() as u32;
 
                 for (i, v) in vs.iter().enumerate() {
                     let v_p = self.alloc_value(v);
-                    self.data[data_ptr + i] = v_p;
+                    self.data[data_ptr + i + 1] = v_p;
                 }
 
                 let slice_ptr = self.alloc(3);

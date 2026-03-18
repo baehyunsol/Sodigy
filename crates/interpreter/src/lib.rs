@@ -14,10 +14,13 @@ use sodigy_number::{
     div_bi,
     eq_bi,
     gt_bi,
+    ilog2_ubi,
     lt_bi,
     mul_bi,
     neg_bi,
     rem_bi,
+    shl_ubi,
+    shr_ubi,
     sub_bi,
 };
 
@@ -144,7 +147,7 @@ fn execute(
             Bytecode::Intrinsic { intrinsic, stack_offset, dst } => match intrinsic {
                 Intrinsic::NegInt => {
                     let rhs_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
-                    let (rhs_neg, rhs) = inspect_int(&heap.data[..], rhs_ptr);
+                    let (rhs_neg, rhs) = inspect_int(&heap.data, rhs_ptr);
                     let (is_neg, nums) = neg_bi(rhs_neg, rhs);
 
                     let v = InternedNumber {
@@ -167,10 +170,10 @@ fn execute(
                 Intrinsic::EqInt |
                 Intrinsic::GtInt => {
                     let lhs_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
-                    let (lhs_neg, lhs) = inspect_int(&heap.data[..], lhs_ptr);
+                    let (lhs_neg, lhs) = inspect_int(&heap.data, lhs_ptr);
 
                     let rhs_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset + 1).expect("stack overflow") as usize;
-                    let (rhs_neg, rhs) = inspect_int(&heap.data[..], rhs_ptr);
+                    let (rhs_neg, rhs) = inspect_int(&heap.data, rhs_ptr);
 
                     let result = match intrinsic {
                         Intrinsic::AddInt |
@@ -204,6 +207,32 @@ fn execute(
 
                     update(*dst, result, stack, heap);
                 },
+                Intrinsic::ShrInt | Intrinsic::ShlInt => {
+                    let lhs_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let (is_neg, lhs) = inspect_int(&heap.data, lhs_ptr);
+                    let rhs = *stack.stack.get(stack.stack_pointer + *stack_offset + 1).expect("stack overflow");
+
+                    let nums = match intrinsic {
+                        Intrinsic::ShrInt => shr_ubi(lhs, rhs),
+                        Intrinsic::ShlInt => shl_ubi(lhs, rhs),
+                        _ => unreachable!(),
+                    };
+                    let v = InternedNumber {
+                        value: InternedNumberValue::BigInt(BigInt {
+                            is_neg,
+                            nums,
+                        }),
+                        is_integer: true,
+                    };
+                    let result = heap.alloc_value(&(&v).into());
+                    update(*dst, result, stack, heap);
+                },
+                Intrinsic::Ilog2Int => {
+                    let lhs = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let (_, rhs) = inspect_int(&heap.data, lhs);
+                    let result = ilog2_ubi(rhs);
+                    update(*dst, result, stack, heap);
+                },
                 Intrinsic::LtScalar |
                 Intrinsic::EqScalar |
                 Intrinsic::GtScalar => {
@@ -219,15 +248,20 @@ fn execute(
                 },
                 Intrinsic::ScalarToInt => {
                     let lhs = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow");
-                    let result = heap.alloc_u32(lhs);
+                    let result = heap.alloc_int_from_u32(lhs);
                     update(*dst, result, stack, heap);
+                },
+                Intrinsic::IntToScalar => {
+                    let lhs = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let (_, n) = inspect_int(&heap.data, lhs);
+                    update(*dst, n[0], stack, heap);
                 },
                 Intrinsic::IndexList => {
                     let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
                     let index = *stack.stack.get(stack.stack_pointer + *stack_offset + 1).expect("stack overflow") as usize;
                     let buffer_ptr = heap.data[slice_ptr] as usize;
                     let start = heap.data[slice_ptr + 1] as usize;
-                    let result = heap.data[buffer_ptr + start + index];
+                    let result = heap.data[buffer_ptr + start + index + 1];
                     update(*dst, result, stack, heap);
                 },
                 Intrinsic::LenList => {
@@ -269,11 +303,12 @@ fn execute(
                     // TODO: I don't want to call `.to_vec()`, but the borrow checker forces me to do so.
                     let curr_list = inspect_list(&heap.data, slice_ptr).to_vec();
 
-                    let new_buffer = heap.alloc(curr_list.len() + 1);
-                    heap.data[new_buffer + curr_list.len()] = value;
+                    let new_buffer = heap.alloc(curr_list.len() + 2);
+                    heap.data[new_buffer] = curr_list.len() as u32 + 1;
+                    heap.data[new_buffer + curr_list.len() + 1] = value;
 
                     for (i, v) in curr_list.iter().enumerate() {
-                        heap.data[new_buffer + i] = *v;
+                        heap.data[new_buffer + i + 1] = *v;
                     }
 
                     let new_slice_ptr = heap.alloc(3);
@@ -294,7 +329,7 @@ fn execute(
                 },
                 Intrinsic::Print | Intrinsic::EPrint => {
                     let chars_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
-                    let chars = inspect_list(&heap.data[..], chars_ptr);
+                    let chars = inspect_list(&heap.data, chars_ptr);
                     let chars = chars.iter().map(
                         |ch| char::from_u32(*ch).expect("invalid char point")
                     ).collect::<Vec<_>>().into_iter().collect::<String>();
@@ -320,11 +355,24 @@ fn execute(
 
                 for i in 0..*elements {
                     heap.data[result + i] = stack.stack[stack.stack_pointer + *stack_offset + i];
-                    // TODO: inc_rc the copied value, if it has to
                 }
 
                 let result = result as u32;
                 update(*dst, result, stack, heap);
+            },
+            Bytecode::InitList { stack_offset, elements, dst } => {
+                let data_ptr = heap.alloc(*elements + 1);
+                heap.data[data_ptr] = *elements as u32;
+
+                for i in 0..*elements {
+                    heap.data[data_ptr + i + 1] = stack.stack[stack.stack_pointer + *stack_offset + i];
+                }
+
+                let slice_ptr = heap.alloc(3);
+                heap.data[slice_ptr] = data_ptr as u32;
+                heap.data[slice_ptr + 1] = 0;
+                heap.data[slice_ptr + 2] = *elements as u32;
+                update(*dst, slice_ptr as u32, stack, heap);
             },
             Bytecode::PushDebugInfo { kind, src } => {
                 let src = read(*src, stack, heap);
@@ -442,5 +490,5 @@ fn inspect_list(heap: &[u32], ptr: usize) -> &[u32] {
     let slice_ptr = heap[ptr] as usize;
     let start = heap[ptr + 1] as usize;
     let length = heap[ptr + 2] as usize;
-    &heap[(slice_ptr + start)..(slice_ptr + start + length)]
+    &heap[(slice_ptr + start + 1)..(slice_ptr + start + length + 1)]
 }

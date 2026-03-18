@@ -1,8 +1,9 @@
 use crate::error::ParseIntError;
 
-pub mod op;
 pub mod cmp;
 pub mod convert;
+pub mod func;
+pub mod op;
 
 use op::{add_ubi, mul_ubi, shl_ubi};
 

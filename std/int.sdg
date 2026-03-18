@@ -83,7 +83,43 @@ fn neq_int(a: Int, b: Int) -> Bool = !eq_int(a, b);
 #[lang_item("fn.geq_int")]
 fn geq_int(a: Int, b: Int) -> Bool = !lt_int(a, b);
 
-// TODO: safety checks in Sodigy
+#[built_in]
+#[lang_item("built_in.shr_int")]
+fn shr_int_built_in(a: Int, b: Scalar) -> Int;
+
+#[impl(std.op.shr)]
+#[lang_item("fn.shr_int")]
+fn shr_int(a: Int, b: Int) -> Int = match (a, b) {
+    (..0, _) => -shr_int(-a, b),
+    (_, ..0) => shl_int(a, -b),
+    (_, 65536..) => 0,
+    _ => shr_int_built_in(a, b as <Scalar>),
+};
+
+#[built_in]
+#[lang_item("built_in.shl_int")]
+fn shl_int_built_in(a: Int, b: Scalar) -> Int;
+
+#[impl(std.op.shl)]
+#[lang_item("fn.shl_int")]
+fn shl_int(a: Int, b: Int) -> Int = match (a, b) {
+    (..0, _) => -shl_int(-a, b),
+    (_, ..0) => shr_int(a, -b),
+    (1.., 65536..) => std.panic("Integer Overflow"),
+    _ => shl_int_built_in(a, b as <Scalar>),
+};
+
+#[built_in]
+#[lang_item("built_in.ilog2_int")]
+fn ilog2_built_in(n: Int) -> Scalar;
+
+#[associate(Int)]
+fn ilog2(n) -> Int = match n {
+    ..1 => std.panic("argument of ilog2 must be positive"),
+    _ => ilog2_built_in(n) as <Int>,
+};
+
+// TODO: safety checks in Sodigy (it has to be `try_convert(Int) -> Result<Scalar, _>`)
 #[built_in]
 #[impl(std.convert.convert)]
 #[lang_item("built_in.int_to_scalar")]

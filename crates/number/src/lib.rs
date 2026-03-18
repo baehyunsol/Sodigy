@@ -11,6 +11,7 @@ pub use big_int::{
     BigInt,
     cmp::*,
     convert::*,
+    func::*,
     op::*,
 };
 pub(crate) use error::ParseIntError;

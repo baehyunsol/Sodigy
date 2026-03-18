@@ -13,7 +13,7 @@ fn isqrt_dumb(n: Int) -> Int = match n {
         let nl = n.ilog2();
         let ss = 1 << (nl >> 1);
 
-        if nl & 1 == 1 {
+        if nl % 2 == 1 {
             // 362 = isqrt(0x20000)
             (ss * 362) >> 8
         } else {

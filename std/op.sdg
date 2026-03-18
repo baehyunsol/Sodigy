@@ -82,3 +82,23 @@ fn append<T, U, V>(lhs: T, rhs: U) -> V;
 #[lang_item("op.prepend")]
 #[lang_item_generics("op.prepend.generic.0", "op.prepend.generic.1", "op.prepend.generic.2")]
 fn prepend<T, U, V>(lhs: T, rhs: U) -> V;
+
+#[poly]
+#[lang_item("op.bit_and")]
+#[lang_item_generics("op.bit_and.generic.0", "op.bit_and.generic.1", "op.bit_and.generic.2")]
+fn bit_and<T, U, V>(lhs: T, rhs: U) -> V;
+
+#[poly]
+#[lang_item("op.bit_or")]
+#[lang_item_generics("op.bit_or.generic.0", "op.bit_or.generic.1", "op.bit_or.generic.2")]
+fn bit_or<T, U, V>(lhs: T, rhs: U) -> V;
+
+#[poly]
+#[lang_item("op.shr")]
+#[lang_item_generics("op.shr.generic.0", "op.shr.generic.1", "op.shr.generic.2")]
+fn shr<T, U, V>(lhs: T, rhs: U) -> V;
+
+#[poly]
+#[lang_item("op.shl")]
+#[lang_item_generics("op.shl.generic.0", "op.shl.generic.1", "op.shl.generic.2")]
+fn shl<T, U, V>(lhs: T, rhs: U) -> V;

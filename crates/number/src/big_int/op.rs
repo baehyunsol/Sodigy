@@ -321,6 +321,30 @@ pub fn shl_ubi(lhs: &[u32], rhs: u32) -> Vec<u32> {
     }
 }
 
-pub fn shr_ubi(n: &[u32], other: u32) -> Vec<u32> {
-    todo!()
+pub fn shr_ubi(lhs: &[u32], rhs: u32) -> Vec<u32> {
+    match rhs {
+        0 => lhs.to_vec(),
+        1..32 => {
+            let mut result = vec![0; lhs.len()];
+            result[0] = lhs[0] >> rhs;
+
+            for (i, lhs) in lhs[1..].iter().enumerate() {
+                let tail = lhs << (32 - rhs);
+                let head = lhs >> rhs;
+                result[i] |= tail;
+                result[i + 1] |= head;
+            }
+
+            remove_suffix_0(&mut result);
+            result
+        },
+        32 => lhs[1..].to_vec(),
+        33..64 => {
+            let mut result = vec![0; lhs.len() - 1];
+            result[0] = lhs[1] >> (rhs - 32);
+            todo!()
+        },
+        64 => lhs[2..].to_vec(),
+        _ => todo!(),
+    }
 }

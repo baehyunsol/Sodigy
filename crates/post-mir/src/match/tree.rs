@@ -656,6 +656,7 @@ pub(crate) fn build_tree(
         },
         MatrixConstructor::Range(r @ Range { r#type, .. }) => {
             let mut branches_with_overlap: Vec<(Range, (Vec<(usize, &MatchArm)>, Vec<NameBinding>))> = vec![];
+            destructured_patterns = split_or_patterns(destructured_patterns);
 
             // default: wildcard
             branches_with_overlap.push((r.clone(), (vec![], vec![])));
@@ -664,7 +665,7 @@ pub(crate) fn build_tree(
                 match &pattern {
                     PatternConstructor::Range(r) => {
                         if r.r#type != *r#type {
-                            todo!()
+                            panic!("ICE!")
                         }
 
                         else {
@@ -690,7 +691,7 @@ pub(crate) fn build_tree(
                             name_bindings.extend(name_bindings_.clone());
                         }
                     },
-                    _ => todo!(),
+                    _ => panic!("TODO: {pattern:?}"),
                 }
             }
 
@@ -863,6 +864,27 @@ pub(crate) fn build_tree(
             })
         },
     }
+}
+
+fn split_or_patterns(
+    destructured_patterns: Vec<(usize, &MatchArm, PatternConstructor, Vec<NameBinding>)>,
+) -> Vec<(usize, &MatchArm, PatternConstructor, Vec<NameBinding>)> {
+    let mut result = Vec::with_capacity(destructured_patterns.len());
+
+    for (id, arm, pattern, name_bindings) in destructured_patterns.into_iter() {
+        match pattern {
+            PatternConstructor::Or(patterns) => {
+                for pattern in patterns.into_iter() {
+                    result.push((id, arm, pattern, name_bindings.clone()));
+                }
+            },
+            pattern => {
+                result.push((id, arm, pattern, name_bindings));
+            },
+        }
+    }
+
+    result
 }
 
 fn true_value(session: &Session) -> Expr {
