@@ -12,10 +12,12 @@ impl Session {
         match (&pattern_type, &pattern.name, &pattern.name_span) {
             // we can solve a type var!
             (Some(pattern_type), Some(name_binding), Some(name_span)) => {
-                // TODO: add type var to `type_vars`
+                let type_var = Type::Var { def_span: *name_span, is_return: false };
+                self.add_type_var(type_var.clone(), None);
+
                 if let Err(()) = self.solve_supertype(
                     &pattern_type,
-                    &Type::Var { def_span: *name_span, is_return: false },
+                    &type_var,
                     /* is_checking_argument: */ false,
                     Some(pattern.error_span_wide()),
                     Some(*name_span),
@@ -230,8 +232,11 @@ impl Session {
 
                 // If there's a rest pattern, it must have the same type.
                 if let Some(rest) = rest_pattern_name_binding {
+                    let type_var = Type::Var { def_span: rest, is_return: false };
+                    self.add_type_var(type_var.clone(), None);
+
                     if let Ok(new_type) = self.solve_supertype(
-                        &Type::Var { def_span: rest, is_return: false },
+                        &type_var,
                         &r#type,
                         false,
                         None,
@@ -314,6 +319,8 @@ impl Session {
                 for (name, (lhs_span, rhs_span)) in name_bindings.iter() {
                     let lhs_type_var = Type::Var { def_span: *lhs_span, is_return: false };
                     let rhs_type_var = Type::Var { def_span: *rhs_span, is_return: false };
+                    self.add_type_var(lhs_type_var.clone(), None);
+                    self.add_type_var(rhs_type_var.clone(), None);
 
                     if let Err(()) = self.solve_supertype(
                         &lhs_type_var,

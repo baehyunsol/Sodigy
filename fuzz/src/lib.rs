@@ -40,7 +40,11 @@ pub fn runner(data: &[u8], target: &str) {
         OptimizeLevel::None,
         true,
         &HashMap::new(),
-        true,
+
+        // If it's true, I can find bugs in ir dumps.
+        // If it's false, the fuzzer's evolution algorithm will become more efficient.
+        false,  // emit-irs
+
         0,
         8,
         ColorWhen::Never,

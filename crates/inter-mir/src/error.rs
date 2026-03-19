@@ -128,6 +128,11 @@ pub enum TypeError {
         param_index: ParamIndex,
     },
 
+    MultiplePolyCandidates {
+        call: Span,
+        poly_def: Span,
+        candidates: Vec<Span>,
+    },
     ImpureCallInPureContext {
         call_spans: Vec<Span>,
         keyword_span: Span,
@@ -369,7 +374,7 @@ impl Session {
                 //    - those fields are captured when this error's created
                 //    - there might be updates in the type variables
                 // 4. TODO: then what?
-                todo!()
+                panic!("{expected:?}, {got:?}, {func_span:?}")
             },
             TypeError::WrongNumberOfGenericArgs {
                 expected,
@@ -649,6 +654,34 @@ impl Session {
                     },
                 ],
                 note: None,
+            },
+            TypeError::MultiplePolyCandidates { call, poly_def, candidates } => {
+                let mut spans = vec![
+                    RenderableSpan {
+                        span: *call,
+                        auxiliary: false,
+                        note: None,
+                    },
+                    RenderableSpan {
+                        span: *poly_def,
+                        auxiliary: true,
+                        note: Some(String::from("This is the definition of the #[poly] you're trying to impl.")),
+                    },
+                ];
+
+                for candidate in candidates.iter() {
+                    spans.push(RenderableSpan {
+                        span: *candidate,
+                        auxiliary: true,
+                        note: Some(String::from("This is a valid implementation.")),
+                    });
+                }
+
+                Error {
+                    kind: ErrorKind::MultiplePolyCandidates(candidates.len()),
+                    spans,
+                    note: None,
+                }
             },
             TypeError::ImpureCallInPureContext { call_spans, keyword_span, context } => {
                 let mut spans = vec![];

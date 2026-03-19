@@ -7,6 +7,11 @@ use std::collections::hash_map::{Entry, HashMap};
 #[cfg(feature = "log")]
 use crate::LogEntry;
 
+mod dump;
+
+#[cfg(test)]
+mod tests;
+
 // ```
 // #[poly]
 // fn add<T, U>(a: T, b: U) -> Int;

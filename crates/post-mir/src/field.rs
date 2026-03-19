@@ -53,7 +53,7 @@ pub(crate) fn lower_fields(lhs: &Expr, fields: &mut Vec<Field>, session: &mut Se
                     todo!()
                 }
             },
-            _ => todo!(),
+            _ => panic!("TODO: {curr_type:?}"),
         }
 
         if i + 1 != last_index {

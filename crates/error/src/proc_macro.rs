@@ -69,11 +69,11 @@
     PolyImplDifferentNumberOfParams
     { poly_params: usize, impl_params: usize }, CannotImplPoly
     { poly_type: String, impl_type: String, param_index: ParamIndex },
-    UnusedNames { names: Vec<InternedString>, kind: NameKind },
-    UnreachableMatchArm, UnreachableOrPattern, NoImpureCallInImpureContext,
-    FuncWithoutTypeAnnot, LetWithoutTypeAnnot, FieldWithoutTypeAnnot,
-    SelfParamNotNamedSelf, Todo { id: u32, message: String },
-    InternalCompilerError { id: u32 },
+    MultiplePolyCandidates(usize), UnusedNames
+    { names: Vec<InternedString>, kind: NameKind }, UnreachableMatchArm,
+    UnreachableOrPattern, NoImpureCallInImpureContext, FuncWithoutTypeAnnot,
+    LetWithoutTypeAnnot, FieldWithoutTypeAnnot, SelfParamNotNamedSelf, Todo
+    { id: u32, message: String }, InternalCompilerError { id: u32 },
 } impl ErrorKind {
     pub fn index(& self) -> u16
     {
@@ -177,9 +177,10 @@
             ErrorKind :: CannotInferPolyGenericImpl { .. } => 490u16,
             ErrorKind :: PolyImplDifferentNumberOfParams { .. } => 495u16,
             ErrorKind :: CannotImplPoly { .. } => 500u16, ErrorKind ::
-            UnusedNames { .. } => 5000u16, ErrorKind :: UnreachableMatchArm =>
-            5005u16, ErrorKind :: UnreachableOrPattern => 5006u16, ErrorKind
-            :: NoImpureCallInImpureContext => 5010u16, ErrorKind ::
+            MultiplePolyCandidates(_,) => 505u16, ErrorKind :: UnusedNames
+            { .. } => 5000u16, ErrorKind :: UnreachableMatchArm => 5005u16,
+            ErrorKind :: UnreachableOrPattern => 5006u16, ErrorKind ::
+            NoImpureCallInImpureContext => 5010u16, ErrorKind ::
             FuncWithoutTypeAnnot => 8000u16, ErrorKind :: LetWithoutTypeAnnot
             => 8005u16, ErrorKind :: FieldWithoutTypeAnnot => 8010u16,
             ErrorKind :: SelfParamNotNamedSelf => 8015u16, ErrorKind :: Todo
@@ -311,6 +312,7 @@
             ErrorKind :: CannotInferPolyGenericImpl { .. } => ErrorLevel ::
             Error, ErrorKind :: PolyImplDifferentNumberOfParams { .. } =>
             ErrorLevel :: Error, ErrorKind :: CannotImplPoly { .. } =>
+            ErrorLevel :: Error, ErrorKind :: MultiplePolyCandidates(_,) =>
             ErrorLevel :: Error, ErrorKind :: UnusedNames { .. } => ErrorLevel
             :: Warning, ErrorKind :: UnreachableMatchArm => ErrorLevel ::
             Warning, ErrorKind :: UnreachableOrPattern => ErrorLevel ::
@@ -640,7 +642,9 @@
                 r#poly_type.encode_impl(buffer);
                 r#impl_type.encode_impl(buffer);
                 r#param_index.encode_impl(buffer);
-            }, ErrorKind :: UnusedNames { r#names, r#kind, } =>
+            }, ErrorKind :: MultiplePolyCandidates(t0,) =>
+            { buffer.push(1u8); buffer.push(249u8); t0.encode_impl(buffer); },
+            ErrorKind :: UnusedNames { r#names, r#kind, } =>
             {
                 buffer.push(19u8); buffer.push(136u8);
                 r#names.encode_impl(buffer); r#kind.encode_impl(buffer);
@@ -1062,6 +1066,10 @@
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: CannotImplPoly
                 { r#poly_type, r#impl_type, r#param_index, }, cursor))
+            }, 505u16 =>
+            {
+                let (t0, cursor) = usize :: decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: MultiplePolyCandidates(t0,), cursor))
             }, 5000u16 =>
             {
                 let (r#names, cursor) = Vec :: < InternedString >::

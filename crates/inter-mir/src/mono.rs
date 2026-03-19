@@ -158,7 +158,14 @@ impl Session {
                         self.solved_generic_args.insert((generic_call.call, *generic));
                     }
                 },
-                r => panic!("TODO: {r:?}"),
+                SolvePolyResult::MultiCandidates(ps) => {
+                    has_error = true;
+                    self.type_errors.push(TypeError::MultiplePolyCandidates {
+                        call: generic_call.call,
+                        poly_def: generic_call.def,
+                        candidates: ps.clone(),
+                    });
+                },
             }
         }
 

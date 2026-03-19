@@ -2,6 +2,7 @@ use crate::{
     ErrorContext,
     GenericCall,
     Monomorphization,
+    PolySolver,
     Session,
     SolvePolyResult,
 };
@@ -35,6 +36,10 @@ pub enum LogEntry {
         r#let: Let,
         annotated_type: Type,
         infered_type: Option<Type>,
+    },
+    InitPolySolver {
+        poly_def_span: Span,
+        solver: PolySolver,
     },
     TrySolvePoly {
         generic_call: GenericCall,

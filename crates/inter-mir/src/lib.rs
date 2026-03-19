@@ -107,6 +107,13 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                     break;
                 },
             };
+
+            for (span, solver) in poly_solver.iter() {
+                write_log!(session, LogEntry::InitPolySolver {
+                    poly_def_span: *span,
+                    solver: solver.clone(),
+                });
+            }
         }
 
         match session.get_mono_plan(&poly_solver, mir_session) {

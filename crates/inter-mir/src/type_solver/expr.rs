@@ -49,14 +49,9 @@ impl Session {
 
                     // NOTE: inter-hir must have checked that `id` is a valid expression
 
-                    self.add_type_var(Type::Var { def_span: id.def_span, is_return: false }, Some(id.id));
-                    (
-                        Some(Type::Var {
-                            def_span: id.def_span,
-                            is_return: false,
-                        }),
-                        false,
-                    )
+                    let type_var = Type::Var { def_span: id.def_span, is_return: false };
+                    self.add_type_var(type_var.clone(), Some(id.id));
+                    (Some(type_var), false)
                 },
             },
             Expr::Constant(Constant::Number { n, .. }) => match n.is_integer {
@@ -552,12 +547,11 @@ impl Session {
                         // `x` (the param definition)'s span.
                         Some(v @ (Type::Var { .. } | Type::GenericArg { .. } | Type::Blocked { .. })) => {
                             let v = v.clone();
+                            let type_var = Type::Var { def_span: *def_span, is_return: true };
+                            self.add_type_var(type_var.clone(), None);
 
                             match self.solve_supertype(
-                                &Type::Var {
-                                    def_span: *def_span,
-                                    is_return: true,
-                                },
+                                &type_var,
                                 &v,
                                 false,
                                 None,
@@ -588,7 +582,11 @@ impl Session {
                                         r#type.substitute_generic_param_for_arg(call_span, &generic_params);
                                         r#type
                                     },
-                                    None => Type::Var { def_span: s.fields[i].name_span, is_return: false },
+                                    None => {
+                                        let type_var = Type::Var { def_span: s.fields[i].name_span, is_return: false };
+                                        self.add_type_var(type_var.clone(), Some(s.fields[i].name));
+                                        type_var
+                                    },
                                 };
 
                                 if let Err(()) = self.solve_supertype(
@@ -604,12 +602,6 @@ impl Session {
                                 }
                             }
 
-                            if !generic_params.is_empty() {
-                                for generic_param in generic_params.iter() {
-                                    self.add_type_var(Type::GenericArg { call: call_span, generic: *generic_param }, None);
-                                }
-                            }
-
                             let (args, group_span) = if s.generics.is_empty() {
                                 (None, None)
                             } else {
@@ -617,7 +609,11 @@ impl Session {
                                     |generic| {
                                         match self.generic_args.get(&(call_span, generic.name_span)) {
                                             Some(r#type) => r#type.clone(),
-                                            None => Type::GenericArg { call: call_span, generic: generic.name_span },
+                                            None => {
+                                                let type_var = Type::GenericArg { call: call_span, generic: generic.name_span };
+                                                self.add_type_var(type_var.clone(), None);
+                                                type_var
+                                            },
                                         }
                                     }
                                 ).collect()), Some(Span::None))
@@ -830,7 +826,9 @@ impl Session {
                                             field_type = Some(r#type.clone());
                                         },
                                         None => {
-                                            field_type = Some(Type::Var { def_span: field.name_span, is_return: false });
+                                            let type_var = Type::Var { def_span: field.name_span, is_return: false };
+                                            self.add_type_var(type_var.clone(), Some(field.name));
+                                            field_type = Some(type_var);
                                         },
                                     }
 
@@ -840,6 +838,7 @@ impl Session {
                         },
                         Field::Index(i) => {
                             let i = if *i < 0 { (*i + struct_shape.fields.len() as i64) as usize } else { *i as usize };
+                            let name = struct_shape.fields[i].name;
                             let name_span = struct_shape.fields[i].name_span;
 
                             match self.types.get(&name_span) {
@@ -847,7 +846,9 @@ impl Session {
                                     field_type = Some(r#type.clone());
                                 },
                                 None => {
-                                    field_type = Some(Type::Var { def_span: name_span, is_return: false });
+                                    let type_var = Type::Var { def_span: name_span, is_return: false };
+                                    self.add_type_var(type_var.clone(), Some(name));
+                                    field_type = Some(type_var);
                                 },
                             }
                         },
@@ -861,8 +862,9 @@ impl Session {
                         // `associated_func::unwrap::pure::1` is a poly-generic function and we can
                         // easily reference the function with its name.
                         if let Some(AssociatedFunc { params, is_pure, .. }) = item_shape.associated_funcs().get(name) {
-                            let purity = if *is_pure { "pure" } else { "impure" };
-                            let poly_name = get_associated_func_name(*name, *is_pure, *params, &self.intermediate_dir);
+                            let is_pure = *is_pure;
+                            let purity = if is_pure { "pure" } else { "impure" };
+                            let poly_name = get_associated_func_name(*name, is_pure, *params, &self.intermediate_dir);
                             let poly_name = intern_string(poly_name.as_bytes(), &self.intermediate_dir).unwrap();
                             associated_func_instance = Some(AssociatedFuncInstance {
                                 field_name: *name,
@@ -870,29 +872,36 @@ impl Session {
                                 call_span: *name_span,
                             });
 
-                            field_type = Some(Type::Func {
-                                fn_span: Span::None,
-                                group_span: Span::None,
-                                // Type of `x.unwrap` is `Fn() -> T`, not `Fn(Option<T>) -> T`
-                                params: (1..*params).map(
-                                    |i| Type::GenericArg {
-                                        call: *name_span,
-                                        generic: Span::Poly {
-                                            name: poly_name,
-                                            kind: PolySpanKind::Param(i),
-                                            monomorphize_id: None,
-                                        },
-                                    }
-                                ).collect(),
-                                r#return: Box::new(Type::GenericArg {
+                            // Type of `x.unwrap` is `Fn() -> T`, not `Fn(Option<T>) -> T`
+                            let params: Vec<Type> = (1..*params).map(
+                                |i| Type::GenericArg {
                                     call: *name_span,
                                     generic: Span::Poly {
                                         name: poly_name,
-                                        kind: PolySpanKind::Return,
+                                        kind: PolySpanKind::Param(i),
                                         monomorphize_id: None,
                                     },
-                                }),
-                                purity: if *is_pure {
+                                }
+                            ).collect();
+                            let r#return = Type::GenericArg {
+                                call: *name_span,
+                                generic: Span::Poly {
+                                    name: poly_name,
+                                    kind: PolySpanKind::Return,
+                                    monomorphize_id: None,
+                                },
+                            };
+
+                            for r#type in params.iter().chain(std::iter::once(&r#return)) {
+                                self.add_type_var(r#type.clone(), None);
+                            }
+
+                            field_type = Some(Type::Func {
+                                fn_span: Span::None,
+                                group_span: Span::None,
+                                params,
+                                r#return: Box::new(r#return),
+                                purity: if is_pure {
                                     FuncPurity::Pure
                                 } else {
                                     FuncPurity::Impure

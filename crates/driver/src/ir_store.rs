@@ -11,8 +11,14 @@ use sodigy_fs_api::{
     write_bytes,
 };
 use sodigy_inter_mir as inter_mir;
-use sodigy_span::{RenderSpanOption, RenderSpanSession, render_spans};
+use sodigy_span::{
+    RenderSpanOption,
+    RenderSpanSession,
+    RenderableSpan,
+    render_spans,
+};
 use sodigy_prettify::prettify;
+use std::collections::HashMap;
 
 /// The compiler stores irs (or result) in various places.
 /// 1. It can store the output to user-given path.
@@ -218,6 +224,43 @@ pub fn store_inter_mir_log(session: &inter_mir::Session) -> Result<(), FileError
                     &render_span_option,
                     &mut render_span_session,
                 )).into_bytes());
+            },
+            LogEntry::InitPolySolver { poly_def_span, solver } => {
+                buffer.push(b"\n-------- InitPolySolver --------\n".to_vec());
+                // buffer.push(prettify(format!("{entry:?}\n").into_bytes()));  // Too long
+                let mut spans = vec![RenderableSpan {
+                    span: *poly_def_span,
+                    auxiliary: false,
+                    note: Some(String::from("This is the #[poly] definition.")),
+                }];
+                let mut impl_name_map = HashMap::new();
+
+                for impl_span in solver.impls.keys() {
+                    let name = format!(
+                        "impl-{}-{}",
+                        session.span_to_string(*impl_span).unwrap_or(String::from("????")),
+                        impl_name_map.len(),
+                    );
+                    spans.push(RenderableSpan {
+                        span: *impl_span,
+                        auxiliary: true,
+                        note: Some(format!("This is `{name}`.")),
+                    });
+                    impl_name_map.insert(*impl_span, name);
+                }
+
+                buffer.push(render_spans(&spans, &render_span_option, &mut render_span_session).into_bytes());
+                buffer.push(b"\nstate machine:\n```\n".to_vec());
+
+                if let Some(state_machine) = &solver.state_machine {
+                    buffer.push(session.render_state_machine(state_machine, &impl_name_map).into_bytes());
+                }
+
+                else {
+                    buffer.push(b"It has no state machine.".to_vec());
+                }
+
+                buffer.push(b"\n```\n".to_vec());
             },
             LogEntry::TrySolvePoly { generic_call, poly_def, result } => {
                 buffer.push(b"\n-------- TrySolvePoly --------\n".to_vec());

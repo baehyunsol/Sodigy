@@ -183,6 +183,7 @@ error_kinds!(
     (CannotInferPolyGenericImpl { param_index: ParamIndex },         490,    Error),
     (PolyImplDifferentNumberOfParams { poly_params: usize, impl_params: usize },       495, Error),
     (CannotImplPoly { poly_type: String, impl_type: String, param_index: ParamIndex }, 500, Error),
+    (MultiplePolyCandidates(usize),                                  505,    Error),
 
     // Warnings from here
     (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),

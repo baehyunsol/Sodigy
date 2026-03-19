@@ -15,12 +15,10 @@ impl Session {
             context,
         ) = match self.types.get(&r#let.name_span) {
             None | Some(Type::Var { .. }) => {
-                self.add_type_var(Type::Var { def_span: r#let.name_span, is_return: false }, Some(r#let.name));
+                let type_var = Type::Var { def_span: r#let.name_span, is_return: false };
+                self.add_type_var(type_var.clone(), Some(r#let.name));
                 (
-                    Type::Var {
-                        def_span: r#let.name_span,
-                        is_return: false,
-                    },
+                    type_var,
                     r#let.value.error_span_wide(),
                     None,
                     ErrorContext::InferTypeAnnot,

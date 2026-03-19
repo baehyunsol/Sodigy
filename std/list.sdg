@@ -6,11 +6,6 @@ use std.scalar.Scalar;
 #[lang_item("type.List")]
 pub struct List;
 
-#[built_in]
-#[lang_item("built_in.init_list")]
-#[lang_item_generics("built_in.init_list.generic.0")]
-fn init_list<T>(/* varargs */) -> [T];
-
 #[impl(std.op.index)]
 fn index_list<T>(ls: [T], i: Int) -> T = {
     if 0 <= i && i < ls.len() {
@@ -22,8 +17,7 @@ fn index_list<T>(ls: [T], i: Int) -> T = {
     }
 
     else {
-        // TODO: better error message
-        std.panic("Index Error")
+        std.panic(f"index error: length={ls.len()}, index={i}")
     }
 };
 
@@ -38,6 +32,9 @@ fn eq_list<T>(lhs: [T], rhs: [T]) -> Bool = match (lhs, rhs) {
     ([], _) | (_, []) => Bool.False,
     ([$l] ++ $lhs, [$r] ++ $rhs) => l == r && lhs == rhs,
 };
+
+#[associate([T])]
+fn len<T>(self) -> Int = len_list(self) as <Int>;
 
 #[built_in]
 #[lang_item("built_in.len_list")]

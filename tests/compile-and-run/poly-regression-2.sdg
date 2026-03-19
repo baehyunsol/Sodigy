@@ -1,0 +1,18 @@
+//% compile-pass
+
+#[poly]
+fn foo<T, U>(_: T, _: U) -> Int;
+
+#[impl(foo)]
+fn foo1<T>(_: T, _: T) -> Int = 1;
+
+#[impl(foo)]
+fn foo2(_: Int, _: Number) = 2;
+
+#[impl(foo)]
+fn foo3(_: Number, _: Int) = 3;
+
+let x: _ = std.panic("");
+let y: _ = std.panic("");
+
+assert foo(x, y) == 1;

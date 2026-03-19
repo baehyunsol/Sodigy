@@ -117,6 +117,7 @@ CannotInferPolyGenericParam/485/Error
 CannotInferPolyGenericImpl/490/Error
 PolyImplDifferentNumberOfParams/495/Error
 CannotImplPoly/500/Error
+MultiplePolyCandidates/505/Error
 UnusedNames/5000/Warning
 UnreachableMatchArm/5005/Warning
 UnreachableOrPattern/5006/Warning

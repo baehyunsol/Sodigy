@@ -49,7 +49,11 @@ impl Session {
                 for r#let in block.lets.iter_mut() {
                     let mut old_type = match self.types.get(&r#let.name_span) {
                         Some(r#type) => r#type.clone(),
-                        None => Type::Var { def_span: r#let.name_span, is_return: false },
+                        None => {
+                            let type_var = Type::Var { def_span: r#let.name_span, is_return: false };
+                            self.add_type_var(type_var.clone(), Some(r#let.name));
+                            type_var
+                        },
                     };
 
                     for (generic_param, generic_arg) in monomorphization.generics.iter() {
