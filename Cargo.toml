@@ -9,3 +9,4 @@ sodigy-driver = { version = "0.1.0", path = "crates/driver" }
 [features]
 debug-bytecode = ["sodigy-driver/debug-bytecode"]
 debug-heap = ["sodigy-driver/debug-heap"]
+log-inter-mir = ["sodigy-driver/log-inter-mir"]

@@ -1,3 +1,8 @@
+use sodigy_cli::{
+    ArgCount,
+    ArgParser,
+    ArgType,
+};
 use sodigy_compiler_test::{
     Fuzzer,
     FuzzTarget,
@@ -23,25 +28,29 @@ use sodigy_fs_api::{
 use std::thread;
 use std::time::Duration;
 
-// TODO: add fuzzer to the pipeline
-//       1. switch to nightly rustc before invoking fuzzer, then come back to the stable rustc
-//       2. do not run fuzzer on windows
-//       3. if it's `all` command,
-//          a. initiate the fuzzer before anything else
-//          b. run the tests (the fuzzer is running along background)
-//          c. the tests will run at least a few minutes, so the fuzzer has enough time to fuzz
-//          d. when the tests are complete, kill the fuzzer process and check if there's a new error
-//
-// TODO: copy `.sdg` files in `compile-and-run/` to `../../fuzz/artifacts/fuzz_target_1/`
 fn main() {
     let args = std::env::args().collect::<Vec<_>>();
     let root = find_root().unwrap();
-    let sodigy_path = get_sodigy_path(&root);
 
     match args.get(1).map(|arg| arg.as_str()) {
         Some("cnr") => {
+            let parsed_args = ArgParser::new()
+                .optional_flag(&["--log-inter-mir"])
+                .args(ArgType::String, ArgCount::Leq(1))
+                .parse(&args, 2)
+                .map_err(|_| "cli error")
+                .unwrap();
+
+            let log_inter_mir = parsed_args.get_flag(0).is_some();
+            let filter = parsed_args.get_args().get(0).map(|f| f.to_string());
+            let sodigy_path = get_sodigy_path(
+                &root,
+                false,  // --release
+                log_inter_mir,
+            );
+
             compile_and_run::run_cases(
-                args.get(2).map(|arg| arg.to_string()),
+                filter,
                 &root,
                 &join3(&root, "tests", "compile-and-run").unwrap(),
                 &sodigy_path,
@@ -51,43 +60,71 @@ fn main() {
             crate_test::run_all(&join(&root, "crates").unwrap());
         },
         Some("fuzz") => {
-            let timeout = 300;
+            let parsed_args = ArgParser::new()
+                .optional_arg_flag("--timeout", ArgType::integer_between(Some(0), Some(u32::MAX.into())))
+                .flag_with_default(&["--all", "--empty", "--cnr"])
+                .parse(&args, 2)
+                .map_err(|_| "cli error")
+                .unwrap();
+
+            let timeout = parsed_args.arg_flags.get("--timeout").map(
+                |n| n.parse::<usize>().unwrap()
+            ).unwrap_or(300);
+            let (cnr, empty) = match parsed_args.get_flag(0).as_ref().map(|f| f.as_str()) {
+                Some("--all") => (true, true),
+                Some("--cnr") => (true, false),
+                Some("--empty") => (false, true),
+                _ => unreachable!(),
+            };
+
             let fuzz_dir = join(&root, "fuzz").unwrap();
             let cnr_dir = join3(&root, "tests", "compile-and-run").unwrap();
-            let mut empty_fuzzer = Fuzzer::init(&fuzz_dir, &cnr_dir, FuzzTarget::Empty, false);
-            let mut cnr_fuzzer = Fuzzer::init(&fuzz_dir, &cnr_dir, FuzzTarget::Cnr, false);
 
-            for _ in 0..timeout {
-                if let Some(fuzz_result) = empty_fuzzer.try_collect() {
-                    if let Some(artifact) = &fuzz_result.artifact {
-                        write_bytes(
-                            "fuzz-empty.sdg",
-                            artifact,
-                            WriteMode::CreateOrTruncate,
-                        ).unwrap();
+            if empty {
+                let mut fuzzer = Fuzzer::init(&fuzz_dir, &cnr_dir, FuzzTarget::Empty, false);
+
+                for _ in 0..timeout {
+                    if let Some(fuzz_result) = fuzzer.try_collect() {
+                        if let Some(artifact) = &fuzz_result.artifact {
+                            write_bytes(
+                                "fuzz-empty.sdg",
+                                artifact,
+                                WriteMode::CreateOrTruncate,
+                            ).unwrap();
+                        }
+                        break;
                     }
-                    break;
-                }
 
-                thread::sleep(Duration::from_millis(1_000));
+                    thread::sleep(Duration::from_millis(1_000));
+                }
             }
 
-            for _ in 0..timeout {
-                if let Some(fuzz_result) = cnr_fuzzer.try_collect() {
-                    if let Some(artifact) = &fuzz_result.artifact {
-                        write_bytes(
-                            "fuzz-cnr.sdg",
-                            artifact,
-                            WriteMode::CreateOrTruncate,
-                        ).unwrap();
-                    }
-                    break;
-                }
+            if cnr {
+                let mut fuzzer = Fuzzer::init(&fuzz_dir, &cnr_dir, FuzzTarget::Cnr, false);
 
-                thread::sleep(Duration::from_millis(1_000));
+                for _ in 0..timeout {
+                    if let Some(fuzz_result) = fuzzer.try_collect() {
+                        if let Some(artifact) = &fuzz_result.artifact {
+                            write_bytes(
+                                "fuzz-cnr.sdg",
+                                artifact,
+                                WriteMode::CreateOrTruncate,
+                            ).unwrap();
+                        }
+                        break;
+                    }
+
+                    thread::sleep(Duration::from_millis(1_000));
+                }
             }
         },
         Some("all") => {
+            let sodigy_path = get_sodigy_path(
+                &root,
+                false,  // --release
+                false,  // log-inter-mir
+            );
+
             let metadata = meta::get();
 
             if !metadata.is_repo_clean {
@@ -136,7 +173,7 @@ fn main() {
             write_string(&file_name, &result, WriteMode::CreateOrTruncate).unwrap();
             write_string(&log_path, &result, WriteMode::CreateOrTruncate).unwrap();
         },
-        Some(_) => {},
-        None => {},
+        Some(_) => todo!(),
+        None => todo!(),
     }
 }

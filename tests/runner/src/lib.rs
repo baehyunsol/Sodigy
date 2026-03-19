@@ -24,9 +24,23 @@ pub use meta::{Meta, git};
 
 // If it fails to compile the sodigy-compiler, it panics.
 // It doesn't capture stderr.
-pub fn get_sodigy_path(root: &str) -> String {
+pub fn get_sodigy_path(
+    root: &str,
+    release: bool,
+    log_inter_mir: bool,
+) -> String {
+    let mut args = vec!["build"];
+
+    if release {
+        args.push("--release");
+    }
+
+    if log_inter_mir {
+        args.push("--features=log-inter-mir");
+    }
+
     let output = Command::new("cargo")
-        .arg("build")
+        .args(&args)
         .current_dir(root)
         .spawn()
         .unwrap()
@@ -36,7 +50,7 @@ pub fn get_sodigy_path(root: &str) -> String {
     let path = join4(
         root,
         "target",
-        "debug",
+        if release { "release" } else { "debug" },
         "sodigy",
     ).unwrap();
     assert!(exists(&path));

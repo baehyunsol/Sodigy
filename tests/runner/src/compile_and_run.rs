@@ -102,7 +102,7 @@ struct CnrContext {
 pub fn run_cases(
     filter: Option<String>,
     root: &str,
-    test_dir: &str,  // of `<ROOT>/tests/compile-and-run/`
+    test_dir: &str,  // `<ROOT>/tests/compile-and-run/`
     sodigy_path: &str,
 ) -> Vec<CompileAndRun> {
     let mut cases = vec![];
@@ -173,6 +173,11 @@ pub fn run_cases(
         };
 
         println!("{case}: \x1b[{color}m{status}\x1b[0m");
+
+        if filter.is_some() && let Some(error) = &case_result.error {
+            eprintln!("{error}");
+        }
+
         result.push(case_result);
     }
 

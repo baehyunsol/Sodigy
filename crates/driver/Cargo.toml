@@ -28,3 +28,4 @@ sodigy-string = { version = "0.1.0", path = "../string" }
 [features]
 debug-bytecode = ["sodigy-interpreter/debug-bytecode"]
 debug-heap = ["sodigy-interpreter/debug-heap"]
+log-inter-mir = ["sodigy-inter-mir/log"]

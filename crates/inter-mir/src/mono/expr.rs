@@ -91,7 +91,9 @@ impl Session {
                     Callable::ListInit { group_span: span, .. } => {
                         *span = span.monomorphize(monomorphization.id);
                     },
-                    Callable::Dynamic(c) => todo!(),
+                    Callable::Dynamic(c) => {
+                        self.monomorphize_expr(c, monomorphization);
+                    },
                 }
 
                 for arg in args.iter_mut() {
