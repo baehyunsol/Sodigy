@@ -10,6 +10,7 @@ use graph::render_graph;
 #[derive(Clone, Debug)]
 pub struct TimingsEntry {
     pub stage: CompileStage,
+    pub stage_extra: Option<String>,
     pub module: Option<String>,
     pub has_error: bool,
 
@@ -21,20 +22,23 @@ pub struct TimingsEntry {
 }
 
 impl Worker {
-    pub fn stage_start(&mut self, stage: CompileStage, module: Option<String>) {
+    pub fn stage_start(&mut self, stage: CompileStage, stage_extra: Option<&str>, module: Option<String>) {
         assert!(self.curr_stage.is_none());
         let timestamp = Instant::now().duration_since(self.born_at.clone()).as_micros() as u64;
-        self.write_log(&format!("stage start {:?}", (stage, &module)));
-        self.curr_stage = Some((stage, module, timestamp));
+        let stage_extra_r = if let Some(e) = &stage_extra { format!(" ({e})") } else { String::new() };
+        self.write_log(&format!("stage start{stage_extra_r} {:?}", (stage, &module)));
+        self.curr_stage = Some((stage, stage_extra.map(|e| e.to_string()), module, timestamp));
         self.curr_stage_error = false;
     }
 
     pub fn stage_end(&mut self, has_error: bool) {
-        if let Some((stage, module, start)) = self.curr_stage.take() {
+        if let Some((stage, stage_extra, module, start)) = self.curr_stage.take() {
             let timestamp = Instant::now().duration_since(self.born_at.clone()).as_micros() as u64;
-            self.write_log(&format!("stage end {:?}{}", (stage, &module), if self.curr_stage_error { " (has_error)" } else { "" }));
+            let stage_extra_r = if let Some(e) = &stage_extra { format!(" ({e})") } else { String::new() };
+            self.write_log(&format!("stage end{stage_extra_r} {:?}{}", (stage, &module), if self.curr_stage_error { " (has_error)" } else { "" }));
             self.timings_log.push(TimingsEntry {
                 stage,
+                stage_extra,
                 module,
                 start,
                 end: timestamp,

@@ -18,5 +18,5 @@ sodigy-string = { version = "0.1.0", path = "../string" }
 sodigy-token = { version = "0.1.0", path = "../token" }
 
 [features]
-default = ["log"]
+# default = ["log"]
 log = []

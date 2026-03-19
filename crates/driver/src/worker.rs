@@ -134,7 +134,7 @@ pub struct Worker {
     pub born_at: Instant,
     pub timings_log: Vec<TimingsEntry>,
     pub log_file: Option<String>,
-    pub curr_stage: Option<(CompileStage, Option<String>, u64)>,
+    pub curr_stage: Option<(CompileStage, Option<String>, Option<String>, u64)>,
     pub curr_stage_error: bool,
 }
 
@@ -237,11 +237,11 @@ impl Worker {
                         s.intermediate_dir = intermediate_dir.clone();
                         s
                     } else {
-                        self.stage_start(CompileStage::Load, Some(input_module_path.to_string()));
+                        self.stage_start(CompileStage::Load, None, Some(input_module_path.to_string()));
                         let bytes = file.read_bytes(&intermediate_dir)?.ok_or(Error::MiscError)?;
                         self.stage_end(false);
 
-                        self.stage_start(CompileStage::Lex, Some(input_module_path.to_string()));
+                        self.stage_start(CompileStage::Lex, None, Some(input_module_path.to_string()));
                         let lex_session = sodigy_lex::lex(
                             file,
                             bytes,
@@ -269,7 +269,7 @@ impl Worker {
                             return compile_error_if_not_empty(&lex_session.errors);
                         }
 
-                        self.stage_start(CompileStage::Parse, Some(input_module_path.to_string()));
+                        self.stage_start(CompileStage::Parse, None, Some(input_module_path.to_string()));
                         let parse_session = sodigy_parse::parse(lex_session);
                         self.stage_end(!parse_session.errors.is_empty());
 
@@ -292,7 +292,7 @@ impl Worker {
                             return compile_error_if_not_empty(&parse_session.errors);
                         }
 
-                        self.stage_start(CompileStage::Hir, Some(input_module_path.to_string()));
+                        self.stage_start(CompileStage::Hir, None, Some(input_module_path.to_string()));
                         let hir_session = sodigy_hir::lower(parse_session);
                         self.stage_end(!hir_session.errors.is_empty());
 
@@ -331,7 +331,7 @@ impl Worker {
                     let inter_hir_session = global_context.inter_hir_session.as_mut().unwrap();
                     inter_hir_session.intermediate_dir = intermediate_dir.clone();
 
-                    self.stage_start(CompileStage::PostHir, Some(input_module_path.to_string()));
+                    self.stage_start(CompileStage::PostHir, None, Some(input_module_path.to_string()));
                     let _ = inter_hir_session.resolve_module(&mut hir_session);
 
                     // There should be no errors in `inter_hir_session` before `.resolve_module` because
@@ -358,7 +358,7 @@ impl Worker {
                         hir_session.funcs.extend(inter_hir_session.new_funcs.drain(..));
                     }
 
-                    self.stage_start(CompileStage::Mir, Some(input_module_path.to_string()));
+                    self.stage_start(CompileStage::Mir, None, Some(input_module_path.to_string()));
                     let mir_session = sodigy_mir::lower(hir_session, global_context.inter_hir_session.as_ref().unwrap());
                     self.stage_end(!mir_session.errors.is_empty());
 
@@ -387,7 +387,7 @@ impl Worker {
                 // the inter-mir session must have initialized `mir_global_context` at this point
                 mir_session.global_context = global_context.mir_global_context();
 
-                self.stage_start(CompileStage::PostMir, Some(input_module_path.to_string()));
+                self.stage_start(CompileStage::PostMir, None, Some(input_module_path.to_string()));
                 mir_session.remove_generics_and_builtins();
                 let _ = sodigy_post_mir::lower(&mut mir_session);
                 self.stage_end(!mir_session.errors.is_empty());
@@ -411,7 +411,7 @@ impl Worker {
                     return compile_error_if_not_empty(&mir_session.errors);
                 }
 
-                self.stage_start(CompileStage::MirOptimize, Some(input_module_path.to_string()));
+                self.stage_start(CompileStage::MirOptimize, None, Some(input_module_path.to_string()));
                 let optimized_mir_session = sodigy_optimize::optimize_mir(mir_session, optimize_level);
                 self.stage_end(!optimized_mir_session.errors.is_empty());
 
@@ -434,7 +434,7 @@ impl Worker {
                     return compile_error_if_not_empty(&optimized_mir_session.errors);
                 }
 
-                self.stage_start(CompileStage::Bytecode, Some(input_module_path.to_string()));
+                self.stage_start(CompileStage::Bytecode, None, Some(input_module_path.to_string()));
                 let bytecode_session = sodigy_bytecode::lower(optimized_mir_session);
                 self.stage_end(!bytecode_session.errors.is_empty());
 
@@ -457,7 +457,7 @@ impl Worker {
                     return compile_error_if_not_empty(&bytecode_session.errors);
                 }
 
-                self.stage_start(CompileStage::BytecodeOptimize, Some(input_module_path.to_string()));
+                self.stage_start(CompileStage::BytecodeOptimize, None, Some(input_module_path.to_string()));
                 let optimized_bytecode_session = sodigy_optimize::optimize_bytecode(bytecode_session, optimize_level);
                 self.stage_end(!optimized_bytecode_session.errors.is_empty());
 
@@ -482,6 +482,7 @@ impl Worker {
                 intermediate_dir,
                 emit_ir_options,
             } => {
+                self.stage_start(CompileStage::InterHir, Some("load-hir-modules"), None);
                 let mut inter_hir_session = sodigy_inter_hir::Session::new(&intermediate_dir);
 
                 for (path, span) in modules.iter() {
@@ -501,7 +502,8 @@ impl Worker {
                     inter_hir_session.ingest(*span, hir_session);
                 }
 
-                self.stage_start(CompileStage::InterHir, None);
+                self.stage_end(false);
+                self.stage_start(CompileStage::InterHir, Some("inter-hir"), None);
 
                 if let Ok(()) = inter_hir_session.resolve_alias() {
                     // `resolve_associated_items` will create new poly-impls
@@ -536,6 +538,7 @@ impl Worker {
                 intermediate_dir,
                 emit_ir_options,
             } => {
+                self.stage_start(CompileStage::InterMir, Some("load-mir-modules"), None);
                 let mut merged_mir_session: Option<mir::Session> = None;
 
                 for path in modules.keys() {
@@ -565,6 +568,7 @@ impl Worker {
 
                 let mut mir_session = merged_mir_session.unwrap();
                 mir_session.global_context = MirGlobalContext::from_inter_hir_session(global_context.inter_hir_session.as_ref().unwrap());
+                self.stage_end(false);
 
                 // `inter_mir_session` has type information of every items in the project.
                 // It's relatively cheap to load/store, so post-mir and later stages will
@@ -572,18 +576,23 @@ impl Worker {
                 //
                 // `mir_session` has definition of every items, after poly-solving and
                 // monomorphization. It's very heavy, and we're not gonna store this.
-                self.stage_start(CompileStage::InterMir, None);
+                self.stage_start(CompileStage::InterMir, Some("solve-type"), None);
                 let inter_mir_session = sodigy_inter_mir::solve_type(&mut mir_session);
+                self.stage_end(!inter_mir_session.errors.is_empty());
+
+                self.stage_start(CompileStage::InterMir, Some("store-monomorphization-info"), None);
                 inter_mir_session.store_monomorphization_info()?;
+                self.stage_end(false);
 
                 // `.log` field always exists, but it would be empty if logging is disabled.
+                self.stage_start(CompileStage::InterMir, Some("store-inter-mir-log"), None);
                 store_inter_mir_log(&inter_mir_session)?;
-
-                self.stage_end(!inter_mir_session.errors.is_empty());
+                self.stage_end(false);
 
                 // InterMir may have modified MIRs, so we have to update all the cached MIRs.
                 // NOTE: It drains the items in `mir_session`, so we cannot use the session anymore.
                 // TODO: This is (potentially) one of the biggest bottlenecks in the compiler.
+                self.stage_start(CompileStage::InterMir, Some("propagate-mir-updates"), None);
                 let mut items = mir_session.get_item_map();
 
                 for path in modules.keys() {
@@ -624,6 +633,7 @@ impl Worker {
                     )?;
                 }
 
+                self.stage_end(false);
                 emit_irs_if_has_to(
                     &inter_mir_session,
                     &emit_ir_options,
@@ -650,6 +660,7 @@ impl Worker {
                 backend,
                 output_path,
             } => {
+                self.stage_start(CompileStage::CodeGen, Some("load-bytecode-modules"), None);
                 let mut merged_bytecode_session: Option<sodigy_bytecode::Session> = None;
 
                 for path in modules.keys() {
@@ -678,7 +689,9 @@ impl Worker {
                 }
 
                 let bytecode_session = merged_bytecode_session.unwrap();
-                self.stage_start(CompileStage::CodeGen, None);
+                self.stage_end(false);
+
+                self.stage_start(CompileStage::CodeGen, Some("code-gen"), None);
                 let (code, errors, warnings) = sodigy_code_gen::lower(bytecode_session, backend);
                 self.stage_end(!errors.is_empty());
 

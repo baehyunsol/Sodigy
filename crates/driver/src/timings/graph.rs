@@ -90,8 +90,9 @@ fn generate_block(
     canvas_size: usize,
 ) -> String {
     let tooltip_message = format!(
-        "{:?}{}<br/>({:.2}ms){}",
+        "{:?}{}{}<br/>({:.2}ms){}",
         entry.stage,
+        if let Some(extra) = &entry.stage_extra { format!("<br/>{extra}") } else { String::new() },
         if let Some(module) = &entry.module { format!("<br/>{module}") } else { String::new() },
         (entry.end - entry.start) as f64 / 1000.0,
         if entry.has_error { r#"<br/><span class="color-red">has error</span>"# } else { "" },
