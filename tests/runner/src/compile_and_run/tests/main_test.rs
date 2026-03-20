@@ -68,10 +68,16 @@ impl CnrContext {
             }
         }
 
+        let mut args = vec!["build", "--test", "-o=target/run", "--emit-irs"];
+
+        if self.log_post_mir {
+            args.push("--log-post-mir");
+        }
+
         let compile_started_at = Instant::now();
         let output = match subprocess::run(
             &self.sodigy_path,
-            &["build", "--test", "-o=target/run", "--emit-irs"],
+            &args,
             &self.project_dir,
             30.0,
             self.dump_output,

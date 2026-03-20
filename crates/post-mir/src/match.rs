@@ -173,6 +173,7 @@ use sodigy_token::Constant;
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
+mod dump;
 mod matrix;
 mod range;
 mod tree;
@@ -249,6 +250,11 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
     )?;
 
     tree.optimize();
+
+    if session.match_dumps.is_some() {
+        let dump = session.dump_decision_tree(&tree, &borrowed_arms);
+        session.match_dumps.as_mut().unwrap().insert(match_expr.keyword_span, dump);
+    }
 
     // We have to evaluate the scrutinee multiple times.
     // If it's `match (x, y) { .. }`, we convert this to `{ let s = (x, y); match s { .. } }`.

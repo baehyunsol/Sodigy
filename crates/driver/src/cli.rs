@@ -23,6 +23,7 @@ pub enum CliCommand {
         graceful_shutdown: u32,  // in millis
         jobs: usize,
         color: ColorWhen,
+        log_post_mir: bool,
     },
     Run {
         optimize_level: OptimizeLevel,
@@ -32,6 +33,7 @@ pub enum CliCommand {
         graceful_shutdown: u32,  // in millis
         jobs: usize,
         color: ColorWhen,
+        log_post_mir: bool,
     },
     Test {
         optimize_level: OptimizeLevel,
@@ -41,6 +43,7 @@ pub enum CliCommand {
         graceful_shutdown: u32,  // in millis
         jobs: usize,
         color: ColorWhen,
+        log_post_mir: bool,
     },
     Clean,
     Help(String),
@@ -72,6 +75,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_flag(&["--test"])
                 .optional_flag(&["--emit-irs"])
                 .optional_flag(&["--no-std"])
+                .optional_flag(&["--log-post-mir"])
                 .alias("-O", "--release")
                 .short_flag(&["--output", "--jobs"])
                 .args(ArgType::String, ArgCount::None)
@@ -118,6 +122,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
 
             let emit_irs = parsed_args.get_flag(2).is_some();
             let import_std = !parsed_args.get_flag(3).is_some();
+            let log_post_mir = parsed_args.get_flag(4).is_some();
 
             let output_path = match output_path {
                 Some(output_path) => output_path,
@@ -135,6 +140,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 emit_irs,
                 jobs,
                 color,
+                log_post_mir,
             })
         },
         Some("clean") => {
@@ -199,6 +205,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_flag(&["--release"])
                 .optional_flag(&["--emit-irs"])
                 .optional_flag(&["--no-std"])
+                .optional_flag(&["--log-post-mir"])
                 .alias("-O", "--release")
                 .short_flag(&["--jobs"])
                 .args(ArgType::String, ArgCount::None)
@@ -227,6 +234,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             );
             let emit_irs = parsed_args.get_flag(1).is_some();
             let import_std = !parsed_args.get_flag(2).is_some();
+            let log_post_mir = parsed_args.get_flag(3).is_some();
 
             Ok(CliCommand::Run {
                 optimize_level,
@@ -236,6 +244,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 emit_irs,
                 jobs,
                 color,
+                log_post_mir,
             })
         },
         Some("test") => {
@@ -245,6 +254,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_flag(&["--release"])
                 .optional_flag(&["--emit-irs"])
                 .optional_flag(&["--no-std"])
+                .optional_flag(&["--log-post-mir"])
                 .alias("-O", "--release")
                 .short_flag(&["--jobs"])
                 .args(ArgType::String, ArgCount::None)
@@ -273,6 +283,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             );
             let emit_irs = parsed_args.get_flag(1).is_some();
             let import_std = !parsed_args.get_flag(2).is_some();
+            let log_post_mir = parsed_args.get_flag(3).is_some();
 
             Ok(CliCommand::Test {
                 optimize_level,
@@ -282,6 +293,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 emit_irs,
                 jobs,
                 color,
+                log_post_mir,
             })
         },
         Some(_) => todo!(),

@@ -18,8 +18,8 @@ pub(crate) trait RenderStateMachine {
         }
 
         let mut arms = vec![];
-        let indent_p = "  ".repeat(indent - 1);
-        let indent_s = "  ".repeat(indent);
+        let indent_p = "    ".repeat(indent - 1);
+        let indent_s = "    ".repeat(indent);
 
         for (condition, branch) in state_machine.branches.iter() {
             arms.push(format!(

@@ -6,38 +6,30 @@ mod session;
 
 pub(crate) use field::lower_fields;
 pub(crate) use r#match::lower_match;
-use session::Session;
+pub use session::Session;
 
-pub fn lower(mir_session: &mut MirSession) -> Result<(), ()> {
-    let mut has_error = false;
-    let mut session = Session::from_mir_session(mir_session);
+pub fn lower<'a, 'b>(mir_session: &mut MirSession<'a, 'b>, dump_matches: bool) -> Session<'a, 'b> {
+    let mut session = Session::from_mir_session(mir_session, dump_matches);
 
     for r#let in mir_session.lets.iter_mut() {
-        has_error |= lower_expr(&mut r#let.value, &mut session).is_err();
+        let _ = lower_expr(&mut r#let.value, &mut session);
     }
 
     for func in mir_session.funcs.iter_mut() {
-        has_error |= lower_expr(&mut func.value, &mut session).is_err();
+        let _ = lower_expr(&mut func.value, &mut session);
     }
 
     for assert in mir_session.asserts.iter_mut() {
         if let Some(note) = &mut assert.note {
-            has_error |= lower_expr(note, &mut session).is_err();
+            let _ = lower_expr(note, &mut session);
         }
 
-        has_error |= lower_expr(&mut assert.value, &mut session).is_err();
+        let _ = lower_expr(&mut assert.value, &mut session);
     }
 
     mir_session.errors.extend(session.errors.drain(..));
     mir_session.warnings.extend(session.warnings.drain(..));
-
-    if has_error {
-        Err(())
-    }
-
-    else {
-        Ok(())
-    }
+    session
 }
 
 fn lower_expr(expr: &mut Expr, session: &mut Session) -> Result<(), ()> {

@@ -8,7 +8,7 @@ use crate::{
     TimingsEntry,
     emit_irs_if_has_to,
     get_cached_ir,
-    store_inter_mir_log,
+    log_inter_mir,
 };
 use sodigy_endec::Endec;
 use sodigy_error::{Error as SodigyError, Warning as SodigyWarning};
@@ -17,6 +17,7 @@ use sodigy_fs_api::{WriteMode, write_bytes};
 use sodigy_hir as hir;
 use sodigy_mir::{self as mir, GlobalContext as MirGlobalContext};
 use sodigy_span::Span;
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock, mpsc};
 use std::thread::{self, JoinHandle};
 use std::time::Instant;
@@ -51,6 +52,7 @@ pub enum MessageToMain {
         worker_id: WorkerId,
         entries: Vec<TimingsEntry>,
     },
+    MatchesLog(HashMap<Span, (Vec<(Span, String)>, String)>),
     Error(Error),
 }
 
@@ -203,6 +205,7 @@ impl Worker {
                 intermediate_dir,
                 find_modules,
                 emit_ir_options,
+                dump_matches,
                 stop_after,
             } => {
                 let (is_std, file) = match &input_file_path {
@@ -389,8 +392,12 @@ impl Worker {
 
                 self.stage_start(CompileStage::PostMir, None, Some(input_module_path.to_string()));
                 mir_session.remove_generics_and_builtins();
-                let _ = sodigy_post_mir::lower(&mut mir_session);
+                let post_mir_session = sodigy_post_mir::lower(&mut mir_session, dump_matches);
                 self.stage_end(!mir_session.errors.is_empty());
+
+                if dump_matches {
+                    tx_to_main.send(MessageToMain::MatchesLog(post_mir_session.match_dumps.as_ref().unwrap().clone()))?;
+                }
 
                 emit_irs_if_has_to(
                     &mir_session,
@@ -586,7 +593,7 @@ impl Worker {
 
                 // `.log` field always exists, but it would be empty if logging is disabled.
                 self.stage_start(CompileStage::InterMir, Some("store-inter-mir-log"), None);
-                store_inter_mir_log(&inter_mir_session)?;
+                log_inter_mir(&inter_mir_session)?;
                 self.stage_end(false);
 
                 // InterMir may have modified MIRs, so we have to update all the cached MIRs.

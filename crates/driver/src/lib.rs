@@ -33,6 +33,7 @@ mod compile_stage;
 mod error;
 mod global_context;
 mod ir_store;
+mod log;
 mod timings;
 mod worker;
 
@@ -45,7 +46,8 @@ pub use ir_store::{EmitIrOption, StoreIrAt};
 use cli::parse_args;
 use compile_stage::COMPILE_STAGES;
 use global_context::GlobalContext;
-use ir_store::{emit_irs_if_has_to, get_cached_ir, store_inter_mir_log};
+use ir_store::{emit_irs_if_has_to, get_cached_ir};
+use log::{log_inter_mir, log_matches};
 use timings::{TimingsEntry, dump_timings};
 use worker::{Channel, MessageToMain, MessageToWorker, Worker, WorkerId, init_workers_and_channels};
 
@@ -133,10 +135,13 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             Ok(())
         },
         cli_command @ (
-            CliCommand::Build { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, jobs, color, .. } |
-            CliCommand::Run { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, jobs, color } |
-            CliCommand::Test { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, jobs, color }
+            CliCommand::Build { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, jobs, color, log_post_mir, .. } |
+            CliCommand::Run { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, jobs, color, log_post_mir } |
+            CliCommand::Test { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, jobs, color, log_post_mir }
         ) => {
+            // I want `log_post_mir` to enable more flags! What else can I dump/log?
+            let dump_matches = *log_post_mir;
+
             let (output_path, backend, interpret_with_profile) = match cli_command {
                 CliCommand::Run { .. } => (
                     StoreIrAt::IntermediateDir,
@@ -164,6 +169,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                 *import_std,
                 custom_error_levels,
                 *emit_irs,
+                dump_matches,
                 *graceful_shutdown,
                 *jobs,
                 *color,
@@ -199,6 +205,7 @@ pub fn init_workers_and_compile(
     import_std: bool,
     custom_error_levels: &HashMap<u16, CustomErrorLevel>,
     emit_irs: bool,
+    dump_matches: bool,
     graceful_shutdown: u32,  // in milliseconds
     jobs: usize,
     color: ColorWhen,
@@ -221,6 +228,7 @@ pub fn init_workers_and_compile(
         import_std,
         custom_error_levels,
         emit_irs,
+        dump_matches,
         graceful_shutdown,
         incremental_compilation,
         quiet,
@@ -303,6 +311,7 @@ fn compile(
     import_std: bool,
     custom_error_levels: &HashMap<u16, CustomErrorLevel>,
     emit_irs: bool,
+    dump_matches: bool,
     graceful_shutdown: u32,  // in milliseconds
     incremental_compilation: bool,
     quiet: bool,
@@ -409,6 +418,7 @@ fn compile(
                                 human_readable: false,
                             },
                         ),
+                        dump_matches,
                         stop_after: CompileStage::Hir,
                     },
                 )) {
@@ -586,6 +596,7 @@ fn compile(
                                                     human_readable: false,
                                                 },
                                             ),
+                                            dump_matches,
                                             stop_after: CompileStage::Mir,
                                         },
                                     ))?;
@@ -617,6 +628,7 @@ fn compile(
                                                     human_readable: false,
                                                 },
                                             ),
+                                            dump_matches,
                                             stop_after: CompileStage::BytecodeOptimize,
                                         },
                                     ))?;
@@ -651,6 +663,9 @@ fn compile(
                     },
                     MessageToMain::TimingsLog { worker_id, entries } => {
                         worker_logs.insert(worker_id, entries);
+                    },
+                    MessageToMain::MatchesLog(matches) => {
+                        log_matches(&matches, &ir_dir)?;
                     },
                     MessageToMain::Error(e) => {
                         return Err(e);

@@ -36,12 +36,14 @@ fn main() {
         Some("cnr") => {
             let parsed_args = ArgParser::new()
                 .optional_flag(&["--log-inter-mir"])
+                .optional_flag(&["--log-post-mir"])
                 .args(ArgType::String, ArgCount::Leq(1))
                 .parse(&args, 2)
                 .map_err(|_| "cli error")
                 .unwrap();
 
             let log_inter_mir = parsed_args.get_flag(0).is_some();
+            let log_post_mir = parsed_args.get_flag(1).is_some();
             let filter = parsed_args.get_args().get(0).map(|f| f.to_string());
             let sodigy_path = get_sodigy_path(
                 &root,
@@ -54,6 +56,7 @@ fn main() {
                 &root,
                 &join3(&root, "tests", "compile-and-run").unwrap(),
                 &sodigy_path,
+                log_post_mir,
             );
         },
         Some("crates") => {
@@ -145,6 +148,7 @@ fn main() {
                 &root,
                 &join3(&root, "tests", "compile-and-run").unwrap(),
                 &sodigy_path,
+                false,
             ));
             let empty_fuzz_result = empty_fuzzer.collect();
             let cnr_fuzz_result = cnr_fuzzer.collect();

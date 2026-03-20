@@ -369,7 +369,7 @@ impl PolySolver {
             let mut state_machine = StateMachineOrLeaves::StateMachine(state_machine);
             state_machine.optimize();
 
-            if let StateMachineOrLeaves::StateMachine(mut state_machine) = state_machine {
+            if let StateMachineOrLeaves::StateMachine(state_machine) = state_machine {
                 self.state_machine = Some(state_machine);
             }
         }

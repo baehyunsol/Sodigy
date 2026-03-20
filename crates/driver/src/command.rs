@@ -27,6 +27,7 @@ pub enum Command {
         find_modules: bool,
 
         emit_ir_options: Vec<EmitIrOption>,
+        dump_matches: bool,
         stop_after: CompileStage,
     },
     // Collects HIRs and runs InterHir stage.

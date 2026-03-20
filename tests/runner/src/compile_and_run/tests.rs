@@ -67,9 +67,15 @@ impl CnrContext {
         // I use `sodigy test` command instead of `sodigy build` + `sodigy interpret` and that's intentional.
         //
         // The main test runner uses `sodigy build` + `sodigy interpret` and I want to test another path.
+        let mut args = vec!["test"];
+
+        if self.log_post_mir {
+            args.push("--log-post-mir");
+        }
+
         match subprocess::run(
             &self.sodigy_path,
-            &["test"],
+            &args,
             &self.project_dir,
             30.0,
             false,
