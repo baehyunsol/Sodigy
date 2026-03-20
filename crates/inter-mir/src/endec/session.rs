@@ -17,6 +17,7 @@ impl Endec for Session {
         self.struct_shapes.encode_impl(buffer);
         self.enum_shapes.encode_impl(buffer);
         self.generic_def_span_rev.encode_impl(buffer);
+        self.equal_generic_params.encode_impl(buffer);
         self.polys.encode_impl(buffer);
         self.span_string_map.encode_impl(buffer);
         self.lang_items.encode_impl(buffer);
@@ -33,6 +34,7 @@ impl Endec for Session {
         let (struct_shapes, cursor) = HashMap::<Span, StructShape>::decode_impl(buffer, cursor)?;
         let (enum_shapes, cursor) = HashMap::<Span, EnumShape>::decode_impl(buffer, cursor)?;
         let (generic_def_span_rev, cursor) = HashMap::<Span, Span>::decode_impl(buffer, cursor)?;
+        let (equal_generic_params, cursor) = HashMap::<Span, Vec<(usize, usize)>>::decode_impl(buffer, cursor)?;
         let (polys, cursor) = HashMap::<Span, Poly>::decode_impl(buffer, cursor)?;
         let (span_string_map, cursor) = HashMap::<Span, InternedString>::decode_impl(buffer, cursor)?;
         let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
@@ -57,6 +59,7 @@ impl Endec for Session {
                 struct_shapes,
                 enum_shapes,
                 generic_def_span_rev,
+                equal_generic_params,
                 polys,
                 span_string_map,
                 lang_items,

@@ -23,6 +23,12 @@ pub struct Session<'hir, 'mir> {
 
     pub type_assertions: Vec<TypeAssertion>,
 
+    // It's purely for better error messages.
+    // Let's say there's a function: `fn eq<T>(lhs: T, rhs: T) -> Bool`.
+    // It remembers the fact that "the first argument and the second parameter of `eq` have the same type".
+    // Then, whenever it finds a call to `eq`, it checks if the two arguments have the same type.
+    pub equal_generic_params: HashMap<Span, Vec<(usize, usize)>>,
+
     // It's `def_span -> type_annot` map.
     // It has type information of *every* name in the module.
     // Type information of other modules are in `.global_context.types`.
@@ -68,6 +74,7 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
             // will be lowered soon
             asserts: vec![],
             type_assertions: vec![],
+            equal_generic_params: HashMap::new(),
 
             aliases: hir_session.aliases.iter().map(|alias| (alias.name, alias.name_span)).collect(),
             types: HashMap::new(),
@@ -93,6 +100,7 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
         self.asserts.extend(s.asserts.drain(..));
         self.aliases.extend(s.aliases.drain(..));
         self.type_assertions.extend(s.type_assertions.drain(..));
+        self.equal_generic_params.extend(s.equal_generic_params.drain());
         self.types.extend(s.types.drain());
         self.generic_args.extend(s.generic_args.drain());
         self.errors.extend(s.errors.drain(..));

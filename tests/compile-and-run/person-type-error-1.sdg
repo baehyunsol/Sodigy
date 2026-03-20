@@ -12,9 +12,9 @@ let myself = Person {
     is_sodigian: True,
 };
 
-fn expect_string(s: String) -> Int = 0;
-fn expect_int(n: Int) -> Int = 0;
-fn expect_bool(b: Bool) -> Int = 0;
+fn expect_string(_: String) -> Int = 0;
+fn expect_int(_: Int) -> Int = 0;
+fn expect_bool(_: Bool) -> Int = 0;
 
 assert expect_int(myself.name) == 0;
 assert expect_bool(myself.age) == 0;

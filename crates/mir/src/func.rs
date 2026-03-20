@@ -2,6 +2,7 @@ use crate::{Expr, Session, Type};
 use sodigy_hir::{self as hir, FuncOrigin, FuncParam, FuncPurity, FuncShape, Generic};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
+use std::collections::hash_map::{Entry, HashMap};
 
 #[derive(Clone, Debug)]
 pub struct Func {
@@ -25,10 +26,22 @@ impl Func {
         let mut params = Vec::with_capacity(hir_func.params.len());
         let mut param_types = Vec::with_capacity(hir_func.params.len());
         let type_annot_span = hir_func.type_annot.as_ref().map(|t| t.error_span_wide());
+        let mut equal_generic_params: HashMap<Span, Vec<usize>> = HashMap::new();
 
-        for hir_param in hir_func.params.iter() {
+        for (i, hir_param) in hir_func.params.iter().enumerate() {
             match hir_param.type_annot.as_ref().map(|type_annot| Type::from_hir(type_annot, session)) {
                 Some(Ok(type_annot)) => {
+                    if let Type::GenericParam { def_span, .. } = &type_annot {
+                        match equal_generic_params.entry(*def_span) {
+                            Entry::Occupied(mut e) => {
+                                e.get_mut().push(i);
+                            },
+                            Entry::Vacant(e) => {
+                                e.insert(vec![i]);
+                            },
+                        }
+                    }
+
                     param_types.push(type_annot.clone());
                     session.types.insert(hir_param.name_span, type_annot);
                 },
@@ -50,6 +63,17 @@ impl Func {
                 type_annot: None,
                 default_value: hir_param.default_value,
             });
+        }
+
+        for indexes in equal_generic_params.values() {
+            if indexes.len() > 1 {
+                session.equal_generic_params.insert(
+                    hir_func.name_span,
+                    indexes[1..].iter().map(
+                        |j| (indexes[0], *j)
+                    ).collect(),
+                );
+            }
         }
 
         let value = match Expr::from_hir(&hir_func.value, session) {

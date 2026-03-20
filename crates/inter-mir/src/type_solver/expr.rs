@@ -520,6 +520,30 @@ impl Session {
                                 }
                             }
 
+                            if let Some(pairs) = self.equal_generic_params.get(def_span) {
+                                let pairs = pairs.to_vec();
+
+                                for (i, j) in pairs.iter() {
+                                    if let Err(()) = self.solve_supertype(
+                                        &arg_types[*i],
+                                        &arg_types[*j],
+                                        false,
+                                        Some(args[*i].error_span_wide()),
+                                        Some(args[*j].error_span_wide()),
+                                        ErrorContext::EqualGenericParams {
+                                            def: *def_span,
+                                            call: span,
+                                            i: *i,
+                                            j: *j,
+                                        },
+                                        true,
+                                    ) {
+                                        has_error = true;
+                                        return (Some(return_type), true);
+                                    }
+                                }
+                            }
+
                             // It doesn't check arg types if there are wrong number of args.
                             // Whether or not there're type errors with args, it returns the return type.
                             if arg_types.len() != params.len() {

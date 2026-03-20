@@ -85,6 +85,7 @@ pub struct Session {
     pub struct_shapes: HashMap<Span, StructShape>,
     pub enum_shapes: HashMap<Span, EnumShape>,
     pub generic_def_span_rev: HashMap<Span, Span>,
+    pub equal_generic_params: HashMap<Span, Vec<(usize, usize)>>,
     pub polys: HashMap<Span, Poly>,
 
     pub span_string_map: HashMap<Span, InternedString>,
@@ -120,6 +121,7 @@ impl Session {
             struct_shapes: HashMap::new(),
             enum_shapes: HashMap::new(),
             generic_def_span_rev: HashMap::new(),
+            equal_generic_params: HashMap::new(),
             polys: HashMap::new(),
             span_string_map: HashMap::new(),
             lang_items: parent.lang_items.clone(),
@@ -153,6 +155,7 @@ impl Session {
             struct_shapes: mir_session.global_context.struct_shapes.take().unwrap().clone(),
             enum_shapes: mir_session.global_context.enum_shapes.take().unwrap().clone(),
             generic_def_span_rev: mir_session.global_context.generic_def_span_rev.take().unwrap().clone(),
+            equal_generic_params: mir_session.equal_generic_params.drain().collect(),
             polys: mir_session.global_context.polys.take().unwrap().clone(),
             span_string_map: HashMap::new(),
             lang_items: mir_session.global_context.lang_items.take().unwrap().clone(),

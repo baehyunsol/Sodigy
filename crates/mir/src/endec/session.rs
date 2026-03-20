@@ -28,6 +28,7 @@ impl Endec for Session<'_, '_> {
         self.asserts.encode_impl(buffer);
         self.aliases.encode_impl(buffer);
         self.type_assertions.encode_impl(buffer);
+        self.equal_generic_params.encode_impl(buffer);
         self.types.encode_impl(buffer);
         self.generic_args.encode_impl(buffer);
 
@@ -43,6 +44,7 @@ impl Endec for Session<'_, '_> {
         let (asserts, cursor) = Vec::<Assert>::decode_impl(buffer, cursor)?;
         let (aliases, cursor) = Vec::<(InternedString, Span)>::decode_impl(buffer, cursor)?;
         let (type_assertions, cursor) = Vec::<TypeAssertion>::decode_impl(buffer, cursor)?;
+        let (equal_generic_params, cursor) = HashMap::<Span, Vec<(usize, usize)>>::decode_impl(buffer, cursor)?;
         let (types, cursor) = HashMap::<Span, Type>::decode_impl(buffer, cursor)?;
         let (generic_args, cursor) = HashMap::<(Span, Span), Type>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
@@ -59,6 +61,7 @@ impl Endec for Session<'_, '_> {
                 asserts,
                 aliases,
                 type_assertions,
+                equal_generic_params,
                 types,
                 generic_args,
                 errors,

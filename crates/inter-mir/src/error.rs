@@ -6,6 +6,7 @@ use sodigy_error::{
     Warning,
     WarningKind,
     comma_list_strs,
+    to_ordinal,
 };
 use sodigy_hir::{FuncOrigin, FuncPurity, LetOrigin};
 use sodigy_mir::{render_type, span_to_string};
@@ -202,6 +203,12 @@ pub enum ErrorContext {
     RangePatternEqual,
     TypeAssertion,
     FieldUpdate,
+    EqualGenericParams {
+        def: Span,
+        call: Span,
+        i: usize,
+        j: usize,
+    },
 
     // It infered the type of the same type var multiple times,
     // and got different result.
@@ -240,6 +247,7 @@ impl ErrorContext {
             ErrorContext::RangePatternEqual => Some(String::from("Lhs and rhs of `..` pattern must have the same type.")),
             ErrorContext::TypeAssertion => Some(String::from("Asserted type and the actual type are different.")),
             ErrorContext::FieldUpdate => Some(String::from("In a field-update expression, the type of the value and the field have to be the same.")),
+            ErrorContext::EqualGenericParams { .. } => None,
             ErrorContext::InferedAgain { .. } => Some(String::from("I infered a type of the same value multiple times, and got different results.")),
             ErrorContext::Deep => Some(String::from("A contradiction is found while solving a chain of type-equations. There must be type error somewhere, but I can't find the exact location.")),
             ErrorContext::None => None,
@@ -322,6 +330,8 @@ impl Session {
                             format!("The type of this field is `{expected_type}`.")
                         } else if let ErrorContext::MatchScrutinee = context {
                             format!("The scrutinee of the match expression has type `{expected_type}`.")
+                        } else if let ErrorContext::EqualGenericParams { .. } = context {
+                            format!("This value has type `{expected_type}`.")
                         } else {
                             format!(
                                 "The value should have type `{expected_type}`{}.",
@@ -347,6 +357,23 @@ impl Session {
                             note: Some(format!("This value is expected to have type `{expected_type}`, but has type `{got_type}`.")),
                         });
                     }
+                }
+
+                if let ErrorContext::EqualGenericParams { def, call, i, j } = context {
+                    spans.push(RenderableSpan {
+                        span: *call,
+                        auxiliary: true,
+                        note: Some(format!(
+                            "The {} and {} arguments of this function should have the same type.",
+                            to_ordinal(*i + 1),
+                            to_ordinal(*j + 1),
+                        )),
+                    });
+                    spans.push(RenderableSpan {
+                        span: *def,
+                        auxiliary: true,
+                        note: Some(String::from("The function is defined here.")),
+                    });
                 }
 
                 Error {
