@@ -428,12 +428,15 @@ impl Session {
                     // The `expr` is `f()` and we know the def_span of `f`.
                     Callable::Static { def_span, span } => match self.types.get(def_span) {
                         // `f` is a function and we have enough information.
-                        Some(Type::Func {
+                        Some(ff @ Type::Func {
                             params,
                             r#return,
                             purity,
                             ..
                         }) => {
+                            let is_convert = *def_span == self.get_lang_item_span("fn.convert");
+                            let ff = ff.clone();
+
                             if let FuncPurity::Impure | FuncPurity::Both = purity {
                                 impure_calls.push(*span);
                             }
@@ -483,6 +486,26 @@ impl Session {
                                         self.add_type_var(generic_arg_type_var, None);
                                     }
                                 }
+
+                                // `x as <Int>` is lowered to `convert.<_, Int>(x)`.
+                                // So, the first generic_arg and the first function arg
+                                // has the same type. We have to do this check here,
+                                // otherwise, we'll have a lot of false-negatives...
+                                if is_convert {
+                                    if let (Some(gt), Some(at)) = (generic_args.get(0), arg_types.get(0)) {
+                                        if let Err(()) = self.solve_supertype(
+                                            &gt,
+                                            &at,
+                                            false,
+                                            None,
+                                            Some(args[0].error_span_wide()),
+                                            ErrorContext::None,
+                                            true,
+                                        ) {
+                                            has_error = true;
+                                        }
+                                    }
+                                }
                             }
 
                             else if !generic_params.is_empty() {
@@ -505,7 +528,8 @@ impl Session {
                                     expected: params,
                                     got: arg_types,
                                     given_keyword_args: given_keyword_args.to_vec(),
-                                    func_span: func.error_span_wide(),
+                                    call: func.error_span_wide(),
+                                    def: Some(*def_span),
                                     arg_spans: args.iter().map(|arg| arg.error_span_wide()).collect(),
                                 });
                             }
@@ -730,7 +754,8 @@ impl Session {
                                         expected: params,
                                         got: arg_types,
                                         given_keyword_args: given_keyword_args.to_vec(),
-                                        func_span: func.error_span_wide(),
+                                        call: func.error_span_wide(),
+                                        def: None,
                                         arg_spans: args.iter().map(|arg| arg.error_span_wide()).collect(),
                                     });
                                 }

@@ -1,0 +1,2 @@
+assert 3 as <Int> == 3;
+assert "abc" as <String> == "abc";

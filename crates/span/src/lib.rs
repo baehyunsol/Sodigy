@@ -43,6 +43,12 @@ pub enum Span {
         end: usize,
     },
     Derived {
+        // It used to be `SpanDeriveKind::Monomorphize(u128)`, but I found that
+        // monomorphization should not override `SpanDeriveKind`. In some functions
+        // there are spans have the same range but different `SpanDeriveKind`. If it
+        // overrides them with monomorphization id, they're not unique anymore.
+        monomorphize_id: Option<u128>,
+
         kind: SpanDeriveKind,
         file: File,
         start: usize,
@@ -94,50 +100,28 @@ impl Span {
                 Span::Range { file: file2, start: start2, end: end2 } | Span::Derived { file: file2, start: start2, end: end2, .. },
             ) if *file1 == file2 => {
                 let (file, start, end) = (*file1, (*start1).min(start2), (*end1).max(end2));
+                let monomorphize_id = match (self, other) {
+                    (Span::Derived { monomorphize_id: Some(id), .. }, _) => Some(*id),
+                    (_, Span::Derived { monomorphize_id: Some(id), .. }) => Some(id),
+                    _ => None,
+                };
+                let kind = match (self, other) {
+                    (Span::Derived { kind: kind1, .. }, Span::Derived { kind: kind2, .. }) if *kind1 == kind2 => *kind1,
+                    (Span::Range { .. }, Span::Derived { kind, .. }) => kind,
+                    (Span::Derived { kind, .. }, Span::Range { .. }) => *kind,
+                    _ => SpanDeriveKind::Trivial,
+                };
 
                 // TODO: It's getting too complicated.......
+                //       I want to preserve as much information as possible, but there are so many cases!!
                 match (self, other) {
                     (Span::Range { .. }, Span::Range { .. }) => Span::Range { file, start, end },
-                    (
-                        Span::Range { .. } | Span::Derived { kind: SpanDeriveKind::Trivial, .. },
-                        Span::Range { .. } | Span::Derived { kind: SpanDeriveKind::Trivial, .. },
-                    ) => Span::Derived { kind: SpanDeriveKind::Trivial, file, start, end },
-                    (
-                        Span::Derived { kind: SpanDeriveKind::Monomorphize(id1), .. },
-                        Span::Derived { kind: SpanDeriveKind::Monomorphize(id2), .. },
-                    ) => {
-                        if *id1 == id2 {
-                            Span::Derived { kind: SpanDeriveKind::Monomorphize(*id1), file, start, end }
-                        } else {
-                            unreachable!()
-                        }
-                    },
-                    (
-                        Span::Range { .. } | Span::Derived { kind: SpanDeriveKind::Trivial | SpanDeriveKind::Monomorphize(_), .. },
-                        Span::Range { .. } | Span::Derived { kind: SpanDeriveKind::Trivial | SpanDeriveKind::Monomorphize(_), .. },
-                    ) => {
-                        let mono_id = match (self, other) {
-                            (Span::Derived { kind: SpanDeriveKind::Monomorphize(id), .. }, _) => *id,
-                            (_, Span::Derived { kind: SpanDeriveKind::Monomorphize(id), .. }) => id,
-                            _ => unreachable!(),
-                        };
-
-                        Span::Derived { kind: SpanDeriveKind::Monomorphize(mono_id), file, start, end }
-                    },
-                    (Span::Derived { kind: kind1, .. }, Span::Derived { kind: kind2, .. }) if *kind1 == kind2 => Span::Derived {
-                        kind: *kind1,
-                        file,
-                        start,
-                        end,
-                    },
-
-                    // I want to preserve as much information as possible, but there are so many cases!!
-                    _ => panic!("TODO: {self:?} ++ {other:?}"),
+                    _ => Span::Derived { monomorphize_id, kind, file, start, end },
                 }
             },
             (Span::None, s) => s,
             (s, Span::None) => *s,
-            _ => panic!("TODO: {self:?}, {other:?}"),
+            _ => panic!("TODO: {self:?} ++ {other:?}"),
         }
     }
 
@@ -160,7 +144,8 @@ impl Span {
                 start: (*end).max(1) - 1,
                 end: *end,
             },
-            Span::Derived { kind, file, end, .. } => Span::Derived {
+            Span::Derived { monomorphize_id, kind, file, end, .. } => Span::Derived {
+                monomorphize_id: *monomorphize_id,
                 kind: *kind,
                 file: *file,
                 start: (*end).max(1) - 1,

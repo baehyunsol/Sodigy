@@ -1,0 +1,2 @@
+assert (3 as? <Int>).unwrap() == 3;
+assert ("abc" as? <String>).unwrap() == "abc";

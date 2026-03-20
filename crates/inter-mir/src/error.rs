@@ -35,7 +35,8 @@ pub enum TypeError {
         // `n`th argument of `got` has keyword `keyword`.
         given_keyword_args: Vec<(InternedString, usize)>,
 
-        func_span: Span,
+        call: Span,
+        def: Option<Span>,
         arg_spans: Vec<Span>,
     },
     WrongNumberOfGenericArgs {
@@ -361,9 +362,11 @@ impl Session {
                 expected,
                 got,
                 given_keyword_args,
-                func_span,
+                call,
+                def,
                 arg_spans,
             } => {
+                // TODO: We can have much better error messages...
                 // With those information, we can guess which parameter is missing (or unnecessary)
                 //
                 // 1. If the user has used keyword arguments, that cannot be a missing or an unnecessary argument.
@@ -374,7 +377,39 @@ impl Session {
                 //    - those fields are captured when this error's created
                 //    - there might be updates in the type variables
                 // 4. TODO: then what?
-                panic!("{expected:?}, {got:?}, {func_span:?}")
+
+                let mut spans = vec![
+                    RenderableSpan {
+                        span: *call,
+                        auxiliary: false,
+                        note: Some(format!(
+                            "It has {} argument{}.",
+                            got.len(),
+                            if got.len() == 1 { "" } else { "s" },
+                        )),
+                    }
+                ];
+
+                if let Some(def) = def {
+                    spans.push(RenderableSpan {
+                        span: *def,
+                        auxiliary: true,
+                        note: Some(format!(
+                            "It has {} parameter{}.",
+                            expected.len(),
+                            if expected.len() == 1 { "" } else { "s" },
+                        )),
+                    });
+                }
+
+                Error {
+                    kind: ErrorKind::WrongNumberOfArgs {
+                        expected: expected.len(),
+                        got: got.len(),
+                    },
+                    spans,
+                    note: None,
+                }
             },
             TypeError::WrongNumberOfGenericArgs {
                 expected,

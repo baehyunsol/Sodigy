@@ -39,9 +39,6 @@ pub struct Monomorphization {
 
 impl Session {
     pub fn get_mono_plan(&mut self, poly_solver: &HashMap<Span, PolySolver>, mir_session: &MirSession) -> Result<MonomorphizePlan, ()> {
-        // TODO: `get_mono_plan` is called multiple times, but I don't think we have to call `init_poly_solvers` multiple times
-        let poly_solver = self.init_poly_solvers(mir_session)?;
-
         let mut generic_calls: HashMap<Span, GenericCall> = HashMap::new();
         let mut has_error = false;
 
@@ -60,7 +57,7 @@ impl Session {
 
                     let r#type = match self.generic_args.get(&(*call, *generic)) {
                         Some(r#type) => {
-                            if !r#type.get_type_vars().is_empty() {
+                            if r#type.has_unsolved_type() {
                                 incomplete_generics.insert(*call);
                             }
 
@@ -159,6 +156,12 @@ impl Session {
                     }
                 },
                 SolvePolyResult::MultiCandidates(ps) => {
+                    // TODO
+                    //    1. `solve_type` loop runs multiple times.
+                    //    2. In the first run, it's likely to reach this error because
+                    //       there's not enough hints yet.
+                    //    3. So, we want to skip this error for the first few times. But how many times?
+                    //    4. ...
                     has_error = true;
                     self.type_errors.push(TypeError::MultiplePolyCandidates {
                         call: generic_call.call,

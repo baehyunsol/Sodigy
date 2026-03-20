@@ -153,7 +153,7 @@ error_kinds!(
     (UnexpectedType { expected: String, got: String },                   415,    Error),
 
     // TODO: more context
-    (WrongNumberOfArgs,                                                  416,    Error),
+    (WrongNumberOfArgs { expected: usize, got: usize },                  416,    Error),
 
     (WrongNumberOfGenericArgs { expected: usize, got: usize },           417,    Error),
     (CannotInferType { id: Option<InternedString>, is_return: bool },    420,    Error),

@@ -60,7 +60,7 @@ impl SpanDeriveKind {
             SpanDeriveKind::MatchScrutinee(_) => None,
             SpanDeriveKind::ConcatPatternRest => Some(String::from("It is desugared to a rest pattern.")),
             SpanDeriveKind::ConcatPatternList => Some(String::from("It is desugared to a list pattern.")),
-            SpanDeriveKind::FStringToString => Some(String::from("It is desugared to `to_string(..)`.")),
+            SpanDeriveKind::FStringToString => Some(String::from("It is desugared to `convert.<_, String>(..)`.")),
             SpanDeriveKind::FStringConcat => Some(String::from("It is desugared to a `++` operator.")),
             SpanDeriveKind::ConvertError => None,
             SpanDeriveKind::Monomorphize(id) => {
@@ -77,9 +77,17 @@ impl Span {
     pub fn derive(&self, kind: SpanDeriveKind) -> Span {
         match self {
             Span::None => Span::None,
+            Span::Range { file, start, end } => Span::Derived {
+                monomorphize_id: None,
+                kind,
+                file: *file,
+                start: *start,
+                end: *end,
+            },
             // TODO: If it derives a derived-span, the previous information is gone!
             //       But it would be toooo tricky to track the history of derivations...
-            Span::Range { file, start, end } | Span::Derived { file, start, end, .. } => Span::Derived {
+            Span::Derived { monomorphize_id, file, start, end, .. } => Span::Derived {
+                monomorphize_id: *monomorphize_id,
                 kind,
                 file: *file,
                 start: *start,
@@ -92,12 +100,27 @@ impl Span {
     #[must_use = "method returns a new span and does not mutate the original span"]
     pub fn monomorphize(&self, id: u128) -> Span {
         match self {
+            Span::Range { file, start, end } => Span::Derived {
+                monomorphize_id: Some(id),
+                kind: SpanDeriveKind::Trivial,
+                file: *file,
+                start: *start,
+                end: *end,
+            },
+            Span::Derived { kind, file, start, end, .. } => Span::Derived {
+                monomorphize_id: Some(id),
+                kind: *kind,
+                file: *file,
+                start: *start,
+                end: *end,
+            },
             Span::Poly { name, kind, .. } => Span::Poly {
                 name: *name,
                 kind: *kind,
                 monomorphize_id: Some(id),
             },
-            _ => self.derive(SpanDeriveKind::Monomorphize(id)),
+            Span::None => Span::None,
+            _ => panic!("TODO: {self:?}"),
         }
     }
 }

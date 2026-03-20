@@ -407,7 +407,7 @@ impl Expr {
                             Ok(e) => {
                                 let derived_span = e.error_span_wide().derive(SpanDeriveKind::FStringToString);
 
-                                // converts `x` to `convert.<String>(x)`.
+                                // converts `x` to `convert.<_, String>(x)`.
                                 let e = Expr::Call {
                                     func: Callable::Static {
                                         def_span: session.get_lang_item_span("fn.convert"),

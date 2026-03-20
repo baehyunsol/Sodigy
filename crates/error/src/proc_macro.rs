@@ -51,8 +51,9 @@
     NotStruct { id: InternedString, but: NotXBut }, NotExpr
     { id: InternedString, but: NotXBut }, NotPolyGeneric
     { id: Option<IdentWithOrigin> }, CannotAliasLocalValue(InternedString),
-    UnexpectedType { expected: String, got: String }, WrongNumberOfArgs,
-    WrongNumberOfGenericArgs { expected: usize, got: usize }, CannotInferType
+    UnexpectedType { expected: String, got: String }, WrongNumberOfArgs
+    { expected: usize, got: usize }, WrongNumberOfGenericArgs
+    { expected: usize, got: usize }, CannotInferType
     { id: Option<InternedString>, is_return: bool }, PartiallyInferedType
     { id: Option<InternedString>, r#type: String, is_return: bool },
     CannotInferGenericType { id: Option<String> }, PartiallyInferedGenericType
@@ -158,7 +159,7 @@
             NotStruct { .. } => 405u16, ErrorKind :: NotExpr { .. } => 406u16,
             ErrorKind :: NotPolyGeneric { .. } => 410u16, ErrorKind ::
             CannotAliasLocalValue(_,) => 411u16, ErrorKind :: UnexpectedType
-            { .. } => 415u16, ErrorKind :: WrongNumberOfArgs => 416u16,
+            { .. } => 415u16, ErrorKind :: WrongNumberOfArgs { .. } => 416u16,
             ErrorKind :: WrongNumberOfGenericArgs { .. } => 417u16, ErrorKind
             :: CannotInferType { .. } => 420u16, ErrorKind ::
             PartiallyInferedType { .. } => 425u16, ErrorKind ::
@@ -291,7 +292,7 @@
             { .. } => ErrorLevel :: Error, ErrorKind ::
             CannotAliasLocalValue(_,) => ErrorLevel :: Error, ErrorKind ::
             UnexpectedType { .. } => ErrorLevel :: Error, ErrorKind ::
-            WrongNumberOfArgs => ErrorLevel :: Error, ErrorKind ::
+            WrongNumberOfArgs { .. } => ErrorLevel :: Error, ErrorKind ::
             WrongNumberOfGenericArgs { .. } => ErrorLevel :: Error, ErrorKind
             :: CannotInferType { .. } => ErrorLevel :: Error, ErrorKind ::
             PartiallyInferedType { .. } => ErrorLevel :: Error, ErrorKind ::
@@ -561,9 +562,11 @@
             {
                 buffer.push(1u8); buffer.push(159u8);
                 r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
-            }, ErrorKind :: WrongNumberOfArgs =>
-            { buffer.push(1u8); buffer.push(160u8); }, ErrorKind ::
-            WrongNumberOfGenericArgs { r#expected, r#got, } =>
+            }, ErrorKind :: WrongNumberOfArgs { r#expected, r#got, } =>
+            {
+                buffer.push(1u8); buffer.push(160u8);
+                r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
+            }, ErrorKind :: WrongNumberOfGenericArgs { r#expected, r#got, } =>
             {
                 buffer.push(1u8); buffer.push(161u8);
                 r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
@@ -959,8 +962,14 @@
                 :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: UnexpectedType { r#expected, r#got, },
                 cursor))
-            }, 416u16 => Ok((ErrorKind :: WrongNumberOfArgs, cursor)), 417u16
-            =>
+            }, 416u16 =>
+            {
+                let (r#expected, cursor) = usize ::
+                decode_impl(buffer, cursor) ? ; let (r#got, cursor) = usize ::
+                decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: WrongNumberOfArgs { r#expected, r#got, },
+                cursor))
+            }, 417u16 =>
             {
                 let (r#expected, cursor) = usize ::
                 decode_impl(buffer, cursor) ? ; let (r#got, cursor) = usize ::

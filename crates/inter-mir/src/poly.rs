@@ -2,6 +2,7 @@ use crate::{ErrorContext, GenericCall, Session, TypeError, write_log};
 use sodigy_error::ParamIndex;
 use sodigy_mir::{Func, Session as MirSession, Type};
 use sodigy_span::Span;
+use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
 #[cfg(feature = "log")]
@@ -11,6 +12,9 @@ mod dump;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+pub(crate) use dump::RenderStateMachine;
 
 // ```
 // #[poly]
@@ -86,7 +90,7 @@ impl Session {
 
             // If we don't know the type of `add` (e.g. there's no type annotation),
             // we can't solve anything!
-            if let Some(param_index) = poly_type.find_type_var() {
+            if let Some(param_index) = poly_type.find_unsolved_type() {
                 has_error = true;
                 self.type_errors.push(TypeError::CannotInferPolyGenericParam {
                     poly_span: *span,
@@ -105,7 +109,7 @@ impl Session {
 
                 // If we don't know the type of `add_int` (e.g. there's no type annotation),
                 // we can't solve for this impl!
-                if let Some(param_index) = impl_type.find_type_var() {
+                if let Some(param_index) = impl_type.find_unsolved_type() {
                     has_error = true;
                     self.type_errors.push(TypeError::CannotInferPolyGenericImpl {
                         poly_span: *span,
@@ -126,7 +130,13 @@ impl Session {
                     self,
                 ) {
                     // constraints: `?T = Int`, `?U = Int`
-                    Ok(constraints) => {
+                    Ok(mut constraints) => {
+                        constraints = constraints.into_iter().map(
+                            |(span, mut r#type)| {
+                                r#type.type_var_to_generic_param();
+                                (span, r#type)
+                            }
+                        ).collect();
                         solver.impls.insert(*r#impl, constraints);
                     },
                     Err(e) => {
@@ -185,6 +195,7 @@ impl PolySolver {
 
         else {
             let all_impls: Vec<Span> = self.impls.keys().map(|r#impl| *r#impl).collect();
+            let mut generic_params = vec![];
             let mut impls_by_generics: HashMap<Span, HashMap<SimpleType, Vec<Span>>> = HashMap::new();
             //                                 ^^^^                          ^^^^
             //                                 |                             |
@@ -195,7 +206,12 @@ impl PolySolver {
 
             for (impl_def_span, types) in self.impls.iter() {
                 for (generic_def_span, r#type) in types.iter() {
-                    let simple_type = SimpleType::from(r#type);
+                    let simple_type = SimpleType::from_type_param(r#type);
+
+                    if simple_type == SimpleType::GenericParam {
+                        generic_params.push((*impl_def_span, *generic_def_span, r#type.get_generic_param_def_span()));
+                        continue;
+                    }
 
                     match impls_by_generics.entry(*generic_def_span) {
                         Entry::Occupied(mut e) => match e.get_mut().entry(simple_type) {
@@ -213,9 +229,102 @@ impl PolySolver {
                 }
             }
 
-            impls_by_generics = impls_by_generics.into_iter().filter(
-                |(_, impls)| !impls.is_empty()
-            ).collect();
+            // ```
+            // #[poly] fn foo<T1, T2>(x: T1, y: T2);
+            // #[impl(foo)] fn foo1<T3>(x: T3, y: T3);
+            // ```
+            // In this case, we can do a further optimization. We can use the fact that
+            // `x` and `y` in `foo1` have the same type.
+            let mut same_generic_params_: HashMap<Span, Vec<(Span, Span)>> = HashMap::new();
+            //                                    ^^^^       ^^^^  ^^^^
+            //                                    |          |     |
+            //                                   (0)        (1)   (2)
+            //
+            // (0): T3
+            // (1): foo1
+            // (2): T1 and T2
+            //
+            // So it would look like `{ T3: [(foo1, T1), (foo1, T2)] }`.
+            // It means "T1 and T2 of foo1 must be the same".
+
+            for (impl_def_span, generic_def_span, generic_param) in generic_params.iter() {
+                if let Some(generic_param) = *generic_param {
+                    match same_generic_params_.entry(generic_param) {
+                        Entry::Occupied(mut e) => {
+                            e.get_mut().push((*impl_def_span, *generic_def_span));
+                        },
+                        Entry::Vacant(e) => {
+                            e.insert(vec![(*impl_def_span, *generic_def_span)]);
+                        },
+                    }
+                }
+            }
+
+            // We reduce `same_generic_params_`.
+            let mut same_generic_params: HashMap<(Span, Span), Vec<Span>> = HashMap::new();
+            //                                    ^^^^  ^^^^       ^^^^
+            //                                    |     |          |
+            //                                   (0)   (1)        (2)
+            //
+            // (0): foo1
+            // (1): T3
+            // (2): T1 and T2
+            //
+            // So it would look like `{ (foo1, T3): [T1, T2] }`.
+            // It means "T1 and T2 of foo1 must be the same".
+
+            for (impl_generic_param_def_span, params) in same_generic_params_.into_iter() {
+                for (impl_def_span, generic_def_span) in params.into_iter() {
+                    match same_generic_params.entry((impl_def_span, impl_generic_param_def_span)) {
+                        Entry::Occupied(mut e) => {
+                            e.get_mut().push(generic_def_span);
+                        },
+                        Entry::Vacant(e) => {
+                            e.insert(vec![generic_def_span]);
+                        },
+                    }
+                }
+            }
+
+            // ```
+            // #[poly] fn foo<T1, T2>(x: T1, y: T2) -> Int;
+            //
+            // #[impl(foo)] fn foo1<T3>(x: T3, y: Char) -> Int;
+            // #[impl(foo)] fn foo2(x: Int, y: Int) -> Int;
+            // ```
+            //
+            // In the above example, `generic_params` would be `[(span of foo1, span of T1)]`.
+            // That means "regardless of type of T1, foo1 always matches".
+            for (impl_def_span, generic_def_span, _) in generic_params.into_iter() {
+                match impls_by_generics.entry(generic_def_span) {
+                    Entry::Occupied(mut e) => {
+                        for impls in e.get_mut().values_mut() {
+                            impls.push(impl_def_span);
+                        }
+
+                        match e.get_mut().entry(SimpleType::GenericParam) {
+                            Entry::Occupied(mut e) => {
+                                e.get_mut().push(impl_def_span);
+                            },
+                            Entry::Vacant(e) => {
+                                e.insert(vec![impl_def_span]);
+                            },
+                        }
+                    },
+                    Entry::Vacant(e) => {
+                        e.insert([(SimpleType::GenericParam, vec![impl_def_span])].into_iter().collect());
+                    },
+                }
+            }
+
+            for impls in impls_by_generics.values_mut() {
+                impls.insert(SimpleType::Var, all_impls.clone());
+
+                if let Some(impls) = impls.get_mut(&SimpleType::GenericParam) {
+                    impls.sort();
+                    impls.dedup();
+                }
+            }
 
             // ```sodigy
             // #[poly] fn eq<T>(_: T, _: T) -> Bool;
@@ -241,8 +350,27 @@ impl PolySolver {
             // }
             // ```
 
-            if !impls_by_generics.is_empty() {
-                self.state_machine = Some(StateMachine::build(impls_by_generics, &all_impls));
+            let mut state_machine = StateMachine::build(impls_by_generics, all_impls.into_iter().collect());
+
+            for ((impl_def_span, _), generic_def_spans) in same_generic_params.into_iter() {
+                if generic_def_spans.len() < 2 {
+                    continue;
+                }
+
+                apply_same_generic_params(
+                    &mut state_machine,
+                    impl_def_span,
+                    &generic_def_spans,
+                    None,
+                    false,
+                );
+            }
+
+            let mut state_machine = StateMachineOrLeaves::StateMachine(state_machine);
+            state_machine.optimize();
+
+            if let StateMachineOrLeaves::StateMachine(mut state_machine) = state_machine {
+                self.state_machine = Some(state_machine);
             }
         }
     }
@@ -266,15 +394,16 @@ impl PolySolver {
             let mut tmp_session = Session::tmp(session);
 
             'generics: for (generic_param, r#type) in generics.iter() {
-                let candidate_type = match candidate_types.get(generic_param) {
-                    Some(r#type) => r#type,
+                let mut candidate_type = match candidate_types.get(generic_param) {
+                    Some(r#type) => r#type.clone(),
                     None => {
                         continue 'generics;
                     },
                 };
+                candidate_type.generic_to_type_var();
 
                 if let Err(()) = tmp_session.solve_supertype(
-                    candidate_type,
+                    &candidate_type,
                     r#type,
                     true,
                     None,
@@ -290,6 +419,83 @@ impl PolySolver {
         }
 
         matched
+    }
+}
+
+fn apply_same_generic_params(
+    state_machine: &mut StateMachine,
+    impl_def_span: Span,
+    generic_def_spans: &[Span],
+
+    // `generic_def_span` must have this type.
+    target_type: Option<SimpleType>,
+
+    // if it's set, we'll remove `impl_def_span` when we reach the leaves
+    mut unreachable: bool,
+) {
+    match (generic_def_spans.contains(&state_machine.generic_param), target_type) {
+        (true, None) => {
+            for (r#type, state_machine) in state_machine.branches.iter_mut() {
+                match (*r#type, state_machine) {
+                    (_, StateMachineOrLeaves::Leaves(_)) => {
+                        // no problem
+                    },
+                    (t @ SimpleType::Data { .. }, StateMachineOrLeaves::StateMachine(s)) => {
+                        apply_same_generic_params(s, impl_def_span, generic_def_spans, Some(t), false);
+                    },
+                    (_, StateMachineOrLeaves::StateMachine(s)) => {
+                        apply_same_generic_params(s, impl_def_span, generic_def_spans, None, false);
+                    },
+                }
+            }
+        },
+        (true, Some(target_type)) => {
+            for (r#type, state_machine) in state_machine.branches.iter_mut() {
+                match (*r#type, state_machine, unreachable) {
+                    (_, StateMachineOrLeaves::Leaves(leaves), true) => {
+                        *leaves = leaves.iter().filter(
+                            |span| **span != impl_def_span
+                        ).map(
+                            |span| *span
+                        ).collect();
+                    },
+                    (t @ SimpleType::Data { .. }, StateMachineOrLeaves::Leaves(leaves), _) => {
+                        if t != target_type {
+                            *leaves = leaves.iter().filter(
+                                |span| **span != impl_def_span
+                            ).map(
+                                |span| *span
+                            ).collect();
+                        }
+                    },
+                    (_, StateMachineOrLeaves::Leaves(_), false) => {},
+                    (t, StateMachineOrLeaves::StateMachine(s), _) => {
+                        if let SimpleType::Data { .. } = t && t != target_type {
+                            unreachable = true;
+                        }
+
+                        apply_same_generic_params(s, impl_def_span, generic_def_spans, Some(target_type), unreachable);
+                    },
+                }
+            }
+        },
+        (false, _) => {
+            for state_machine in state_machine.branches.values_mut() {
+                match state_machine {
+                    StateMachineOrLeaves::Leaves(leaves) if unreachable => {
+                        *leaves = leaves.iter().filter(
+                            |span| **span != impl_def_span
+                        ).map(
+                            |span| *span
+                        ).collect();
+                    },
+                    StateMachineOrLeaves::Leaves(_) => {},
+                    StateMachineOrLeaves::StateMachine(s) => {
+                        apply_same_generic_params(s, impl_def_span, generic_def_spans, target_type, unreachable);
+                    },
+                }
+            }
+        },
     }
 }
 
@@ -348,6 +554,7 @@ pub enum StateMachineOrLeaves {
 pub enum SimpleType {
     Data { constructor: Span, arity: usize },
     Func { params: usize },
+    GenericParam,
     Var,
 }
 
@@ -355,7 +562,7 @@ impl StateMachine {
     pub fn get_candidates<'a, 'b>(&'a self, generics: &'b HashMap<Span, Type>) -> &'a [Span] {
         // TODO: is it always safe to `unwrap`?
         let r#type = generics.get(&self.generic_param).unwrap();
-        let simple_type = SimpleType::from(r#type);
+        let simple_type = SimpleType::from_type_arg(r#type);
 
         match self.branches.get(&simple_type) {
             Some(StateMachineOrLeaves::StateMachine(s)) => s.get_candidates(generics),
@@ -368,76 +575,207 @@ impl StateMachine {
     }
 
     // read the comments in `PolySolver::build_state_machine()`
-    pub fn build(mut impls_by_generics: HashMap<Span, HashMap<SimpleType, Vec<Span>>>, impls: &[Span]) -> StateMachine {
-        for old_impls in impls_by_generics.values_mut() {
-            let mut no_impls = vec![];
+    pub fn build(
+        mut impls_by_generics: HashMap<Span, HashMap<SimpleType, Vec<Span>>>,
+        all_impls: HashSet<Span>,
+    ) -> StateMachine {
+        // ```
+        // #[poly] fn foo<T1, T2>(x: T1, y: T2) -> Int;
+        //
+        // #[impl(foo)] fn foo1<T3>(x: T3, y: Char) -> Int;
+        // #[impl(foo)] fn foo2(x: Int, y: Int) -> Int;
+        // #[impl(foo)] fn foo3(x: Char, y: Char) -> Int;
+        // ```
+        //
+        // `impls_by_generics` looks like below:
+        //
+        // ```
+        // {
+        //     "T1": {
+        //         GenericParam: [foo1],
+        //         Int: [foo1, foo2],
+        //         Char: [foo1, foo3],
+        //         TypeVar: [foo1, foo2, foo3],
+        //     },
+        //     "T2": {
+        //         Char: [foo1, foo3],
+        //         Int: [foo2],
+        //         TypeVar: [foo1, foo2, foo3],
+        //     },
+        // }
+        // ```
 
-            for (simple_type, r#impl) in old_impls.iter_mut() {
-                let simple_type = *simple_type;
+        match impls_by_generics.len() {
+            0 => unreachable!(),
+            1 => {
+                let (generic_param, branches) = impls_by_generics.iter().next().unwrap();
+                let default_branch = match branches.get(&SimpleType::GenericParam) {
+                    Some(impls) => StateMachineOrLeaves::Leaves(intersect_and_sort(impls, &all_impls)),
+                    None => StateMachineOrLeaves::Leaves(vec![]),
+                };
 
-                // FIXME: O(n^2)
-                *r#impl = r#impl.iter().filter(
-                    |impl_span| impls.contains(impl_span)
-                ).map(
-                    |impl_span| *impl_span
-                ).collect();
-
-                if r#impl.is_empty() {
-                    no_impls.push(simple_type);
+                StateMachine {
+                    generic_param: *generic_param,
+                    branches: branches.iter().filter(
+                        |(r#type, _)| **r#type != SimpleType::GenericParam
+                    ).map(
+                        |(r#type, impls)| (
+                            *r#type,
+                            StateMachineOrLeaves::Leaves(intersect_and_sort(impls, &all_impls)),
+                        )
+                    ).collect(),
+                    default: Box::new(default_branch),
                 }
-            }
+            },
+            _ => {
+                let generic_param = {
+                    // 1. It prefers a state machine without `SimpleType::GenericParam`.
+                    // 2. It prefers a state machine with more number of branches.
+                    let mut classify = vec![];
 
-            for no_impl in no_impls.iter() {
-                old_impls.remove(no_impl);
-            }
-        }
+                    for (generic_param, branches) in impls_by_generics.iter() {
+                        classify.push((
+                            generic_param,
+                            branches.contains_key(&SimpleType::GenericParam),
+                            branches.len(),
+                        ));
+                    }
 
-        let mut generics_by_types: Vec<(Span, usize)> = impls_by_generics.iter().map(
-            |(generic_def_span, impls)| (*generic_def_span, impls.len())
-        ).collect();
-        generics_by_types.sort_by_key(|(_, types_count)| *types_count);
-        let (key, _) = *generics_by_types.last().unwrap();
-        let impls_by_type = impls_by_generics.remove(&key).unwrap();
-        let default = if let Some(impls) = impls_by_type.get(&SimpleType::Var) {
-            impls.to_vec()
-        } else {
-            vec![]
-        };
-        let branches = impls_by_type.into_iter().map(
-            |(simple_type, mut impls): (SimpleType, Vec<Span>)| {
-                impls.extend(&default);
+                    classify.sort_by_key(|(_, _, n)| usize::MAX - *n);
+                    classify.sort_by_key(|(_, g, _)| *g as usize);
+                    *classify[0].0
+                };
 
-                if impls.len() < 2 || impls_by_generics.is_empty() {
-                    (simple_type, StateMachineOrLeaves::Leaves(impls))
+                let branches = impls_by_generics.remove(&generic_param).unwrap();
+                let default_branch = match branches.get(&SimpleType::GenericParam) {
+                    Some(impls) => StateMachineOrLeaves::StateMachine(StateMachine::build(impls_by_generics.clone(), intersect_and_sort(impls, &all_impls).into_iter().collect())),
+                    None => StateMachineOrLeaves::Leaves(vec![]),
+                };
+
+                StateMachine {
+                    generic_param,
+                    branches: branches.iter().filter(
+                        |(r#type, _)| *r#type != &SimpleType::GenericParam
+                    ).map(
+                        |(r#type, impls)| {
+                            let impls_by_generics = impls_by_generics.clone();
+                            let impls = intersect_and_sort(impls, &all_impls);
+
+                            (
+                                *r#type,
+                                StateMachineOrLeaves::StateMachine(StateMachine::build(impls_by_generics, impls.into_iter().collect())),
+                            )
+                        }
+                    ).collect(),
+                    default: Box::new(default_branch),
                 }
-
-                else {
-                    (simple_type, StateMachineOrLeaves::StateMachine(StateMachine::build(impls_by_generics.clone(), &impls)))
-                }
-            }
-        ).collect();
-        let default = if default.len() < 2 || impls_by_generics.is_empty() {
-            Box::new(StateMachineOrLeaves::Leaves(default))
-        } else {
-            Box::new(StateMachineOrLeaves::StateMachine(StateMachine::build(impls_by_generics.clone(), &default)))
-        };
-
-        StateMachine {
-            generic_param: key,
-            branches,
-            default,
+            },
         }
     }
 }
 
-impl From<&Type> for SimpleType {
-    fn from(r#type: &Type) -> SimpleType {
+impl StateMachineOrLeaves {
+    pub fn optimize(&mut self) {
+        // ```
+        // Data(byte, 0) => match GenericParam(0) {
+        //     Var => [poly-impl-1],
+        //     Data(byte, 0) => [poly-impl-1],
+        //     Data(int, 0) => [poly-impl-1],
+        //     _ => [poly-impl-1],
+        // },
+        // ```
+        // when every node has the same leaves
+        // ->
+        // ```
+        // Data(byte, 0) => [poly-impl-1],
+        // ```
+        //
+        // ```
+        // Data(int, 0) => match GenericParam(0) {
+        //     Var => [poly-impl-2],
+        //     Data(int, 0) => [poly-impl-2],
+        //     Data(byte, 0) => [],
+        //     _ => [],
+        // },
+        // ```
+        // when a branch and a default branch have the same leaves (even if the branch is `SimpleType::Var`)
+        // ->
+        // ```
+        // Data(int, 0) => match GenericParam(0) {
+        //     Var => [poly-impl-2],
+        //     Data(int, 0) => [poly-impl-2],
+        //     _ => [],
+        // },
+        // ```
+        if let StateMachineOrLeaves::StateMachine(s) = self {
+            for branch in s.branches.values_mut() {
+                branch.optimize();
+            }
+
+            s.default.optimize();
+
+            if let StateMachineOrLeaves::Leaves(leaves) = s.default.as_ref() {
+                let leaves = leaves.to_vec();
+                let mut unnecessary_branches = vec![];
+
+                for (r#type, branch) in s.branches.iter() {
+                    // We can compare the leaves because it's sorted!
+                    if let StateMachineOrLeaves::Leaves(b_leaves) = branch && b_leaves == &leaves {
+                        unnecessary_branches.push(*r#type);
+                    }
+                }
+
+                for r#type in unnecessary_branches.iter() {
+                    s.branches.remove(r#type);
+                }
+
+                if s.branches.is_empty() {
+                    *self = StateMachineOrLeaves::Leaves(leaves);
+                }
+            }
+        }
+    }
+}
+
+// We sort the result in order for easy comparison.
+fn intersect_and_sort(spans: &[Span], superset: &HashSet<Span>) -> Vec<Span> {
+    let mut s = spans.iter().filter(
+        |span| superset.contains(span)
+    ).map(
+        |span| *span
+    ).collect::<Vec<_>>();
+    s.sort();
+    s
+}
+
+impl SimpleType {
+    fn from_type_param(r#type: &Type) -> SimpleType {
         match r#type {
             Type::Data { constructor_def_span, args, .. } => SimpleType::Data {
                 constructor: *constructor_def_span,
                 arity: args.as_ref().map(|args| args.len()).unwrap_or(0),
             },
             Type::Func { params, .. } => SimpleType::Func { params: params.len() },
+            Type::GenericParam { .. } => SimpleType::GenericParam,
+
+            // We can treat these like generic params, in order to
+            // make the implementation of the state machines simpler.
+            // It'd introduce some false-positives, but that's fine.
+            Type::Never(_) |
+            Type::Var { .. } |
+            Type::GenericArg { .. } |
+            Type::Blocked { .. } => SimpleType::GenericParam,
+        }
+    }
+
+    fn from_type_arg(r#type: &Type) -> SimpleType {
+        match r#type {
+            Type::Data { constructor_def_span, args, .. } => SimpleType::Data {
+                constructor: *constructor_def_span,
+                arity: args.as_ref().map(|args| args.len()).unwrap_or(0),
+            },
+            Type::Func { params, .. } => SimpleType::Func { params: params.len() },
+            Type::GenericParam { .. } => unreachable!(),
 
             // It's okay to do this because `SimpleType::Var` can match any type.
             // `StateMachine` is just for optimization, so false-positives are okay. False-positives might
@@ -445,7 +783,6 @@ impl From<&Type> for SimpleType {
             // I want to avoid the complexity of subtyping...
             Type::Never(_) => SimpleType::Var,
 
-            Type::GenericParam { .. } |
             Type::Var { .. } |
             Type::GenericArg { .. } |
             Type::Blocked { .. } => SimpleType::Var,
@@ -470,14 +807,14 @@ pub struct FuncType {
 
 impl FuncType {
     // If it finds a type var, it returns the index of the param that has the type var.
-    pub fn find_type_var(&self) -> Option<ParamIndex> {
+    pub fn find_unsolved_type(&self) -> Option<ParamIndex> {
         for (i, r#type) in self.params.iter().enumerate() {
-            if !r#type.get_type_vars().is_empty() {
+            if r#type.has_unsolved_type() {
                 return Some(ParamIndex::Param(i));
             }
         }
 
-        if !self.r#return.get_type_vars().is_empty() {
+        if self.r#return.has_unsolved_type() {
             return Some(ParamIndex::Return);
         }
 

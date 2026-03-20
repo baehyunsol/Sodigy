@@ -28,8 +28,15 @@ impl Endec for Span {
                 start.encode_impl(buffer);
                 end.encode_impl(buffer);
             },
-            Span::Derived { kind, file, start, end } => {
+            Span::Derived {
+                monomorphize_id,
+                kind,
+                file,
+                start,
+                end,
+            } => {
                 buffer.push(4);
+                monomorphize_id.encode_impl(buffer);
                 kind.encode_impl(buffer);
                 file.encode_impl(buffer);
                 start.encode_impl(buffer);
@@ -70,11 +77,12 @@ impl Endec for Span {
                 Ok((Span::Range { file, start, end }, cursor))
             },
             Some(4) => {
-                let (kind, cursor) = SpanDeriveKind::decode_impl(buffer, cursor + 1)?;
+                let (monomorphize_id, cursor) = Option::<u128>::decode_impl(buffer, cursor + 1)?;
+                let (kind, cursor) = SpanDeriveKind::decode_impl(buffer, cursor)?;
                 let (file, cursor) = File::decode_impl(buffer, cursor)?;
                 let (start, cursor) = usize::decode_impl(buffer, cursor)?;
                 let (end, cursor) = usize::decode_impl(buffer, cursor)?;
-                Ok((Span::Derived { kind, file, start, end }, cursor))
+                Ok((Span::Derived { monomorphize_id, kind, file, start, end }, cursor))
             },
             Some(5) => {
                 let (file, cursor) = File::decode_impl(buffer, cursor + 1)?;

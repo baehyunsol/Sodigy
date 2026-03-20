@@ -23,6 +23,9 @@ pub use mono::Monomorphization;
 pub(crate) use poly::{PolySolver, SolvePolyResult};
 pub use session::Session;
 
+#[cfg(test)]
+pub(crate) use poly::RenderStateMachine;
+
 // There are 2 sessions and it's a mess.
 // 1. The function reads/updates `.funcs`, `.lets` and `.asserts` of `mir_session`.
 // 2. The function reads `.type_assertions` of `mir_session`.

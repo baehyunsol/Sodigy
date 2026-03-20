@@ -287,6 +287,31 @@ impl Type {
         }
     }
 
+    pub fn has_unsolved_type(&self) -> bool {
+        match self {
+            Type::Data { args: Some(args), .. } => {
+                for arg in args.iter() {
+                    if arg.has_unsolved_type() {
+                        return true;
+                    }
+                }
+
+                false
+            },
+            Type::Func { params, r#return, .. } => {
+                for param in params.iter() {
+                    if param.has_unsolved_type() {
+                        return true;
+                    }
+                }
+
+                r#return.has_unsolved_type()
+            },
+            Type::Var { .. } | Type::GenericArg { .. } | Type::Blocked { .. } => true,
+            _ => false,
+        }
+    }
+
     pub fn substitute(&mut self, type_var: &Type, r#type: &Type) {
         match self {
             Type::GenericParam { .. } |
@@ -378,7 +403,6 @@ impl Type {
             Type::Var { .. } |
             Type::GenericArg { .. } |
             Type::Blocked { .. } => {},
-            // `T<Int>` doesn't make sense...
             Type::Data { args, .. } => {
                 if let Some(args) = args {
                     for arg in args.iter_mut() {
@@ -392,6 +416,32 @@ impl Type {
                 }
 
                 r#return.generic_to_type_var();
+            },
+        }
+    }
+
+    pub fn type_var_to_generic_param(&mut self) {
+        match self {
+            Type::Var { def_span, .. } => {
+                *self = Type::GenericParam { def_span: *def_span, span: Span::None };
+            },
+            Type::Never(_) |
+            Type::GenericParam { .. } |
+            Type::GenericArg { .. } |
+            Type::Blocked { .. } => {},
+            Type::Data { args, .. } => {
+                if let Some(args) = args {
+                    for arg in args.iter_mut() {
+                        arg.type_var_to_generic_param();
+                    }
+                }
+            },
+            Type::Func { r#return, params, .. } => {
+                for param in params.iter_mut() {
+                    param.type_var_to_generic_param();
+                }
+
+                r#return.type_var_to_generic_param();
             },
         }
     }
@@ -466,6 +516,13 @@ impl Type {
 
             // This function is only for type annotations.
             _ => Span::None,
+        }
+    }
+
+    pub fn get_generic_param_def_span(&self) -> Option<Span> {
+        match self {
+            Type::GenericParam { def_span, .. } => Some(*def_span),
+            _ => None,
         }
     }
 }
