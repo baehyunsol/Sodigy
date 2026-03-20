@@ -35,7 +35,7 @@ pub fn interpret(executable: &Executable, label: usize) -> Result<(), ()> {
     let mut heap = Heap::new();
 
     let result = execute(&mut stack, &mut heap, executable, label);
-    
+
     #[cfg(feature="debug-heap")] {
         heap.check_integrity();
     }
