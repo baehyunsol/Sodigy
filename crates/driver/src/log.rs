@@ -25,7 +25,7 @@ pub fn log_matches(matches: &HashMap<Span, (Vec<(Span, String)>, String)>, inter
     let render_span_option = RenderSpanOption {
         max_width: 128,
         max_height: 20,
-        context: 8,
+        context: 3,
         render_source: true,
         color: None,
         group_delim: None,

@@ -148,17 +148,15 @@ pub fn render_spans(
     groups.sort_by_key(|spans| !spans.iter().any(|span| !span.auxiliary) as u8);
 
     let mut rendered_groups = Vec::with_capacity(groups.len());
-    let mut label_index_offset = 0;
+    let mut label_index = 0;
 
     for spans in groups.iter() {
         rendered_groups.push(render_close_spans(
             spans,
             option,
             session,
-            label_index_offset,
+            &mut label_index,
         ));
-
-        label_index_offset += spans.iter().map(|span| if span.note.is_some() { 1 } else { 0 }).sum::<usize>();
     }
 
     rendered_groups = rendered_groups.into_iter().filter(|g| !g.is_empty()).collect();
@@ -172,7 +170,7 @@ fn render_close_spans(
     spans: &[RenderableSpan],
     option: &RenderSpanOption,
     session: &mut RenderSpanSession,
-    label_index_offset: usize,
+    label_index: &mut usize,
 ) -> String {
     let (primary_color, auxiliary_color, info_color) = match &option.color {
         Some(ColorOption { primary, auxiliary, info }) => (*primary, *auxiliary, *info),
@@ -298,7 +296,7 @@ fn render_close_spans(
             auxiliary_color,
             info_color,
             option.max_width,
-            label_index_offset,
+            label_index,
         )
     };
 
@@ -336,12 +334,11 @@ fn render_span_worker(
     auxiliary_color: Color,
     info_color: Color,
     max_width: usize,
-    label_index_offset: usize,
+    label_index: &mut usize,
 ) -> String {
     let mut code_lines: Vec<(String, RenderedLineKind)> = vec![];
     let mut note_lines: Vec<(String, RenderedLineKind)> = vec![];
     let (top, bottom, left, right) = rect;
-    let mut label_index = label_index_offset;
 
     for (row, line) in lines.iter().enumerate() {
         if row < top {
@@ -413,30 +410,32 @@ fn render_span_worker(
         //
         if !line.notes.is_empty() {
             let mut labels = vec![];
+            let mut notes = vec![];
             let mut max_depth = 1;
 
             // Do you see the parenthesis with numbers in it? We call them `LabelMarker`.
             // `x` is the position of the marker (absolute).
             // A marker may have multiple `index`es, so it's `Vec<usize>`.
             #[derive(Clone, Debug)]
-            struct LabelMarker {
+            struct LabelMarker<'n> {
                 pub depth: usize,
                 pub x: usize,
                 pub asterisk: bool,
                 pub index: Vec<usize>,
                 pub far_left: bool,
                 pub color: Color,
+                pub note: &'n str,
             }
 
             // notes are always sorted by x
             for (i, (x, note, color)) in line.notes.iter().enumerate() {
                 fn make_labels_deeper(
-                    labels: &mut Vec<LabelMarker>,
+                    labels: &mut Vec<LabelMarker<'_>>,
                     mut curr_x: usize,
                     mut curr_depth: usize,
                     new_index: usize,
                 ) -> (usize, bool) {  // (depth, has_same_index)
-                    for LabelMarker { x, depth, asterisk, index, far_left: _, color: _ } in labels.iter_mut().rev() {
+                    for LabelMarker { x, depth, asterisk, index, far_left: _, color: _, note: _ } in labels.iter_mut().rev() {
                         if *x == curr_x {
                             index.push(new_index);
                             return (curr_depth, true);
@@ -459,36 +458,65 @@ fn render_span_worker(
 
                 let mut x = *x;
                 let far_left = if x < left { x = left - 1; true } else { false };
-                let (new_depth, has_same_index) = make_labels_deeper(&mut labels, x, 1, label_index + i);
+                let (new_depth, has_same_index) = make_labels_deeper(&mut labels, x, 1, *label_index + i);
                 max_depth = new_depth.max(max_depth);
 
                 if !has_same_index {
-                    labels.push(LabelMarker { depth: 1, x, asterisk: x == 0, index: vec![label_index + i], far_left, color: *color });
+                    labels.push(LabelMarker { depth: 1, x, asterisk: x == 0, index: vec![*label_index + i], far_left, color: *color, note });
                 }
 
-                let note_no = format!("({}): ", label_index + i);
-                let line_max_width = (max_width.max(note_no.len()) - note_no.len()).max(20);
-
-                for (j, note_line) in break_lines(note, line_max_width).iter().enumerate() {
-                    note_lines.push((
-                        color.render_fg(&format!(
-                            "{}{note_line}",
-                            if j == 0 {
-                                note_no.clone()
-                            } else {
-                                " ".repeat(note_no.len())
-                            },
-                        )),
-                        RenderedLineKind::Note,
-                    ));
-                }
+                let note_no = format!("({}): ", *label_index + i);
+                notes.push((note_no, i, note, color));
             }
 
-            let mut label_lines = vec![vec![b' '; line.content.len() + 7]; max_depth * 2];
-            let mut label_line_colors = vec![vec![Color::None; line.content.len() + 7]; max_depth * 2];
+            let inline_note = labels.iter().all(
+                |LabelMarker { depth, index, note, .. }| *depth == 1 && index.len() == 1 && note.len() * 10 < max_width * 7
+            ) && {
+                let mut enough_distance = true;
+
+                for adjacent_labels in labels.windows(2) {
+                    let [prev, next] = adjacent_labels else { unreachable!() };
+
+                    if next.x < next.note.len() + prev.note.len() + prev.x {
+                        enough_distance = false;
+                        break;
+                    }
+                }
+
+                enough_distance
+            };
+
+            if !inline_note {
+                for (note_no, i, note, color) in notes.into_iter() {
+                    let line_max_width = (max_width.max(note_no.len()) - note_no.len()).max(20);
+
+                    for (j, note_line) in break_lines(note, line_max_width).iter().enumerate() {
+                        note_lines.push((
+                            color.render_fg(&format!(
+                                "{}{note_line}",
+                                if j == 0 {
+                                    note_no.clone()
+                                } else {
+                                    " ".repeat(note_no.len())
+                                },
+                            )),
+                            RenderedLineKind::Note,
+                        ));
+                    }
+                }
+
+                *label_index += labels.len();
+            }
+
+            let mut label_lines = vec![vec![b' '; max_width]; max_depth * 2];
+            let mut label_line_colors = vec![vec![Color::None; max_width]; max_depth * 2];
 
             for label in labels.iter() {
-                let index_rendered = format!("({})", label.index.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(",")).into_bytes();
+                let index_or_note = if inline_note {
+                    label.note.to_string().into_bytes()
+                } else {
+                    format!("({})", label.index.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(",")).into_bytes()
+                };
 
                 if label.far_left {
                     label_lines[label.depth * 2 - 1][0] = b'<';
@@ -496,7 +524,7 @@ fn render_span_worker(
                     label_line_colors[label.depth * 2 - 1][0] = label.color;
                     label_line_colors[label.depth * 2 - 1][1] = label.color;
 
-                    for (i, c) in index_rendered.iter().enumerate() {
+                    for (i, c) in index_or_note.iter().enumerate() {
                         label_lines[label.depth * 2 - 1][i + 2] = *c;
                         label_line_colors[label.depth * 2 - 1][i + 2] = label.color;
                     }
@@ -518,24 +546,26 @@ fn render_span_worker(
                         label_line_colors[label.depth * 2 - 1][x + 1] = label.color;
                         label_line_colors[label.depth * 2 - 1][x + 2] = label.color;
 
-                        for (i, c) in index_rendered.iter().enumerate() {
+                        for (i, c) in index_or_note.iter().enumerate() {
                             label_lines[label.depth * 2 - 1][x + 3 + i] = *c;
                             label_line_colors[label.depth * 2 - 1][x + 3 + i] = label.color;
                         }
                     }
 
                     else {
-                        let offset = index_rendered.len() / 2;
+                        let mut offset = (index_or_note.len() / 2).min(x.max(3) - 3);
 
-                        for (i, c) in index_rendered.iter().enumerate() {
+                        if x + index_or_note.len() - offset > max_width {
+                            offset = x + index_or_note.len() + 3 - max_width;
+                        }
+
+                        for (i, c) in index_or_note.iter().enumerate() {
                             label_lines[label.depth * 2 - 1][x + i - offset] = *c;
                             label_line_colors[label.depth * 2 - 1][x + i - offset] = label.color;
                         }
                     }
                 }
             }
-
-            label_index += labels.len();
 
             for (mut line, mut colors) in label_lines.into_iter().zip(label_line_colors.into_iter()) {
                 while let Some(b' ') = line.last() {
