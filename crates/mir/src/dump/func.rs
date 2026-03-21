@@ -2,6 +2,7 @@ use super::{dump_expr, dump_type};
 use crate::{Func, Session, Type};
 use sodigy_endec::IndentedLines;
 
+// TODO: respect `dump_expr`'s `single_line` option
 pub fn dump_func(func: &Func, lines: &mut IndentedLines, session: &Session) {
     lines.break_line();
 
@@ -63,7 +64,7 @@ pub fn dump_func(func: &Func, lines: &mut IndentedLines, session: &Session) {
 
     if !func.built_in {
         lines.push(" = ");
-        dump_expr(&func.value, lines, session, 0);
+        dump_expr(&func.value, lines, session, 0, false);
     }
 
     lines.push(";");

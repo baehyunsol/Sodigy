@@ -1,11 +1,12 @@
+use crate::field::lower_fields;
+use crate::r#match::lower_match;
 use sodigy_mir::{Callable, Expr, Session as MirSession};
 
 mod field;
 mod r#match;
 mod session;
 
-pub(crate) use field::lower_fields;
-pub(crate) use r#match::lower_match;
+pub use r#match::MatchDump;
 pub use session::Session;
 
 pub fn lower<'a, 'b>(mir_session: &mut MirSession<'a, 'b>, dump_matches: bool) -> Session<'a, 'b> {

@@ -152,6 +152,7 @@
 //! Some special patterns have multiple constructors: ranges, wildcards, var-length lists and or-patterns.
 
 use crate::Session;
+use sodigy_endec::IndentedLines;
 use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
 use sodigy_hir::{LetOrigin, Pattern, PatternKind};
 use sodigy_mir::{
@@ -162,6 +163,7 @@ use sodigy_mir::{
     Let,
     Match,
     MatchArm,
+    dump_expr,
     type_of,
 };
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
@@ -178,6 +180,7 @@ mod matrix;
 mod range;
 mod tree;
 
+pub use dump::MatchDump;
 use matrix::{MatrixConstructor, MatrixRow, get_list_sub_matrix, get_matrix};
 pub(crate) use range::{LiteralType, Range, filter_out_invalid_ranges, merge_conditions, remove_overlaps};
 use tree::{
@@ -251,11 +254,6 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
 
     tree.optimize();
 
-    if session.match_dumps.is_some() {
-        let dump = session.dump_decision_tree(&tree, &borrowed_arms);
-        session.match_dumps.as_mut().unwrap().insert(match_expr.keyword_span, dump);
-    }
-
     // We have to evaluate the scrutinee multiple times.
     // If it's `match (x, y) { .. }`, we convert this to `{ let s = (x, y); match s { .. } }`.
     // If it's `match x { .. }`, we don't have to introduce another name binding.
@@ -293,6 +291,22 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
     } else {
         tree_expr
     };
+
+    if session.match_dumps.is_some() {
+        let mut lines = IndentedLines::new();
+        let mir_session = session.tmp_mir_session();
+        let (span_helpers, decision_tree) = session.dump_decision_tree(&tree, &borrowed_arms, &mir_session);
+        dump_expr(&tree_expr, &mut lines, &mir_session, 0, false);
+
+        let dump = MatchDump {
+            keyword_span: match_expr.keyword_span,
+            span_helpers,
+            decision_tree,
+            expr: lines.dump(),
+        };
+        session.match_dumps.as_mut().unwrap().push(dump);
+    }
+
     Ok(tree_expr)
 }
 

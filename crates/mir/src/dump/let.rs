@@ -2,6 +2,7 @@ use super::{dump_expr, dump_type};
 use crate::{Let, Session};
 use sodigy_endec::IndentedLines;
 
+// TODO: respect `dump_expr`'s `single_line` option
 pub fn dump_let(r#let: &Let, lines: &mut IndentedLines, session: &Session, with_newline: bool) {
     if with_newline {
         lines.break_line();
@@ -32,7 +33,7 @@ pub fn dump_let(r#let: &Let, lines: &mut IndentedLines, session: &Session, with_
     }
 
     lines.push(" = ");
-    dump_expr(&r#let.value, lines, session, 0);
+    dump_expr(&r#let.value, lines, session, 0, false);
     lines.push(";");
     lines.break_line();
 }

@@ -16,10 +16,11 @@ use sodigy_span::{
     Span,
     render_spans,
 };
+use sodigy_post_mir::MatchDump;
 use sodigy_prettify::prettify;
 use std::collections::HashMap;
 
-pub fn log_matches(matches: &HashMap<Span, (Vec<(Span, String)>, String)>, intermediate_dir: &str) -> Result<(), FileError> {
+pub fn log_matches(matches: &Vec<MatchDump>, intermediate_dir: &str) -> Result<(), FileError> {
     let mut buffer = vec![];
     let mut render_span_session = RenderSpanSession::new(intermediate_dir);
     let render_span_option = RenderSpanOption {
@@ -31,26 +32,36 @@ pub fn log_matches(matches: &HashMap<Span, (Vec<(Span, String)>, String)>, inter
         group_delim: None,
     };
 
-    for (span, (name_bindings, tree)) in matches.iter() {
-        let mut spans = span.simple_error();
+    for MatchDump { keyword_span, span_helpers, decision_tree, expr } in matches.iter() {
+        let mut spans = keyword_span.simple_error();
 
-        for (span, name_binding) in name_bindings.iter() {
+        for (span, helper) in span_helpers.iter() {
             spans.push(RenderableSpan {
                 span: *span,
                 auxiliary: true,
-                note: Some(name_binding.to_string()),
+                note: Some(helper.to_string()),
             });
         }
 
-        buffer.push(String::from("------"));
+        buffer.push(String::from("------\n"));
+        buffer.push(String::from("# Sodigy\n"));
+        buffer.push(String::from("```\n"));
         buffer.push(render_spans(
             &spans,
             &render_span_option,
             &mut render_span_session,
         ));
+        buffer.push(String::from("```\n"));
         buffer.push(String::new());
-        buffer.push(tree.to_string());
+        buffer.push(String::from("# Decision Tree\n"));
+        buffer.push(String::from("```\n"));
+        buffer.push(decision_tree.to_string());
+        buffer.push(String::from("```\n"));
         buffer.push(String::new());
+        buffer.push(String::from("# Expr\n"));
+        buffer.push(String::from("```\n"));
+        buffer.push(expr.to_string());
+        buffer.push(String::from("```\n"));
     }
 
     let save_at = join4(

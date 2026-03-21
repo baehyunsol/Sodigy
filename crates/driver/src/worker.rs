@@ -16,8 +16,8 @@ use sodigy_file::{File, FileOrStd, ModulePath};
 use sodigy_fs_api::{WriteMode, write_bytes};
 use sodigy_hir as hir;
 use sodigy_mir::{self as mir, GlobalContext as MirGlobalContext};
+use sodigy_post_mir::MatchDump;
 use sodigy_span::Span;
-use std::collections::HashMap;
 use std::sync::{Arc, RwLock, mpsc};
 use std::thread::{self, JoinHandle};
 use std::time::Instant;
@@ -52,7 +52,7 @@ pub enum MessageToMain {
         worker_id: WorkerId,
         entries: Vec<TimingsEntry>,
     },
-    MatchesLog(HashMap<Span, (Vec<(Span, String)>, String)>),
+    MatchesLog(Vec<MatchDump>),
     Error(Error),
 }
 

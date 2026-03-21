@@ -6,15 +6,29 @@ use super::{
     PatternField,
 };
 use crate::Session;
-use sodigy_mir::MatchArm;
+use sodigy_endec::IndentedLines;
+use sodigy_mir::{MatchArm, Session as MirSession, dump_expr};
 use sodigy_span::Span;
 use std::collections::hash_map::{Entry, HashMap};
 
+#[derive(Clone, Debug)]
+pub struct MatchDump {
+    pub keyword_span: Span,
+    pub span_helpers: Vec<(Span, String)>,
+    pub decision_tree: String,
+    pub expr: String,
+}
+
 impl Session<'_, '_> {
-    pub fn dump_decision_tree(&self, tree: &DecisionTree, arms: &[(usize, &MatchArm)]) -> (Vec<(Span, String)>, String) {
+    pub fn dump_decision_tree(
+        &self,
+        tree: &DecisionTree,
+        arms: &[(usize, &MatchArm)],
+        mir_session: &MirSession,
+    ) -> (Vec<(Span, String)>, String) {
         let mut buffer = vec![];
         let mut span_helpers = HashMap::new();
-        self.dump_decision_tree_inner(tree, &mut buffer, &mut span_helpers, 0);
+        self.dump_decision_tree_inner(tree, &mut buffer, &mut span_helpers, 0, mir_session);
         let mut span_helpers = span_helpers.into_iter().collect::<Vec<_>>();
         span_helpers.extend(arms.iter().map(
             |(id, arm)| (
@@ -31,6 +45,7 @@ impl Session<'_, '_> {
         buffer: &mut Vec<String>,
         span_helpers: &mut HashMap<Span, String>,
         indent: usize,
+        mir_session: &MirSession,
     ) {
         let scrutinee = match &tree.field {
             Some(field) => format!(
@@ -71,14 +86,16 @@ impl Session<'_, '_> {
             buffer.push(self.render_expr_constructor(&branch.condition));
 
             if let Some(guard) = &branch.guard {
-                buffer.push(format!(" if (/* TODO: render guard */)"));
+                let mut lines = IndentedLines::new();
+                dump_expr(guard, &mut lines, mir_session, 0, true);
+                buffer.push(format!(" if {}", lines.dump()));
             }
 
             buffer.push(String::from(" => "));
 
             match &branch.node {
                 DecisionTreeNode::Tree(tree) => {
-                    self.dump_decision_tree_inner(tree, buffer, span_helpers, indent + 1);
+                    self.dump_decision_tree_inner(tree, buffer, span_helpers, indent + 1, mir_session);
                 },
                 DecisionTreeNode::Leaf { matched, .. } => {
                     buffer.push(format!("arm_{matched}"));

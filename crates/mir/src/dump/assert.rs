@@ -2,6 +2,7 @@ use super::dump_expr;
 use crate::{Assert, Session};
 use sodigy_endec::IndentedLines;
 
+// TODO: respect `dump_expr`'s `single_line` option
 pub fn dump_assert(assert: &Assert, lines: &mut IndentedLines, session: &Session) {
     lines.break_line();
 
@@ -15,7 +16,7 @@ pub fn dump_assert(assert: &Assert, lines: &mut IndentedLines, session: &Session
 
     if let Some(note) = &assert.note {
         lines.push("#[note(");
-        dump_expr(note, lines, session, 0);
+        dump_expr(note, lines, session, 0, false);
         lines.push(")]");
         lines.break_line();
     }
@@ -26,7 +27,7 @@ pub fn dump_assert(assert: &Assert, lines: &mut IndentedLines, session: &Session
     }
 
     lines.push("assert ");
-    dump_expr(&assert.value, lines, session, 0);
+    dump_expr(&assert.value, lines, session, 0, false);
     lines.push(";");
     lines.break_line();
 }
