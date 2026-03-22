@@ -36,6 +36,7 @@ fn div_int_built_in(a: Int, b: Int) -> Int;
 #[impl(std.op.div)]
 fn div_int(a: Int, b: Int) -> Int = {
     #[always]
+    #[note(f"zero division: {a} / {b}")]
     assert b != 0;
 
     div_int_built_in(a, b)
@@ -48,6 +49,7 @@ fn rem_int_built_in(a: Int, b: Int) -> Int;
 #[impl(std.op.rem)]
 fn rem_int(a: Int, b: Int) -> Int = {
     #[always]
+    #[note(f"zero division: {a} % {b}")]
     assert b != 0;
 
     rem_int_built_in(a, b)

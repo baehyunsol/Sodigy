@@ -1,0 +1,3 @@
+//% run-fail
+
+assert std.panic("error-123456");

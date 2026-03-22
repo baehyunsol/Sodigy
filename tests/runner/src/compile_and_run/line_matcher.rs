@@ -112,7 +112,7 @@ pub fn match_lines(lines: &str, matchers: &Option<Vec<LineMatcher>>) -> Result<(
                             }
                         },
                         None => {
-                            return Err(unexpected_end(matchers, matcher_cursor + 1));
+                            return Err(unexpected_end(matchers, matcher_cursor));
                         },
                     }
                 },

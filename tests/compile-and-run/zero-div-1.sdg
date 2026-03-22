@@ -1,5 +1,7 @@
-#[name("must-fail-1")]
+//% run-fail
+
+#[name("must-fail")]
 assert 3 / 0 == 0;
 
-#[name("must-fail-2")]
+#[name("must-fail")]
 assert 3 % 0 == 0;
