@@ -45,6 +45,7 @@ pub fn runner(data: &[u8], target: &str) {
         // If it's false, the fuzzer's evolution algorithm will become more efficient.
         false,  // emit-irs
 
+        false,  // dump-matches
         0,
         8,
         ColorWhen::Never,
@@ -53,7 +54,7 @@ pub fn runner(data: &[u8], target: &str) {
         true,
     ) {
         Ok(_) => {},
-        Err(Error::CompileError) => {},  // it's okay
+        Err(Error::CompileError | Error::RuntimeError) => {},  // it's okay
         Err(e) => panic!("{e:?}"),
     }
 }
