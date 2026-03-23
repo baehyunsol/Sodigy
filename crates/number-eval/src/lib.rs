@@ -17,11 +17,7 @@ pub fn eval_number_prefix_op(
     rhs: &InternedNumber,
 ) -> Result<InternedNumber, Vec<Error>> {
     match op {
-        PrefixOp::Neg => {
-            let mut n = rhs.clone();
-            n.negate_mut();
-            Ok(n)
-        },
+        PrefixOp::Neg => Ok(rhs.negate()),
         PrefixOp::Not => Err(vec![Error {
             kind: ErrorKind::CannotEvaluateConst,
             spans: op_span.simple_error(),
@@ -43,49 +39,38 @@ pub fn eval_number_infix_op(
     op_span: Span,
     lhs: &InternedNumber,
     rhs: &InternedNumber,
+    intermediate_dir: &str,
 ) -> Result<InternedNumber, Vec<Error>> {
-    if lhs.is_integer != rhs.is_integer {
+    if lhs.is_integer() != rhs.is_integer() {
         return Err(vec![Error {
             kind: ErrorKind::CannotEvaluateConst,
             spans: op_span.simple_error(),
             note: Some(format!(
                 "Lhs is {} while rhs is {}.",
-                if lhs.is_integer { "an integer" } else { "a number" },
-                if rhs.is_integer { "an integer" } else { "a number" },
+                if lhs.is_integer() { "an integer" } else { "a number" },
+                if rhs.is_integer() { "an integer" } else { "a number" },
             )),
         }]);
     }
 
-    let lhs_ratio = unintern_number(lhs.value.clone());
-    let rhs_ratio = unintern_number(rhs.value.clone());
+    let is_integer = lhs.is_integer();
+    let lhs_ratio = unintern_number(*lhs, intermediate_dir);
+    let rhs_ratio = unintern_number(*rhs, intermediate_dir);
 
     match op {
-        InfixOp::Add => {
-            let r = add_ratio(&lhs_ratio, &rhs_ratio);
-            let value = intern_number(r);
-            Ok(InternedNumber { value, is_integer: lhs.is_integer })
-        },
-        InfixOp::Sub => {
-            let r = sub_ratio(&lhs_ratio, &rhs_ratio);
-            let value = intern_number(r);
-            Ok(InternedNumber { value, is_integer: lhs.is_integer })
-        },
-        InfixOp::Mul => {
-            let r = mul_ratio(&lhs_ratio, &rhs_ratio);
-            let value = intern_number(r);
-            Ok(InternedNumber { value, is_integer: lhs.is_integer })
-        },
+        InfixOp::Add => Ok(intern_number(add_ratio(&lhs_ratio, &rhs_ratio), is_integer, intermediate_dir)),
+        InfixOp::Sub => Ok(intern_number(sub_ratio(&lhs_ratio, &rhs_ratio), is_integer, intermediate_dir)),
+        InfixOp::Mul => Ok(intern_number(mul_ratio(&lhs_ratio, &rhs_ratio), is_integer, intermediate_dir)),
         InfixOp::Div => {
-            let r = div_ratio(&lhs_ratio, &rhs_ratio);
-            let value = intern_number(r);
+            let value = intern_number(div_ratio(&lhs_ratio, &rhs_ratio), is_integer, intermediate_dir);
 
-            if lhs.is_integer {
+            if lhs.is_integer() {
                 // We have to truncate the result!
                 todo!()
             }
 
             else {
-                Ok(InternedNumber { value, is_integer: lhs.is_integer })
+                Ok(value)
             }
         },
         _ => Err(vec![Error::todo(89470, "more const eval", op_span)]),

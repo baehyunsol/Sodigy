@@ -1,5 +1,5 @@
 use crate::Session;
-use sodigy_number::{BigInt, InternedNumber, InternedNumberValue};
+use sodigy_number::{BigInt, InternedNumber};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, unintern_string};
 use sodigy_token::Constant;
@@ -57,44 +57,45 @@ impl Session<'_, '_> {
 
 impl From<&InternedNumber> for Value {
     fn from(n: &InternedNumber) -> Value {
-        match n {
-            InternedNumber {
-                value: InternedNumberValue::SmallInt(n),
-                is_integer: true,
-            } => {
-                let is_neg = *n < 0;
-                let abs = n.abs() as u64;
-                let nums = match abs {
-                    0..=0xffff_ffff => vec![abs as u32],
-                    _ => vec![(abs & 0xffff_ffff) as u32, (abs >> 32) as u32],
-                };
+        todo!()
+    //     match n {
+    //         InternedNumber {
+    //             value: InternedNumberValue::SmallInt(n),
+    //             is_integer: true,
+    //         } => {
+    //             let is_neg = *n < 0;
+    //             let abs = n.abs() as u64;
+    //             let nums = match abs {
+    //                 0..=0xffff_ffff => vec![abs as u32],
+    //                 _ => vec![(abs & 0xffff_ffff) as u32, (abs >> 32) as u32],
+    //             };
 
-                Value::Int(BigInt { is_neg, nums })
-            },
-            InternedNumber {
-                value: InternedNumberValue::SmallInt(n),
-                is_integer: false,
-            } => {
-                Value::Compound(vec![
-                    // TODO: we have to make sure that always `numer` comes before `denom`, everywhere.
-                    Value::Int(BigInt::from(*n as i64)),
-                    Value::Int(BigInt::from(1i64)),
-                ])
-            },
-            InternedNumber {
-                value: n @ InternedNumberValue::SmallRatio { numer, denom },
-                is_integer: false,
-            } => {
-                Value::Compound(vec![
-                    Value::Int(BigInt::from(*numer as i64)),
-                    Value::Int(BigInt::from(*denom as i64)),
-                ])
-            },
-            InternedNumber {
-                value: InternedNumberValue::BigInt(n),
-                is_integer: true,
-            } => Value::Int(n.clone()),
-            _ => panic!("TODO: {n:?}"),
-        }
+    //             Value::Int(BigInt { is_neg, nums })
+    //         },
+    //         InternedNumber {
+    //             value: InternedNumberValue::SmallInt(n),
+    //             is_integer: false,
+    //         } => {
+    //             Value::Compound(vec![
+    //                 // TODO: we have to make sure that always `numer` comes before `denom`, everywhere.
+    //                 Value::Int(BigInt::from(*n as i64)),
+    //                 Value::Int(BigInt::from(1i64)),
+    //             ])
+    //         },
+    //         InternedNumber {
+    //             value: n @ InternedNumberValue::SmallRatio { numer, denom },
+    //             is_integer: false,
+    //         } => {
+    //             Value::Compound(vec![
+    //                 Value::Int(BigInt::from(*numer as i64)),
+    //                 Value::Int(BigInt::from(*denom as i64)),
+    //             ])
+    //         },
+    //         InternedNumber {
+    //             value: InternedNumberValue::BigInt(n),
+    //             is_integer: true,
+    //         } => Value::Int(n.clone()),
+    //         _ => panic!("TODO: {n:?}"),
+    //     }
     }
 }

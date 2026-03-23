@@ -1,5 +1,3 @@
-use crate::error::ParseIntError;
-
 pub mod cmp;
 pub mod convert;
 pub mod func;
@@ -38,7 +36,7 @@ impl BigInt {
         !self.is_neg && &self.nums == &[1]
     }
 
-    pub fn parse_positive_hex(bytes: &[u8]) -> Result<BigInt, ParseIntError> {
+    pub fn parse_positive_hex(bytes: &[u8]) -> Result<BigInt, ()> {
         let mut result = vec![0];
         let mut buffer = 0;
         let mut counter = 0;
@@ -49,7 +47,7 @@ impl BigInt {
                 b'a'..=b'f' => (*b - b'a' + 10) as u32,
                 b'A'..=b'F' => (*b - b'A' + 10) as u32,
                 _ => {
-                    return Err(ParseIntError);
+                    return Err(());
                 },
             };
 
@@ -76,7 +74,7 @@ impl BigInt {
         })
     }
 
-    pub fn parse_positive_decimal(bytes: &[u8]) -> Result<BigInt, ParseIntError> {
+    pub fn parse_positive_decimal(bytes: &[u8]) -> Result<BigInt, ()> {
         let mut result = vec![0];
         let mut buffer = 0;
         let mut counter = 0;
@@ -89,7 +87,7 @@ impl BigInt {
                     counter += 1;
                 },
                 _ => {
-                    return Err(ParseIntError);
+                    return Err(());
                 },
             }
 

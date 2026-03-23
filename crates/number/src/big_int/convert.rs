@@ -1,6 +1,12 @@
 use super::BigInt;
 use crate::{div_ubi, gt_ubi, rem_ubi};
 
+impl From<i128> for BigInt {
+    fn from(n: i128) -> BigInt {
+        todo!()
+    }
+}
+
 impl From<u64> for BigInt {
     fn from(n: u64) -> BigInt {
         let nums = match n {
@@ -19,6 +25,14 @@ impl From<i64> for BigInt {
         let mut abs = BigInt::from((n as i128).abs() as u64);
         abs.is_neg = n < 0;
         abs
+    }
+}
+
+impl TryFrom<&BigInt> for i128 {
+    type Error = ();
+
+    fn try_from(n: &BigInt) -> Result<i128, ()> {
+        todo!()
     }
 }
 

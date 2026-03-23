@@ -313,19 +313,19 @@ fn constructor_to_expr(
                     Ordering::Equal if range.lhs_inclusive && range.rhs_inclusive => match range.r#type {
                         LiteralType::Int => (
                             "built_in.eq_int",
-                            Expr::Constant(Constant::Number { n: lhs.clone(), span: Span::None }),
+                            Expr::Constant(Constant::Number { n: *lhs, span: Span::None }),
                         ),
                         LiteralType::Byte => (
                             "built_in.eq_scalar",
-                            Expr::Constant(Constant::Byte { b: lhs.try_into().unwrap(), span: Span::None }),
+                            Expr::Constant(Constant::Byte { b: (*lhs).try_into().unwrap(), span: Span::None }),
                         ),
                         LiteralType::Char => (
                             "built_in.eq_scalar",
-                            Expr::Constant(Constant::Char { ch: lhs.try_into().unwrap(), span: Span::None }),
+                            Expr::Constant(Constant::Char { ch: (*lhs).try_into().unwrap(), span: Span::None }),
                         ),
                         LiteralType::Scalar => (
                             "built_in.eq_scalar",
-                            Expr::Constant(Constant::Scalar(lhs.try_into().unwrap())),
+                            Expr::Constant(Constant::Scalar((*lhs).try_into().unwrap())),
                         ),
                         _ => todo!(),
                     },
@@ -348,20 +348,20 @@ fn constructor_to_expr(
                         else {
                             let (lhs, rhs) = match range.r#type {
                                 LiteralType::Int | LiteralType::Number => (
-                                    Expr::Constant(Constant::Number { n: lhs.clone(), span: Span::None }),
-                                    Expr::Constant(Constant::Number { n: rhs.clone(), span: Span::None }),
+                                    Expr::Constant(Constant::Number { n: *lhs, span: Span::None }),
+                                    Expr::Constant(Constant::Number { n: *rhs, span: Span::None }),
                                 ),
                                 LiteralType::Byte => (
-                                    Expr::Constant(Constant::Byte { b: lhs.try_into().unwrap(), span: Span::None }),
-                                    Expr::Constant(Constant::Byte { b: rhs.try_into().unwrap(), span: Span::None }),
+                                    Expr::Constant(Constant::Byte { b: (*lhs).try_into().unwrap(), span: Span::None }),
+                                    Expr::Constant(Constant::Byte { b: (*rhs).try_into().unwrap(), span: Span::None }),
                                 ),
                                 LiteralType::Char => (
-                                    Expr::Constant(Constant::Char { ch: lhs.try_into().unwrap(), span: Span::None }),
-                                    Expr::Constant(Constant::Char { ch: rhs.try_into().unwrap(), span: Span::None }),
+                                    Expr::Constant(Constant::Char { ch: (*lhs).try_into().unwrap(), span: Span::None }),
+                                    Expr::Constant(Constant::Char { ch: (*rhs).try_into().unwrap(), span: Span::None }),
                                 ),
                                 LiteralType::Scalar => (
-                                    Expr::Constant(Constant::Scalar(lhs.try_into().unwrap())),
-                                    Expr::Constant(Constant::Scalar(rhs.try_into().unwrap())),
+                                    Expr::Constant(Constant::Scalar((*lhs).try_into().unwrap())),
+                                    Expr::Constant(Constant::Scalar((*rhs).try_into().unwrap())),
                                 ),
                             };
                             let f1 = match (range.r#type, range.lhs_inclusive) {

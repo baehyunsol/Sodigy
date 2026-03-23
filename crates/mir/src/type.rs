@@ -533,7 +533,7 @@ impl Type {
 pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
     match expr {
         Expr::Ident(id) => global_context.get_type(id.def_span),
-        Expr::Constant(Constant::Number { n, .. }) => match n.is_integer {
+        Expr::Constant(Constant::Number { n, .. }) => match n.is_integer() {
             true => Some(Type::Data {
                 constructor_def_span: global_context.get_lang_item_span("type.Int"),
                 constructor_span: Span::None,

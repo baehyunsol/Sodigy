@@ -62,7 +62,7 @@ impl Session {
                     )
                 },
             },
-            PatternKind::Constant(Constant::Number { n, .. }) => match n.is_integer {
+            PatternKind::Constant(Constant::Number { n, .. }) => match n.is_integer() {
                 true => (
                     Some(Type::Data {
                         constructor_def_span: self.get_lang_item_span("type.Int"),

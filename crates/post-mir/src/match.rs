@@ -424,10 +424,10 @@ fn read_field_of_pattern(
     let constructor = match field.last().unwrap() {
         PatternField::Constructor => match &curr_pattern.kind {
             PatternKind::Constant(Constant::Number { n, .. }) => PatternConstructor::Range(Range {
-                r#type: if n.is_integer { LiteralType::Int } else { LiteralType::Number },
-                lhs: Some(n.clone()),
+                r#type: if n.is_integer() { LiteralType::Int } else { LiteralType::Number },
+                lhs: Some(*n),
                 lhs_inclusive: true,
-                rhs: Some(n.clone()),
+                rhs: Some(*n),
                 rhs_inclusive: true,
             }),
             PatternKind::Constant(Constant::Char { ch, .. }) => PatternConstructor::Range(Range {
@@ -455,8 +455,8 @@ fn read_field_of_pattern(
                 let lhs = lhs.as_ref().map(
                     |lhs| match &lhs.kind {
                         PatternKind::Constant(Constant::Number { n, .. }) => {
-                            literal_type = Some(if n.is_integer { LiteralType::Int } else { LiteralType::Number });
-                            n.clone()
+                            literal_type = Some(if n.is_integer() { LiteralType::Int } else { LiteralType::Number });
+                            *n
                         },
                         PatternKind::Constant(Constant::Char { ch, .. }) => {
                             literal_type = Some(LiteralType::Char);
@@ -472,8 +472,8 @@ fn read_field_of_pattern(
                 let rhs = rhs.as_ref().map(
                     |rhs| match &rhs.kind {
                         PatternKind::Constant(Constant::Number { n, .. }) => {
-                            literal_type = Some(if n.is_integer { LiteralType::Int } else { LiteralType::Number });
-                            n.clone()
+                            literal_type = Some(if n.is_integer() { LiteralType::Int } else { LiteralType::Number });
+                            *n
                         },
                         PatternKind::Constant(Constant::Char { ch, .. }) => {
                             literal_type = Some(LiteralType::Char);

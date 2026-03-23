@@ -13,12 +13,28 @@ fn tests() {
         b"",
         b"0", b"1", b"2",
         b"12345", b"abcde",
+        b"123456789012345",
+        b"1234567890123456",
+        b"12345678901234567",
         b"0123456789101112131415",
         b"01234567891011121314151617",
         b"abcdefghijklmnopqrstuv",
         b"abcdefghijklmnopqrstuvwxyz",
         b"This is a very very long string. I need a string that is at least 256 bytes long, because my code treats long strings differently. I'm worried if it's some kinda over-engineered. But it's fun though, and I'm not gonna over-engineering my whole code base. I just need a few more characters to make it longer than 256 bytes.",
     ];
+
+    let boundary1 = b"1".repeat(255);
+    let boundary2 = b"1".repeat(256);
+    let boundary3 = b"1".repeat(257);
+    let boundary4 = b"1".repeat(271);
+    let boundary5 = b"1".repeat(272);
+    let boundary6 = b"1".repeat(273);
+    strings.push(&boundary1);
+    strings.push(&boundary2);
+    strings.push(&boundary3);
+    strings.push(&boundary4);
+    strings.push(&boundary5);
+    strings.push(&boundary6);
 
     // We need strings that are longer than 24MiB.
     let very_long_string1 = b"abcde".repeat(3355444);

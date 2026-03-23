@@ -4,12 +4,11 @@ use sodigy_bytecode::{
     Label,
     Memory,
     Offset,
+    Value,
 };
 use sodigy_mir::Intrinsic;
 use sodigy_number::{
     BigInt,
-    InternedNumber,
-    InternedNumberValue,
     add_bi,
     div_bi,
     eq_bi,
@@ -150,15 +149,11 @@ fn execute(
                     let (rhs_neg, rhs) = inspect_int(&heap.data, rhs_ptr);
                     let (is_neg, nums) = neg_bi(rhs_neg, rhs);
 
-                    let v = InternedNumber {
-                        value: InternedNumberValue::BigInt(BigInt {
-                            is_neg,
-                            nums,
-                        }),
-                        is_integer: true,
-                    };
-
-                    let ptr = heap.alloc_value(&(&v).into());
+                    let v = Value::Int(BigInt {
+                        is_neg,
+                        nums,
+                    });
+                    let ptr = heap.alloc_value(&v);
                     update(*dst, ptr, stack, heap);
                 },
                 Intrinsic::AddInt |
@@ -189,14 +184,11 @@ fn execute(
                                 Intrinsic::RemInt => rem_bi(lhs_neg, lhs, rhs_neg, rhs),
                                 _ => unreachable!(),
                             };
-                            let v = InternedNumber {
-                                value: InternedNumberValue::BigInt(BigInt {
-                                    is_neg,
-                                    nums,
-                                }),
-                                is_integer: true,
-                            };
-                            let ptr = heap.alloc_value(&(&v).into());
+                            let v = Value::Int(BigInt {
+                                is_neg,
+                                nums,
+                            });
+                            let ptr = heap.alloc_value(&v);
                             ptr
                         },
                         Intrinsic::LtInt => if lt_bi(lhs_neg, lhs, rhs_neg, rhs) { 1 } else { 0 },
@@ -217,14 +209,11 @@ fn execute(
                         Intrinsic::ShlInt => shl_ubi(lhs, rhs),
                         _ => unreachable!(),
                     };
-                    let v = InternedNumber {
-                        value: InternedNumberValue::BigInt(BigInt {
-                            is_neg,
-                            nums,
-                        }),
-                        is_integer: true,
-                    };
-                    let result = heap.alloc_value(&(&v).into());
+                    let v = Value::Int(BigInt {
+                        is_neg,
+                        nums,
+                    });
+                    let result = heap.alloc_value(&v);
                     update(*dst, result, stack, heap);
                 },
                 Intrinsic::Ilog2Int => {

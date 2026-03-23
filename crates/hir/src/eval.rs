@@ -41,7 +41,7 @@ pub fn eval_const(expr: &Expr, session: &mut Session) -> Result<Expr, ()> {
             };
 
             match (lhs, op, rhs) {
-                (Expr::Constant(Constant::Number { n: lhs, .. }), _, Expr::Constant(Constant::Number { n: rhs, .. })) => match eval_number_infix_op(*op, *op_span, &lhs, &rhs) {
+                (Expr::Constant(Constant::Number { n: lhs, .. }), _, Expr::Constant(Constant::Number { n: rhs, .. })) => match eval_number_infix_op(*op, *op_span, &lhs, &rhs, &session.intermediate_dir) {
                     Ok(n) => Ok(Expr::Constant(Constant::Number { n, span: result_span.derive(SpanDeriveKind::ConstEval) })),
                     Err(es) => {
                         session.errors.extend(es);

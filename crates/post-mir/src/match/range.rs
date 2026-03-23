@@ -51,10 +51,10 @@ impl fmt::Display for Range {
     }
 }
 
-fn render_literal(r#type: LiteralType, value: &Option<InternedNumber>, is_lhs: bool) -> String {
+fn render_literal(r#type: LiteralType, value: &Option<InternedNumber>, is_lhs: bool, intermediate_dir: &str) -> String {
     match value {
         Some(n) => {
-            let n = unintern_number(n.value.clone());
+            let n = unintern_number(*n, intermediate_dir);
 
             match r#type {
                 LiteralType::Number => ratio_to_string(&n),

@@ -51,7 +51,7 @@ impl Constant {
 
     pub fn dump(&self, intermediate_dir: &str) -> String {
         match self {
-            Constant::Number { n, .. } => n.dump(),
+            Constant::Number { n, .. } => n.dump(intermediate_dir),
             Constant::String { binary, s, .. } => format!(
                 "{}{:?}",
                 if *binary { "b" } else { "" },
