@@ -1,0 +1,5 @@
+// 6790f865d stack-overflows in the hir stage.
+//
+// This is very tough to fix. It runs fine if I set `export RUST_MIN_STACK=8388608`
+
+assert ( 76  +58  + 47-52-84 - 49 )+ (((92)/(15)/89)% 70 %(-(77) + -  79  +(93))*- 17 % 24 /-21)+94+  24 *59- 95-42-17 -47- 48+ -13 -28 == 1216;
