@@ -1,0 +1,7 @@
+//% compile-warning == 1
+
+fn foo(n) = Ok(n);
+
+// TODO: error vs warning
+let Ok($x) | Error($x) | Ok($x) = foo(3);
+assert x == 3;

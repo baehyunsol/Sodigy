@@ -64,7 +64,11 @@ pub fn render_spans(
     let mut monomorphizations = HashSet::new();
 
     for span in spans.iter() {
-        if let Span::Derived { kind: SpanDeriveKind::Monomorphize(id), .. } = span.span {
+        if let Span::Derived { monomorphize_id: Some(id), .. } = span.span {
+            // TODO: use this info
+            // let mono_info = session.get_monomorphization_info(*id).unwrap();
+            // Some(format!("This is inside a monomorphization of `{}`.", mono_info.info));
+
             monomorphizations.insert(id);
         }
     }

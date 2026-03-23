@@ -9,6 +9,7 @@ pub struct Match {
     pub scrutinee: Box<Expr>,
     pub arms: Vec<MatchArm>,
     pub group_span: Span,
+    pub lowered_from_let: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -37,6 +38,7 @@ impl<'t, 's> Tokens<'t, 's> {
             scrutinee: Box::new(scrutinee),
             arms,
             group_span,
+            lowered_from_let: false,
         })
     }
 

@@ -1,0 +1,18 @@
+fn foo(n) -> Result<(Int, Int), (Int, Int, Int)> = {
+    if n % 2 == 1 {
+        Ok((n + 100, n + 200))
+    }
+
+    else {
+        Ok((n + 300, n + 400, n + 500))
+    }
+};
+
+let Ok(($x1, $y1)) | Error(($x1, _, $y1)) = foo(1);
+assert (x1, y1) == (101, 201);
+
+let Ok(($x2, $y2)) | Error(($x2, _, $y2)) = foo(2);
+assert (x2, y2) == (302, 502);
+
+let Ok(($x3, $y3)) | Error(($x3, _, $y3)) = foo(3);
+assert (x3, y3) == (103, 203);

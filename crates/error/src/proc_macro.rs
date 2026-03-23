@@ -30,7 +30,8 @@
     InvalidRangePattern, InvalidConcatPattern, CannotBindName(InternedString),
     CannotApplyInfixOpToMultipleBindings, CannotApplyInfixOpToBinding,
     CannotAnnotateType, RedundantNameBinding(InternedString, InternedString),
-    UnsupportedInfixOpInPattern(InfixOp), NameCollision
+    UnsupportedInfixOpInPattern(InfixOp),
+    PatternDestructureWithoutNameBindings, NameCollision
     { name: InternedString, kind: NameCollisionKind }, CyclicLet
     { names: Vec<InternedString> }, CyclicAlias
     { names: Vec<InternedString> }, DollarOutsidePipeline,
@@ -62,9 +63,10 @@
     { r#type: String, name: InternedString }, CannotApplyInfixOp
     { op: InfixOp, arg_types: Vec<String> }, CannotSpecializePolyGeneric
     { num_candidates: usize }, ImpureCallInPureContext, NonExhaustiveArms,
-    MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },
-    ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },
-    LibFileNotFound, SelfParamWithTypeAnnot, AssociatedFuncWithoutSelfParam,
+    RefutableLetPattern, MultipleModuleFiles
+    { module: ModulePath, found_files: Vec<String> }, ModuleFileNotFound
+    { module: ModulePath, candidates: Vec<String> }, LibFileNotFound,
+    SelfParamWithTypeAnnot, AssociatedFuncWithoutSelfParam,
     CannotInferPolyGenericParam { param_index: ParamIndex },
     CannotInferPolyGenericImpl { param_index: ParamIndex },
     PolyImplDifferentNumberOfParams
@@ -136,6 +138,7 @@
             CannotAnnotateType => 290u16, ErrorKind ::
             RedundantNameBinding(_, _,) => 295u16, ErrorKind ::
             UnsupportedInfixOpInPattern(_,) => 300u16, ErrorKind ::
+            PatternDestructureWithoutNameBindings => 301u16, ErrorKind ::
             NameCollision { .. } => 305u16, ErrorKind :: CyclicLet { .. } =>
             310u16, ErrorKind :: CyclicAlias { .. } => 315u16, ErrorKind ::
             DollarOutsidePipeline => 320u16, ErrorKind :: DisconnectedPipeline
@@ -170,14 +173,15 @@
             CannotApplyInfixOp { .. } => 440u16, ErrorKind ::
             CannotSpecializePolyGeneric { .. } => 445u16, ErrorKind ::
             ImpureCallInPureContext => 450u16, ErrorKind :: NonExhaustiveArms
-            => 455u16, ErrorKind :: MultipleModuleFiles { .. } => 460u16,
-            ErrorKind :: ModuleFileNotFound { .. } => 465u16, ErrorKind ::
-            LibFileNotFound => 470u16, ErrorKind :: SelfParamWithTypeAnnot =>
-            475u16, ErrorKind :: AssociatedFuncWithoutSelfParam => 480u16,
-            ErrorKind :: CannotInferPolyGenericParam { .. } => 485u16,
-            ErrorKind :: CannotInferPolyGenericImpl { .. } => 490u16,
-            ErrorKind :: PolyImplDifferentNumberOfParams { .. } => 495u16,
-            ErrorKind :: CannotImplPoly { .. } => 500u16, ErrorKind ::
+            => 455u16, ErrorKind :: RefutableLetPattern => 456u16, ErrorKind
+            :: MultipleModuleFiles { .. } => 460u16, ErrorKind ::
+            ModuleFileNotFound { .. } => 465u16, ErrorKind :: LibFileNotFound
+            => 470u16, ErrorKind :: SelfParamWithTypeAnnot => 475u16,
+            ErrorKind :: AssociatedFuncWithoutSelfParam => 480u16, ErrorKind
+            :: CannotInferPolyGenericParam { .. } => 485u16, ErrorKind ::
+            CannotInferPolyGenericImpl { .. } => 490u16, ErrorKind ::
+            PolyImplDifferentNumberOfParams { .. } => 495u16, ErrorKind ::
+            CannotImplPoly { .. } => 500u16, ErrorKind ::
             MultiplePolyCandidates(_,) => 505u16, ErrorKind :: UnusedNames
             { .. } => 5000u16, ErrorKind :: UnreachableMatchArm => 5005u16,
             ErrorKind :: UnreachableOrPattern => 5006u16, ErrorKind ::
@@ -264,10 +268,11 @@
             ErrorKind :: CannotAnnotateType => ErrorLevel :: Error, ErrorKind
             :: RedundantNameBinding(_, _,) => ErrorLevel :: Error, ErrorKind
             :: UnsupportedInfixOpInPattern(_,) => ErrorLevel :: Error,
-            ErrorKind :: NameCollision { .. } => ErrorLevel :: Error,
-            ErrorKind :: CyclicLet { .. } => ErrorLevel :: Error, ErrorKind ::
-            CyclicAlias { .. } => ErrorLevel :: Error, ErrorKind ::
-            DollarOutsidePipeline => ErrorLevel :: Error, ErrorKind ::
+            ErrorKind :: PatternDestructureWithoutNameBindings => ErrorLevel
+            :: Error, ErrorKind :: NameCollision { .. } => ErrorLevel ::
+            Error, ErrorKind :: CyclicLet { .. } => ErrorLevel :: Error,
+            ErrorKind :: CyclicAlias { .. } => ErrorLevel :: Error, ErrorKind
+            :: DollarOutsidePipeline => ErrorLevel :: Error, ErrorKind ::
             DisconnectedPipeline => ErrorLevel :: Error, ErrorKind ::
             UndefinedName(_,) => ErrorLevel :: Error, ErrorKind ::
             EnumVariantInTypeAnnot => ErrorLevel :: Error, ErrorKind ::
@@ -304,9 +309,10 @@
             ErrorKind :: CannotSpecializePolyGeneric { .. } => ErrorLevel ::
             Error, ErrorKind :: ImpureCallInPureContext => ErrorLevel ::
             Error, ErrorKind :: NonExhaustiveArms => ErrorLevel :: Error,
-            ErrorKind :: MultipleModuleFiles { .. } => ErrorLevel :: Error,
-            ErrorKind :: ModuleFileNotFound { .. } => ErrorLevel :: Error,
-            ErrorKind :: LibFileNotFound => ErrorLevel :: Error, ErrorKind ::
+            ErrorKind :: RefutableLetPattern => ErrorLevel :: Error, ErrorKind
+            :: MultipleModuleFiles { .. } => ErrorLevel :: Error, ErrorKind ::
+            ModuleFileNotFound { .. } => ErrorLevel :: Error, ErrorKind ::
+            LibFileNotFound => ErrorLevel :: Error, ErrorKind ::
             SelfParamWithTypeAnnot => ErrorLevel :: Error, ErrorKind ::
             AssociatedFuncWithoutSelfParam => ErrorLevel :: Error, ErrorKind
             :: CannotInferPolyGenericParam { .. } => ErrorLevel :: Error,
@@ -472,7 +478,9 @@
                 t1.encode_impl(buffer);
             }, ErrorKind :: UnsupportedInfixOpInPattern(t0,) =>
             { buffer.push(1u8); buffer.push(44u8); t0.encode_impl(buffer); },
-            ErrorKind :: NameCollision { r#name, r#kind, } =>
+            ErrorKind :: PatternDestructureWithoutNameBindings =>
+            { buffer.push(1u8); buffer.push(45u8); }, ErrorKind ::
+            NameCollision { r#name, r#kind, } =>
             {
                 buffer.push(1u8); buffer.push(49u8);
                 r#name.encode_impl(buffer); r#kind.encode_impl(buffer);
@@ -608,7 +616,9 @@
             }, ErrorKind :: ImpureCallInPureContext =>
             { buffer.push(1u8); buffer.push(194u8); }, ErrorKind ::
             NonExhaustiveArms => { buffer.push(1u8); buffer.push(199u8); },
-            ErrorKind :: MultipleModuleFiles { r#module, r#found_files, } =>
+            ErrorKind :: RefutableLetPattern =>
+            { buffer.push(1u8); buffer.push(200u8); }, ErrorKind ::
+            MultipleModuleFiles { r#module, r#found_files, } =>
             {
                 buffer.push(1u8); buffer.push(204u8);
                 r#module.encode_impl(buffer);
@@ -832,7 +842,9 @@
             {
                 let (t0, cursor) = InfixOp :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: UnsupportedInfixOpInPattern(t0,), cursor))
-            }, 305u16 =>
+            }, 301u16 =>
+            Ok((ErrorKind :: PatternDestructureWithoutNameBindings, cursor)),
+            305u16 =>
             {
                 let (r#name, cursor) = InternedString ::
                 decode_impl(buffer, cursor) ? ; let (r#kind, cursor) =
@@ -1030,7 +1042,8 @@
                 Ok((ErrorKind :: CannotSpecializePolyGeneric
                 { r#num_candidates, }, cursor))
             }, 450u16 => Ok((ErrorKind :: ImpureCallInPureContext, cursor)),
-            455u16 => Ok((ErrorKind :: NonExhaustiveArms, cursor)), 460u16 =>
+            455u16 => Ok((ErrorKind :: NonExhaustiveArms, cursor)), 456u16 =>
+            Ok((ErrorKind :: RefutableLetPattern, cursor)), 460u16 =>
             {
                 let (r#module, cursor) = ModulePath ::
                 decode_impl(buffer, cursor) ? ; let (r#found_files, cursor) =

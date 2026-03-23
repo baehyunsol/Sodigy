@@ -15,6 +15,7 @@ pub struct Match {
     pub arms: Vec<MatchArm>,
     pub group_span: Span,
     pub lowered_from_if: bool,
+    pub lowered_from_let: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -68,6 +69,7 @@ impl Match {
                 arms,
                 group_span: hir_match.group_span,
                 lowered_from_if: false,
+                lowered_from_let: hir_match.lowered_from_let,
             })
         }
     }

@@ -106,6 +106,7 @@ error_kinds!(
     (CannotAnnotateType,                                             290,    Error),
     (RedundantNameBinding(InternedString, InternedString),           295,    Error),
     (UnsupportedInfixOpInPattern(InfixOp),                           300,    Error),
+    (PatternDestructureWithoutNameBindings,                          301,    Error),
 
     // TODO: more context!
     (NameCollision { name: InternedString, kind: NameCollisionKind },   305,    Error),
@@ -171,6 +172,7 @@ error_kinds!(
 
     // TODO: tell what's missing
     (NonExhaustiveArms,                                                  455,    Error),
+    (RefutableLetPattern,                                                456,    Error),
 
     (MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },    460,    Error),
     (ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },      465,    Error),

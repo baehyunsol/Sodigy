@@ -598,6 +598,7 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
         },
         Expr::FieldUpdate { lhs, .. } => type_of(lhs, global_context),
         Expr::Call { func, args, .. } => match func {
+            // TODO: What if it's generic?
             Callable::Static { def_span, .. } => match global_context.get_type(*def_span) {
                 Some(Type::Func { r#return, .. }) => Some(*r#return.clone()),
                 _ => None,
@@ -623,7 +624,7 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
                     group_span: Some(Span::None),
                 })
             },
-            _ => todo!(),
+            _ => panic!("TODO: {func:?}"),
         },
     }
 }

@@ -142,31 +142,31 @@ impl Endec for SpanDeriveKind {
             SpanDeriveKind::IfLet => {
                 buffer.push(5);
             },
-            SpanDeriveKind::FuncDefaultValue => {
+            SpanDeriveKind::LetPattern(id) => {
                 buffer.push(6);
+                id.encode_impl(buffer);
+            },
+            SpanDeriveKind::FuncDefaultValue => {
+                buffer.push(7);
             },
             SpanDeriveKind::MatchScrutinee(id) => {
-                buffer.push(7);
+                buffer.push(8);
                 id.encode_impl(buffer);
             },
             SpanDeriveKind::ConcatPatternRest => {
-                buffer.push(8);
-            },
-            SpanDeriveKind::ConcatPatternList => {
                 buffer.push(9);
             },
-            SpanDeriveKind::FStringToString => {
+            SpanDeriveKind::ConcatPatternList => {
                 buffer.push(10);
             },
-            SpanDeriveKind::FStringConcat => {
+            SpanDeriveKind::FStringToString => {
                 buffer.push(11);
             },
-            SpanDeriveKind::ConvertError => {
+            SpanDeriveKind::FStringConcat => {
                 buffer.push(12);
             },
-            SpanDeriveKind::Monomorphize(id) => {
+            SpanDeriveKind::ConvertError => {
                 buffer.push(13);
-                id.encode_impl(buffer);
             },
         }
     }
@@ -179,20 +179,20 @@ impl Endec for SpanDeriveKind {
             Some(3) => Ok((SpanDeriveKind::ExprInPattern, cursor + 1)),
             Some(4) => Ok((SpanDeriveKind::Lambda, cursor + 1)),
             Some(5) => Ok((SpanDeriveKind::IfLet, cursor + 1)),
-            Some(6) => Ok((SpanDeriveKind::FuncDefaultValue, cursor + 1)),
-            Some(7) => {
+            Some(6) => {
+                let (id, cursor) = u32::decode_impl(buffer, cursor + 1)?;
+                Ok((SpanDeriveKind::LetPattern(id), cursor))
+            },
+            Some(7) => Ok((SpanDeriveKind::FuncDefaultValue, cursor + 1)),
+            Some(8) => {
                 let (id, cursor) = u32::decode_impl(buffer, cursor + 1)?;
                 Ok((SpanDeriveKind::MatchScrutinee(id), cursor))
             },
-            Some(8) => Ok((SpanDeriveKind::ConcatPatternRest, cursor + 1)),
-            Some(9) => Ok((SpanDeriveKind::ConcatPatternList, cursor + 1)),
-            Some(10) => Ok((SpanDeriveKind::FStringToString, cursor + 1)),
-            Some(11) => Ok((SpanDeriveKind::FStringConcat, cursor + 1)),
-            Some(12) => Ok((SpanDeriveKind::ConvertError, cursor + 1)),
-            Some(13) => {
-                let (id, cursor) = u128::decode_impl(buffer, cursor + 1)?;
-                Ok((SpanDeriveKind::Monomorphize(id), cursor))
-            },
+            Some(9) => Ok((SpanDeriveKind::ConcatPatternRest, cursor + 1)),
+            Some(10) => Ok((SpanDeriveKind::ConcatPatternList, cursor + 1)),
+            Some(11) => Ok((SpanDeriveKind::FStringToString, cursor + 1)),
+            Some(12) => Ok((SpanDeriveKind::FStringConcat, cursor + 1)),
+            Some(13) => Ok((SpanDeriveKind::ConvertError, cursor + 1)),
             Some(n @ 14..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }

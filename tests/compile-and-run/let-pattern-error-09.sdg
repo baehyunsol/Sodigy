@@ -1,0 +1,4 @@
+//% compile-error == 1
+
+fn foo<T>() -> T = std.panic();
+let ($x, $y): (Int, Int, Int) = foo();

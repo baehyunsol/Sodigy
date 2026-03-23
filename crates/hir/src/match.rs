@@ -13,6 +13,7 @@ pub struct Match {
     pub scrutinee: Box<Expr>,
     pub arms: Vec<MatchArm>,
     pub group_span: Span,
+    pub lowered_from_let: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -94,6 +95,7 @@ impl Match {
                 scrutinee: Box::new(scrutinee.unwrap()),
                 arms,
                 group_span: ast_match.group_span,
+                lowered_from_let: ast_match.lowered_from_let,
             })
         }
     }

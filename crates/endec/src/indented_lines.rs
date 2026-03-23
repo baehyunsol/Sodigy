@@ -35,7 +35,7 @@ impl IndentedLines {
     }
 
     pub fn dump(&self) -> String {
-        let mut lines = self.lines.iter().map(
+        let lines = self.lines.iter().map(
             |(line, indent)| format!("{}{line}", "    ".repeat(*indent))
         ).collect::<Vec<_>>();
         lines.join("\n")

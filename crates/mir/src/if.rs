@@ -54,6 +54,7 @@ pub fn lower_hir_if(hir_if: &hir::If, session: &mut Session) -> Result<Expr, ()>
             ],
             group_span: Span::None,
             lowered_from_if: true,
+            lowered_from_let: false,
         }))
     }
 

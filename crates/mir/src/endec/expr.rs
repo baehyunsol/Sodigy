@@ -181,6 +181,7 @@ impl Endec for Match {
         self.arms.encode_impl(buffer);
         self.group_span.encode_impl(buffer);
         self.lowered_from_if.encode_impl(buffer);
+        self.lowered_from_let.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
@@ -189,6 +190,7 @@ impl Endec for Match {
         let (arms, cursor) = Vec::<MatchArm>::decode_impl(buffer, cursor)?;
         let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (lowered_from_if, cursor) = bool::decode_impl(buffer, cursor)?;
+        let (lowered_from_let, cursor) = bool::decode_impl(buffer, cursor)?;
 
         Ok((
             Match {
@@ -197,6 +199,7 @@ impl Endec for Match {
                 arms,
                 group_span,
                 lowered_from_if,
+                lowered_from_let,
             },
             cursor,
         ))

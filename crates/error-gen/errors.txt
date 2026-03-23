@@ -68,6 +68,7 @@ CannotApplyInfixOpToBinding/285/Error
 CannotAnnotateType/290/Error
 RedundantNameBinding/295/Error
 UnsupportedInfixOpInPattern/300/Error
+PatternDestructureWithoutNameBindings/301/Error
 NameCollision/305/Error
 CyclicLet/310/Error
 CyclicAlias/315/Error
@@ -108,6 +109,7 @@ CannotApplyInfixOp/440/Error
 CannotSpecializePolyGeneric/445/Error
 ImpureCallInPureContext/450/Error
 NonExhaustiveArms/455/Error
+RefutableLetPattern/456/Error
 MultipleModuleFiles/460/Error
 ModuleFileNotFound/465/Error
 LibFileNotFound/470/Error

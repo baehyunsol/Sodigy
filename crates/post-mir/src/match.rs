@@ -249,6 +249,7 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
         &borrowed_arms,
         match_expr.keyword_span,
         extra_arm_id,
+        match_expr.lowered_from_let,
         session,
     )?;
 
@@ -584,6 +585,7 @@ fn check_unreachable_and_exhaustiveness(
     arms: &[(usize, &MatchArm)],
     keyword_span: Span,
     extra_arm_id: usize,
+    is_from_let_pattern: bool,
     session: &mut Session,
 ) -> Result<(), ()> {
     let mut hidden_by = HashMap::new();
@@ -628,11 +630,23 @@ fn check_unreachable_and_exhaustiveness(
 
     // TODO: we can calculate the set of unreachable values
     if reachable_arms.contains(&extra_arm_id) {
-        session.errors.push(Error {
-            kind: ErrorKind::NonExhaustiveArms,
-            spans: keyword_span.simple_error(),
-            note: None,
-        });
+        if is_from_let_pattern {
+            session.errors.push(Error {
+                kind: ErrorKind::RefutableLetPattern,
+                // TODO: it makes more sense to underline the pattern
+                spans: keyword_span.simple_error(),
+                note: None,
+            });
+        }
+
+        else {
+            session.errors.push(Error {
+                kind: ErrorKind::NonExhaustiveArms,
+                spans: keyword_span.simple_error(),
+                note: None,
+            });
+        }
+
         Err(())
     }
 
