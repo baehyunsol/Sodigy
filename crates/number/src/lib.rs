@@ -197,30 +197,34 @@ pub fn intern_number_raw(
                 0 => BigInt::zero(),
                 _ => BigInt::parse_positive_decimal(frac).unwrap(),
             };
-            let mut frac_denom = {
-                let fds = format!("1{}", "0".repeat(frac.len()));
-                BigInt::parse_positive_decimal(fds.as_bytes()).unwrap()
-            };
+            let mut frac_denom = powi_ubi(&[10], frac.len() as u32);
 
-            let r = gcd_ubi(&frac_numer.nums, &frac_denom.nums);
+            let r = gcd_ubi(&frac_numer.nums, &frac_denom);
             frac_numer.nums = div_ubi(&frac_numer.nums, &r);
-            frac_denom.nums = div_ubi(&frac_denom.nums, &r);
+            frac_denom = div_ubi(&frac_denom, &r);
 
-            match exp {
-                ..0 => {
-                    let power = todo!();  // 10^(-exp)
-                    frac_denom.nums = mul_ubi(&frac_denom.nums, power);
+            let (mut numer, mut denom) = match exp {
+                ..0 => match u32::try_from(-exp) {
+                    Ok(exp) => {
+                        let power = powi_ubi(&[10], exp);
+                        let numer = add_ubi(&mul_ubi(&integer.nums, &frac_denom), &frac_numer.nums);
+                        let denom = mul_ubi(&frac_denom, &power);
+                        (numer, denom)
+                    },
+                    Err(_) => todo!(),
                 },
-                0 => {},
-                1.. => {
-                    let power = todo!();  // 10^exp
-                    integer.nums = mul_ubi(&integer.nums, power);
-                    frac_numer.nums = mul_ubi(&frac_numer.nums, power);
+                _ => match u32::try_from(exp) {
+                    Ok(exp) => {
+                        let power = powi_ubi(&[10], exp);
+                        integer.nums = mul_ubi(&integer.nums, &power);
+                        frac_numer.nums = mul_ubi(&frac_numer.nums, &power);
+                        let numer = add_ubi(&mul_ubi(&integer.nums, &frac_denom), &frac_numer.nums);
+                        let denom = frac_denom;
+                        (numer, denom)
+                    },
+                    Err(_) => todo!(),
                 },
-            }
-
-            let mut numer = add_ubi(&mul_ubi(&integer.nums, &frac_denom.nums), &frac_numer.nums);
-            let mut denom = frac_denom.nums;
+            };
 
             let r = gcd_ubi(&numer, &denom);
             numer = div_ubi(&numer, &r);
@@ -286,7 +290,7 @@ impl PartialOrd for InternedNumberValue {
             (
                 InternedNumberValue::SmallRatio { numer: numer_a, denom: denom_a },
                 InternedNumberValue::SmallRatio { numer: numer_b, denom: denom_b },
-            ) => (*numer_a as i128 * *denom_b as i128).partial_cmp(&(*numer_b as i128 * *denom_b as i128)),
+            ) => (*numer_a as i128 * *denom_b as i128).partial_cmp(&(*numer_b as i128 * *denom_a as i128)),
             (InternedNumberValue::BigInt(a), InternedNumberValue::BigInt(b)) => Some(cmp_bi(a.is_neg, &a.nums, b.is_neg, &b.nums)),
             (InternedNumberValue::BigRatio(a), InternedNumberValue::BigRatio(b)) => Some(cmp_ratio(a, b)),
             (a, b) => Some(cmp_ratio(&unintern_number(a.clone()), &unintern_number(b.clone()))),

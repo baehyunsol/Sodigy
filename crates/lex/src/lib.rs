@@ -167,6 +167,7 @@ impl Session {
                     };
 
                     self.buffer1.clear();
+                    self.buffer2.clear();
                     self.token_start = self.cursor;
                     self.state = LexState::Integer(base);
                     self.cursor += 2;
@@ -184,8 +185,8 @@ impl Session {
                 },
                 (Some(b'0'), Some(b'.'), _) => {
                     self.buffer1.clear();
-                    self.buffer1.push(b'0');
                     self.buffer2.clear();
+                    self.buffer1.push(b'0');
                     self.token_start = self.cursor;
                     self.state = LexState::Fraction;
                     self.cursor += 2;
@@ -214,6 +215,7 @@ impl Session {
                 },
                 (Some(x @ (b'1'..=b'9')), _, _) => {
                     self.buffer1.clear();
+                    self.buffer2.clear();
                     self.buffer1.push(*x);
 
                     self.token_start = self.cursor;

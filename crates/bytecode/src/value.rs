@@ -72,10 +72,29 @@ impl From<&InternedNumber> for Value {
                 Value::Int(BigInt { is_neg, nums })
             },
             InternedNumber {
+                value: InternedNumberValue::SmallInt(n),
+                is_integer: false,
+            } => {
+                Value::Compound(vec![
+                    // TODO: we have to make sure that always `numer` comes before `denom`, everywhere.
+                    Value::Int(BigInt::from(*n as i64)),
+                    Value::Int(BigInt::from(1i64)),
+                ])
+            },
+            InternedNumber {
+                value: n @ InternedNumberValue::SmallRatio { numer, denom },
+                is_integer: false,
+            } => {
+                Value::Compound(vec![
+                    Value::Int(BigInt::from(*numer as i64)),
+                    Value::Int(BigInt::from(*denom as i64)),
+                ])
+            },
+            InternedNumber {
                 value: InternedNumberValue::BigInt(n),
                 is_integer: true,
             } => Value::Int(n.clone()),
-            _ => todo!(),
+            _ => panic!("TODO: {n:?}"),
         }
     }
 }
