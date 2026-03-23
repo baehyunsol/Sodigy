@@ -6,6 +6,9 @@ mod endec;
 mod error;
 mod ratio;
 
+#[cfg(test)]
+mod tests;
+
 pub use base::Base;
 pub use big_int::{
     BigInt,

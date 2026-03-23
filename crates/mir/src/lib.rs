@@ -18,6 +18,9 @@ mod session;
 mod r#struct;
 mod r#type;
 
+#[cfg(test)]
+mod tests;
+
 pub use assert::Assert;
 pub use block::Block;
 pub use dump::{dump_expr, render_type, span_to_string, span_to_string_or_verbose};

@@ -36,6 +36,9 @@ mod r#struct;
 mod r#type;
 mod r#use;
 
+#[cfg(test)]
+mod tests;
+
 // Func vs FuncShape
 // Enum vs EnumShape
 // Struct vs StructShape

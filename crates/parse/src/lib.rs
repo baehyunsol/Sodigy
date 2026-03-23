@@ -23,6 +23,9 @@ mod tokens;
 mod r#type;
 mod r#use;
 
+#[cfg(test)]
+mod tests;
+
 pub use alias::Alias;
 pub use assert::Assert;
 pub use attribute::{

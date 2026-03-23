@@ -15,6 +15,9 @@ pub use keyword::Keyword;
 pub use op::{InfixOp, PostfixOp, PrefixOp};
 pub use punct::Punct;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Clone, Debug)]
 pub struct Token {
     pub kind: TokenKind,

@@ -11,6 +11,9 @@ mod link;
 mod session;
 mod value;
 
+#[cfg(test)]
+mod tests;
+
 pub use assert::Assert;
 pub use executable::Executable;
 pub(crate) use expr::lower_expr;

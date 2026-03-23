@@ -6,6 +6,9 @@ mod derive;
 mod endec;
 mod render;
 
+#[cfg(test)]
+mod tests;
+
 pub use derive::SpanDeriveKind;
 pub use render::{
     Color,

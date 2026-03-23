@@ -8,6 +8,9 @@ mod lint;
 mod token;
 mod warning;
 
+#[cfg(test)]
+mod tests;
+
 pub use dump::{DumpErrorOption, dump_errors};
 pub use kind::{ErrorKind, NameCollisionKind, NotXBut};
 pub use lint::{Lint, LintKind};

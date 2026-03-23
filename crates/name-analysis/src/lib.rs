@@ -4,6 +4,9 @@ use std::collections::HashMap;
 
 mod endec;
 
+#[cfg(test)]
+mod tests;
+
 pub enum Namespace {
     ForeignNameCollector {
         is_func: bool,
