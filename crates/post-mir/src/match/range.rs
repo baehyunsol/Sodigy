@@ -548,7 +548,7 @@ mod tests {
         get_left_and_right,
         split_to_non_overlapping_ranges,
     };
-    use sodigy_number::{InternedNumber, InternedNumberValue};
+    use sodigy_number::InternedNumber;
 
     // for tests
     impl Merge for i32 {
@@ -564,9 +564,9 @@ mod tests {
     fn into_range((lhs, lhs_inclusive, rhs, rhs_inclusive): (Option<i32>, bool, Option<i32>, bool)) -> Range {
         Range {
             r#type: LiteralType::Int,
-            lhs: lhs.map(|n| InternedNumber { value: InternedNumberValue::SmallInt(n as i64), is_integer: true }),
+            lhs: lhs.map(|n| InternedNumber::from_i32(n, true)),
             lhs_inclusive,
-            rhs: rhs.map(|n| InternedNumber { value: InternedNumberValue::SmallInt(n as i64), is_integer: true }),
+            rhs: rhs.map(|n| InternedNumber::from_i32(n, true)),
             rhs_inclusive,
         }
     }
@@ -646,7 +646,7 @@ mod tests {
             let left_answer = left.map(|range| into_range(range));
             let right_answer = right.map(|range| into_range(range));
 
-            let (left, right) = get_left_and_right(&super_range, &sub_range);
+            let (left, right) = get_left_and_right(&super_range, &sub_range, "");
 
             assert_eq!(left, left_answer);
             assert_eq!(right, right_answer);
@@ -746,7 +746,7 @@ mod tests {
             let b_right_answer = b_right.map(|range| into_range(range));
             let overlap_answer = overlap.map(|range| into_range(range));
 
-            let result = split_to_non_overlapping_ranges(&(a_range, a_val), &(b_range, b_val));
+            let result = split_to_non_overlapping_ranges(&(a_range, a_val), &(b_range, b_val), "");
 
             if let Some((a_left, a_val_v)) = &result.a_left {
                 assert_eq!(*a_val_v, a_val);

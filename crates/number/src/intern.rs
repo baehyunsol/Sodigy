@@ -83,6 +83,12 @@ impl InternedNumber {
         InternedNumber(((is_integer as u128) << 125) | n as u128)
     }
 
+    pub fn from_i32(n: i32, is_integer: bool) -> Self {
+        let mut n = n as i128;
+        let n = n as u128 & SMALL_INT_PAYLOAD_MASK;
+        InternedNumber(((is_integer as u128) << 125) | n)
+    }
+
     #[must_use = "method returns a new number and does not mutate the original value"]
     pub fn negate(&self) -> Self {
         let is_integer = self.is_integer();
@@ -122,7 +128,7 @@ impl InternedNumber {
             0 => {
                 let n = interpret_small_int(self.0);
 
-                match -n {
+                match n + 1 {
                     n @ -21267647932558653966460912964485513216..=21267647932558653966460912964485513215 => InternedNumber(
                         ((is_integer as u128) << 125) | (n as u128) & SMALL_INT_PAYLOAD_MASK,
                     ),
