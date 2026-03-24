@@ -317,15 +317,15 @@ fn interpret_small_ratio(n: u128) -> (i64, u64) {
 }
 
 // It doesn't need intermediate_dir because `u8` fits in the small_int range!
-macro_rules! uint_try_from_interned_number {
-    ($ty:ty, $max:literal) => {
+macro_rules! try_from_interned_number {
+    ($ty:ty, $min:literal, $max:literal) => {
         impl TryFrom<InternedNumber> for $ty {
             type Error = ();
-        
+
             fn try_from(n: InternedNumber) -> Result<$ty, ()> {
                 match n.0 >> 126 {
                     0 => match interpret_small_int(n.0) {
-                        n @ 0..=$max => Ok(n as $ty),
+                        n @ $min..=$max => Ok(n as $ty),
                         _ => Err(()),
                     },
                     _ => Err(()),
@@ -335,7 +335,12 @@ macro_rules! uint_try_from_interned_number {
     };
 }
 
-uint_try_from_interned_number!(u8, 255);
-uint_try_from_interned_number!(u16, 65535);
-uint_try_from_interned_number!(u32, 4294967295);
-uint_try_from_interned_number!(u64, 18446744073709551615);
+try_from_interned_number!(u8, 0, 255);
+try_from_interned_number!(u16, 0, 65535);
+try_from_interned_number!(u32, 0, 4294967295);
+try_from_interned_number!(u64, 0, 18446744073709551615);
+
+try_from_interned_number!(i8, -128, 127);
+try_from_interned_number!(i16, -32768, 32767);
+try_from_interned_number!(i32, -2147483648, 2147483647);
+try_from_interned_number!(i64, -9223372036854775808, 9223372036854775807);

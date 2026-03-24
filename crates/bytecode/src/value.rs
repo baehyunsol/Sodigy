@@ -29,7 +29,7 @@ pub enum Value {
 impl Session<'_, '_> {
     pub fn lower_constant(&self, constant: &Constant) -> Value {
         match constant {
-            Constant::Number { n, .. } => n.into(),
+            Constant::Number { n, .. } => (*n).into(),
             Constant::String { s, binary, .. } => self.string_to_value(*s, *binary),
             Constant::Char { ch, .. } => Value::Scalar(*ch),
             Constant::Byte { b, .. } => Value::Scalar(*b as u32),
@@ -55,9 +55,31 @@ impl Session<'_, '_> {
     }
 }
 
-impl From<&InternedNumber> for Value {
-    fn from(n: &InternedNumber) -> Value {
-        todo!()
+impl From<InternedNumber> for Value {
+    fn from(n: InternedNumber) -> Value {
+        match n.0 >> 126 {
+            0 => match i64::try_from(n) {
+                Ok(n64) => {
+                    if n.is_integer() {
+                        let is_neg = n64 < 0;
+                        let abs = n64.abs() as u64;
+                        let nums = match abs {
+                            0..=0xffff_ffff => vec![abs as u32],
+                            _ => vec![(abs & 0xffff_ffff) as u32, (abs >> 32) as u32],
+                        };
+                        Value::Int(BigInt { is_neg, nums })
+                    } else {
+                        Value::Compound(vec![
+                            // TODO: we have to make sure that always `numer` comes before `denom`, everywhere.
+                            Value::Int(BigInt::from(n64)),
+                            Value::Int(BigInt::from(1i64)),
+                        ])
+                    }
+                },
+                Err(()) => todo!(),
+            },
+            _ => todo!(),
+        }
     //     match n {
     //         InternedNumber {
     //             value: InternedNumberValue::SmallInt(n),
