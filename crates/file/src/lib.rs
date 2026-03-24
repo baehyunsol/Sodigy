@@ -27,22 +27,13 @@ use file_map::{
     search_file_map_by_module_path,
 };
 
-// It represents a file in a project.
+// The most significant bit tells whether it's std or not (1 if std).
+// The other 31 bit is the id of the file.
 //
 // Its `Ord` is for deterministic output of the error messages (it sorts the errors by file).
 // It doesn't sort the files by name.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum File {
-    File {
-        // If it's compiling multiple projects, the compiler gives sequential numbers.
-        // The top-level project is always 0.
-        project: u32,
-
-        // If there are multiple files in the project, the compiler gives sequential numbers.
-        file: u32,
-    },
-    Std(u64),
-}
+pub struct File(pub u32);
 
 impl File {
     pub fn clear_cache(project_id: u32, intermediate_dir: &str) -> Result<(), FileError> {
@@ -202,42 +193,46 @@ impl File {
     }
 
     pub fn get_content_hash(&self, intermediate_dir: &str) -> Result<u128, FileError> {
-        match self {
-            File::File { project: project_id, file: file_id } => {
-                let lock_file_path = join(
-                    intermediate_dir,
-                    &format!("file_map_{project_id}_lock"),
-                )?;
-                let lock_file = StdFile::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
-                lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
+        let is_std = self.0 >= 0x8000_0000;
+        let id = self.0 & 0x7fff_ffff;
 
-                let file_map_path = join(
-                    intermediate_dir,
-                    &format!("files_{project_id}"),
-                )?;
-                let file_map = read_bytes(&file_map_path)?;
+        if is_std {
+            Ok(STD_FILES[id as usize].3)
+        } else {
+            let lock_file_path = join(
+                intermediate_dir,
+                &format!("file_map_{project_id}_lock"),
+            )?;
+            let lock_file = StdFile::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
+            lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
 
-                lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
+            let file_map_path = join(
+                intermediate_dir,
+                &format!("files_{project_id}"),
+            )?;
+            let file_map = read_bytes(&file_map_path)?;
 
-                match search_file_map_by_id(&file_map, *file_id, &file_map_path)? {
-                    Some((_, _, content_hash)) => Ok(content_hash),
+            lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
 
-                    // error? panic? unreachable?
-                    None => todo!(),
-                }
-            },
-            File::Std(id) => Ok(STD_FILES[*id as usize].3),
+            match search_file_map_by_id(&file_map, *file_id, &file_map_path)? {
+                Some((_, _, content_hash)) => Ok(content_hash),
+
+                // error? panic? unreachable?
+                None => todo!(),
+            }
         }
     }
 
     // This is very very expensive.
     pub fn read_bytes(&self, intermediate_dir: &str) -> Result<Option<Vec<u8>>, FileError> {
-        match self {
-            File::File { .. } => {
-                let content_hash = self.get_content_hash(intermediate_dir)?;
-                Ok(unintern_string(InternedString(content_hash), intermediate_dir)?)
-            },
-            File::Std(id) => Ok(Some(STD_FILES[*id as usize].2.to_vec())),
+        let is_std = self.0 >= 0x8000_0000;
+        let id = self.0 & 0x7fff_ffff;
+
+        if is_std {
+            Ok(Some(STD_FILES[id as usize].2.to_vec()))
+        } else {
+            let content_hash = self.get_content_hash(intermediate_dir)?;
+            Ok(unintern_string(InternedString(content_hash), intermediate_dir)?)
         }
     }
 }

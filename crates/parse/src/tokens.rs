@@ -8,7 +8,7 @@ pub struct Tokens<'t, 's> {
     pub(crate) cursor: usize,
 
     // It's used by `Tokens::unexpected_end`.
-    // It can be Span::Eof or the span of the closing delimitor of the group.
+    // It's the span of the closing delimitor of the group.
     pub(crate) span_end: Span,
 
     // In `sodigy_parse`, `Tokens` act like a session.

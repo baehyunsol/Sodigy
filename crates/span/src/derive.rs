@@ -73,51 +73,22 @@ impl Span {
     #[must_use = "method returns a new span and does not mutate the original span"]
     pub fn derive(&self, kind: SpanDeriveKind) -> Span {
         match self {
-            Span::None => Span::None,
-            Span::Range { file, start, end } => Span::Derived {
-                monomorphize_id: None,
+            _ if self.is_dummy() => Span::dummy(),
+            span => Span::Derived {
                 kind,
-                file: *file,
-                start: *start,
-                end: *end,
+                span: Box::new(span),
             },
-            // TODO: If it derives a derived-span, the previous information is gone!
-            //       But it would be toooo tricky to track the history of derivations...
-            Span::Derived { monomorphize_id, file, start, end, .. } => Span::Derived {
-                monomorphize_id: *monomorphize_id,
-                kind,
-                file: *file,
-                start: *start,
-                end: *end,
-            },
-            _ => panic!("TODO: {self:?}, {kind:?}"),
         }
     }
 
     #[must_use = "method returns a new span and does not mutate the original span"]
     pub fn monomorphize(&self, id: u128) -> Span {
         match self {
-            Span::Range { file, start, end } => Span::Derived {
-                monomorphize_id: Some(id),
-                kind: SpanDeriveKind::Trivial,
-                file: *file,
-                start: *start,
-                end: *end,
+            _ if self.is_dummy() => Span::dummy(),
+            span => Span::Monomorphize {
+                id,
+                span: Box::new(span),
             },
-            Span::Derived { kind, file, start, end, .. } => Span::Derived {
-                monomorphize_id: Some(id),
-                kind: *kind,
-                file: *file,
-                start: *start,
-                end: *end,
-            },
-            Span::Poly { name, kind, .. } => Span::Poly {
-                name: *name,
-                kind: *kind,
-                monomorphize_id: Some(id),
-            },
-            Span::None => Span::None,
-            _ => panic!("TODO: {self:?}"),
         }
     }
 }

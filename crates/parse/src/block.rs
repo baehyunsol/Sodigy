@@ -304,7 +304,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 (Some(t), _) => {
                     let initial_token = t.clone();
 
-                    if let Err(e) = attribute_not_allowed(&attribute, self.peek().map(|token| token.span.begin()), true) {
+                    if let Err(e) = attribute_not_allowed(&attribute, self.peek().map(|token| token.span.start()), true) {
                         errors.extend(e);
                     }
 

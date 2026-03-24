@@ -54,13 +54,18 @@ pub(crate) use tokens::Tokens;
 pub use r#type::{Generic, Type};
 pub use r#use::Use;
 
-pub fn parse(lex_session: LexSession) -> Session {
+pub fn parse(
+    lex_session: LexSession,
+
+    // Span of the entire file.
+    file_span: Span,
+) -> Session {
     let mut session = Session::from_lex_session(&lex_session);
     let last_span = lex_session.tokens.last().map(|t| t.span.end()).unwrap_or(Span::None);
     let mut tokens = Tokens::new(&lex_session.tokens, last_span, &lex_session.intermediate_dir);
     let ast = match tokens.parse_block(
         true, // top-level
-        Span::file(session.file),
+        file_span,
     ) {
         Ok(ast) => ast,
         Err(errors) => {

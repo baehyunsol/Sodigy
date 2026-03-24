@@ -297,7 +297,7 @@ impl Expr {
                 value,
                 ..
             }) => {
-                let span = param_group_span.begin().derive(SpanDeriveKind::Lambda);
+                let span = param_group_span.start().derive(SpanDeriveKind::Lambda);
                 let name = name_lambda_function(span, &session.intermediate_dir);
 
                 let func = ast::Func {
