@@ -3,7 +3,28 @@ use crate::{div_ubi, gt_ubi, rem_ubi};
 
 impl From<i128> for BigInt {
     fn from(n: i128) -> BigInt {
-        todo!()
+        match n {
+            -4294967295..=4294967295 => BigInt {
+                is_neg: n < 0,
+                nums: vec![n.abs() as u32],
+            },
+            -18446744073709551615..=18446744073709551615 => BigInt {
+                is_neg: n < 0,
+                nums: vec![
+                    (n.abs() as u64 & 0xffff_ffff) as u32,
+                    ((n.abs() as u64) >> 32) as u32,
+                ],
+            },
+            -79228162514264337593543950335..=79228162514264337593543950335 => BigInt {
+                is_neg: n < 0,
+                nums: vec![
+                    (n.abs() as u128 & 0xffff_ffff) as u32,
+                    (((n.abs() as u128) >> 32) & 0xffff_ffff) as u32,
+                    ((n.abs() as u128) >> 64) as u32,
+                ],
+            },
+            _ => todo!(),
+        }
     }
 }
 
@@ -32,7 +53,18 @@ impl TryFrom<&BigInt> for i128 {
     type Error = ();
 
     fn try_from(n: &BigInt) -> Result<i128, ()> {
-        todo!()
+        match &n.nums[..] {
+            [a] => {
+                Ok(*a as i128 * (!n.is_neg as i128 * 2 - 1))
+            },
+            [a, b] => {
+                Ok((*a as u64 + ((*b as u64) << 32)) as i128 * (!n.is_neg as i128 * 2 - 1))
+            },
+            [a, b, c] => {
+                Ok((*a as u128 + ((*b as u128) << 32) + ((*c as u128) << 64)) as i128 * (!n.is_neg as i128 * 2 - 1))
+            },
+            _ => todo!(),
+        }
     }
 }
 

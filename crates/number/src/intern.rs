@@ -12,6 +12,7 @@ use crate::{
     rem_ubi,
     ubi_to_string,
 };
+use std::cmp::Ordering;
 
 // First 2 bits: type
 //   - 00: SmallInt
@@ -127,6 +128,17 @@ impl InternedNumber {
                     ),
                     _ => todo!(),
                 }
+            },
+            _ => todo!(),
+        }
+    }
+
+    pub fn cmp(self, other: InternedNumber, intermediate_dir: &str) -> Ordering {
+        match (self.0 >> 126, other.0 >> 126) {
+            (0, 0) => {
+                let lhs = interpret_small_int(self.0);
+                let rhs = interpret_small_int(other.0);
+                lhs.cmp(&rhs)
             },
             _ => todo!(),
         }
@@ -305,19 +317,25 @@ fn interpret_small_ratio(n: u128) -> (i64, u64) {
 }
 
 // It doesn't need intermediate_dir because `u8` fits in the small_int range!
-impl TryFrom<InternedNumber> for u8 {
-    type Error = ();
-
-    fn try_from(n: InternedNumber) -> Result<u8, ()> {
-        todo!()
-    }
+macro_rules! uint_try_from_interned_number {
+    ($ty:ty, $max:literal) => {
+        impl TryFrom<InternedNumber> for $ty {
+            type Error = ();
+        
+            fn try_from(n: InternedNumber) -> Result<$ty, ()> {
+                match n.0 >> 126 {
+                    0 => match interpret_small_int(n.0) {
+                        n @ 0..=$max => Ok(n as $ty),
+                        _ => Err(()),
+                    },
+                    _ => Err(()),
+                }
+            }
+        }
+    };
 }
 
-// It doesn't need intermediate_dir because `u32` fits in the small_int range!
-impl TryFrom<InternedNumber> for u32 {
-    type Error = ();
-
-    fn try_from(n: InternedNumber) -> Result<u32, ()> {
-        todo!()
-    }
-}
+uint_try_from_interned_number!(u8, 255);
+uint_try_from_interned_number!(u16, 65535);
+uint_try_from_interned_number!(u32, 4294967295);
+uint_try_from_interned_number!(u64, 18446744073709551615);

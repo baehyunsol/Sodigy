@@ -40,8 +40,9 @@ pub struct Range {
 
 impl fmt::Display for Range {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let lhs = render_literal(self.r#type, &self.lhs, true);
-        let rhs = render_literal(self.r#type, &self.rhs, false);
+        // TODO: How can I pass intermediate_dir to these?
+        let lhs = render_literal(self.r#type, &self.lhs, true, "" /* intermediate_dir */);
+        let rhs = render_literal(self.r#type, &self.rhs, false, "" /* intermediate_dir */);
         write!(
             fmt,
             "{}{lhs},{rhs}{}",
@@ -106,16 +107,16 @@ fn render_literal(r#type: LiteralType, value: &Option<InternedNumber>, is_lhs: b
 //     (5..10, [arm-3, arm-5]),
 //     (10..,  [arm-4, arm-5]),
 // ]
-pub fn remove_overlaps<T: Clone + Merge>(mut branches: Vec<(Range, T)>) -> Vec<(Range, T)> {
+pub fn remove_overlaps<T: Clone + Merge>(mut branches: Vec<(Range, T)>, intermediate_dir: &str) -> Vec<(Range, T)> {
     loop {
         let mut result = Vec::with_capacity(branches.len());
         let mut has_overlap = false;
         branches.sort_by(
-            |(range1, _), (range2, _)| match (&range1.lhs, &range2.lhs) {
+            |(range1, _), (range2, _)| match (range1.lhs, range2.lhs) {
                 (None, None) => Ordering::Equal,
                 (None, Some(_)) => Ordering::Less,
                 (Some(_), None) => Ordering::Greater,
-                (Some(a), Some(b)) => match a.cmp(b) {
+                (Some(a), Some(b)) => match a.cmp(b, intermediate_dir) {
                     c @ (Ordering::Less | Ordering::Greater) => c,
                     Ordering::Equal => match (range1.lhs_inclusive, range2.lhs_inclusive) {
                         (true, true) | (false, false) => Ordering::Equal,
@@ -138,7 +139,7 @@ pub fn remove_overlaps<T: Clone + Merge>(mut branches: Vec<(Range, T)>) -> Vec<(
                 _ => break,
             };
 
-            let splits = split_to_non_overlapping_ranges(a, b);
+            let splits = split_to_non_overlapping_ranges(a, b, intermediate_dir);
 
             if splits.overlap.is_none() {
                 result.push(a.clone());
@@ -208,50 +209,54 @@ struct Splits<T> {
     b_right: Option<(Range, T)>,
 }
 
-fn split_to_non_overlapping_ranges<T: Clone + Merge>((a_range, a_val): &(Range, T), (b_range, b_val): &(Range, T)) -> Splits<T> {
+fn split_to_non_overlapping_ranges<T: Clone + Merge>(
+    (a_range, a_val): &(Range, T),
+    (b_range, b_val): &(Range, T),
+    intermediate_dir: &str,
+) -> Splits<T> {
     // max(a.lhs, b.lhs) is lhs of intersection
-    let (lhs, lhs_inclusive) = match (&a_range.lhs, &b_range.lhs) {
+    let (lhs, lhs_inclusive) = match (a_range.lhs, b_range.lhs) {
         // if lhs is None, that's -inf
-        (None, _) => (b_range.lhs.clone(), b_range.lhs_inclusive),
-        (_, None) => (a_range.lhs.clone(), a_range.lhs_inclusive),
-        (Some(a_lhs), Some(b_lhs)) => match a_lhs.cmp(b_lhs) {
-            Ordering::Greater => (a_range.lhs.clone(), a_range.lhs_inclusive),
-            Ordering::Less => (b_range.lhs.clone(), b_range.lhs_inclusive),
+        (None, _) => (b_range.lhs, b_range.lhs_inclusive),
+        (_, None) => (a_range.lhs, a_range.lhs_inclusive),
+        (Some(a_lhs), Some(b_lhs)) => match a_lhs.cmp(b_lhs, intermediate_dir) {
+            Ordering::Greater => (a_range.lhs, a_range.lhs_inclusive),
+            Ordering::Less => (b_range.lhs, b_range.lhs_inclusive),
             Ordering::Equal => {
                 if !a_range.lhs_inclusive {
-                    (a_range.lhs.clone(), a_range.lhs_inclusive)
+                    (a_range.lhs, a_range.lhs_inclusive)
                 } else {
-                    (b_range.lhs.clone(), b_range.lhs_inclusive)
+                    (b_range.lhs, b_range.lhs_inclusive)
                 }
             },
         },
     };
 
     // min(a.rhs, b.rhs) is rhs of intersection
-    let (rhs, rhs_inclusive) = match (&a_range.rhs, &b_range.rhs) {
+    let (rhs, rhs_inclusive) = match (a_range.rhs, b_range.rhs) {
         // if rhs is None, that's +inf
-        (None, _) => (b_range.rhs.clone(), b_range.rhs_inclusive),
-        (_, None) => (a_range.rhs.clone(), a_range.rhs_inclusive),
-        (Some(a_rhs), Some(b_rhs)) => match a_rhs.cmp(b_rhs) {
-            Ordering::Greater => (b_range.rhs.clone(), b_range.rhs_inclusive),
-            Ordering::Less => (a_range.rhs.clone(), a_range.rhs_inclusive),
+        (None, _) => (b_range.rhs, b_range.rhs_inclusive),
+        (_, None) => (a_range.rhs, a_range.rhs_inclusive),
+        (Some(a_rhs), Some(b_rhs)) => match a_rhs.cmp(b_rhs, intermediate_dir) {
+            Ordering::Greater => (b_range.rhs, b_range.rhs_inclusive),
+            Ordering::Less => (a_range.rhs, a_range.rhs_inclusive),
             Ordering::Equal => {
                 if !a_range.rhs_inclusive {
-                    (a_range.rhs.clone(), a_range.rhs_inclusive)
+                    (a_range.rhs, a_range.rhs_inclusive)
                 } else {
-                    (b_range.rhs.clone(), b_range.rhs_inclusive)
+                    (b_range.rhs, b_range.rhs_inclusive)
                 }
             },
         },
     };
 
-    let mut overlap = match (&lhs, &rhs) {
+    let mut overlap = match (lhs, rhs) {
         (None, _) | (_, None) => Some(Range { r#type: a_range.r#type, lhs, lhs_inclusive, rhs, rhs_inclusive }),
-        (Some(lhs_n), Some(rhs_n)) => match lhs_n.cmp(rhs_n) {
+        (Some(lhs_n), Some(rhs_n)) => match lhs_n.cmp(rhs_n, intermediate_dir) {
             Ordering::Greater => None,
             Ordering::Less => {
                 // if it's Int, `{ lhs: a, lhs_inclusive: false, rhs: a + 1, rhs_inclusive: false }` is an empty range!
-                if a_range.r#type.is_int_like() && !lhs_inclusive && !rhs_inclusive && &lhs_n.add_one() == rhs_n {
+                if a_range.r#type.is_int_like() && !lhs_inclusive && !rhs_inclusive && lhs_n.add_one() == rhs_n {
                     None
                 }
 
@@ -274,8 +279,8 @@ fn split_to_non_overlapping_ranges<T: Clone + Merge>((a_range, a_val): &(Range, 
     overlap = discard_empty_range(overlap);
 
     if let Some(overlap) = overlap {
-        let (a_left, a_right) = get_left_and_right(a_range, &overlap);
-        let (b_left, b_right) = get_left_and_right(b_range, &overlap);
+        let (a_left, a_right) = get_left_and_right(a_range, &overlap, intermediate_dir);
+        let (b_left, b_right) = get_left_and_right(b_range, &overlap, intermediate_dir);
 
         Splits {
             overlap: Some((overlap, a_val.merge(b_val))),
@@ -297,23 +302,23 @@ fn split_to_non_overlapping_ranges<T: Clone + Merge>((a_range, a_val): &(Range, 
     }
 }
 
-fn get_left_and_right(super_range: &Range, sub_range: &Range) -> (Option<Range>, Option<Range>) {
+fn get_left_and_right(super_range: &Range, sub_range: &Range, intermediate_dir: &str) -> (Option<Range>, Option<Range>) {
     // left is super.lhs..sub.lhs
-    let left = match (&super_range.lhs, &sub_range.lhs) {
+    let left = match (super_range.lhs, sub_range.lhs) {
         (_, None) => None,
         (None, _) => Some(Range {
             r#type: super_range.r#type,
-            lhs: super_range.lhs.clone(),
+            lhs: super_range.lhs,
             lhs_inclusive: super_range.lhs_inclusive,
-            rhs: sub_range.lhs.clone(),
+            rhs: sub_range.lhs,
             rhs_inclusive: !sub_range.lhs_inclusive,
         }),
-        (Some(super_lhs), Some(sub_lhs)) => match super_lhs.cmp(sub_lhs) {
+        (Some(super_lhs), Some(sub_lhs)) => match super_lhs.cmp(sub_lhs, intermediate_dir) {
             Ordering::Less => Some(Range {
                 r#type: super_range.r#type,
-                lhs: super_range.lhs.clone(),
+                lhs: super_range.lhs,
                 lhs_inclusive: super_range.lhs_inclusive,
-                rhs: sub_range.lhs.clone(),
+                rhs: sub_range.lhs,
                 rhs_inclusive: !sub_range.lhs_inclusive,
             }),
             Ordering::Greater => unreachable!(),
@@ -321,9 +326,9 @@ fn get_left_and_right(super_range: &Range, sub_range: &Range) -> (Option<Range>,
                 if super_range.lhs_inclusive && !sub_range.lhs_inclusive {
                     Some(Range {
                         r#type: super_range.r#type,
-                        lhs: super_range.lhs.clone(),
+                        lhs: super_range.lhs,
                         lhs_inclusive: true,
-                        rhs: sub_range.lhs.clone(),
+                        rhs: sub_range.lhs,
                         rhs_inclusive: true,
                     })
                 }
@@ -336,21 +341,21 @@ fn get_left_and_right(super_range: &Range, sub_range: &Range) -> (Option<Range>,
     };
 
     // right is sub.rhs..super.rhs
-    let right = match (&sub_range.rhs, &super_range.rhs) {
+    let right = match (sub_range.rhs, super_range.rhs) {
         (None, _) => None,
         (_, None) => Some(Range {
             r#type: super_range.r#type,
-            lhs: sub_range.rhs.clone(),
+            lhs: sub_range.rhs,
             lhs_inclusive: !sub_range.rhs_inclusive,
-            rhs: super_range.rhs.clone(),
+            rhs: super_range.rhs,
             rhs_inclusive: super_range.rhs_inclusive,
         }),
-        (Some(sub_rhs), Some(super_rhs)) => match sub_rhs.cmp(super_rhs) {
+        (Some(sub_rhs), Some(super_rhs)) => match sub_rhs.cmp(super_rhs, intermediate_dir) {
             Ordering::Less => Some(Range {
                 r#type: super_range.r#type,
-                lhs: sub_range.rhs.clone(),
+                lhs: sub_range.rhs,
                 lhs_inclusive: !sub_range.rhs_inclusive,
-                rhs: super_range.rhs.clone(),
+                rhs: super_range.rhs,
                 rhs_inclusive: super_range.rhs_inclusive,
             }),
             Ordering::Greater => unreachable!(),
@@ -358,9 +363,9 @@ fn get_left_and_right(super_range: &Range, sub_range: &Range) -> (Option<Range>,
                 if !sub_range.rhs_inclusive && super_range.rhs_inclusive {
                     Some(Range {
                         r#type: super_range.r#type,
-                        lhs: sub_range.rhs.clone(),
+                        lhs: sub_range.rhs,
                         lhs_inclusive: true,
-                        rhs: super_range.rhs.clone(),
+                        rhs: super_range.rhs,
                         rhs_inclusive: true,
                     })
                 }
@@ -441,7 +446,7 @@ fn discard_empty_range(range: Option<Range>) -> Option<Range> {
     }
 }
 
-pub fn filter_out_invalid_ranges<T: Clone + Merge>(branches: Vec<(Range, T)>) -> Vec<(Range, T)> {
+pub fn filter_out_invalid_ranges<T: Clone + Merge>(branches: Vec<(Range, T)>, intermediate_dir: &str) -> Vec<(Range, T)> {
     // Every range has the same type. Otherwise, that's a type error, but this function is not a type-checker!
     let valid_ranges = match &branches[0].0.r#type {
         LiteralType::Int | LiteralType::Number => {
@@ -487,7 +492,11 @@ pub fn filter_out_invalid_ranges<T: Clone + Merge>(branches: Vec<(Range, T)>) ->
 
     for (range, value) in branches.into_iter() {
         for valid_range in valid_ranges.iter() {
-            if let Some((range, value)) = split_to_non_overlapping_ranges(&(range.clone(), value.clone()), &(valid_range.clone(), T::identity_element())).overlap {
+            if let Some((range, value)) = split_to_non_overlapping_ranges(
+                &(range.clone(), value.clone()),
+                &(valid_range.clone(), T::identity_element()),
+                intermediate_dir,
+            ).overlap {
                 result.push((range, value));
             }
         }
