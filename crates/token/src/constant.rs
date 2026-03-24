@@ -67,7 +67,7 @@ impl Constant {
     pub fn monomorphize(&self, monomorphize_id: u128) -> Self {
         match self {
             Constant::Number { n, span } => Constant::Number {
-                n: n.clone(),
+                n: *n,
                 span: span.monomorphize(monomorphize_id),
             },
             Constant::String { binary, s, span } => Constant::String {

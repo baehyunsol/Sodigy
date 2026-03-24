@@ -989,7 +989,7 @@ impl Session {
                 associated_func_instance,
                 Err(TypeError::UnknownField {
                     r#type: r#type.clone(),
-                    field: field[0].clone(),
+                    field: field[0],
                 }),
             ),
         }

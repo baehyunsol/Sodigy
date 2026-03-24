@@ -39,7 +39,7 @@ impl Span {
 
         let new_span = match self {
             Span::Exact(n) => Span::Exact(*n),
-            Span::FirstArg => match arg_indices.get(0) {
+            Span::FirstArg => match arg_indices.first() {
                 Some(n) => Span::Exact(*n),
                 None => Span::End,
             },
@@ -47,7 +47,7 @@ impl Span {
                 Some(n) => Span::Exact(*n),
                 None => Span::End,
             },
-            _ => self.clone(),
+            _ => *self,
         };
         let selected_index = match new_span {
             Span::Exact(n) => n,

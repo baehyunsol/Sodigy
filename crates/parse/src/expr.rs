@@ -247,7 +247,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 }]);
             },
             Some(Token { kind: TokenKind::Number(n), span }) => {
-                let (n, span) = (n.clone(), *span);
+                let (n, span) = (*n, *span);
                 self.cursor += 1;
                 Expr::Constant(Constant::Number { n, span })
             },

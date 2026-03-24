@@ -92,7 +92,7 @@ impl Channel {
                 },
             }
 
-            if Instant::now().duration_since(started_at.clone()).as_millis() > 500 {
+            if Instant::now().duration_since(started_at).as_millis() > 500 {
                 break None;
             }
         };

@@ -547,7 +547,7 @@ fn read_field_of_pattern(
 
                 PatternConstructor::ListSubMatrix {
                     elements: elements.clone(),
-                    rest: rest.clone(),
+                    rest: *rest,
                 }
             },
             PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => PatternConstructor::Wildcard,

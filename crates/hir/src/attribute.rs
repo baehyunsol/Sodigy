@@ -647,7 +647,7 @@ impl AttributeRule {
             ),
         ] {
             let name_interned = intern_string(name.as_bytes(), intermediate_dir).unwrap();
-            decorator.name = name_interned.clone();
+            decorator.name = name_interned;
 
             if !kinds.contains(&item_kind) {
                 self.decorator_error_notes.insert(

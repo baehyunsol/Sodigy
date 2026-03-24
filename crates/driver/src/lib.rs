@@ -387,7 +387,7 @@ fn compile(
         //       an errorneous worker won't change its status and there can be
         //       multiple erroneous workers!
         if let Some(started_at) = &shutdown_countdown {
-            if Instant::now().duration_since(started_at.clone()).as_millis() >= graceful_shutdown as u128 {
+            if Instant::now().duration_since(*started_at).as_millis() >= graceful_shutdown as u128 {
                 return Err(Error::CompileError);
             }
         }

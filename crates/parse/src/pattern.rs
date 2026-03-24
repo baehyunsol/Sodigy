@@ -452,7 +452,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 Some(Token { kind: TokenKind::Punct(Punct::Sub), span: op_span }),
                 Some(Token { kind: TokenKind::Number(n), span: n_span }),
             ) => {
-                let (mut n, op_span, n_span) = (n.clone(), *op_span, *n_span);
+                let (mut n, op_span, n_span) = (*n, *op_span, *n_span);
                 n = n.negate();
                 let span = op_span.merge(n_span);
                 self.cursor += 2;
@@ -463,7 +463,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 }
             },
             (Some(Token { kind: TokenKind::Number(n), span }), _) => {
-                let (n, span) = (n.clone(), *span);
+                let (n, span) = (*n, *span);
                 self.cursor += 1;
                 Pattern {
                     name: None,

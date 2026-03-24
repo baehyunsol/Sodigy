@@ -24,7 +24,7 @@ pub struct TimingsEntry {
 impl Worker {
     pub fn stage_start(&mut self, stage: CompileStage, stage_extra: Option<&str>, module: Option<String>) {
         assert!(self.curr_stage.is_none());
-        let timestamp = Instant::now().duration_since(self.born_at.clone()).as_micros() as u64;
+        let timestamp = Instant::now().duration_since(self.born_at).as_micros() as u64;
         let stage_extra_r = if let Some(e) = &stage_extra { format!(" ({e})") } else { String::new() };
         self.write_log(&format!("stage start{stage_extra_r} {:?}", (stage, &module)));
         self.curr_stage = Some((stage, stage_extra.map(|e| e.to_string()), module, timestamp));
@@ -33,7 +33,7 @@ impl Worker {
 
     pub fn stage_end(&mut self, has_error: bool) {
         if let Some((stage, stage_extra, module, start)) = self.curr_stage.take() {
-            let timestamp = Instant::now().duration_since(self.born_at.clone()).as_micros() as u64;
+            let timestamp = Instant::now().duration_since(self.born_at).as_micros() as u64;
             let stage_extra_r = if let Some(e) = &stage_extra { format!(" ({e})") } else { String::new() };
             self.write_log(&format!("stage end{stage_extra_r} {:?}{}", (stage, &module), if self.curr_stage_error { " (has_error)" } else { "" }));
             self.timings_log.push(TimingsEntry {
@@ -49,7 +49,7 @@ impl Worker {
 
     pub fn write_log(&self, msg: &str) {
         if let Some(file) = &self.log_file {
-            let timestamp = Instant::now().duration_since(self.born_at.clone()).as_micros() as f64;
+            let timestamp = Instant::now().duration_since(self.born_at).as_micros() as f64;
 
             if let Err(e) = write_string(
                 file,
