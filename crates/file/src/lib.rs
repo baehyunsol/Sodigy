@@ -99,7 +99,7 @@ impl File {
             "file_map",
             &format!("{module_path_hash:02x}"),
         )?;
-        let file_map = read_bytes(&file_map_path)?;
+        let file_map = read_bytes(&file_map_path).unwrap_or(vec![]);
 
         match search_file_map_by_module_path(&file_map, module_path, &file_map_path)? {
             Some((file_id, _)) => Ok(Some(File(file_id))),

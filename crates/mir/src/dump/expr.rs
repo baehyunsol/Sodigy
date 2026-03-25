@@ -185,10 +185,22 @@ pub fn dump_expr(
         },
         Expr::FieldUpdate { lhs, fields, rhs } => {
             dump_expr(lhs, lines, session, max_len, single_line);
+            lines.push(" `");
 
-            for field in fields.iter() {
-                lines.push(" `");
-                lines.push(&field.unwrap_name().unintern_or_default(&session.intermediate_dir));
+            for (i, field) in fields.iter().enumerate() {
+                match field {
+                    Field::Name { name, .. } => {
+                        if i != 0 {
+                            lines.push(".");
+                        }
+
+                        lines.push(&name.unintern_or_default(&session.intermediate_dir));
+                    },
+                    Field::Index(n) => {
+                        lines.push(&format!("[{n}]"));
+                    },
+                    _ => todo!(),
+                }
             }
 
             lines.push(" ");

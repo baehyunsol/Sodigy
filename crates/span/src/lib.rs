@@ -77,7 +77,17 @@ impl Span {
                     Span::range(f1, s1.min(s2), e1.max(e2))
                 }
             },
-            _ => todo!(),
+            (Span::Monomorphize { id, span }, s) |
+            (s, Span::Monomorphize { id, span }) => Span::Monomorphize {
+                id: *id,
+                span: Box::new(span.merge(s)),
+            },
+            (Span::Derived { kind, span }, s) |
+            (s, Span::Derived { kind, span }) => Span::Derived {
+                kind: *kind,
+                span: Box::new(span.merge(s)),
+            },
+            s => panic!("TODO: {s:?}"),
         }
     }
 

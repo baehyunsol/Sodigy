@@ -777,14 +777,14 @@ impl Expr {
                 Ok(Expr::Call {
                     func,
                     args: vec![Expr::from_hir(rhs, session)?],
-                    arg_group_span: rhs.error_span_wide().derive(SpanDeriveKind::Trivial),
+                    arg_group_span: rhs.error_span_wide(),
                     types: None,
                     given_keyword_args: vec![],
                 })
             },
             hir::Expr::InfixOp { op, op_span, lhs, rhs } => {
                 // `hir::Expr`'s span has more information than `mir::Expr`'s span.
-                let expr_span = lhs.error_span_wide().merge(op_span).merge(&rhs.error_span_wide()).derive(SpanDeriveKind::Trivial);
+                let expr_span = lhs.error_span_wide().merge(op_span).merge(&rhs.error_span_wide());
 
                 match (
                     Expr::from_hir(lhs, session),
@@ -860,7 +860,7 @@ impl Expr {
                 Ok(Expr::Call {
                     func,
                     args: vec![Expr::from_hir(lhs, session)?],
-                    arg_group_span: lhs.error_span_wide().derive(SpanDeriveKind::Trivial),
+                    arg_group_span: lhs.error_span_wide(),
                     types: None,
                     given_keyword_args: vec![],
                 })

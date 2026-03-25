@@ -3,9 +3,6 @@ use crate::{RenderSpanSession, Span};
 // It's used for more helpful error messages.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum SpanDeriveKind {
-    // It's a derived span, but is trivial that the error message doesn't have to mention that it's derived.
-    Trivial,
-
     // `a |> f($, b)` -> `{ let $0 = a; f(_, b) }`
     Pipeline,
 
@@ -48,7 +45,6 @@ impl SpanDeriveKind {
     // It returns None if the error note is too obvious.
     pub fn error_note(&self, session: &mut RenderSpanSession) -> Option<&'static str> {
         match self {
-            SpanDeriveKind::Trivial => None,
             SpanDeriveKind::Pipeline => Some("It is desugared to an inline `let` statement."),
             SpanDeriveKind::ConstEval => Some("It is evaluated at compile-time."),
             SpanDeriveKind::ExprInPattern => Some("It is desugared to a guard expression."),

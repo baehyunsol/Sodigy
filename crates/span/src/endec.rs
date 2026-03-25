@@ -111,76 +111,72 @@ impl Endec for RenderableSpan {
 impl Endec for SpanDeriveKind {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            SpanDeriveKind::Trivial => {
+            SpanDeriveKind::Pipeline => {
                 buffer.push(0);
             },
-            SpanDeriveKind::Pipeline => {
+            SpanDeriveKind::ConstEval => {
                 buffer.push(1);
             },
-            SpanDeriveKind::ConstEval => {
+            SpanDeriveKind::ExprInPattern => {
                 buffer.push(2);
             },
-            SpanDeriveKind::ExprInPattern => {
+            SpanDeriveKind::Lambda => {
                 buffer.push(3);
             },
-            SpanDeriveKind::Lambda => {
+            SpanDeriveKind::IfLet => {
                 buffer.push(4);
             },
-            SpanDeriveKind::IfLet => {
-                buffer.push(5);
-            },
             SpanDeriveKind::LetPattern(id) => {
-                buffer.push(6);
+                buffer.push(5);
                 id.encode_impl(buffer);
             },
             SpanDeriveKind::FuncDefaultValue => {
-                buffer.push(7);
+                buffer.push(6);
             },
             SpanDeriveKind::MatchScrutinee(id) => {
-                buffer.push(8);
+                buffer.push(7);
                 id.encode_impl(buffer);
             },
             SpanDeriveKind::ConcatPatternRest => {
-                buffer.push(9);
+                buffer.push(8);
             },
             SpanDeriveKind::ConcatPatternList => {
-                buffer.push(10);
+                buffer.push(9);
             },
             SpanDeriveKind::FStringToString => {
-                buffer.push(11);
+                buffer.push(10);
             },
             SpanDeriveKind::FStringConcat => {
-                buffer.push(12);
+                buffer.push(11);
             },
             SpanDeriveKind::ConvertError => {
-                buffer.push(13);
+                buffer.push(12);
             },
         }
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         match buffer.get(cursor) {
-            Some(0) => Ok((SpanDeriveKind::Trivial, cursor + 1)),
-            Some(1) => Ok((SpanDeriveKind::Pipeline, cursor + 1)),
-            Some(2) => Ok((SpanDeriveKind::ConstEval, cursor + 1)),
-            Some(3) => Ok((SpanDeriveKind::ExprInPattern, cursor + 1)),
-            Some(4) => Ok((SpanDeriveKind::Lambda, cursor + 1)),
-            Some(5) => Ok((SpanDeriveKind::IfLet, cursor + 1)),
-            Some(6) => {
+            Some(0) => Ok((SpanDeriveKind::Pipeline, cursor + 1)),
+            Some(1) => Ok((SpanDeriveKind::ConstEval, cursor + 1)),
+            Some(2) => Ok((SpanDeriveKind::ExprInPattern, cursor + 1)),
+            Some(3) => Ok((SpanDeriveKind::Lambda, cursor + 1)),
+            Some(4) => Ok((SpanDeriveKind::IfLet, cursor + 1)),
+            Some(5) => {
                 let (id, cursor) = u32::decode_impl(buffer, cursor + 1)?;
                 Ok((SpanDeriveKind::LetPattern(id), cursor))
             },
-            Some(7) => Ok((SpanDeriveKind::FuncDefaultValue, cursor + 1)),
-            Some(8) => {
+            Some(6) => Ok((SpanDeriveKind::FuncDefaultValue, cursor + 1)),
+            Some(7) => {
                 let (id, cursor) = u32::decode_impl(buffer, cursor + 1)?;
                 Ok((SpanDeriveKind::MatchScrutinee(id), cursor))
             },
-            Some(9) => Ok((SpanDeriveKind::ConcatPatternRest, cursor + 1)),
-            Some(10) => Ok((SpanDeriveKind::ConcatPatternList, cursor + 1)),
-            Some(11) => Ok((SpanDeriveKind::FStringToString, cursor + 1)),
-            Some(12) => Ok((SpanDeriveKind::FStringConcat, cursor + 1)),
-            Some(13) => Ok((SpanDeriveKind::ConvertError, cursor + 1)),
-            Some(n @ 14..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(8) => Ok((SpanDeriveKind::ConcatPatternRest, cursor + 1)),
+            Some(9) => Ok((SpanDeriveKind::ConcatPatternList, cursor + 1)),
+            Some(10) => Ok((SpanDeriveKind::FStringToString, cursor + 1)),
+            Some(11) => Ok((SpanDeriveKind::FStringConcat, cursor + 1)),
+            Some(12) => Ok((SpanDeriveKind::ConvertError, cursor + 1)),
+            Some(n @ 13..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }
