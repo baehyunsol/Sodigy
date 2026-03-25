@@ -62,11 +62,11 @@ impl Block {
     }
 
     // hir will use this function.
-    pub fn iter_names(&self, is_top_level: bool) -> impl Iterator<Item = (InternedString, Span, NameKind)> {
+    pub fn iter_names(&self, is_top_level: bool) -> impl Iterator<Item = (InternedString, &Span, NameKind)> {
         self.lets.iter().map(
             move |l| (
                 l.name,
-                l.name_span,
+                &l.name_span,
                 if l.from_pipeline {
                     NameKind::Pipeline
                 } else {
@@ -74,17 +74,17 @@ impl Block {
                 },
             )
         ).chain(
-            self.funcs.iter().map(|f| (f.name, f.name_span, NameKind::Func))
+            self.funcs.iter().map(|f| (f.name, &f.name_span, NameKind::Func))
         ).chain(
-            self.structs.iter().map(|s| (s.name, s.name_span, NameKind::Struct))
+            self.structs.iter().map(|s| (s.name, &s.name_span, NameKind::Struct))
         ).chain(
-            self.enums.iter().map(|e| (e.name, e.name_span, NameKind::Enum))
+            self.enums.iter().map(|e| (e.name, &e.name_span, NameKind::Enum))
         ).chain(
-            self.aliases.iter().map(|a| (a.name, a.name_span, NameKind::Alias))
+            self.aliases.iter().map(|a| (a.name, &a.name_span, NameKind::Alias))
         ).chain(
-            self.modules.iter().map(|m| (m.name, m.name_span, NameKind::Module))
+            self.modules.iter().map(|m| (m.name, &m.name_span, NameKind::Module))
         ).chain(
-            self.uses.iter().map(|u| (u.name, u.name_span, NameKind::Use))
+            self.uses.iter().map(|u| (u.name, &u.name_span, NameKind::Use))
         )
     }
 }
@@ -446,12 +446,12 @@ fn attribute_not_allowed(
                 kind: ErrorKind::DocCommentNotAllowed,
                 spans: vec![
                     RenderableSpan {
-                        span: doc_comment.0[0].marker_span,
+                        span: doc_comment.0[0].marker_span.clone(),
                         auxiliary: false,
                         note: Some(String::from("This doc comment is documenting the expression.")),
                     },
                     RenderableSpan {
-                        span: expr_begin_span.unwrap(),
+                        span: expr_begin_span.clone().unwrap(),
                         auxiliary: true,
                         note: Some(String::from("This expression is documented by the doc comment.")),
                     },
@@ -465,7 +465,7 @@ fn attribute_not_allowed(
                 kind: ErrorKind::DanglingDocComment,
                 spans: vec![
                     RenderableSpan {
-                        span: doc_comment.0[0].marker_span,
+                        span: doc_comment.0[0].marker_span.clone(),
                         auxiliary: false,
                         note: None,
                     },
@@ -481,12 +481,12 @@ fn attribute_not_allowed(
                 kind: ErrorKind::DecoratorNotAllowed,
                 spans: vec![
                     RenderableSpan {
-                        span: decorator.name_span,
+                        span: decorator.name_span.clone(),
                         auxiliary: false,
                         note: Some(String::from("This decorator is decorating the expression.")),
                     },
                     RenderableSpan {
-                        span: expr_begin_span.unwrap(),
+                        span: expr_begin_span.clone().unwrap(),
                         auxiliary: true,
                         note: Some(String::from("This expression is decorated by the decorator.")),
                     },
@@ -500,7 +500,7 @@ fn attribute_not_allowed(
                 kind: ErrorKind::DanglingDecorator,
                 spans: vec![
                     RenderableSpan {
-                        span: decorator.name_span,
+                        span: decorator.name_span.clone(),
                         auxiliary: false,
                         note: None,
                     },
@@ -516,12 +516,12 @@ fn attribute_not_allowed(
                 kind: ErrorKind::CannotBePublic,
                 spans: vec![
                     RenderableSpan {
-                        span: visibility.keyword_span,
+                        span: visibility.keyword_span.clone(),
                         auxiliary: false,
                         note: Some(String::from("This keyword is making the expression public.")),
                     },
                     RenderableSpan {
-                        span: expr_begin_span.unwrap(),
+                        span: expr_begin_span.clone().unwrap(),
                         auxiliary: true,
                         note: Some(String::from("You're trying to make this expression public.")),
                     },
@@ -535,7 +535,7 @@ fn attribute_not_allowed(
                 kind: ErrorKind::DanglingVisibility,
                 spans: vec![
                     RenderableSpan {
-                        span: visibility.keyword_span,
+                        span: visibility.keyword_span.clone(),
                         auxiliary: false,
                         note: None,
                     },

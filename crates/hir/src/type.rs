@@ -69,7 +69,7 @@ impl Type {
                     Ok(Type::Param {
                         constructor: constructor.unwrap(),
                         args,
-                        group_span: *group_span,
+                        group_span: group_span.clone(),
                     })
                 }
             },
@@ -81,7 +81,7 @@ impl Type {
                     constructor: Path {
                         id: IdentWithOrigin {
                             id: list_id,
-                            span: *group_span,
+                            span: group_span.clone(),
                             origin: NameOrigin::Foreign { kind: NameKind::Struct },
                             // NOTE: It has to be session.lang_items.get("type.List"), but we don't have the lang item yet.
                             //       So we first use Prelude, then inter-hir will replace it with the lang item.
@@ -91,7 +91,7 @@ impl Type {
                         types: vec![None],
                     },
                     args: vec![Type::from_ast(r#type, session)?],
-                    group_span: *group_span,
+                    group_span: group_span.clone(),
                 })
             },
             ast::Type::Tuple { types: ast_types, group_span } => {
@@ -116,7 +116,7 @@ impl Type {
                 else {
                     Ok(Type::Tuple {
                         types,
-                        group_span: *group_span,
+                        group_span: group_span.clone(),
                     })
                 }
             },
@@ -157,14 +157,14 @@ impl Type {
                 else {
                     Ok(Type::Func {
                         fn_constructor: fn_constructor.unwrap(),
-                        group_span: *group_span,
+                        group_span: group_span.clone(),
                         params,
                         r#return: Box::new(r#return.unwrap()),
                     })
                 }
             },
-            ast::Type::Wildcard(span) => Ok(Type::Wildcard(*span)),
-            ast::Type::Never(span) => Ok(Type::Never(*span)),
+            ast::Type::Wildcard(span) => Ok(Type::Wildcard(span.clone())),
+            ast::Type::Never(span) => Ok(Type::Never(span.clone())),
         }
     }
 
@@ -172,11 +172,11 @@ impl Type {
         match self {
             Type::Path(p) => p.error_span_narrow(),
             Type::Param { constructor, group_span, .. } => {
-                constructor.error_span_wide().merge(*group_span)
+                constructor.error_span_wide().merge(group_span)
             },
-            Type::Tuple { group_span, .. } => *group_span,
+            Type::Tuple { group_span, .. } => group_span.clone(),
             Type::Func { fn_constructor, .. } => fn_constructor.error_span_narrow(),
-            Type::Wildcard(span) | Type::Never(span) => *span,
+            Type::Wildcard(span) | Type::Never(span) => span.clone(),
         }
     }
 
@@ -184,15 +184,15 @@ impl Type {
         match self {
             Type::Path(p) => p.error_span_wide(),
             Type::Param { constructor, group_span, .. } => {
-                constructor.error_span_wide().merge(*group_span)
+                constructor.error_span_wide().merge(group_span)
             },
-            Type::Tuple { group_span, .. } => *group_span,
+            Type::Tuple { group_span, .. } => group_span.clone(),
             Type::Func { fn_constructor, group_span, r#return, .. } => {
                 fn_constructor.error_span_wide()
-                    .merge(*group_span)
-                    .merge(r#return.error_span_wide())
+                    .merge(group_span)
+                    .merge(&r#return.error_span_wide())
             },
-            Type::Wildcard(span) | Type::Never(span) => *span,
+            Type::Wildcard(span) | Type::Never(span) => span.clone(),
         }
     }
 
@@ -203,7 +203,7 @@ impl Type {
     // `Option<Int>`, which is very far from `x`.
     // We do this in the opposite way. We first clone `Option<Int>`, and replace every name and
     // span in it with `OI`'s.
-    pub fn replace_name_and_span(&mut self, name: InternedString, span: Span) {
+    pub fn replace_name_and_span(&mut self, name: InternedString, span: &Span) {
         match self {
             Type::Path(p) => {
                 p.replace_name_and_span(name, span);

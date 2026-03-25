@@ -76,7 +76,7 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
             type_assertions: vec![],
             equal_generic_params: HashMap::new(),
 
-            aliases: hir_session.aliases.iter().map(|alias| (alias.name, alias.name_span)).collect(),
+            aliases: hir_session.aliases.iter().map(|alias| (alias.name, alias.name_span.clone())).collect(),
             types: HashMap::new(),
             generic_args: HashMap::new(),
             errors: hir_session.errors.clone(),
@@ -87,7 +87,7 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
 
     pub fn get_lang_item_span(&self, lang_item: &str) -> Span {
         match self.global_context.lang_items.as_ref().unwrap().get(lang_item) {
-            Some(s) => *s,
+            Some(s) => s.clone(),
             None => panic!("TODO: lang_item `{lang_item}`"),
         }
     }

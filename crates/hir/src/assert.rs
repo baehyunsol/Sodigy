@@ -54,7 +54,7 @@ impl Assert {
         let attribute = match session.lower_attribute(
             &ast_assert.attribute,
             ItemKind::Assert,
-            ast_assert.keyword_span,
+            ast_assert.keyword_span.clone(),
         ) {
             Ok(attribute) => AssertAttribute::from_attribute(&attribute, session),
             Err(()) => {
@@ -84,8 +84,8 @@ impl Assert {
             Ok(Assert {
                 name: attribute.name,
                 note: attribute.note,
-                note_decorator_span: attribute.note_decorator_span,
-                keyword_span: ast_assert.keyword_span,
+                note_decorator_span: attribute.note_decorator_span.clone(),
+                keyword_span: ast_assert.keyword_span.clone(),
                 value: value.unwrap(),
                 always: attribute.always,
             })
@@ -193,7 +193,7 @@ impl AssertAttribute {
         if let Some(note_) = attribute.decorators.get(&intern_string(b"note", &session.intermediate_dir).unwrap()) {
             match note_.args.get(0) {
                 Some(e) => {
-                    note_decorator_span = Some(note_.name_span);
+                    note_decorator_span = Some(note_.name_span.clone());
                     note = Some(e.clone().unwrap_expr());
                 },
                 _ => unreachable!(),

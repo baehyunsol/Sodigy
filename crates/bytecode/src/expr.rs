@@ -28,7 +28,7 @@ pub fn lower_expr(
         Expr::Ident(id) => {
             let src = match session.local_values.get(&id.def_span) {
                 Some(src) => Memory::Stack(src.stack_offset),
-                None => match id.origin {
+                None => match &id.origin {
                     NameOrigin::Foreign { kind } | NameOrigin::Local { kind } => match kind {
                         NameKind::EnumVariant { .. } => {
                             if session.get_lang_item_span("variant.Bool.True") == id.def_span {
@@ -67,20 +67,20 @@ pub fn lower_expr(
                         },
                         NameKind::Let { is_top_level: true } => {
                             let value_inited = session.get_local_label();
-                            bytecodes.push(Bytecode::PushCallStack(value_inited));
+                            bytecodes.push(Bytecode::PushCallStack(value_inited.clone()));
                             bytecodes.push(Bytecode::JumpIfUninit {
-                                def_span: id.def_span,
-                                label: Label::Global(id.def_span),
+                                def_span: id.def_span.clone(),
+                                label: Label::Global(id.def_span.clone()),
                             });
-                            bytecodes.push(Bytecode::Label(value_inited));
+                            bytecodes.push(Bytecode::Label(value_inited.clone()));
                             bytecodes.push(Bytecode::PopCallStack);
                             // TODO: inc_ref_count if it has to
-                            Memory::Global(id.def_span)
+                            Memory::Global(id.def_span.clone())
                         },
                         NameKind::Func => {
                             bytecodes.push(Bytecode::Const {
                                 value: Value::FuncPointer {
-                                    def_span: id.def_span,
+                                    def_span: id.def_span.clone(),
 
                                     // `Session::into_executable()` will fill this
                                     program_counter: None,
@@ -103,8 +103,8 @@ pub fn lower_expr(
 
             if src != dst {
                 bytecodes.push(Bytecode::Move {
-                    src,
-                    dst,
+                    src: src.clone(),
+                    dst: dst.clone(),
                 })
 
                 // TODO: inc_ref_count if it has to
@@ -138,7 +138,7 @@ pub fn lower_expr(
             );
             bytecodes.push(Bytecode::JumpIf {
                 value: Memory::Return,
-                label: eval_true_value,
+                label: eval_true_value.clone(),
             });
 
             // We don't drop `cond` because it's a boolean!!
@@ -146,17 +146,17 @@ pub fn lower_expr(
             // If it `is_tail_call`, it'll exit after evaluating `false_value`,
             // so we don't have to care about it.
             // Otherwise, we have to skip evaluating `true_value`.
-            lower_expr(false_value, session, bytecodes, dst, is_tail_call);
+            lower_expr(false_value, session, bytecodes, dst.clone(), is_tail_call);
 
             if !is_tail_call {
-                bytecodes.push(Bytecode::Jump(return_expr));
+                bytecodes.push(Bytecode::Jump(return_expr.clone()));
             }
 
-            bytecodes.push(Bytecode::Label(eval_true_value));
-            lower_expr(true_value, session, bytecodes, dst, is_tail_call);
+            bytecodes.push(Bytecode::Label(eval_true_value.clone()));
+            lower_expr(true_value, session, bytecodes, dst.clone(), is_tail_call);
 
             if !is_tail_call {
-                bytecodes.push(Bytecode::Label(return_expr));
+                bytecodes.push(Bytecode::Label(return_expr.clone()));
             }
         },
         Expr::Match(Match { .. }) => unreachable!(),
@@ -165,12 +165,12 @@ pub fn lower_expr(
 
             for r#let in lets.iter() {
                 let dst = Memory::Stack(session.local_values.get(&r#let.name_span).unwrap().stack_offset);
-                local_names.push(r#let.name_span);
+                local_names.push(r#let.name_span.clone());
                 lower_expr(
                     &r#let.value,
                     session,
                     bytecodes,
-                    dst,
+                    dst.clone(),
                     /* is_tail_call: */ false,
                 );
             }
@@ -264,7 +264,7 @@ pub fn lower_expr(
                         }
                     },
                     None => {
-                        let func = Label::Global(*def_span);
+                        let func = Label::Global(def_span.clone());
 
                         if is_tail_call {
                             session.drop_all_locals(bytecodes);
@@ -281,10 +281,10 @@ pub fn lower_expr(
 
                         else {
                             let return_label = session.get_local_label();
-                            bytecodes.push(Bytecode::PushCallStack(return_label));
+                            bytecodes.push(Bytecode::PushCallStack(return_label.clone()));
                             bytecodes.push(Bytecode::IncStackPointer(stack_offset));
                             bytecodes.push(Bytecode::Jump(func));
-                            bytecodes.push(Bytecode::Label(return_label));
+                            bytecodes.push(Bytecode::Label(return_label.clone()));
                             bytecodes.push(Bytecode::DecStackPointer(stack_offset));
                             bytecodes.push(Bytecode::PopCallStack);
 
@@ -302,17 +302,17 @@ pub fn lower_expr(
                         Callable::StructInit { .. } | Callable::TupleInit { .. } => Bytecode::InitTuple {
                             stack_offset,
                             elements: args.len(),
-                            dst,
+                            dst: dst.clone(),
                         },
                         Callable::ListInit { .. } => Bytecode::InitList {
                             stack_offset,
                             elements: args.len(),
-                            dst,
+                            dst: dst.clone(),
                         },
                         _ => unreachable!(),
                     };
                     bytecodes.push(bytecode);
-                    bytecodes.push(Bytecode::IncRefCount(dst));
+                    bytecodes.push(Bytecode::IncRefCount(dst.clone()));
 
                     // TODO: how do we know whether we should drop the args?
                     for (i, arg) in args.iter().enumerate() {
@@ -352,10 +352,10 @@ pub fn lower_expr(
 
                     else {
                         let return_label = session.get_local_label();
-                        bytecodes.push(Bytecode::PushCallStack(return_label));
+                        bytecodes.push(Bytecode::PushCallStack(return_label.clone()));
                         bytecodes.push(Bytecode::IncStackPointer(stack_offset));
                         bytecodes.push(Bytecode::JumpDynamic(Memory::Return));
-                        bytecodes.push(Bytecode::Label(return_label));
+                        bytecodes.push(Bytecode::Label(return_label.clone()));
                         bytecodes.push(Bytecode::DecStackPointer(stack_offset));
                         bytecodes.push(Bytecode::PopCallStack);
 

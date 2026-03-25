@@ -30,7 +30,7 @@ macro_rules! item_shape_impl {
                         |field| AssociatedItem {
                             kind: AssociatedItemKind::Field,
                             name: field.name,
-                            name_span: field.name_span,
+                            name_span: field.name_span.clone(),
                             ..AssociatedItem::default()
                         }
                     ).chain(
@@ -38,7 +38,7 @@ macro_rules! item_shape_impl {
                             |(name, AssociatedFunc { is_pure, params, name_spans, .. })| AssociatedItem {
                                 kind: AssociatedItemKind::Func,
                                 name: *name,
-                                name_span: name_spans[0],
+                                name_span: name_spans[0].clone(),
                                 is_pure: Some(*is_pure),
                                 params: Some(*params),
                                 ..AssociatedItem::default()
@@ -49,7 +49,7 @@ macro_rules! item_shape_impl {
                             |(name, name_span)| AssociatedItem {
                                 kind: AssociatedItemKind::Let,
                                 name: *name,
-                                name_span: *name_span,
+                                name_span: name_span.clone(),
                                 ..AssociatedItem::default()
                             }
                         )
@@ -58,7 +58,7 @@ macro_rules! item_shape_impl {
                         |variant| AssociatedItem {
                             kind: AssociatedItemKind::Variant,
                             name: variant.name,
-                            name_span: variant.name_span,
+                            name_span: variant.name_span.clone(),
                             ..AssociatedItem::default()
                         }
                     ).chain(
@@ -66,7 +66,7 @@ macro_rules! item_shape_impl {
                             |(name, AssociatedFunc { is_pure, params, name_spans, .. })| AssociatedItem {
                                 kind: AssociatedItemKind::Func,
                                 name: *name,
-                                name_span: name_spans[0],
+                                name_span: name_spans[0].clone(),
                                 is_pure: Some(*is_pure),
                                 params: Some(*params),
                                 ..AssociatedItem::default()
@@ -77,7 +77,7 @@ macro_rules! item_shape_impl {
                             |(name, name_span)| AssociatedItem {
                                 kind: AssociatedItemKind::Let,
                                 name: *name,
-                                name_span: *name_span,
+                                name_span: name_span.clone(),
                                 ..AssociatedItem::default()
                             }
                         )

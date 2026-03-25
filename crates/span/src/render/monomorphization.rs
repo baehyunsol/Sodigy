@@ -6,10 +6,10 @@ use std::collections::HashSet;
 
 #[derive(Clone, Debug)]
 pub struct MonomorphizationInfo {
-    pub id: u128,
+    pub id: u64,
 
     // There might be monomorphizations inside another monomorphization.
-    pub parent: Option<u128>,
+    pub parent: Option<u64>,
 
     // "eq<Char>", "add<Int, Int, Int>"
     pub info: String,
@@ -20,7 +20,7 @@ pub struct MonomorphizationInfo {
 }
 
 impl RenderSpanSession {
-    pub fn get_monomorphization_info(&mut self, monomorphization_id: u128) -> Result<MonomorphizationInfo, FileError> {
+    pub fn get_monomorphization_info(&mut self, monomorphization_id: u64) -> Result<MonomorphizationInfo, FileError> {
         let id_str = format!("{monomorphization_id:x}");
         let mono_info_at = join4(
             &self.intermediate_dir,
@@ -37,7 +37,7 @@ impl RenderSpanSession {
         Ok(mono_info)
     }
 
-    pub fn explain_monomorphizations(&mut self, monomorphizations: &HashSet<u128>) -> Vec<RenderableSpan> {
+    pub fn explain_monomorphizations(&mut self, monomorphizations: &HashSet<u64>) -> Vec<RenderableSpan> {
         let mut result = vec![];
 
         for mono_id in monomorphizations.iter() {

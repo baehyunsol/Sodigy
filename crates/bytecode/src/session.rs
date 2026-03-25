@@ -74,7 +74,7 @@ impl Session<'_, '_> {
 
     pub fn get_lang_item_span(&self, lang_item: &str) -> Span {
         match self.global_context.lang_items.unwrap().get(lang_item) {
-            Some(s) => *s,
+            Some(s) => s.clone(),
             None => panic!("TODO: lang_item `{lang_item}`"),
         }
     }
@@ -130,7 +130,7 @@ impl Session<'_, '_> {
 
                     for (i, (_, def_span)) in pattern_name_bindings.iter().enumerate() {
                         self.local_values.insert(
-                            *def_span,
+                            def_span.clone(),
                             LocalValue {
                                 stack_offset: offset + i,
                                 dropped: false,
@@ -151,7 +151,7 @@ impl Session<'_, '_> {
             Expr::Block(block) => {
                 for (i, r#let) in block.lets.iter().enumerate() {
                     self.local_values.insert(
-                        r#let.name_span,
+                        r#let.name_span.clone(),
                         LocalValue {
                             stack_offset: offset + i,
                             dropped: false,

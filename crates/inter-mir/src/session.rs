@@ -3,7 +3,7 @@ use crate::error::{TypeError, TypeWarning};
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{EnumShape, FuncShape, ItemShape, Poly, StructShape};
 use sodigy_mir::{Session as MirSession, Type};
-use sodigy_span::Span;
+use sodigy_span::{Span, SpanId};
 use sodigy_string::InternedString;
 use std::collections::{HashMap, HashSet};
 
@@ -64,10 +64,10 @@ pub struct Session {
     // but you shouldn't change the order of `.funcs` or remove an element.
     pub funcs_rev: HashMap<Span, usize>,
 
-    // `u128` is an id of a monomorphization.
+    // `u64` is an id of a monomorphization.
     // 1. It prevents the compiler from doing the same monomorphization multiple times.
     // 2. It helps the compiler more helpful error messages if there's an error in a monomorphized function.
-    pub monomorphizations: HashMap<u128, Monomorphization>,
+    pub monomorphizations: HashMap<u64, Monomorphization>,
 
     // When the session sees `x.y.z.unwrap()`, it remembers the span of `z` and def_span of
     // the associated function (which looks like `Span::Poly { .. }`).
@@ -88,7 +88,7 @@ pub struct Session {
     pub equal_generic_params: HashMap<Span, Vec<(usize, usize)>>,
     pub polys: HashMap<Span, Poly>,
 
-    pub span_string_map: HashMap<Span, InternedString>,
+    pub span_string_map: HashMap<SpanId, InternedString>,
     pub lang_items: HashMap<String, Span>,
     pub built_in_funcs: HashSet<Span>,
     pub intermediate_dir: String,
@@ -146,7 +146,7 @@ impl Session {
             blocked_type_vars: HashSet::new(),
             pattern_name_bindings: HashSet::new(),
             solved_generic_args: HashSet::new(),
-            funcs_rev: mir_session.funcs.iter().enumerate().map(|(i, func)| (func.name_span, i)).collect(),
+            funcs_rev: mir_session.funcs.iter().enumerate().map(|(i, func)| (func.name_span.clone(), i)).collect(),
             monomorphizations: HashMap::new(),
             associated_funcs: vec![],
             types: mir_session.types.drain().collect(),
@@ -171,15 +171,15 @@ impl Session {
 
     pub fn get_lang_item_span(&self, lang_item: &str) -> Span {
         match self.lang_items.get(lang_item) {
-            Some(s) => *s,
+            Some(s) => s.clone(),
             None => panic!("TODO: {lang_item:?}"),
         }
     }
 
-    pub fn get_item_shape<'s>(&'s self, def_span: Span) -> Option<ItemShape<'s>> {
-        match self.struct_shapes.get(&def_span) {
+    pub fn get_item_shape<'s>(&'s self, def_span: &Span) -> Option<ItemShape<'s>> {
+        match self.struct_shapes.get(def_span) {
             Some(s) => Some(ItemShape::Struct(s)),
-            None => match self.enum_shapes.get(&def_span) {
+            None => match self.enum_shapes.get(def_span) {
                 Some(e) => Some(ItemShape::Enum(e)),
                 None => None,
             },

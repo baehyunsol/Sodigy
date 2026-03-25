@@ -55,7 +55,7 @@ pub fn dump_func(func: &Func, lines: &mut IndentedLines, session: &Session) {
             dump_type(type_annot, lines, session);
         }
 
-        if let Some(default_value) = param.default_value {
+        if let Some(default_value) = &param.default_value {
             lines.push(&format!(" = {}", default_value.id.unintern_or_default(&session.intermediate_dir)));
         }
 

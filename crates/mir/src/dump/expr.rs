@@ -199,7 +199,7 @@ pub fn dump_expr(
             let (open_delim, close_delim) = match func {
                 Callable::Static { def_span, .. } => {
                     lines.push(&span_to_string_or_verbose(
-                        *def_span,
+                        def_span,
                         &session.intermediate_dir,
                         &session.global_context.span_string_map.unwrap_or(&HashMap::new()),
                     ));
@@ -207,7 +207,7 @@ pub fn dump_expr(
                 },
                 Callable::StructInit { def_span, .. } => {
                     lines.push(&span_to_string_or_verbose(
-                        *def_span,
+                        def_span,
                         &session.intermediate_dir,
                         &session.global_context.span_string_map.unwrap_or(&HashMap::new()),
                     ));

@@ -107,25 +107,25 @@ impl Type {
     pub fn error_span_narrow(&self) -> Span {
         match self {
             Type::Wildcard(span) |
-            Type::Never(span) => *span,
+            Type::Never(span) => span.clone(),
             Type::Path(path) |
             Type::Param { constructor: path, .. } |
             Type::Func { fn_constructor: path, .. } => path.error_span_narrow(),
-            Type::Tuple { group_span, .. } => *group_span,
-            Type::List { group_span, .. } => *group_span,
+            Type::Tuple { group_span, .. } => group_span.clone(),
+            Type::List { group_span, .. } => group_span.clone(),
         }
     }
 
     pub fn error_span_wide(&self) -> Span {
         match self {
             Type::Path(path) => path.error_span_wide(),
-            Type::Param { constructor, group_span, .. } => constructor.error_span_wide().merge(*group_span),
-            Type::Tuple { group_span, .. } => *group_span,
-            Type::List { group_span, .. } => *group_span,
+            Type::Param { constructor, group_span, .. } => constructor.error_span_wide().merge(group_span),
+            Type::Tuple { group_span, .. } => group_span.clone(),
+            Type::List { group_span, .. } => group_span.clone(),
             Type::Func { fn_constructor, group_span, r#return, .. } => fn_constructor.error_span_wide()
-                .merge(*group_span)
-                .merge(r#return.error_span_wide()),
-            Type::Wildcard(span) | Type::Never(span) => *span,
+                .merge(&group_span)
+                .merge(&r#return.error_span_wide()),
+            Type::Wildcard(span) | Type::Never(span) => span.clone(),
         }
     }
 }
@@ -137,8 +137,8 @@ impl<'t, 's> Tokens<'t, 's> {
                 Some(Token { kind: TokenKind::Ident(id), span }),
                 Some(Token { kind: TokenKind::Punct(Punct::Dot), span: dot_span }),
             ) => {
-                let mut path = vec![(*id, *span)];
-                let mut dot_spans = vec![*dot_span];
+                let mut path = vec![(*id, span.clone())];
+                let mut dot_spans = vec![dot_span.clone()];
                 self.cursor += 2;
 
                 loop {
@@ -147,35 +147,35 @@ impl<'t, 's> Tokens<'t, 's> {
                             Some(Token { kind: TokenKind::Ident(id), span }),
                             Some(Token { kind: TokenKind::Punct(Punct::Dot), span: dot_span }),
                         ) => {
-                            path.push((*id, *span));
-                            dot_spans.push(*dot_span);
+                            path.push((*id, span.clone()));
+                            dot_spans.push(dot_span.clone());
                             self.cursor += 2;
                         },
                         (
                             Some(Token { kind: TokenKind::Ident(id), span: span1 }),
                             Some(Token { kind: TokenKind::Punct(Punct::Lt), span: span2 }),
                         ) => {
-                            let group_span_start = *span2;
-                            path.push((*id, *span1));
+                            let group_span_start = span2.clone();
+                            path.push((*id, span1.clone()));
                             self.cursor += 1;
                             let (args, group_span_end) = self.parse_types_in_angle_brackets()?;
 
                             return Ok(Type::Param {
                                 constructor: Path {
                                     id: path[0].0,
-                                    id_span: path[0].1,
+                                    id_span: path[0].1.clone(),
                                     fields: path[1..].iter().zip(dot_spans.iter()).map(
                                         |((id, id_span), dot_span)| Field::Name {
                                             name: *id,
-                                            name_span: *id_span,
-                                            dot_span: *dot_span,
+                                            name_span: id_span.clone(),
+                                            dot_span: dot_span.clone(),
                                             is_from_alias: false,
                                         },
                                     ).collect(),
                                     types: vec![None; path.len()],
                                 },
                                 args,
-                                group_span: group_span_start.merge(group_span_end),
+                                group_span: group_span_start.merge(&group_span_end),
                             });
                         },
                         (
@@ -183,16 +183,16 @@ impl<'t, 's> Tokens<'t, 's> {
                             Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. }),
                         ) => todo!(),  // maybe func
                         (Some(Token { kind: TokenKind::Ident(id), span }), _) => {
-                            path.push((*id, *span));
+                            path.push((*id, span.clone()));
                             self.cursor += 1;
                             return Ok(Type::Path(Path {
                                 id: path[0].0,
-                                id_span: path[0].1,
+                                id_span: path[0].1.clone(),
                                 fields: path[1..].iter().zip(dot_spans.iter()).map(
                                     |((id, id_span), dot_span)| Field::Name {
                                         name: *id,
-                                        name_span: *id_span,
-                                        dot_span: *dot_span,
+                                        name_span: id_span.clone(),
+                                        dot_span: dot_span.clone(),
                                         is_from_alias: false,
                                     },
                                 ).collect(),
@@ -219,8 +219,8 @@ impl<'t, 's> Tokens<'t, 's> {
                 Some(Token { kind: TokenKind::Ident(id), span: span1 }),
                 Some(Token { kind: TokenKind::Punct(Punct::Lt), span: span2 }),
             ) => {
-                let group_span_start = *span2;
-                let (id, id_span) = (*id, *span1);
+                let group_span_start = span2.clone();
+                let (id, id_span) = (*id, span1.clone());
                 self.cursor += 1;
                 let (args, group_span_end) = self.parse_types_in_angle_brackets()?;
 
@@ -232,7 +232,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         types: vec![None],
                     },
                     args,
-                    group_span: group_span_start.merge(group_span_end),
+                    group_span: group_span_start.merge(&group_span_end),
                 })
             },
             // Fn(Int, Int) -> Int
@@ -240,9 +240,9 @@ impl<'t, 's> Tokens<'t, 's> {
                 Some(Token { kind: TokenKind::Ident(id), span: span1 }),
                 Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span: span2 }),
             ) => {
-                let (id, id_span) = (*id, *span1);
-                let group_span = *span2;
-                let mut param_tokens = Tokens::new(tokens, span2.end(), &self.intermediate_dir);
+                let (id, id_span) = (*id, span1.clone());
+                let group_span = span2.clone();
+                let mut param_tokens = Tokens::new(tokens, span2.end(), false, &self.intermediate_dir);
                 let params = param_tokens.parse_types()?;
 
                 self.cursor += 2;
@@ -262,7 +262,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 })
             },
             (Some(Token { kind: TokenKind::Ident(id), span }), _) => {
-                let (id, id_span) = (*id, *span);
+                let (id, id_span) = (*id, span.clone());
                 self.cursor += 1;
 
                 Ok(Type::Path(Path {
@@ -275,9 +275,9 @@ impl<'t, 's> Tokens<'t, 's> {
                 }))
             },
             (Some(Token { kind: TokenKind::Group { delim, tokens }, span }), _) => {
-                let group_span = *span;
+                let group_span = span.clone();
                 let delim = *delim;
-                let mut tokens = Tokens::new(tokens, group_span.end(), &self.intermediate_dir);
+                let mut tokens = Tokens::new(tokens, group_span.end(), false, &self.intermediate_dir);
 
                 let result = match delim {
                     Delim::Parenthesis => {
@@ -337,12 +337,12 @@ impl<'t, 's> Tokens<'t, 's> {
                 result
             },
             (Some(Token { kind: TokenKind::Punct(Punct::Factorial), span }), _) => {
-                let result = Ok(Type::Never(*span));
+                let result = Ok(Type::Never(span.clone()));
                 self.cursor += 1;
                 result
             },
             (Some(Token { kind: TokenKind::Wildcard, span }), _) => {
-                let result = Ok(Type::Wildcard(*span));
+                let result = Ok(Type::Wildcard(span.clone()));
                 self.cursor += 1;
                 result
             },
@@ -386,14 +386,14 @@ impl<'t, 's> Tokens<'t, 's> {
                 },
                 Token { kind: TokenKind::Punct(Punct::Gt), span } => {
                     stack -= 1;
-                    span_end = *span;
+                    span_end = span.clone();
                     next_cursor = cursor;
                 },
                 Token { kind: TokenKind::Punct(Punct::Shr), span } => {
-                    new_tokens.push(Token { kind: TokenKind::Punct(Punct::Gt), span: *span });
-                    new_tokens.push(Token { kind: TokenKind::Punct(Punct::Gt), span: *span });
+                    new_tokens.push(Token { kind: TokenKind::Punct(Punct::Gt), span: span.clone() });
+                    new_tokens.push(Token { kind: TokenKind::Punct(Punct::Gt), span: span.clone() });
                     stack -= 2;
-                    span_end = *span;
+                    span_end = span.clone();
                     next_cursor = cursor;
                     continue;
                 },
@@ -426,7 +426,7 @@ impl<'t, 's> Tokens<'t, 's> {
         }
 
         self.cursor = next_cursor + 1;
-        let mut new_tokens = Tokens::new(&new_tokens, span_end, &self.intermediate_dir);
+        let mut new_tokens = Tokens::new(&new_tokens, span_end.clone(), false, &self.intermediate_dir);
         Ok((new_tokens.parse_types()?, span_end))
     }
 

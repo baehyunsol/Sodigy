@@ -20,7 +20,7 @@ impl Let {
 
         match hir_let.type_annot.as_ref().map(|type_annot| Type::from_hir(type_annot, session)) {
             Some(Ok(type_annot)) => {
-                session.types.insert(hir_let.name_span, type_annot);
+                session.types.insert(hir_let.name_span.clone(), type_annot);
             },
             Some(Err(())) => {
                 has_error = true;
@@ -42,9 +42,9 @@ impl Let {
 
         else {
             Ok(Let {
-                keyword_span: hir_let.keyword_span,
+                keyword_span: hir_let.keyword_span.clone(),
                 name: hir_let.name,
-                name_span: hir_let.name_span,
+                name_span: hir_let.name_span.clone(),
                 type_annot_span,
                 value: value.unwrap(),
                 origin: hir_let.origin,

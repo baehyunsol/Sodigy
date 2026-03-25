@@ -13,7 +13,7 @@ impl Endec for Monomorphization {
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        let (id, cursor) = u128::decode_impl(buffer, cursor)?;
+        let (id, cursor) = u64::decode_impl(buffer, cursor)?;
         let (def_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (call_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (generics, cursor) = HashMap::<Span, Type>::decode_impl(buffer, cursor)?;

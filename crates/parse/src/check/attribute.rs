@@ -54,13 +54,13 @@ fn check_decorator_args(args: &[DecoratorArg], intermediate_dir: &str) -> Result
     let mut spans_by_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
 
     for arg in args.iter() {
-        if let Some((name, span)) = arg.keyword {
-            match spans_by_name.entry(name) {
+        if let Some((name, span)) = &arg.keyword {
+            match spans_by_name.entry(*name) {
                 Entry::Occupied(mut e) => {
-                    e.get_mut().push(span);
+                    e.get_mut().push(span.clone());
                 },
                 Entry::Vacant(e) => {
-                    e.insert(vec![span]);
+                    e.insert(vec![span.clone()]);
                 },
             }
         }

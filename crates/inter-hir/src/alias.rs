@@ -47,11 +47,11 @@ impl Session {
 
                 if !alias_log.is_empty() {
                     if i == ALIAS_RESOLVE_RECURSION_LIMIT {
-                        suspicious_spans.push(name_span);
+                        suspicious_spans.push(name_span.clone());
                         suspicious_spans.extend(alias_log);
                     }
 
-                    nested_type_aliases.insert(name_span, alias.r#type);
+                    nested_type_aliases.insert(name_span.clone(), alias.r#type);
                 }
             }
 
@@ -69,12 +69,12 @@ impl Session {
                     //    field will be `2^n`.
                     if r#use.path.fields.len() > 1024 {
                         suspicious_spans = alias_log;
-                        suspicious_spans.push(name_span);
+                        suspicious_spans.push(name_span.clone());
                         emergency_escape = true;
                     }
 
                     else if i == ALIAS_RESOLVE_RECURSION_LIMIT {
-                        suspicious_spans.push(name_span);
+                        suspicious_spans.push(name_span.clone());
                         suspicious_spans.extend(alias_log);
                     }
 
@@ -88,7 +88,7 @@ impl Session {
                     kind: ErrorKind::AliasResolveRecursionLimitReached,
                     spans: suspicious_spans.iter().map(
                         |span| RenderableSpan {
-                            span: *span,
+                            span: span.clone(),
                             auxiliary: false,
                             note: None,
                         }
@@ -104,7 +104,7 @@ impl Session {
 
             else if !nested_name_aliases.is_empty() || !nested_type_aliases.is_empty() || !name_aliases_to_type_aliases.is_empty() {
                 for (name_span, r#use) in nested_name_aliases.drain() {
-                    self.name_aliases.insert(name_span, r#use);
+                    self.name_aliases.insert(name_span.clone(), r#use);
                 }
 
                 for (name_span, alias) in nested_type_aliases.drain() {
@@ -114,7 +114,7 @@ impl Session {
 
                 for (name_span, type_alias) in name_aliases_to_type_aliases.drain(..) {
                     self.name_aliases.remove(&name_span);
-                    self.type_aliases.insert(name_span, type_alias);
+                    self.type_aliases.insert(name_span.clone(), type_alias);
                 }
             }
 
@@ -148,20 +148,20 @@ impl Session {
         // Then we want to lower the use statement to `type w<T> = Option<T>;`.
         if r#use.path.fields.is_empty() && let Some(type_alias) = self.type_aliases.get(&r#use.path.id.def_span) {
             name_aliases_to_type_aliases.push((
-                r#use.name_span,
+                r#use.name_span.clone(),
                 Alias {
                     visibility: r#use.visibility.clone(),
-                    keyword_span: r#use.keyword_span,
+                    keyword_span: r#use.keyword_span.clone(),
                     name: r#use.name,
-                    name_span: r#use.name_span,
+                    name_span: r#use.name_span.clone(),
                     generics: type_alias.generics.iter().map(
                         |generic| Generic {
                             name: generic.name,
-                            name_span: r#use.path.id.span,
+                            name_span: r#use.path.id.span.clone(),
                             // TODO: we need an extra field that it's from an alias
                         }
                     ).collect(),
-                    generic_group_span: Some(r#use.path.id.span),
+                    generic_group_span: Some(r#use.path.id.span.clone()),
                     r#type: type_alias.r#type.clone(),
                     foreign_names: type_alias.foreign_names.clone(),
                 },
@@ -179,12 +179,12 @@ impl Session {
                 *r#use.path.types.last_mut().unwrap() = None;
 
                 name_aliases_to_type_aliases.push((
-                    r#use.name_span,
+                    r#use.name_span.clone(),
                     Alias {
                         visibility: r#use.visibility.clone(),
-                        keyword_span: r#use.keyword_span,
+                        keyword_span: r#use.keyword_span.clone(),
                         name: r#use.name,
-                        name_span: r#use.name_span,
+                        name_span: r#use.name_span.clone(),
                         generics: vec![],
                         generic_group_span: None,
                         r#type: Type::Param {
@@ -222,7 +222,7 @@ impl Session {
     fn cannot_alias_local_names(&mut self, path: &Path) -> Result<(), ()> {
         // If the alias is not fully resolved yet, this function does nothing and returns.
         // It'll be called again when the resolution is complete!
-        let is_local_value = match path.id.origin {
+        let is_local_value = match &path.id.origin {
             NameOrigin::FuncParam { .. } => Some(true),
             NameOrigin::GenericParam { .. } => Some(false),
             NameOrigin::Local { kind } |
@@ -256,12 +256,12 @@ impl Session {
                     kind: ErrorKind::CannotAliasLocalValue(path.id.id),
                     spans: vec![
                         RenderableSpan {
-                            span: path.id.span,
+                            span: path.id.span.clone(),
                             auxiliary: false,
                             note: Some(String::from("This is a local value.")),
                         },
                         RenderableSpan {
-                            span: path.id.def_span,
+                            span: path.id.def_span.clone(),
                             auxiliary: true,
                             note: Some(format!(
                                 "`{}` is defined here.",

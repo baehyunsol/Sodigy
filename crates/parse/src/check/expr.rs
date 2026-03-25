@@ -108,20 +108,20 @@ impl Expr {
                 let mut spans_by_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
 
                 // for error messages
-                let mut span_of_param_with_default_value = None;
+                let mut span_of_param_with_default_value: Option<Span> = None;
 
                 for param in params.iter() {
-                    if let Some(span) = span_of_param_with_default_value && param.default_value.is_none() {
+                    if let Some(span) = &span_of_param_with_default_value && param.default_value.is_none() {
                         errors.push(Error {
                             kind: ErrorKind::NonDefaultValueAfterDefaultValue,
                             spans: vec![
                                 RenderableSpan {
-                                    span: param.name_span,
+                                    span: param.name_span.clone(),
                                     auxiliary: false,
                                     note: Some(String::from("This parameter must have a default value.")),
                                 },
                                 RenderableSpan {
-                                    span,
+                                    span: span.clone(),
                                     auxiliary: true,
                                     note: Some(String::from("This parameter has a default value.")),
                                 },
@@ -135,15 +135,15 @@ impl Expr {
                     }
 
                     if param.default_value.is_some() {
-                        span_of_param_with_default_value = Some(param.name_span);
+                        span_of_param_with_default_value = Some(param.name_span.clone());
                     }
 
                     match spans_by_name.entry(param.name) {
                         Entry::Occupied(mut e) => {
-                            e.get_mut().push(param.name_span);
+                            e.get_mut().push(param.name_span.clone());
                         },
                         Entry::Vacant(e) => {
-                            e.insert(vec![param.name_span]);
+                            e.insert(vec![param.name_span.clone()]);
                         },
                     }
 
@@ -157,7 +157,7 @@ impl Expr {
                                 },
                                 spans: spans.iter().map(
                                     |span| RenderableSpan {
-                                        span: *span,
+                                        span: span.clone(),
                                         auxiliary: false,
                                         note: None,
                                     }

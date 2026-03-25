@@ -11,11 +11,11 @@ pub fn eval_const(expr: &Expr, session: &mut Session) -> Result<Expr, ()> {
         Expr::Constant(Constant::Char { .. }) |
         Expr::Constant(Constant::Byte { .. }) => Ok(expr.clone()),
         Expr::PrefixOp { op, op_span, rhs } => {
-            let result_span = op_span.merge(rhs.error_span_wide());
+            let result_span = op_span.merge(&rhs.error_span_wide());
             let rhs = eval_const(rhs, session)?;
 
             match (op, rhs) {
-                (_, Expr::Constant(Constant::Number { n, .. })) => match eval_number_prefix_op(*op, *op_span, &n) {
+                (_, Expr::Constant(Constant::Number { n, .. })) => match eval_number_prefix_op(*op, op_span.clone(), &n) {
                     Ok(n) => Ok(Expr::Constant(Constant::Number { n, span: result_span.derive(SpanDeriveKind::ConstEval) })),
                     Err(es) => {
                         session.errors.extend(es);
@@ -23,13 +23,13 @@ pub fn eval_const(expr: &Expr, session: &mut Session) -> Result<Expr, ()> {
                     },
                 },
                 _ => {
-                    session.errors.push(Error::todo(89468, "more const eval", *op_span));
+                    session.errors.push(Error::todo(89468, "more const eval", op_span.clone()));
                     Err(())
                 },
             }
         },
         Expr::InfixOp { op, op_span, lhs, rhs } => {
-            let result_span = lhs.error_span_wide().merge(*op_span).merge(rhs.error_span_wide());
+            let result_span = lhs.error_span_wide().merge(op_span).merge(&rhs.error_span_wide());
             let (lhs, rhs) = match (
                 eval_const(lhs, session),
                 eval_const(rhs, session),
@@ -41,7 +41,7 @@ pub fn eval_const(expr: &Expr, session: &mut Session) -> Result<Expr, ()> {
             };
 
             match (lhs, op, rhs) {
-                (Expr::Constant(Constant::Number { n: lhs, .. }), _, Expr::Constant(Constant::Number { n: rhs, .. })) => match eval_number_infix_op(*op, *op_span, &lhs, &rhs, &session.intermediate_dir) {
+                (Expr::Constant(Constant::Number { n: lhs, .. }), _, Expr::Constant(Constant::Number { n: rhs, .. })) => match eval_number_infix_op(*op, op_span.clone(), &lhs, &rhs, &session.intermediate_dir) {
                     Ok(n) => Ok(Expr::Constant(Constant::Number { n, span: result_span.derive(SpanDeriveKind::ConstEval) })),
                     Err(es) => {
                         session.errors.extend(es);
@@ -49,7 +49,7 @@ pub fn eval_const(expr: &Expr, session: &mut Session) -> Result<Expr, ()> {
                     },
                 },
                 _ => {
-                    session.errors.push(Error::todo(89469, "more const eval", *op_span));
+                    session.errors.push(Error::todo(89469, "more const eval", op_span.clone()));
                     Err(())
                 },
             }

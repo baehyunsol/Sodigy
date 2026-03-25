@@ -27,9 +27,9 @@ pub enum Expr {
     // `Expr::Path`, and inter-hir will resolve it later.
     Path(Path),
     Constant(Constant),
-    If(If),
-    Match(Match),
-    Block(Block),
+    If(Box<If>),
+    Match(Box<Match>),
+    Block(Box<Block>),
     Call {
         func: Box<Expr>,
         args: Vec<CallArg>,
@@ -89,7 +89,7 @@ pub enum Expr {
     TypeConversion {
         keyword_span: Span,
         lhs: Box<Expr>,
-        rhs: Type,
+        rhs: Box<Type>,
         has_question_mark: bool,
     },
     Closure {
@@ -108,9 +108,9 @@ impl Expr {
         match ast_expr {
             ast::Expr::Path(p) => Ok(Expr::Path(Path::from_ast(p, session)?)),
             ast::Expr::Constant(c) => Ok(Expr::Constant(c.clone())),
-            ast::Expr::If(r#if) => Ok(Expr::If(If::from_ast(r#if, session)?)),
-            ast::Expr::Match(r#match) => Ok(Expr::Match(Match::from_ast(r#match, session)?)),
-            ast::Expr::Block(block) => Ok(Expr::Block(Block::from_ast(block, session)?)),
+            ast::Expr::If(r#if) => Ok(Expr::If(Box::new(If::from_ast(r#if, session)?))),
+            ast::Expr::Match(r#match) => Ok(Expr::Match(Box::new(Match::from_ast(r#match, session)?))),
+            ast::Expr::Block(block) => Ok(Expr::Block(Box::new(Block::from_ast(block, session)?))),
             ast::Expr::Call { func, args, arg_group_span } => {
                 let func = Expr::from_ast(func, session);
                 let mut hir_args = Vec::with_capacity(args.len());
@@ -120,7 +120,7 @@ impl Expr {
                     match Expr::from_ast(&arg.arg, session) {
                         Ok(new_arg) => {
                             hir_args.push(CallArg {
-                                keyword: arg.keyword,
+                                keyword: arg.keyword.clone(),
                                 arg: new_arg,
                             });
                         },
@@ -134,7 +134,7 @@ impl Expr {
                     (Ok(func), false) => Ok(Expr::Call {
                         func: Box::new(func),
                         args: hir_args,
-                        arg_group_span: *arg_group_span,
+                        arg_group_span: arg_group_span.clone(),
                     }),
                     _ => Err(()),
                 }
@@ -154,7 +154,7 @@ impl Expr {
                             },
                         },
                         ast::ExprOrString::String { s, span } => {
-                            elements.push(ExprOrString::String { s: *s, span: *span });
+                            elements.push(ExprOrString::String { s: *s, span: span.clone() });
                         },
                     }
                 }
@@ -167,14 +167,14 @@ impl Expr {
                     Ok(Expr::FormattedString {
                         raw: *raw,
                         elements,
-                        span: *span,
+                        span: span.clone(),
                     })
                 }
             },
             ast::Expr::Tuple { elements, group_span } |
             ast::Expr::List { elements, group_span } => {
                 let is_tuple = matches!(ast_expr, ast::Expr::Tuple { .. });
-                let group_span = *group_span;
+                let group_span = group_span.clone();
                 let mut has_error = false;
                 let mut new_elements = Vec::with_capacity(elements.len());
 
@@ -217,7 +217,7 @@ impl Expr {
                         Ok(value) => {
                             hir_fields.push(StructInitField {
                                 name: field.name,
-                                name_span: field.name_span,
+                                name_span: field.name_span.clone(),
                                 value,
                             });
                         },
@@ -231,7 +231,7 @@ impl Expr {
                     (Ok(constructor), false) => Ok(Expr::StructInit {
                         constructor,
                         fields: hir_fields,
-                        group_span: *group_span,
+                        group_span: group_span.clone(),
                     }),
                     _ => Err(()),
                 }
@@ -261,7 +261,7 @@ impl Expr {
                 match Expr::from_ast(lhs, session) {
                     _ if has_error => Err(()),
                     Ok(Expr::Field { lhs, mut fields, mut types }) => {
-                        fields.push(*field);
+                        fields.push(field.clone());
                         types.push(dotfish);
                         Ok(Expr::Field {
                             lhs,
@@ -271,7 +271,7 @@ impl Expr {
                     },
                     Ok(lhs) => Ok(Expr::Field {
                         lhs: Box::new(lhs),
-                        fields: vec![*field],
+                        fields: vec![field.clone()],
                         types: vec![None, dotfish],
                     }),
                     Err(()) => Err(()),
@@ -298,14 +298,14 @@ impl Expr {
                 ..
             }) => {
                 let span = param_group_span.start().derive(SpanDeriveKind::Lambda);
-                let name = name_lambda_function(span, &session.intermediate_dir);
+                let name = name_lambda_function(&span, &session.intermediate_dir);
 
                 let func = ast::Func {
                     is_pure: *is_pure,
-                    impure_keyword_span: *impure_keyword_span,
-                    keyword_span: span,
+                    impure_keyword_span: impure_keyword_span.clone(),
+                    keyword_span: span.clone(),
                     name,
-                    name_span: span,
+                    name_span: span.clone(),
                     generics: vec![],
                     generic_group_span: None,
                     params: params.clone(),
@@ -323,8 +323,8 @@ impl Expr {
                         Ok(Expr::Path(Path {
                             id: IdentWithOrigin {
                                 id: name,
-                                span,
-                                def_span: span,
+                                span: span.clone(),
+                                def_span: span.clone(),
                                 origin: NameOrigin::Foreign {
                                     kind: NameKind::Func,
                                 },
@@ -338,7 +338,7 @@ impl Expr {
             },
             ast::Expr::PrefixOp { op, op_span, rhs } => Ok(Expr::PrefixOp {
                 op: *op,
-                op_span: *op_span,
+                op_span: op_span.clone(),
                 rhs: Box::new(Expr::from_ast(rhs, session)?),
             }),
             ast::Expr::InfixOp { op, op_span, lhs, rhs } => {
@@ -348,7 +348,7 @@ impl Expr {
                 ) {
                     (Ok(lhs), Ok(rhs)) => Ok(Expr::InfixOp {
                         op: *op,
-                        op_span: *op_span,
+                        op_span: op_span.clone(),
                         lhs: Box::new(lhs),
                         rhs: Box::new(rhs),
                     }),
@@ -357,7 +357,7 @@ impl Expr {
             },
             ast::Expr::PostfixOp { op, op_span, lhs } => Ok(Expr::PostfixOp {
                 op: *op,
-                op_span: *op_span,
+                op_span: op_span.clone(),
                 lhs: Box::new(Expr::from_ast(lhs, session)?),
             }),
             ast::Expr::TypeConversion { keyword_span, lhs, rhs, has_question_mark } => match (
@@ -365,9 +365,9 @@ impl Expr {
                 Type::from_ast(rhs, session),
             ) {
                 (Ok(lhs), Ok(rhs)) => Ok(Expr::TypeConversion {
-                    keyword_span: *keyword_span,
+                    keyword_span: keyword_span.clone(),
                     lhs: Box::new(lhs),
-                    rhs,
+                    rhs: Box::new(rhs),
                     has_question_mark: *has_question_mark,
                 }),
                 _ => Err(()),
@@ -408,7 +408,7 @@ impl Expr {
                             kind: ErrorKind::DisconnectedPipeline,
                             spans: vec![
                                 RenderableSpan {
-                                    span: pipe_spans[i],
+                                    span: pipe_spans[i].clone(),
                                     auxiliary: false,
                                     note: Some(String::from("It pipes a value, but no one uses the value.")),
                                 },
@@ -458,7 +458,7 @@ impl Expr {
                 }
 
                 else {
-                    Ok(Expr::Block(lowered_block))
+                    Ok(Expr::Block(Box::new(lowered_block)))
                 }
             },
 
@@ -478,20 +478,20 @@ impl Expr {
         match self {
             Expr::Path(p) | Expr::Closure { fp: p, .. } => p.error_span_narrow(),
             Expr::Constant(c) => c.span(),
-            Expr::FormattedString { span, .. } => *span,
-            Expr::If(r#if) => r#if.if_span,
-            Expr::Match(r#match) => r#match.keyword_span,
-            Expr::Block(block) => block.group_span,
+            Expr::FormattedString { span, .. } => span.clone(),
+            Expr::If(r#if) => r#if.if_span.clone(),
+            Expr::Match(r#match) => r#match.keyword_span.clone(),
+            Expr::Block(block) => block.group_span.clone(),
             Expr::Call { func, .. } => func.error_span_narrow(),
             Expr::Tuple { group_span, .. } |
-            Expr::List { group_span, .. } => *group_span,
+            Expr::List { group_span, .. } => group_span.clone(),
             Expr::StructInit { constructor, .. } => constructor.error_span_narrow(),
             Expr::Field { fields, .. } |
             Expr::FieldUpdate { fields, .. } => merge_field_spans(fields),
             Expr::PrefixOp { op_span, .. } |
             Expr::InfixOp { op_span, .. } |
             Expr::PostfixOp { op_span, .. } |
-            Expr::TypeConversion { keyword_span: op_span, .. } => *op_span,
+            Expr::TypeConversion { keyword_span: op_span, .. } => op_span.clone(),
         }
     }
 
@@ -499,35 +499,35 @@ impl Expr {
         match self {
             Expr::Path(p) | Expr::Closure { fp: p, .. } => p.error_span_wide(),
             Expr::Constant(c) => c.span(),
-            Expr::FormattedString { span, .. } => *span,
+            Expr::FormattedString { span, .. } => span.clone(),
             Expr::If(r#if) => r#if.if_span
-                .merge(r#if.cond.error_span_wide())
-                .merge(r#if.else_span)
-                .merge(r#if.true_group_span)
-                .merge(r#if.false_group_span),
-            Expr::Match(r#match) => r#match.keyword_span.merge(r#match.group_span),
-            Expr::Block(block) => block.group_span,
-            Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(*arg_group_span),
+                .merge(&r#if.cond.error_span_wide())
+                .merge(&r#if.else_span)
+                .merge(&r#if.true_group_span)
+                .merge(&r#if.false_group_span),
+            Expr::Match(r#match) => r#match.keyword_span.merge(&r#match.group_span),
+            Expr::Block(block) => block.group_span.clone(),
+            Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(arg_group_span),
             Expr::Tuple { group_span, .. } |
-            Expr::List { group_span, .. } => *group_span,
-            Expr::StructInit { constructor, group_span, .. } => constructor.error_span_wide().merge(*group_span),
+            Expr::List { group_span, .. } => group_span.clone(),
+            Expr::StructInit { constructor, group_span, .. } => constructor.error_span_wide().merge(group_span),
 
             // TODO: dump dotfish
-            Expr::Field { lhs, fields, types } => lhs.error_span_wide().merge(merge_field_spans(fields)),
+            Expr::Field { lhs, fields, types } => lhs.error_span_wide().merge(&merge_field_spans(fields)),
             Expr::FieldUpdate { lhs, fields, rhs } => lhs.error_span_wide()
-                .merge(merge_field_spans(fields))
-                .merge(rhs.error_span_wide()),
-            Expr::PrefixOp { op_span, rhs, .. } => op_span.merge(rhs.error_span_wide()),
-            Expr::InfixOp { lhs, op_span, rhs, .. } => lhs.error_span_wide().merge(*op_span).merge(rhs.error_span_wide()),
-            Expr::PostfixOp { op_span, lhs, .. } => lhs.error_span_wide().merge(*op_span),
+                .merge(&merge_field_spans(fields))
+                .merge(&rhs.error_span_wide()),
+            Expr::PrefixOp { op_span, rhs, .. } => op_span.merge(&rhs.error_span_wide()),
+            Expr::InfixOp { lhs, op_span, rhs, .. } => lhs.error_span_wide().merge(op_span).merge(&rhs.error_span_wide()),
+            Expr::PostfixOp { op_span, lhs, .. } => lhs.error_span_wide().merge(op_span),
             Expr::TypeConversion { lhs, keyword_span, rhs, .. } => lhs.error_span_wide()
-                .merge(*keyword_span)
-                .merge(rhs.error_span_wide()),
+                .merge(keyword_span)
+                .merge(&rhs.error_span_wide()),
         }
     }
 }
 
-fn name_lambda_function(span: Span, map_dir: &str) -> InternedString {
+fn name_lambda_function(span: &Span, map_dir: &str) -> InternedString {
     // NOTE: It doesn't have to be unique because hir uses name_span and def_span to identify funcs.
     //       But I'm adding `span.hash()` for better debuggability. I'm making the name it 15 bytes
     //       long because that's the maximum length `intern_string` can run without doing file IO.

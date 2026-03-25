@@ -34,7 +34,7 @@ impl Session {
             let mut constants = vec![];
 
             for (name, (origin, def_span)) in lambda.foreign_names.iter() {
-                let (origin, def_span) = (*origin, *def_span);
+                let (origin, def_span) = (origin.clone(), def_span.clone());
 
                 match origin {
                     NameOrigin::FuncParam { .. } => {
@@ -155,7 +155,7 @@ fn substitute_closures_recursive(value: &mut Expr, closures: &mut HashMap<Span, 
     match value {
         Expr::Path(p) if p.fields.is_empty() => match closures.get(&p.id.def_span) {
             Some(captures) => {
-                let def_span = p.id.def_span;
+                let def_span = p.id.def_span.clone();
                 *value = Expr::Closure {
                     fp: p.clone(),
                     captures: captures.locals.clone(),

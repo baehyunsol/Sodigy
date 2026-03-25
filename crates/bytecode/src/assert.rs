@@ -41,7 +41,7 @@ impl Assert {
             None => intern_string(b"unnamed-assertion", &session.intermediate_dir).unwrap(),
         };
         bytecodes.push(Bytecode::Const {
-            value: Value::Span(mir_assert.keyword_span),
+            value: Value::Span(mir_assert.keyword_span.clone()),
             dst: Memory::Return,
         });
         bytecodes.push(Bytecode::PushDebugInfo {
@@ -71,7 +71,7 @@ impl Assert {
         let no_panic = session.get_local_label();
         bytecodes.push(Bytecode::JumpIf {
             value: Memory::Return,
-            label: no_panic,
+            label: no_panic.clone(),
         });
 
         // We don't pop_debug_info for error notes because notes are evaluated only if the assertion has failed.
@@ -79,7 +79,7 @@ impl Assert {
             // If it panics while evaluating `note`, the runtime will see the
             // `NoteDecoratorSpan` and throw an according error message.
             bytecodes.push(Bytecode::Const {
-                value: Value::Span(*note_decorator_span),
+                value: Value::Span(note_decorator_span.clone()),
                 dst: Memory::Return,
             });
             bytecodes.push(Bytecode::PushDebugInfo {
@@ -107,7 +107,7 @@ impl Assert {
             stack_offset: 0,  // don't care
             dst: Memory::Return,  // don't care
         });
-        bytecodes.push(Bytecode::Label(no_panic));
+        bytecodes.push(Bytecode::Label(no_panic.clone()));
 
         for _ in 0..debug_info_count {
             bytecodes.push(Bytecode::PopDebugInfo);
@@ -123,7 +123,7 @@ impl Assert {
 
         Assert {
             name,
-            keyword_span: mir_assert.keyword_span,
+            keyword_span: mir_assert.keyword_span.clone(),
             bytecodes,
         }
     }

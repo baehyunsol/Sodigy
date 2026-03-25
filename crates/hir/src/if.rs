@@ -33,7 +33,7 @@ impl If {
             Some(ast_pattern) => {
                 let mut extra_guards = vec![];
                 let names = ast_pattern.bound_names().iter().map(
-                    |(id, span)| (*id, (*span, NameKind::PatternNameBind, UseCount::new()))
+                    |(id, span)| (*id, (span.clone(), NameKind::PatternNameBind, UseCount::new()))
                 ).collect();
                 session.name_stack.push(Namespace::Pattern { names });
 
@@ -82,15 +82,15 @@ impl If {
 
         else {
             Ok(If {
-                if_span: ast_if.if_span,
+                if_span: ast_if.if_span.clone(),
                 cond: Box::new(cond.unwrap()),
-                let_span: ast_if.let_span,
+                let_span: ast_if.let_span.clone(),
                 pattern,
-                else_span: ast_if.else_span,
+                else_span: ast_if.else_span.clone(),
                 true_value: Box::new(true_value.unwrap()),
-                true_group_span: ast_if.true_group_span,
+                true_group_span: ast_if.true_group_span.clone(),
                 false_value: Box::new(false_value.unwrap()),
-                false_group_span: ast_if.false_group_span,
+                false_group_span: ast_if.false_group_span.clone(),
             })
         }
     }

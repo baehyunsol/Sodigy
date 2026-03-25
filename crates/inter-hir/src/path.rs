@@ -48,19 +48,19 @@ impl Session {
         // The resolved path keeps span and id of `a`, for better error messages.
         match self.name_aliases.get(&path.id.def_span) {
             Some(alias) => {
-                log.push(path.id.span);
-                log.push(path.id.def_span);
+                log.push(path.id.span.clone());
+                log.push(path.id.def_span.clone());
                 path.id = IdentWithOrigin {
-                    def_span: alias.path.id.def_span,
-                    origin: alias.path.id.origin,
-                    ..path.id
+                    def_span: alias.path.id.def_span.clone(),
+                    origin: alias.path.id.origin.clone(),
+                    ..path.id.clone()
                 };
                 let alias_fields = alias.path.fields.iter().map(
                     |field| match field {
                         Field::Name { name, .. } => Field::Name {
                             name: *name,
-                            name_span: path.id.span,
-                            dot_span: path.id.span,
+                            name_span: path.id.span.clone(),
+                            dot_span: path.id.span.clone(),
                             is_from_alias: true,
                         },
                         _ => unreachable!(),
@@ -80,8 +80,8 @@ impl Session {
 
         match self.type_aliases.get(&path.id.def_span) {
             Some(alias) => {
-                log.push(path.id.span);
-                log.push(path.id.def_span);
+                log.push(path.id.span.clone());
+                log.push(path.id.def_span.clone());
                 let generic_args = match path.types.last() {
                     Some(Some(types)) => types.to_vec(),
                     _ => match type_args {
@@ -112,16 +112,16 @@ impl Session {
                     };
 
                     path.id = IdentWithOrigin {
-                        def_span: alias_path.id.def_span,
-                        origin: alias_path.id.origin,
-                        ..path.id
+                        def_span: alias_path.id.def_span.clone(),
+                        origin: alias_path.id.origin.clone(),
+                        ..path.id.clone()
                     };
                     path.fields = alias_path.fields.iter().map(
                         |field| match field {
                             Field::Name { name, .. } => Field::Name {
                                 name: *name,
-                                name_span: path.id.span,
-                                dot_span: path.id.span,
+                                name_span: path.id.span.clone(),
+                                dot_span: path.id.span.clone(),
                                 is_from_alias: true,
                             },
                             _ => unreachable!(),
@@ -145,13 +145,13 @@ impl Session {
         if let Some(field) = path.fields.get(0) {
             let (field_name, field_span) = (field.unwrap_name(), field.unwrap_name_span());
 
-            if let Some(item_shape) = self.get_item_shape(path.id.def_span) {
+            if let Some(item_shape) = self.get_item_shape(&path.id.def_span) {
                 if let Some(def_span) = item_shape.associated_lets().get(&field_name) {
                     let new_id = IdentWithOrigin {
                         id: field_name,
-                        span: field_span,
+                        span: field_span.clone(),
                         origin: NameOrigin::Foreign { kind: NameKind::Let { is_top_level: true } },
-                        def_span: *def_span,
+                        def_span: def_span.clone(),
                     };
 
                     if path.fields.len() == 1 {
@@ -181,13 +181,13 @@ impl Session {
                 Some((kind @ (NameKind::Module | NameKind::Enum), items)) => {
                     match items.get(&field_name) {
                         Some((item, item_kind)) => {
-                            log.push(path.id.span);
-                            log.push(path.id.def_span);
+                            log.push(path.id.span.clone());
+                            log.push(path.id.def_span.clone());
                             let new_id = IdentWithOrigin {
                                 id: field_name,
-                                span: field_span,
-                                origin: NameOrigin::Foreign { kind: *item_kind },
-                                def_span: *item,
+                                span: field_span.clone(),
+                                origin: NameOrigin::Foreign { kind: item_kind.clone() },
+                                def_span: item.clone(),
                             };
 
                             if path.fields.len() == 1 {
@@ -212,7 +212,7 @@ impl Session {
                             self.resolve_path(path, None, log)
                         },
                         None => {
-                            let error_message = match kind {
+                            let error_message = match &kind {
                                 NameKind::Module => format!(
                                     "Module `{}` doesn't have an item named `{}`.",
                                     path.id.id.unintern_or_default(&self.intermediate_dir),

@@ -36,8 +36,8 @@ impl<'t, 's> Tokens<'t, 's> {
                 Some(Token { kind: TokenKind::Keyword(Keyword::If), span: span1 }),
                 Some(Token { kind: TokenKind::Keyword(Keyword::Let), span: span2 }),
             ) => {
-                let if_span = *span1;
-                let let_span = Some(*span2);
+                let if_span = span1.clone();
+                let let_span = Some(span2.clone());
                 self.cursor += 2;
                 pattern = Some(self.parse_pattern(ParsePatternContext::IfLet)?);
                 self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
@@ -48,7 +48,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 Some(Token { kind: TokenKind::Keyword(Keyword::If), span: span1 }),
                 Some(_),
             ) => {
-                let span1 = *span1;
+                let span1 = span1.clone();
                 self.cursor += 1;
                 (span1, None, self.parse_expr(false)?)
             },
@@ -76,29 +76,29 @@ impl<'t, 's> Tokens<'t, 's> {
             },
             span: true_group_span,
         } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
-        let true_group_span = *true_group_span;
-        let mut true_value_tokens = Tokens::new(true_value_tokens, true_group_span.end(), &self.intermediate_dir);
-        let true_value = Box::new(Expr::block_or_expr(true_value_tokens.parse_block(false /* top-level */, true_group_span)?));
+        let true_group_span = true_group_span.clone();
+        let mut true_value_tokens = Tokens::new(true_value_tokens, true_group_span.end(), false, &self.intermediate_dir);
+        let true_value = Box::new(Expr::block_or_expr(true_value_tokens.parse_block(false /* top-level */, true_group_span.clone())?));
 
         let (else_span, false_value, false_group_span) = match self.peek2() {
             (
                 Some(Token { kind: TokenKind::Keyword(Keyword::Else), span: span1 }),
                 Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }),
             ) => {
-                let span1 = *span1;
+                let span1 = span1.clone();
                 self.cursor += 1;
                 let if_expr = self.parse_if_expr()?;
-                let false_group_span = if_expr.false_group_span;
-                (span1, Box::new(Expr::If(if_expr)), false_group_span)
+                let false_group_span = if_expr.false_group_span.clone();
+                (span1, Box::new(Expr::If(Box::new(if_expr))), false_group_span)
             },
             (
                 Some(Token { kind: TokenKind::Keyword(Keyword::Else), span: span1 }),
                 Some(Token { kind: TokenKind::Group { delim: Delim::Brace, tokens: false_value_tokens }, span: false_group_span }),
             ) => {
-                let span1 = *span1;
-                let false_group_span = *false_group_span;
-                let mut false_value_tokens = Tokens::new(false_value_tokens, false_group_span.end(), &self.intermediate_dir);
-                let false_value = Expr::block_or_expr(false_value_tokens.parse_block(false /* top-level */, false_group_span)?);
+                let span1 = span1.clone();
+                let false_group_span = false_group_span.clone();
+                let mut false_value_tokens = Tokens::new(false_value_tokens, false_group_span.end(), false, &self.intermediate_dir);
+                let false_value = Expr::block_or_expr(false_value_tokens.parse_block(false /* top-level */, false_group_span.clone())?);
                 self.cursor += 2;
                 (span1, Box::new(false_value), false_group_span)
             },
@@ -129,7 +129,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     },
                     spans: vec![
                         RenderableSpan {
-                            span: t1.span,
+                            span: t1.span.clone(),
                             auxiliary: false,
                             note: None,
                         },

@@ -1,6 +1,10 @@
 use sodigy_fs_api::{FileError, FileErrorKind};
 
+// There are 256 files in `<ir>/file_map/`. The file names look like `<ir>/file_map/00`,
+// `<ir>/file_map/01`, `<ir>/file_map/02`, ... `<ir>/file_map/ff`.
+// Each file is a file map.
 // A file map is a list of `file_id: u32`, `content_hash: u128`, `module_path: String`, `file_path: String`.
+// The name of the file map file is the last 8 bits of file_id, which is same as the last 8 bits of `hash(module_path)`.
 
 pub fn length_file_map(file_map: &[u8], file_map_path: &str) -> Result<usize, FileError> {
     let mut cursor = 0;

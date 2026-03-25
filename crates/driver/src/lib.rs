@@ -450,7 +450,7 @@ fn compile(
             workers[round_robin % workers.len()].send(MessageToWorker::Run(
                 Command::InterHir {
                     modules: modules.values().map(
-                        |module| (module.module_path.clone(), module.span)
+                        |module| (module.module_path.clone(), module.span.clone())
                     ).collect(),
                     intermediate_dir: ir_dir.clone(),
                     emit_ir_options: emit_irs.clone_and_push(
@@ -474,7 +474,7 @@ fn compile(
             workers[round_robin % workers.len()].send(MessageToWorker::Run(
                 Command::InterMir {
                     modules: modules.values().map(
-                        |module| (module.module_path.clone(), module.span)
+                        |module| (module.module_path.clone(), module.span.clone())
                     ).collect(),
                     intermediate_dir: ir_dir.clone(),
                     emit_ir_options: emit_irs.clone_and_push(
@@ -498,7 +498,7 @@ fn compile(
             workers[round_robin % workers.len()].send(MessageToWorker::Run(
                 Command::CodeGen {
                     modules: modules.values().map(
-                        |module| (module.module_path.clone(), module.span)
+                        |module| (module.module_path.clone(), module.span.clone())
                     ).collect(),
                     intermediate_dir: ir_dir.clone(),
                     backend,
@@ -748,16 +748,16 @@ fn init_ir_dir(
     intermediate_dir: &str,
     incremental_compilation: bool,
 ) -> Result<(), FileError> {
-    let intern_str_map_dir = join(intermediate_dir, "str")?;
-    let intern_num_map_dir = join(intermediate_dir, "num")?;
     let ir_dir = join(intermediate_dir, "irs")?;
 
-    if !exists(&intern_str_map_dir) {
-        create_dir_all(&intern_str_map_dir)?;
-    }
-
-    if !exists(&intern_num_map_dir) {
-        create_dir_all(&intern_num_map_dir)?;
+    for dir in [
+        join(intermediate_dir, "str")?,
+        join(intermediate_dir, "num")?,
+        join(intermediate_dir, "file_map")?,
+    ] {
+        if !exists(&dir) {
+            create_dir_all(&dir)?;
+        }
     }
 
     if !exists(&ir_dir) {
@@ -780,8 +780,8 @@ fn init_ir_dir(
         }
     }
 
-    // TODO: What's the point of incremental compilation if we clear cache every time?
-    File::clear_cache(0 /* project id */, intermediate_dir)?;
+    // TODO: reset file-map (not id, but only hashes)
+    // File::clear_cache(0 /* project id */, intermediate_dir)?;
     Ok(())
 }
 

@@ -37,7 +37,7 @@ pub fn log_matches(matches: &Vec<MatchDump>, intermediate_dir: &str) -> Result<(
 
         for (span, helper) in span_helpers.iter() {
             spans.push(RenderableSpan {
-                span: *span,
+                span: span.clone(),
                 auxiliary: true,
                 note: Some(helper.to_string()),
             });
@@ -176,7 +176,7 @@ pub fn log_inter_mir(session: &inter_mir::Session) -> Result<(), FileError> {
                 buffer.push(b"\n-------- InitPolySolver --------\n".to_vec());
                 // buffer.push(prettify(format!("{entry:?}\n").into_bytes()));  // Too long
                 let mut spans = vec![RenderableSpan {
-                    span: *poly_def_span,
+                    span: poly_def_span.clone(),
                     auxiliary: false,
                     note: Some(String::from("This is the #[poly] definition.")),
                 }];
@@ -185,15 +185,15 @@ pub fn log_inter_mir(session: &inter_mir::Session) -> Result<(), FileError> {
                 for impl_span in solver.impls.keys() {
                     let name = format!(
                         "impl-{}-{}",
-                        session.span_to_string(*impl_span).unwrap_or(String::from("????")),
+                        session.span_to_string(impl_span).unwrap_or(String::from("????")),
                         impl_name_map.len(),
                     );
                     spans.push(RenderableSpan {
-                        span: *impl_span,
+                        span: impl_span.clone(),
                         auxiliary: true,
                         note: Some(format!("This is `{name}`.")),
                     });
-                    impl_name_map.insert(*impl_span, name);
+                    impl_name_map.insert(impl_span.clone(), name);
                 }
 
                 buffer.push(render_spans(&spans, &render_span_option, &mut render_span_session).into_bytes());
@@ -227,7 +227,7 @@ pub fn log_inter_mir(session: &inter_mir::Session) -> Result<(), FileError> {
                     generic_call.generics.iter().map(
                         |(param, r#type)| format!(
                             "{}: {}",
-                            session.span_to_string(*param).unwrap_or(String::from("????")),
+                            session.span_to_string(param).unwrap_or(String::from("????")),
                             session.render_type(r#type),
                         )
                     ).collect::<Vec<_>>().join(", "),

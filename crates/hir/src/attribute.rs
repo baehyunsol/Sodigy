@@ -69,14 +69,14 @@ impl Session {
         generic_group_span: Option<Span>,
     ) -> Result<(), ()> {
         if let Some(lang_item) = attribute.lang_item(&self.intermediate_dir) {
-            self.lang_items.insert(lang_item, lang_item_span);
+            self.lang_items.insert(lang_item, lang_item_span.clone());
         }
 
         if let Some((deco_span, lang_item_generics)) = attribute.lang_item_generics(&self.intermediate_dir) {
-            if let (Some(generic_params), Some(generic_group_span)) = (generic_params, generic_group_span) {
+            if let (Some(generic_params), Some(generic_group_span)) = (generic_params, &generic_group_span) {
                 if lang_item_generics.len() == generic_params.len() {
                     for i in 0..generic_params.len() {
-                        self.lang_items.insert(lang_item_generics[i].to_string(), generic_params[i].name_span);
+                        self.lang_items.insert(lang_item_generics[i].to_string(), generic_params[i].name_span.clone());
                     }
                 }
 
@@ -97,7 +97,7 @@ impl Session {
                                 )),
                             },
                             RenderableSpan {
-                                span: generic_group_span,
+                                span: generic_group_span.clone(),
                                 auxiliary: true,
                                 note: Some(format!(
                                     "It has {} generic parameter{}.",
@@ -188,12 +188,12 @@ impl Attribute {
                     kind: ErrorKind::DocCommentNotAllowed,
                     spans: vec![
                         RenderableSpan {
-                            span: item_keyword_span,
+                            span: item_keyword_span.clone(),
                             auxiliary: true,
                             note: Some(String::from("You can't add doc comment to this.")),
                         },
                         RenderableSpan {
-                            span: doc_comment.0[0].marker_span,
+                            span: doc_comment.0[0].marker_span.clone(),
                             auxiliary: false,
                             note: None,
                         },
@@ -220,12 +220,12 @@ impl Attribute {
                     kind: ErrorKind::CannotBePublic,
                     spans: vec![
                         RenderableSpan {
-                            span: item_keyword_span,
+                            span: item_keyword_span.clone(),
                             auxiliary: true,
                             note: Some(String::from("This cannot be public.")),
                         },
                         RenderableSpan {
-                            span: ast_visibility.keyword_span,
+                            span: ast_visibility.keyword_span.clone(),
                             auxiliary: false,
                             note: None,
                         },
@@ -289,12 +289,12 @@ impl Attribute {
                                 },
                                 spans: vec![
                                     RenderableSpan {
-                                        span: ast_decorator.name_span,
+                                        span: ast_decorator.name_span.clone(),
                                         auxiliary: true,
                                         note: Some(String::from("It requires no arguments.")),
                                     },
                                     RenderableSpan {
-                                        span: ast_decorator.arg_group_span.unwrap(),
+                                        span: ast_decorator.arg_group_span.clone().unwrap(),
                                         auxiliary: false,
                                         note: Some(String::from("Remove this parenthesis.")),
                                     },
@@ -308,7 +308,7 @@ impl Attribute {
                             let mut spans_by_keyword: HashMap<InternedString, Vec<Span>> = HashMap::new();
 
                             for ast_arg in ast_args.iter() {
-                                match ast_arg.keyword {
+                                match &ast_arg.keyword {
                                     Some((keyword, span)) => match rule.keyword_args.get(&keyword) {
                                         Some(KeywordArgRule {
                                             requirement,
@@ -319,25 +319,25 @@ impl Attribute {
                                             if let Requirement::Never = requirement {
                                                 has_error = true;
                                                 session.errors.push(Error {
-                                                    kind: ErrorKind::InvalidKeywordArg(keyword),
+                                                    kind: ErrorKind::InvalidKeywordArg(*keyword),
                                                     spans: span.simple_error(),
                                                     note: requirement_error_note.clone(),
                                                 });
                                             }
 
-                                            match spans_by_keyword.entry(keyword) {
+                                            match spans_by_keyword.entry(*keyword) {
                                                 Entry::Occupied(mut e) => {
-                                                    e.get_mut().push(span);
+                                                    e.get_mut().push(span.clone());
                                                 },
                                                 Entry::Vacant(e) => {
-                                                    e.insert(vec![span]);
+                                                    e.insert(vec![span.clone()]);
                                                 },
                                             }
 
                                             match DecoratorArg::from_ast(&ast_arg, *arg_type, session) {
                                                 Ok(arg) => match check_arg_type(&arg, *arg_type, arg_type_error_note, session) {
                                                     Ok(()) => {
-                                                        keyword_args.insert(keyword, arg);
+                                                        keyword_args.insert(*keyword, arg);
                                                     },
                                                     Err(()) => {
                                                         has_error = true;
@@ -351,7 +351,7 @@ impl Attribute {
                                         None => {
                                             has_error = true;
                                             session.errors.push(Error {
-                                                kind: ErrorKind::InvalidKeywordArg(keyword),
+                                                kind: ErrorKind::InvalidKeywordArg(*keyword),
                                                 spans: span.simple_error(),
                                                 note: None,
                                             });
@@ -370,7 +370,7 @@ impl Attribute {
                                         kind: ErrorKind::KeywordArgRepeated(*keyword),
                                         spans: spans.iter().map(
                                             |span| RenderableSpan {
-                                                span: *span,
+                                                span: span.clone(),
                                                 auxiliary: false,
                                                 note: None,
                                             }
@@ -473,7 +473,7 @@ impl Attribute {
                                         ast_decorator.name,
                                         Decorator {
                                             name: ast_decorator.name,
-                                            name_span: ast_decorator.name_span,
+                                            name_span: ast_decorator.name_span.clone(),
                                             args,
                                             keyword_args,
                                         },
@@ -494,7 +494,7 @@ impl Attribute {
                                 ast_decorator.name,
                                 Decorator {
                                     name: ast_decorator.name,
-                                    name_span: ast_decorator.name_span,
+                                    name_span: ast_decorator.name_span.clone(),
                                     args: vec![],
                                     keyword_args: HashMap::new(),
                                 },
@@ -514,10 +514,10 @@ impl Attribute {
 
             match spans_by_name.entry(ast_decorator.name) {
                 Entry::Occupied(mut e) => {
-                    e.get_mut().push(ast_decorator.name_span);
+                    e.get_mut().push(ast_decorator.name_span.clone());
                 },
                 Entry::Vacant(e) => {
-                    e.insert(vec![ast_decorator.name_span]);
+                    e.insert(vec![ast_decorator.name_span.clone()]);
                 },
             }
         }
@@ -529,7 +529,7 @@ impl Attribute {
                     kind: ErrorKind::RedundantDecorator(*name),
                     spans: spans.iter().map(
                         |span| RenderableSpan {
-                            span: *span,
+                            span: span.clone(),
                             auxiliary: false,
                             note: None,
                         }
@@ -569,7 +569,7 @@ impl Attribute {
     pub fn lang_item_generics(&self, intermediate_dir: &str) -> Option<(Span, Vec<String>)> {
         match self.decorators.get(&intern_string(b"lang_item_generics", intermediate_dir).unwrap()) {
             Some(d) => Some((
-                d.name_span,
+                d.name_span.clone(),
                 d.args.iter().map(
                     |arg| match arg {
                         DecoratorArg::Expr(Expr::Constant(Constant::String { s, .. })) => s.unintern_or_default(intermediate_dir),
@@ -718,7 +718,7 @@ pub struct Visibility {
 impl Visibility {
     pub fn from_ast(ast_visibility: &ast::Visibility, session: &mut Session) -> Result<Visibility, ()> {
         Ok(Visibility {
-            keyword_span: Some(ast_visibility.keyword_span),
+            keyword_span: Some(ast_visibility.keyword_span.clone()),
             // TODO: more fields
         })
     }

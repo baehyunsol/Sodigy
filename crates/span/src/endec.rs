@@ -3,105 +3,92 @@ use crate::{
     PolySpanKind,
     RenderableSpan,
     Span,
+    SpanId,
     SpanDeriveKind,
 };
 use sodigy_endec::{DecodeError, Endec};
-use sodigy_file::File;
 use sodigy_string::InternedString;
 
 impl Endec for Span {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            Span::Lib => {
+            Span::Range(r) => {
                 buffer.push(0);
+                r.encode_impl(buffer);
             },
-            Span::Std => {
+            Span::Monomorphize { id, span } => {
                 buffer.push(1);
+                id.encode_impl(buffer);
+                span.encode_impl(buffer);
             },
-            Span::File(file) => {
+            Span::Derived { kind, span } => {
                 buffer.push(2);
-                file.encode_impl(buffer);
-            },
-            Span::Range { file, start, end } => {
-                buffer.push(3);
-                file.encode_impl(buffer);
-                start.encode_impl(buffer);
-                end.encode_impl(buffer);
-            },
-            Span::Derived {
-                monomorphize_id,
-                kind,
-                file,
-                start,
-                end,
-            } => {
-                buffer.push(4);
-                monomorphize_id.encode_impl(buffer);
                 kind.encode_impl(buffer);
-                file.encode_impl(buffer);
-                start.encode_impl(buffer);
-                end.encode_impl(buffer);
+                span.encode_impl(buffer);
             },
-            Span::Eof(file) => {
-                buffer.push(5);
-                file.encode_impl(buffer);
+            Span::Prelude(id) => {
+                buffer.push(3);
+                id.encode_impl(buffer);
             },
-            Span::Prelude(s) => {
-                buffer.push(6);
-                s.encode_impl(buffer);
-            },
-            Span::Poly { name, kind, monomorphize_id } => {
-                buffer.push(7);
+            Span::Poly { name, kind } => {
+                buffer.push(4);
                 name.encode_impl(buffer);
                 kind.encode_impl(buffer);
-                monomorphize_id.encode_impl(buffer);
+            },
+            Span::Std => {
+                buffer.push(5);
+            },
+            Span::Lib => {
+                buffer.push(6);
             },
             Span::None => {
-                buffer.push(8);
+                buffer.push(7);
             },
         }
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         match buffer.get(cursor) {
-            Some(0) => Ok((Span::Lib, cursor + 1)),
-            Some(1) => Ok((Span::Std, cursor + 1)),
+            Some(0) => {
+                let (r, cursor) = SpanId::decode_impl(buffer, cursor + 1)?;
+                Ok((Span::Range(r), cursor))
+            },
+            Some(1) => {
+                let (id, cursor) = u64::decode_impl(buffer, cursor + 1)?;
+                let (span, cursor) = Box::<Span>::decode_impl(buffer, cursor)?;
+                Ok((Span::Monomorphize { id, span }, cursor))
+            },
             Some(2) => {
-                let (file, cursor) = File::decode_impl(buffer, cursor + 1)?;
-                Ok((Span::File(file), cursor))
+                let (kind, cursor) = SpanDeriveKind::decode_impl(buffer, cursor + 1)?;
+                let (span, cursor) = Box::<Span>::decode_impl(buffer, cursor)?;
+                Ok((Span::Derived { kind, span }, cursor))
             },
             Some(3) => {
-                let (file, cursor) = File::decode_impl(buffer, cursor + 1)?;
-                let (start, cursor) = usize::decode_impl(buffer, cursor)?;
-                let (end, cursor) = usize::decode_impl(buffer, cursor)?;
-                Ok((Span::Range { file, start, end }, cursor))
+                let (id, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
+                Ok((Span::Prelude(id), cursor))
             },
             Some(4) => {
-                let (monomorphize_id, cursor) = Option::<u128>::decode_impl(buffer, cursor + 1)?;
-                let (kind, cursor) = SpanDeriveKind::decode_impl(buffer, cursor)?;
-                let (file, cursor) = File::decode_impl(buffer, cursor)?;
-                let (start, cursor) = usize::decode_impl(buffer, cursor)?;
-                let (end, cursor) = usize::decode_impl(buffer, cursor)?;
-                Ok((Span::Derived { monomorphize_id, kind, file, start, end }, cursor))
-            },
-            Some(5) => {
-                let (file, cursor) = File::decode_impl(buffer, cursor + 1)?;
-                Ok((Span::Eof(file), cursor))
-            },
-            Some(6) => {
-                let (p, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
-                Ok((Span::Prelude(p), cursor))
-            },
-            Some(7) => {
                 let (name, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
                 let (kind, cursor) = PolySpanKind::decode_impl(buffer, cursor)?;
-                let (monomorphize_id, cursor) = Option::<u128>::decode_impl(buffer, cursor)?;
-                Ok((Span::Poly { name, kind, monomorphize_id }, cursor))
+                Ok((Span::Poly { name, kind }, cursor))
             },
-            Some(8) => Ok((Span::None, cursor + 1)),
-            Some(n @ 9..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(5) => Ok((Span::Std, cursor + 1)),
+            Some(6) => Ok((Span::Lib, cursor + 1)),
+            Some(7) => Ok((Span::None, cursor + 1)),
+            Some(n @ 8..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
+    }
+}
+
+impl Endec for SpanId {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.0.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (id, cursor) = u128::decode_impl(buffer, cursor)?;
+        Ok((SpanId(id), cursor))
     }
 }
 
@@ -238,8 +225,8 @@ impl Endec for MonomorphizationInfo {
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        let (id, cursor) = u128::decode_impl(buffer, cursor)?;
-        let (parent, cursor) = Option::<u128>::decode_impl(buffer, cursor)?;
+        let (id, cursor) = u64::decode_impl(buffer, cursor)?;
+        let (parent, cursor) = Option::<u64>::decode_impl(buffer, cursor)?;
         let (info, cursor) = String::decode_impl(buffer, cursor)?;
         let (span, cursor) = Span::decode_impl(buffer, cursor)?;
 

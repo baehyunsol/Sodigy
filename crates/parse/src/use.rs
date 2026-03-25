@@ -21,12 +21,12 @@ pub struct Use {
 
 impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_use(&mut self) -> Result<Vec<Use>, Vec<Error>> {
-        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Use))?.span;
+        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Use))?.span.clone();
         let mut uses = self.parse_use_recurse(false)?;
         self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
 
         for r#use in uses.iter_mut() {
-            r#use.keyword_span = keyword_span;
+            r#use.keyword_span = keyword_span.clone();
         }
 
         Ok(uses)
@@ -48,7 +48,7 @@ impl<'t, 's> Tokens<'t, 's> {
             prefix.push(Field::Name {
                 name,
                 name_span,
-                dot_span,
+                dot_span: dot_span.clone(),
                 is_from_alias: false,
             });
 
@@ -57,7 +57,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     // `use a.{b.`
                     // `use a.`
                     Punct::Dot => {
-                        dot_span = *span;
+                        dot_span = span.clone();
                         self.cursor += 1;
 
                         match self.peek() {
@@ -67,7 +67,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             },
                             // `use a.{`
                             Some(Token { kind: TokenKind::Group { delim: Delim::Brace, tokens }, span }) => {
-                                let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
+                                let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
                                 let mut inner = tokens.parse_use_recurse(true)?;
                                 self.cursor += 1;
 

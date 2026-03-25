@@ -31,7 +31,7 @@ impl Path {
         let id = match session.find_origin_and_count_usage(ast_path.id) {
             Some((origin, def_span)) => IdentWithOrigin {
                 id: ast_path.id,
-                span: ast_path.id_span,
+                span: ast_path.id_span.clone(),
                 origin,
                 def_span,
             },
@@ -85,20 +85,20 @@ impl Path {
 
     pub fn error_span_narrow(&self) -> Span {
         match self.fields.get(0) {
-            Some(Field::Name { dot_span, .. }) => *dot_span,
-            _ => self.id.span,
+            Some(Field::Name { dot_span, .. }) => dot_span.clone(),
+            _ => self.id.span.clone(),
         }
     }
 
     // TODO: dump dotfish
     pub fn error_span_wide(&self) -> Span {
-        let mut span = self.id.span;
+        let mut span = self.id.span.clone();
 
         for field in self.fields.iter() {
             match field {
                 Field::Name { dot_span, name_span, .. } => {
-                    span = span.merge(*dot_span);
-                    span = span.merge(*name_span);
+                    span = span.merge(dot_span);
+                    span = span.merge(name_span);
                 },
                 _ => todo!(),
             }
@@ -125,15 +125,15 @@ impl Path {
 }
 
 impl Path {
-    pub fn replace_name_and_span(&mut self, name: InternedString, span: Span) {
+    pub fn replace_name_and_span(&mut self, name: InternedString, span: &Span) {
         self.id.id = name;
-        self.id.span = span;
+        self.id.span = span.clone();
         self.fields = self.fields.iter().map(
             |field| match field {
                 Field::Name { name, .. } => Field::Name {
                     name: *name,
-                    name_span: span,
-                    dot_span: span,
+                    name_span: span.clone(),
+                    dot_span: span.clone(),
                     is_from_alias: true,
                 },
                 _ => unreachable!(),

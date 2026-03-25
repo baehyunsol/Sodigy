@@ -18,10 +18,10 @@ impl Enum {
         for generic in self.generics.iter() {
             match spans_by_name.entry(generic.name) {
                 Entry::Occupied(mut e) => {
-                    e.get_mut().push(generic.name_span);
+                    e.get_mut().push(generic.name_span.clone());
                 },
                 Entry::Vacant(e) => {
-                    e.insert(vec![generic.name_span]);
+                    e.insert(vec![generic.name_span.clone()]);
                 },
             }
         }
@@ -34,10 +34,10 @@ impl Enum {
 
                 match spans_by_name.entry(variant.name) {
                     Entry::Occupied(mut e) => {
-                        e.get_mut().push(variant.name_span);
+                        e.get_mut().push(variant.name_span.clone());
                     },
                     Entry::Vacant(e) => {
-                        e.insert(vec![variant.name_span]);
+                        e.insert(vec![variant.name_span.clone()]);
                     },
                 }
             }
@@ -52,7 +52,7 @@ impl Enum {
                     },
                     spans: spans.iter().map(
                         |span| RenderableSpan {
-                            span: *span,
+                            span: span.clone(),
                             auxiliary: false,
                             note: None,
                         }

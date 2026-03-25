@@ -1,7 +1,7 @@
 use crate::{Session, Type};
 use sodigy_endec::IndentedLines;
 use sodigy_hir::FuncPurity;
-use sodigy_span::{PolySpanKind, Span};
+use sodigy_span::{PolySpanKind, Span, SpanId};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
@@ -22,7 +22,7 @@ pub fn render_type(
     intermediate_dir: &str,
 
     // inter-mir will initialize this map
-    span_string_map: &HashMap<Span, InternedString>,
+    span_string_map: &HashMap<SpanId, InternedString>,
 ) -> String {
     match r#type {
         Type::Data { constructor_def_span, args, .. } => {
@@ -41,18 +41,18 @@ pub fn render_type(
 
                 else {
                     format!("{}<{args}>", if verbose {
-                        span_to_string_or_verbose(*constructor_def_span, intermediate_dir, span_string_map)
+                        span_to_string_or_verbose(constructor_def_span, intermediate_dir, span_string_map)
                     } else {
-                        span_to_string(*constructor_def_span, intermediate_dir, span_string_map).unwrap_or_else(|| String::from("???"))
+                        span_to_string(constructor_def_span, intermediate_dir, span_string_map).unwrap_or_else(|| String::from("???"))
                     })
                 }
             }
 
             else {
                 if verbose {
-                    span_to_string_or_verbose(*constructor_def_span, intermediate_dir, span_string_map)
+                    span_to_string_or_verbose(constructor_def_span, intermediate_dir, span_string_map)
                 } else {
-                    span_to_string(*constructor_def_span, intermediate_dir, span_string_map).unwrap_or_else(|| String::from("???"))
+                    span_to_string(constructor_def_span, intermediate_dir, span_string_map).unwrap_or_else(|| String::from("???"))
                 }
             }
         },
@@ -69,9 +69,9 @@ pub fn render_type(
             render_type(r#return.as_ref(), verbose, lang_items, intermediate_dir, span_string_map),
         ),
         Type::GenericParam { def_span, .. } => if verbose {
-            span_to_string_or_verbose(*def_span, intermediate_dir, span_string_map)
+            span_to_string_or_verbose(def_span, intermediate_dir, span_string_map)
         } else {
-            span_to_string(*def_span, intermediate_dir, span_string_map).unwrap_or_else(|| String::from("???"))
+            span_to_string(def_span, intermediate_dir, span_string_map).unwrap_or_else(|| String::from("???"))
         },
         Type::Var { .. } |
         Type::GenericArg { .. } |
@@ -81,20 +81,20 @@ pub fn render_type(
 }
 
 pub fn span_to_string(
-    span: Span,
+    span: &Span,
     intermediate_dir: &str,
 
     // inter-mir will initialize this map
-    span_string_map: &HashMap<Span, InternedString>,
+    span_string_map: &HashMap<SpanId, InternedString>,
 ) -> Option<String> {
     match span {
-        Span::Prelude(p) => Some(p.unintern_or_default(intermediate_dir)),
-        Span::Range { .. } | Span::Derived { .. } => match span_string_map.get(&span) {
+        Span::Range(r) => match span_string_map.get(r) {
             Some(s) => Some(s.unintern_or_default(intermediate_dir)),
             _ => None,
         },
-        Span::None => None,
-        Span::Poly { name, kind, monomorphize_id: None } => {
+        Span::Monomorphize { span, .. } | Span::Derived { span, .. } => span_to_string(span, intermediate_dir, span_string_map),
+        Span::Prelude(p) => Some(p.unintern_or_default(intermediate_dir)),
+        Span::Poly { name, kind } => {
             let name = name.unintern_or_default(intermediate_dir);
 
             match kind {
@@ -103,14 +103,15 @@ pub fn span_to_string(
                 PolySpanKind::Return => Some(String::from("V")),
             }
         },
+        Span::None => None,
         _ => todo!(),
     }
 }
 
 pub fn span_to_string_or_verbose(
-    span: Span,
+    span: &Span,
     intermediate_dir: &str,
-    span_string_map: &HashMap<Span, InternedString>,
+    span_string_map: &HashMap<SpanId, InternedString>,
 ) -> String {
     span_to_string(span, intermediate_dir, span_string_map).unwrap_or_else(|| format!("{span:?}"))
 }

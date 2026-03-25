@@ -33,9 +33,9 @@ mod from_pattern;
 pub enum Expr {
     Path(Path),
     Constant(Constant),
-    If(If),
-    Match(Match),
-    Block(Block),
+    If(Box<If>),
+    Match(Box<Match>),
+    Block(Box<Block>),
     Call {
         func: Box<Expr>,
         args: Vec<FuncArg>,
@@ -91,7 +91,7 @@ pub enum Expr {
     TypeConversion {
         keyword_span: Span,
         lhs: Box<Expr>,
-        rhs: Type,
+        rhs: Box<Type>,
         has_question_mark: bool,
     },
 
@@ -118,16 +118,16 @@ impl Expr {
             Expr::InfixOp { op_span: span, .. } |
             Expr::PostfixOp { op_span: span, .. } |
             Expr::TypeConversion { keyword_span: span, .. } |
-            Expr::PipelineData(span) => *span,
-            Expr::If(r#if) => r#if.if_span,
-            Expr::Match(r#match) => r#match.keyword_span,
-            Expr::Block(block) => block.group_span,
+            Expr::PipelineData(span) => span.clone(),
+            Expr::If(r#if) => r#if.if_span.clone(),
+            Expr::Match(r#match) => r#match.keyword_span.clone(),
+            Expr::Block(block) => block.group_span.clone(),
             Expr::Call { func, .. } => func.error_span_narrow(),
             Expr::StructInit { constructor, .. } => constructor.error_span_narrow(),
-            Expr::Field { field, .. } => merge_field_spans(&[*field]),
+            Expr::Field { field, .. } => merge_field_spans(&[field.clone()]),
             Expr::FieldUpdate { fields, .. } => merge_field_spans(fields),
-            Expr::Lambda(Lambda { arrow_span, .. }) => *arrow_span,
-            Expr::Pipeline { pipe_spans, .. } => pipe_spans[0],
+            Expr::Lambda(Lambda { arrow_span, .. }) => arrow_span.clone(),
+            Expr::Pipeline { pipe_spans, .. } => pipe_spans[0].clone(),
         }
     }
 
@@ -138,34 +138,34 @@ impl Expr {
             Expr::FormattedString { span, .. } |
             Expr::Tuple { group_span: span, .. } |
             Expr::List { group_span: span, .. } |
-            Expr::PipelineData(span) => *span,
-            Expr::If(r#if) => r#if.if_span.merge(r#if.true_group_span).merge(r#if.false_group_span),
-            Expr::Match(r#match) => r#match.keyword_span.merge(r#match.group_span),
-            Expr::Block(block) => block.group_span,
-            Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(*arg_group_span),
-            Expr::StructInit { constructor, group_span, .. } => constructor.error_span_wide().merge(*group_span),
+            Expr::PipelineData(span) => span.clone(),
+            Expr::If(r#if) => r#if.if_span.merge(&r#if.true_group_span).merge(&r#if.false_group_span),
+            Expr::Match(r#match) => r#match.keyword_span.merge(&r#match.group_span),
+            Expr::Block(block) => block.group_span.clone(),
+            Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(arg_group_span),
+            Expr::StructInit { constructor, group_span, .. } => constructor.error_span_wide().merge(group_span),
 
             // TODO: render dotfish operator
-            Expr::Field { lhs, field, .. } => lhs.error_span_wide().merge(merge_field_spans(&[*field])),
+            Expr::Field { lhs, field, .. } => lhs.error_span_wide().merge(&merge_field_spans(&[field.clone()])),
             Expr::FieldUpdate { lhs, fields, rhs } => lhs.error_span_wide()
-                .merge(merge_field_spans(fields))
-                .merge(rhs.error_span_wide()),
+                .merge(&merge_field_spans(fields))
+                .merge(&rhs.error_span_wide()),
             Expr::Lambda(Lambda { param_group_span, arrow_span, value, .. }) => param_group_span
-                .merge(*arrow_span)
-                .merge(value.error_span_wide()),
-            Expr::PrefixOp { op_span, rhs, .. } => op_span.merge(rhs.error_span_wide()),
+                .merge(arrow_span)
+                .merge(&value.error_span_wide()),
+            Expr::PrefixOp { op_span, rhs, .. } => op_span.merge(&rhs.error_span_wide()),
             Expr::InfixOp { lhs, op_span, rhs, .. } => lhs.error_span_wide()
-                .merge(*op_span)
-                .merge(rhs.error_span_wide()),
-            Expr::PostfixOp { lhs, op_span, .. } => lhs.error_span_wide().merge(*op_span),
+                .merge(op_span)
+                .merge(&rhs.error_span_wide()),
+            Expr::PostfixOp { lhs, op_span, .. } => lhs.error_span_wide().merge(op_span),
             Expr::TypeConversion { lhs, keyword_span, rhs, .. } => lhs.error_span_wide()
-                .merge(*keyword_span)
-                .merge(rhs.error_span_wide()),
+                .merge(keyword_span)
+                .merge(&rhs.error_span_wide()),
             Expr::Pipeline { values, .. } => {
                 let mut span = values[0].error_span_wide();
 
                 for value in values.iter().skip(1) {
-                    span = span.merge(value.error_span_wide());
+                    span = span.merge(&value.error_span_wide());
                 }
 
                 span
@@ -183,7 +183,7 @@ impl Expr {
         }
 
         else {
-            Expr::Block(block)
+            Expr::Block(Box::new(block))
         }
     }
 }
@@ -203,13 +203,13 @@ impl<'t, 's> Tokens<'t, 's> {
     ) -> Result<Expr, Vec<Error>> {
         let mut lhs = match self.peek() {
             Some(Token { kind: TokenKind::Punct(Punct::Dollar), span }) => {
-                let span = *span;
+                let span = span.clone();
                 self.cursor += 1;
                 Expr::PipelineData(span)
             },
             Some(Token { kind: TokenKind::Punct(p), span }) => {
                 let punct = *p;
-                let punct_span = *span;
+                let punct_span = span.clone();
 
                 match PrefixOp::try_from(punct) {
                     Ok(op) => {
@@ -235,7 +235,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 }
             },
             Some(Token { kind: TokenKind::Ident(id), span }) => {
-                let (id, id_span) = (*id, *span);
+                let (id, id_span) = (*id, span.clone());
                 self.cursor += 1;
                 Expr::Path(Path { id, id_span, fields: vec![], types: vec![None] })
             },
@@ -247,37 +247,37 @@ impl<'t, 's> Tokens<'t, 's> {
                 }]);
             },
             Some(Token { kind: TokenKind::Number(n), span }) => {
-                let (n, span) = (*n, *span);
+                let (n, span) = (*n, span.clone());
                 self.cursor += 1;
                 Expr::Constant(Constant::Number { n, span })
             },
             Some(Token { kind: TokenKind::String { binary, regex: false, s, .. }, span }) => {
-                let (binary, s, span) = (*binary, *s, *span);
+                let (binary, s, span) = (*binary, *s, span.clone());
                 self.cursor += 1;
                 Expr::Constant(Constant::String { binary, s, span })
             },
             Some(Token { kind: TokenKind::String { regex: true, s, .. }, span }) => todo!(),
             Some(Token { kind: TokenKind::Char(ch), span }) => {
-                let (ch, span) = (*ch, *span);
+                let (ch, span) = (*ch, span.clone());
                 self.cursor += 1;
                 Expr::Constant(Constant::Char { ch, span })
             },
             Some(Token { kind: TokenKind::Byte(b), span }) => {
-                let (b, span) = (*b, *span);
+                let (b, span) = (*b, span.clone());
                 self.cursor += 1;
                 Expr::Constant(Constant::Byte { b, span })
             },
             Some(Token { kind: TokenKind::FormattedString { raw, elements: token_elements }, span }) => {
-                let (raw, span) = (*raw, *span);
+                let (raw, span) = (*raw, span.clone());
                 let mut elements = Vec::with_capacity(token_elements.len());
 
                 for element in token_elements.iter() {
                     match element {
                         TokensOrString::String { s, span } => {
-                            elements.push(ExprOrString::String { s: *s, span: *span });
+                            elements.push(ExprOrString::String { s: *s, span: span.clone() });
                         },
                         TokensOrString::Tokens { tokens, span } => {
-                            let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
+                            let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
                             let expr = tokens.parse_expr(true)?;
 
                             // TODO: make sure that there's no remaining tokens
@@ -293,10 +293,10 @@ impl<'t, 's> Tokens<'t, 's> {
                     span,
                 }
             },
-            Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => Expr::If(self.parse_if_expr()?),
-            Some(Token { kind: TokenKind::Keyword(Keyword::Match), .. }) => Expr::Match(self.parse_match_expr()?),
+            Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => Expr::If(Box::new(self.parse_if_expr()?)),
+            Some(Token { kind: TokenKind::Keyword(Keyword::Match), .. }) => Expr::Match(Box::new(self.parse_match_expr()?)),
             Some(Token { kind: TokenKind::Keyword(Keyword::Impure), span }) => {
-                let impure_keyword_span = *span;
+                let impure_keyword_span = span.clone();
                 self.cursor += 1;
                 let mut lambda = self.parse_lambda()?;
                 lambda.is_pure = false;
@@ -306,8 +306,8 @@ impl<'t, 's> Tokens<'t, 's> {
             Some(Token { kind: TokenKind::Group { delim, tokens }, span }) => match delim {
                 Delim::Lambda => Expr::Lambda(self.parse_lambda()?),
                 Delim::Parenthesis => {
-                    let span = *span;
-                    let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
+                    let span = span.clone();
+                    let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
                     let exprs = tokens.parse_exprs()?;
                     let mut is_tuple = exprs.len() != 1;
 
@@ -333,16 +333,16 @@ impl<'t, 's> Tokens<'t, 's> {
                     }
                 },
                 Delim::Brace => {
-                    let span = *span;
-                    let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
+                    let span = span.clone();
+                    let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
                     let block = tokens.parse_block(false /* top_level */, span)?;
                     self.cursor += 1;
 
-                    Expr::Block(block)
+                    Expr::Block(Box::new(block))
                 },
                 Delim::Bracket => {
-                    let span = *span;
-                    let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
+                    let span = span.clone();
+                    let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
                     let exprs = tokens.parse_exprs()?;
                     self.cursor += 1;
 
@@ -381,7 +381,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     span,
                 }) => {
                     let punct = *p;
-                    let punct_span = *span;
+                    let punct_span = span.clone();
 
                     match PostfixOp::try_from(punct) {
                         // `..` and `..=` can be both infix and postfix!
@@ -553,7 +553,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     kind: TokenKind::Group { delim, tokens },
                     span,
                 }) => {
-                    let span = *span;
+                    let span = span.clone();
 
                     match delim {
                         Delim::Lambda => {
@@ -581,7 +581,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                 break;
                             }
 
-                            let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
+                            let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
                             let args = tokens.parse_func_args()?;
                             self.cursor += 1;
                             lhs = Expr::Call {
@@ -605,7 +605,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             match &lhs {
                                 Expr::Path(p) => {
                                     let constructor = p.clone();
-                                    let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
+                                    let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
                                     let fields = tokens.parse_struct_initialization()?;
                                     self.cursor += 1;
                                     lhs = Expr::StructInit {
@@ -628,7 +628,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                 break;
                             }
 
-                            let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
+                            let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
                             let rhs = tokens.parse_expr(true)?;
 
                             // TODO: make sure that there's no remaining tokens
@@ -656,8 +656,8 @@ impl<'t, 's> Tokens<'t, 's> {
 
                     let mut fields = vec![Field::Name {
                         name: *field,
-                        name_span: *field_span,
-                        dot_span: *backtick_span,
+                        name_span: field_span.clone(),
+                        dot_span: backtick_span.clone(),
                         is_from_alias: false,
                     }];
                     self.cursor += 1;
@@ -668,8 +668,8 @@ impl<'t, 's> Tokens<'t, 's> {
                     ) = self.peek2() {
                         fields.push(Field::Name {
                             name: *id,
-                            name_span: *field_span,
-                            dot_span: *dot_span,
+                            name_span: field_span.clone(),
+                            dot_span: dot_span.clone(),
                             is_from_alias: false,
                         });
                         self.cursor += 2;
@@ -688,7 +688,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     span,
                 }) => {
                     let (l_bp, r_bp) = as_binding_power();
-                    let mut keyword_span = *span;
+                    let mut keyword_span = span.clone();
 
                     if l_bp < min_bp {
                         break;
@@ -698,7 +698,7 @@ impl<'t, 's> Tokens<'t, 's> {
 
                     let has_question_mark = match self.peek() {
                         Some(Token { kind: TokenKind::Punct(Punct::QuestionMark), span }) => {
-                            keyword_span = keyword_span.merge(*span);
+                            keyword_span = keyword_span.merge(span);
                             self.cursor += 1;
                             true
                         },
@@ -716,7 +716,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     lhs = Expr::TypeConversion {
                         keyword_span,
                         lhs: Box::new(lhs),
-                        rhs: types[0].clone(),
+                        rhs: Box::new(types[0].clone()),
                         has_question_mark,
                     };
                     continue;

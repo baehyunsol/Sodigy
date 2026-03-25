@@ -16,31 +16,31 @@ impl Func {
         }
 
         // for error messages
-        let mut span_of_param_with_default_value = None;
+        let mut span_of_param_with_default_value: Option<Span> = None;
 
         for generic in self.generics.iter() {
             match spans_by_name.entry(generic.name) {
                 Entry::Occupied(mut e) => {
-                    e.get_mut().push((generic.name_span, true));
+                    e.get_mut().push((generic.name_span.clone(), true));
                 },
                 Entry::Vacant(e) => {
-                    e.insert(vec![(generic.name_span, true)]);
+                    e.insert(vec![(generic.name_span.clone(), true)]);
                 },
             }
         }
 
         for param in self.params.iter() {
-            if let Some(span) = span_of_param_with_default_value && param.default_value.is_none() {
+            if let Some(span) = &span_of_param_with_default_value && param.default_value.is_none() {
                 errors.push(Error {
                     kind: ErrorKind::NonDefaultValueAfterDefaultValue,
                     spans: vec![
                         RenderableSpan {
-                            span: param.name_span,
+                            span: param.name_span.clone(),
                             auxiliary: false,
                             note: Some(String::from("This parameter must have a default value.")),
                         },
                         RenderableSpan {
-                            span,
+                            span: span.clone(),
                             auxiliary: true,
                             note: Some(String::from("This parameter has a default value.")),
                         },
@@ -54,16 +54,16 @@ impl Func {
             }
 
             if param.default_value.is_some() {
-                span_of_param_with_default_value = Some(param.name_span);
+                span_of_param_with_default_value = Some(param.name_span.clone());
             }
 
             if !param.name.eq(b"_") {
                 match spans_by_name.entry(param.name) {
                     Entry::Occupied(mut e) => {
-                        e.get_mut().push((param.name_span, false));
+                        e.get_mut().push((param.name_span.clone(), false));
                     },
                     Entry::Vacant(e) => {
-                        e.insert(vec![(param.name_span, false)]);
+                        e.insert(vec![(param.name_span.clone(), false)]);
                     },
                 }
             }
@@ -81,7 +81,7 @@ impl Func {
                     },
                     spans: spans.iter().map(
                         |(span, _)| RenderableSpan {
-                            span: *span,
+                            span: span.clone(),
                             auxiliary: false,
                             note: None,
                         }
@@ -161,7 +161,7 @@ pub(crate) fn check_func_args(args: &[FuncArg], intermediate_dir: &str) -> Resul
                         note: Some(String::from("A positional argument cannot come after a keyword argument.")),
                     },
                     RenderableSpan {
-                        span: keyword_span.unwrap(),
+                        span: keyword_span.clone().unwrap(),
                         auxiliary: true,
                         note: Some(String::from("We have a keyword argument here.")),
                     },
@@ -174,9 +174,9 @@ pub(crate) fn check_func_args(args: &[FuncArg], intermediate_dir: &str) -> Resul
             errors.extend(e);
         }
 
-        if let Some((_, span)) = arg.keyword {
+        if let Some((_, span)) = &arg.keyword {
             has_to_be_kwarg = true;
-            keyword_span = Some(span);
+            keyword_span = Some(span.clone());
         }
     }
 

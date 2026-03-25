@@ -45,10 +45,10 @@ impl Assert {
         else {
             Ok(Assert {
                 name: hir_assert.name,
-                keyword_span: hir_assert.keyword_span,
+                keyword_span: hir_assert.keyword_span.clone(),
                 always: hir_assert.always,
                 note,
-                note_decorator_span: hir_assert.note_decorator_span,
+                note_decorator_span: hir_assert.note_decorator_span.clone(),
                 value: value.unwrap(),
             })
         }

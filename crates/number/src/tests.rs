@@ -7,11 +7,11 @@ use std::mem::size_of;
 
 #[test]
 fn size_assertions() {
-    assert!(size_of::<InternedNumber>() < 24, "{}", size_of::<InternedNumber>());
+    assert!(size_of::<InternedNumber>() <= 16, "{}", size_of::<InternedNumber>());
 
     // It's okay for these to be big! That's why `InternedNumber` exists...
-    // assert!(size_of::<BigInt>() < 48, "{}", size_of::<BigInt>());
-    // assert!(size_of::<Ratio>() < 72, "{}", size_of::<Ratio>());
+    // assert!(size_of::<BigInt>() <= 48, "{}", size_of::<BigInt>());
+    // assert!(size_of::<Ratio>() <= 48, "{}", size_of::<Ratio>());
 }
 
 #[test]

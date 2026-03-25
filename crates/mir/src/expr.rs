@@ -79,7 +79,7 @@ impl Expr {
                 // inter-hir's `check_expr_path` should guarantee this
                 assert!(path.fields.is_empty());
 
-                Ok(Expr::Ident(path.id))
+                Ok(Expr::Ident(path.id.clone()))
             },
             hir::Expr::Constant(c) => Ok(Expr::Constant(c.clone())),
 
@@ -100,16 +100,16 @@ impl Expr {
                 // TODO: This is the right place to lower dotfish operators.
 
                 let (call_span, func) = match Expr::from_hir(func, session) {
-                    Ok(e @ Expr::Ident(id)) => match id.origin {
+                    Ok(ref e @ Expr::Ident(ref id)) => match &id.origin {
                         NameOrigin::Local { kind } |
                         NameOrigin::Foreign { kind } => match kind {
                             NameKind::Func => {
-                                def_span = Some(id.def_span);
+                                def_span = Some(id.def_span.clone());
                                 (
-                                    id.span,
+                                    id.span.clone(),
                                     Callable::Static {
-                                        def_span: id.def_span,
-                                        span: id.span,
+                                        def_span: id.def_span.clone(),
+                                        span: id.span.clone(),
                                     },
                                 )
                             },
@@ -117,12 +117,12 @@ impl Expr {
                             // and calls it. In this case, we have to dynamically call the
                             // function on runtime. (Maybe we can do some optimizations and turn it into a static call?)
                             NameKind::Let { .. } => {
-                                def_span = Some(id.def_span);
-                                (id.span, Callable::Dynamic(Box::new(e)))
+                                def_span = Some(id.def_span.clone());
+                                (id.span.clone(), Callable::Dynamic(Box::new(e.clone())))
                             },
                             _ => panic!("TODO: {kind:?}"),
                         },
-                        NameOrigin::FuncParam { .. } => (id.span, Callable::Dynamic(Box::new(e))),
+                        NameOrigin::FuncParam { .. } => (id.span.clone(), Callable::Dynamic(Box::new(e.clone()))),
                         NameOrigin::GenericParam { .. } => unreachable!(),
                         NameOrigin::External => unreachable!(),
                     },
@@ -151,10 +151,10 @@ impl Expr {
                         Some(func_shape) => {
                             for generic in func_shape.generics.iter() {
                                 session.generic_args.insert(
-                                    (call_span, generic.name_span),
+                                    (call_span.clone(), generic.name_span.clone()),
                                     Type::GenericArg {
-                                        call: call_span,
-                                        generic: generic.name_span,
+                                        call: call_span.clone(),
+                                        generic: generic.name_span.clone(),
                                     },
                                 );
                             }
@@ -163,7 +163,7 @@ impl Expr {
                             let mut mir_args: Vec<Option<Expr>> = vec![None; params.len().max(hir_args.len())];
 
                             // used for error messages
-                            let mut given_keyword_args_ = vec![None; params.len().max(hir_args.len())];
+                            let mut given_keyword_args_: Vec<Option<(InternedString, Span)>> = vec![None; params.len().max(hir_args.len())];
 
                             // Positional args cannot come after a keyword arg, and hir guarantees that.
                             let mut positional_arg_cursor = 0;
@@ -172,13 +172,13 @@ impl Expr {
                             let mut repeated_args: HashMap<InternedString, Vec<RenderableSpan>> = HashMap::new();
 
                             for hir_arg in hir_args.iter() {
-                                match hir_arg.keyword {
+                                match &hir_arg.keyword {
                                     Some((keyword, keyword_span)) => {
                                         let mut arg_index = None;
 
                                         // It's O(n), but n is very small
                                         for (i, param) in params.iter().enumerate() {
-                                            if param.name == keyword {
+                                            if param.name == *keyword {
                                                 arg_index = Some(i);
                                                 break;
                                             }
@@ -187,16 +187,16 @@ impl Expr {
                                         match arg_index {
                                             Some(i) => {
                                                 if let Some(mir_arg) = &mir_args[i] {
-                                                    if let Some((_, span)) = given_keyword_args_[i] {
-                                                        match repeated_args.entry(keyword) {
+                                                    if let Some((_, span)) = &given_keyword_args_[i] {
+                                                        match repeated_args.entry(*keyword) {
                                                             Entry::Occupied(mut e) => {
                                                                 e.get_mut().push(RenderableSpan {
-                                                                    span: keyword_span,
+                                                                    span: keyword_span.clone(),
                                                                     auxiliary: false,
                                                                     note: None,
                                                                 });
                                                                 e.get_mut().push(RenderableSpan {
-                                                                    span: span,
+                                                                    span: span.clone(),
                                                                     auxiliary: false,
                                                                     note: None,
                                                                 });
@@ -204,12 +204,12 @@ impl Expr {
                                                             Entry::Vacant(e) => {
                                                                 e.insert(vec![
                                                                     RenderableSpan {
-                                                                        span: keyword_span,
+                                                                        span: keyword_span.clone(),
                                                                         auxiliary: false,
                                                                         note: None,
                                                                     },
                                                                     RenderableSpan {
-                                                                        span: span,
+                                                                        span: span.clone(),
                                                                         auxiliary: false,
                                                                         note: None,
                                                                     },
@@ -221,10 +221,10 @@ impl Expr {
                                                     else {
                                                         let keyword_str = keyword.unintern_or_default(&session.intermediate_dir);
 
-                                                        match repeated_args.entry(keyword) {
+                                                        match repeated_args.entry(*keyword) {
                                                             Entry::Occupied(mut e) => {
                                                                 e.get_mut().push(RenderableSpan {
-                                                                    span: keyword_span,
+                                                                    span: keyword_span.clone(),
                                                                     auxiliary: false,
                                                                     note: None,
                                                                 });
@@ -237,7 +237,7 @@ impl Expr {
                                                             Entry::Vacant(e) => {
                                                                 e.insert(vec![
                                                                     RenderableSpan {
-                                                                        span: keyword_span,
+                                                                        span: keyword_span.clone(),
                                                                         auxiliary: false,
                                                                         note: None,
                                                                     },
@@ -261,11 +261,11 @@ impl Expr {
                                                     },
                                                 }
 
-                                                given_keyword_args_[i] = Some((keyword, keyword_span));
+                                                given_keyword_args_[i] = Some((*keyword, keyword_span.clone()));
                                             },
                                             None => {
                                                 session.errors.push(Error {
-                                                    kind: ErrorKind::InvalidKeywordArg(keyword),
+                                                    kind: ErrorKind::InvalidKeywordArg(*keyword),
                                                     spans: keyword_span.simple_error(),
                                                     note: None,
                                                 });
@@ -291,11 +291,11 @@ impl Expr {
                             for (keyword, error_spans) in repeated_args.into_iter() {
                                 // remove repeats and sort by span
                                 let mut error_spans = error_spans.into_iter().map(
-                                    |span| (span.span, span)
+                                    |span| (span.span.clone(), span)
                                 ).collect::<HashMap<_, _>>().into_iter().map(
                                     |(_, span)| span
                                 ).collect::<Vec<_>>();
-                                error_spans.sort_by_key(|span| span.span);
+                                error_spans.sort_by_key(|span| span.span.clone());
 
                                 session.errors.push(Error {
                                     kind: ErrorKind::KeywordArgRepeated(keyword),
@@ -307,7 +307,7 @@ impl Expr {
                             for i in 0..params.len() {
                                 match (&mir_args[i], &params[i].default_value) {
                                     (None, Some(default_value)) => {
-                                        mir_args[i] = Some(Expr::Ident(*default_value));
+                                        mir_args[i] = Some(Expr::Ident(default_value.clone()));
                                     },
                                     _ => {},
                                 }
@@ -320,8 +320,8 @@ impl Expr {
                                 if let Some(mir_arg) = mir_arg {
                                     result.push(mir_arg);
 
-                                    if let Some((keyword, _)) = given_keyword_args_[i] {
-                                        g.push((keyword, result.len() - 1));
+                                    if let Some((keyword, _)) = &given_keyword_args_[i] {
+                                        g.push((*keyword, result.len() - 1));
                                     }
                                 }
 
@@ -344,7 +344,7 @@ impl Expr {
                         let mut result = Vec::with_capacity(hir_args.len());
 
                         for hir_arg in hir_args.iter() {
-                            match hir_arg.keyword {
+                            match &hir_arg.keyword {
                                 Some((_, keyword_span)) => {
                                     session.errors.push(Error {
                                         kind: ErrorKind::KeywordArgNotAllowed,
@@ -378,7 +378,7 @@ impl Expr {
                     Ok(Expr::Call {
                         func,
                         args,
-                        arg_group_span: *arg_group_span,
+                        arg_group_span: arg_group_span.clone(),
                         types: None,
                         given_keyword_args,
                     })
@@ -398,7 +398,7 @@ impl Expr {
                                 binary: false,
                                 s: *s,
                                 // `total_span` includes quotes, but `curr_span` doesn't.
-                                span: if hir_elements.len() == 1 { *total_span } else { *curr_span },
+                                span: if hir_elements.len() == 1 { total_span.clone() } else { curr_span.clone() },
                             });
 
                             elements.push(e);
@@ -411,19 +411,19 @@ impl Expr {
                                 let e = Expr::Call {
                                     func: Callable::Static {
                                         def_span: session.get_lang_item_span("fn.convert"),
-                                        span: derived_span,
+                                        span: derived_span.clone(),
                                     },
                                     args: vec![e],
-                                    arg_group_span: derived_span,
+                                    arg_group_span: derived_span.clone(),
                                     types: Some((
                                         vec![
-                                            Type::Var { def_span: derived_span, is_return: false },
+                                            Type::Var { def_span: derived_span.clone(), is_return: false },
                                             Type::Data {
                                                 constructor_def_span: session.get_lang_item_span("type.List"),
-                                                constructor_span: derived_span,
+                                                constructor_span: derived_span.clone(),
                                                 args: Some(vec![Type::Data {
                                                     constructor_def_span: session.get_lang_item_span("type.Char"),
-                                                    constructor_span: derived_span,
+                                                    constructor_span: derived_span.clone(),
                                                     args: None,
                                                     group_span: None,
                                                 }]),
@@ -454,7 +454,7 @@ impl Expr {
                         0 => Ok(Expr::Constant(Constant::String {
                             binary: false,
                             s: InternedString::empty(),
-                            span: *total_span,
+                            span: total_span.clone(),
                         })),
                         1 => Ok(elements.remove(0)),
                         _ => Ok(concat_strings(elements, session)),
@@ -484,14 +484,14 @@ impl Expr {
 
                 else {
                     let func = if is_tuple {
-                        Callable::TupleInit { group_span: *group_span }
+                        Callable::TupleInit { group_span: group_span.clone() }
                     } else {
-                        Callable::ListInit { group_span: *group_span }
+                        Callable::ListInit { group_span: group_span.clone() }
                     };
                     Ok(Expr::Call {
                         func,
                         args: mir_elements,
-                        arg_group_span: *group_span,
+                        arg_group_span: group_span.clone(),
                         types: None,
                         given_keyword_args: vec![],
                     })
@@ -500,9 +500,9 @@ impl Expr {
             // Unlike hir::Expr::Call, we'll raise an error here if the number of
             // fields is wrong.
             hir::Expr::StructInit { constructor, fields: hir_fields, group_span } => {
-                let group_span = *group_span;
+                let group_span = group_span.clone();
                 let mut has_error = false;
-                let (def_span, call_span) = (constructor.id.def_span, constructor.id.span);
+                let (def_span, call_span) = (constructor.id.def_span.clone(), constructor.id.span.clone());
 
                 // TODO: it has to lower dotfish operators
 
@@ -519,10 +519,10 @@ impl Expr {
                         if !struct_shape.generics.is_empty() {
                             for generic in struct_shape.generics.iter() {
                                 session.generic_args.insert(
-                                    (call_span, generic.name_span),
+                                    (call_span.clone(), generic.name_span.clone()),
                                     Type::GenericArg {
-                                        call: call_span,
-                                        generic: generic.name_span,
+                                        call: call_span.clone(),
+                                        generic: generic.name_span.clone(),
                                     },
                                 );
                             }
@@ -539,7 +539,7 @@ impl Expr {
                                 match repeated_fields.entry(hir_field.name) {
                                     Entry::Occupied(mut e) => {
                                         e.get_mut().push(RenderableSpan {
-                                            span: hir_field.name_span,
+                                            span: hir_field.name_span.clone(),
                                             auxiliary: false,
                                             note: None,
                                         });
@@ -547,7 +547,7 @@ impl Expr {
                                     Entry::Vacant(e) => {
                                         e.insert(vec![
                                             RenderableSpan {
-                                                span: hir_field.name_span,
+                                                span: hir_field.name_span.clone(),
                                                 auxiliary: false,
                                                 note: None,
                                             },
@@ -556,7 +556,7 @@ impl Expr {
                                 }
 
                                 if !field_names.contains(&hir_field.name) {
-                                    invalid_fields.push((hir_field.name, hir_field.name_span));
+                                    invalid_fields.push((hir_field.name, hir_field.name_span.clone()));
                                 }
                             }
 
@@ -580,12 +580,12 @@ impl Expr {
                                             match repeated_fields.entry(hir_field.name) {
                                                 Entry::Occupied(mut e) => {
                                                     e.get_mut().push(RenderableSpan {
-                                                        span: hir_field.name_span,
+                                                        span: hir_field.name_span.clone(),
                                                         auxiliary: false,
                                                         note: None,
                                                     });
                                                     e.get_mut().push(RenderableSpan {
-                                                        span: name_spans[i].unwrap(),
+                                                        span: name_spans[i].clone().unwrap(),
                                                         auxiliary: false,
                                                         note: None,
                                                     });
@@ -593,12 +593,12 @@ impl Expr {
                                                 Entry::Vacant(e) => {
                                                     e.insert(vec![
                                                         RenderableSpan {
-                                                            span: hir_field.name_span,
+                                                            span: hir_field.name_span.clone(),
                                                             auxiliary: false,
                                                             note: None,
                                                         },
                                                         RenderableSpan {
-                                                            span: name_spans[i].unwrap(),
+                                                            span: name_spans[i].clone().unwrap(),
                                                             auxiliary: false,
                                                             note: None,
                                                         },
@@ -616,10 +616,10 @@ impl Expr {
                                             },
                                         }
 
-                                        name_spans[i] = Some(hir_field.name_span);
+                                        name_spans[i] = Some(hir_field.name_span.clone());
                                     },
                                     None => {
-                                        invalid_fields.push((hir_field.name, hir_field.name_span));
+                                        invalid_fields.push((hir_field.name, hir_field.name_span.clone()));
                                         has_error = true;
                                     },
                                 }
@@ -628,11 +628,11 @@ impl Expr {
                             for (field_name, error_spans) in repeated_fields.into_iter() {
                                 // remove repeats and sort by span
                                 let mut error_spans = error_spans.into_iter().map(
-                                    |span| (span.span, span)
+                                    |span| (span.span.clone(), span)
                                 ).collect::<HashMap<_, _>>().into_iter().map(
                                     |(_, span)| span
                                 ).collect::<Vec<_>>();
-                                error_spans.sort_by_key(|span| span.span);
+                                error_spans.sort_by_key(|span| span.span.clone());
 
                                 session.errors.push(Error {
                                     kind: ErrorKind::StructFieldRepeated(field_name),
@@ -645,7 +645,7 @@ impl Expr {
                             for i in 0..field_defs.len() {
                                 match (&mir_fields[i], &field_defs[i].default_value) {
                                     (None, Some(default_value)) => {
-                                        mir_fields[i] = Some(Expr::Ident(*default_value));
+                                        mir_fields[i] = Some(Expr::Ident(default_value.clone()));
                                     },
                                     _ => {},
                                 }
@@ -671,7 +671,7 @@ impl Expr {
                                 let names = missing_fields.iter().map(|field| field.name).collect::<Vec<_>>();
                                 let mut spans = missing_fields.iter().map(
                                     |field| RenderableSpan {
-                                        span: field.name_span,
+                                        span: field.name_span.clone(),
                                         auxiliary: true,
                                         note: Some(format!(
                                             "Field `{}` is defined here.",
@@ -680,7 +680,7 @@ impl Expr {
                                     }
                                 ).collect::<Vec<_>>();
                                 spans.push(RenderableSpan {
-                                    span: group_span,
+                                    span: group_span.clone(),
                                     auxiliary: false,
                                     note: Some(format!(
                                         "Field{} {} {} missing here.",
@@ -706,7 +706,7 @@ impl Expr {
                                 let names = invalid_fields.iter().map(|(name, _)| *name).collect();
                                 let spans = invalid_fields.iter().map(
                                     |(_, name_span)| RenderableSpan {
-                                        span: *name_span,
+                                        span: name_span.clone(),
                                         auxiliary: false,
                                         note: None,
                                     }
@@ -771,7 +771,7 @@ impl Expr {
             hir::Expr::PrefixOp { op, op_span, rhs } => {
                 let func = Callable::Static {
                     def_span: session.get_lang_item_span(op.get_def_lang_item()),
-                    span: *op_span,
+                    span: op_span.clone(),
                 };
 
                 Ok(Expr::Call {
@@ -784,7 +784,7 @@ impl Expr {
             },
             hir::Expr::InfixOp { op, op_span, lhs, rhs } => {
                 // `hir::Expr`'s span has more information than `mir::Expr`'s span.
-                let expr_span = lhs.error_span_wide().merge(*op_span).merge(rhs.error_span_wide()).derive(SpanDeriveKind::Trivial);
+                let expr_span = lhs.error_span_wide().merge(op_span).merge(&rhs.error_span_wide()).derive(SpanDeriveKind::Trivial);
 
                 match (
                     Expr::from_hir(lhs, session),
@@ -794,11 +794,11 @@ impl Expr {
                         match op {
                             // `lhs && rhs` -> `if lhs { rhs } else { False }`
                             InfixOp::LogicAnd => Ok(Expr::If(If {
-                                if_span: *op_span,
+                                if_span: op_span.clone(),
                                 cond: Box::new(lhs),
                                 else_span: Span::None,
                                 true_value: Box::new(rhs),
-                                true_group_span: expr_span,
+                                true_group_span: expr_span.clone(),
                                 false_value: Box::new(Expr::Ident(IdentWithOrigin {
                                     id: intern_string(b"False", &session.intermediate_dir).unwrap(),
                                     span: Span::None,
@@ -809,12 +809,12 @@ impl Expr {
                                     },
                                     def_span: session.get_lang_item_span("variant.Bool.False"),
                                 })),
-                                false_group_span: expr_span,
+                                false_group_span: expr_span.clone(),
                                 from_short_circuit: Some(ShortCircuitKind::And),
                             })),
                             // `lhs || rhs` -> `if lhs { True } else { rhs }`
                             InfixOp::LogicOr => Ok(Expr::If(If {
-                                if_span: *op_span,
+                                if_span: op_span.clone(),
                                 cond: Box::new(lhs),
                                 else_span: Span::None,
                                 true_value: Box::new(Expr::Ident(IdentWithOrigin {
@@ -827,15 +827,15 @@ impl Expr {
                                     },
                                     def_span: session.get_lang_item_span("variant.Bool.True"),
                                 })),
-                                true_group_span: expr_span,
+                                true_group_span: expr_span.clone(),
                                 false_value: Box::new(rhs),
-                                false_group_span: expr_span,
+                                false_group_span: expr_span.clone(),
                                 from_short_circuit: Some(ShortCircuitKind::Or),
                             })),
                             _ => {
                                 let func = Callable::Static {
                                     def_span: session.get_lang_item_span(op.get_def_lang_item()),
-                                    span: *op_span,
+                                    span: op_span.clone(),
                                 };
 
                                 Ok(Expr::Call {
@@ -854,7 +854,7 @@ impl Expr {
             hir::Expr::PostfixOp { op, op_span, lhs } => {
                 let func = Callable::Static {
                     def_span: session.get_lang_item_span(op.get_def_lang_item()),
-                    span: *op_span,
+                    span: op_span.clone(),
                 };
 
                 Ok(Expr::Call {
@@ -872,7 +872,7 @@ impl Expr {
                     } else {
                         session.get_lang_item_span("fn.convert")
                     },
-                    span: *keyword_span,
+                    span: keyword_span.clone(),
                 },
                 args: vec![Expr::from_hir(lhs, session)?],
                 arg_group_span: rhs.error_span_wide(),
@@ -880,14 +880,14 @@ impl Expr {
                     if *has_question_mark {
                         // `"3" as? <Int>` -> `std.convert.try_convert.<_, Int, _>("3")`
                         vec![
-                            Type::Var { def_span: *keyword_span, is_return: false },
+                            Type::Var { def_span: keyword_span.clone(), is_return: false },
                             Type::from_hir(rhs, session)?,
                             Type::Var { def_span: keyword_span.derive(SpanDeriveKind::ConvertError), is_return: false },
                         ]
                     } else {
                         // `3 as <String>` -> `std.convert.convert.<_, String>(3)`
                         vec![
-                            Type::Var { def_span: *keyword_span, is_return: false },
+                            Type::Var { def_span: keyword_span.clone(), is_return: false },
                             Type::from_hir(rhs, session)?,
                         ]
                     },
@@ -906,11 +906,11 @@ impl Expr {
 
     pub fn error_span_narrow(&self) -> Span {
         match self {
-            Expr::Ident(id) => id.span,
+            Expr::Ident(id) => id.span.clone(),
             Expr::Constant(c) => c.span(),
-            Expr::If(r#if) => r#if.if_span,
-            Expr::Match(r#match) => r#match.keyword_span,
-            Expr::Block(block) => block.group_span,
+            Expr::If(r#if) => r#if.if_span.clone(),
+            Expr::Match(r#match) => r#match.keyword_span.clone(),
+            Expr::Block(block) => block.group_span.clone(),
             Expr::Field { fields, .. } |
             Expr::FieldUpdate { fields, .. } => merge_field_spans(fields),
             Expr::Call { func, .. } => func.error_span_narrow(),
@@ -919,16 +919,18 @@ impl Expr {
 
     pub fn error_span_wide(&self) -> Span {
         match self {
-            Expr::Ident(id) => id.span,
+            Expr::Ident(id) => id.span.clone(),
             Expr::Constant(c) => c.span(),
-            Expr::If(r#if) => r#if.if_span.merge(r#if.true_group_span).merge(r#if.false_group_span),
-            Expr::Match(r#match) => r#match.keyword_span.merge(r#match.scrutinee.error_span_wide()).merge(r#match.group_span),
-            Expr::Block(block) => block.group_span,
-            Expr::Field { lhs, fields } => lhs.error_span_wide().merge(merge_field_spans(fields)),
+            Expr::If(r#if) => r#if.if_span.merge(&r#if.true_group_span).merge(&r#if.false_group_span),
+            Expr::Match(r#match) => r#match.keyword_span
+                .merge(&r#match.scrutinee.error_span_wide())
+                .merge(&r#match.group_span),
+            Expr::Block(block) => block.group_span.clone(),
+            Expr::Field { lhs, fields } => lhs.error_span_wide().merge(&merge_field_spans(fields)),
             Expr::FieldUpdate { lhs, fields, rhs } => lhs.error_span_wide()
-                .merge(merge_field_spans(fields))
-                .merge(rhs.error_span_wide()),
-            Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(*arg_group_span),
+                .merge(&merge_field_spans(fields))
+                .merge(&rhs.error_span_wide()),
+            Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(arg_group_span),
         }
     }
 }
@@ -939,7 +941,7 @@ impl Callable {
             Callable::Static { span, .. } |
             Callable::StructInit { span, .. } |
             Callable::TupleInit { group_span: span } |
-            Callable::ListInit { group_span: span } => *span,
+            Callable::ListInit { group_span: span } => span.clone(),
             Callable::Dynamic(expr) => expr.error_span_narrow(),
         }
     }
@@ -949,7 +951,7 @@ impl Callable {
             Callable::Static { span, .. } |
             Callable::StructInit { span, .. } |
             Callable::TupleInit { group_span: span } |
-            Callable::ListInit { group_span: span } => *span,
+            Callable::ListInit { group_span: span } => span.clone(),
             Callable::Dynamic(expr) => expr.error_span_wide(),
         }
     }
@@ -969,10 +971,10 @@ fn concat_strings(mut strings: Vec<Expr>, session: &Session) -> Expr {
             Expr::Call {
                 func: Callable::Static {
                     def_span,
-                    span: derived_span,
+                    span: derived_span.clone(),
                 },
                 args: vec![lhs, rhs],
-                arg_group_span: derived_span,
+                arg_group_span: derived_span.clone(),
                 types: None,
                 given_keyword_args: vec![],
             }
@@ -985,10 +987,10 @@ fn concat_strings(mut strings: Vec<Expr>, session: &Session) -> Expr {
             Expr::Call {
                 func: Callable::Static {
                     def_span,
-                    span: derived_span,
+                    span: derived_span.clone(),
                 },
                 args: vec![head, tail],
-                arg_group_span: derived_span,
+                arg_group_span: derived_span.clone(),
                 types: None,
                 given_keyword_args: vec![],
             }

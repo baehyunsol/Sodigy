@@ -35,7 +35,7 @@ impl Token {
         self.kind.expr_begin()
     }
 
-    pub fn offset_span(&mut self, offset: usize) {
+    pub fn offset_span(&mut self, offset: u32) {
         match &mut self.kind {
             TokenKind::FormattedString { elements, .. } => {
                 for element in elements.iter_mut() {

@@ -118,26 +118,26 @@ impl Endec for PatternKind {
             Some(4) => {
                 let (r#struct, cursor) = Path::decode_impl(buffer, cursor + 1)?;
                 let (fields, cursor) = Vec::<StructFieldPattern>::decode_impl(buffer, cursor)?;
-                let (rest, cursor) = Option::<RestPattern>::decode_impl(buffer, cursor)?;
+                let (rest, cursor) = Option::<Box<RestPattern>>::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((PatternKind::Struct { r#struct, fields, rest, group_span }, cursor))
             },
             Some(5) => {
                 let (r#struct, cursor) = Path::decode_impl(buffer, cursor + 1)?;
                 let (elements, cursor) = Vec::<Pattern>::decode_impl(buffer, cursor)?;
-                let (rest, cursor) = Option::<RestPattern>::decode_impl(buffer, cursor)?;
+                let (rest, cursor) = Option::<Box<RestPattern>>::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((PatternKind::TupleStruct { r#struct, elements, rest, group_span }, cursor))
             },
             Some(6) => {
                 let (elements, cursor) = Vec::<Pattern>::decode_impl(buffer, cursor + 1)?;
-                let (rest, cursor) = Option::<RestPattern>::decode_impl(buffer, cursor)?;
+                let (rest, cursor) = Option::<Box<RestPattern>>::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((PatternKind::Tuple { elements, rest, group_span }, cursor))
             },
             Some(7) => {
                 let (elements, cursor) = Vec::<Pattern>::decode_impl(buffer, cursor + 1)?;
-                let (rest, cursor) = Option::<RestPattern>::decode_impl(buffer, cursor)?;
+                let (rest, cursor) = Option::<Box<RestPattern>>::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((PatternKind::List { elements, rest, group_span }, cursor))
             },

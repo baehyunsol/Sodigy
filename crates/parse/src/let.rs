@@ -43,7 +43,7 @@ impl<'t, 's> Tokens<'t, 's> {
 
     // Most `let` statements are in this form, so let's do some optimization.
     fn parse_let_simple(&mut self) -> Result<Let, Vec<Error>> {
-        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Let))?.span;
+        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Let))?.span.clone();
         let (name, name_span) = self.pop_name_and_span(true /* allow_wildcard */)?;
 
         let type_annot = match self.peek() {
@@ -82,7 +82,7 @@ impl<'t, 's> Tokens<'t, 's> {
     //
     // It doesn't do any kind of checks. Hir/Mir will do the checks.
     fn parse_let_multiple(&mut self) -> Result<Vec<Let>, Vec<Error>> {
-        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Let))?.span;
+        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Let))?.span.clone();
         let pattern = self.parse_pattern(ParsePatternContext::Let)?;
 
         let type_annot = match self.peek() {
@@ -117,11 +117,11 @@ impl<'t, 's> Tokens<'t, 's> {
                 note: None,
             }]),
             1 => Ok(vec![Let {
-                keyword_span,
+                keyword_span: keyword_span.clone(),
                 name: names[0].0,
-                name_span: names[0].1,
+                name_span: names[0].1.clone(),
                 type_annot,
-                value: Expr::Match(Match {
+                value: Expr::Match(Box::new(Match {
                     keyword_span: keyword_span.derive(SpanDeriveKind::LetPattern(0)),
                     scrutinee: Box::new(value),
                     arms: vec![MatchArm {
@@ -136,7 +136,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     }],
                     group_span: keyword_span.derive(SpanDeriveKind::LetPattern(2)),
                     lowered_from_let: true,
-                }),
+                })),
                 attribute: Attribute::new(),
                 from_pipeline: false,
             }]),
@@ -151,11 +151,11 @@ impl<'t, 's> Tokens<'t, 's> {
 
                 let mut lets = vec![
                     Let {
-                        keyword_span,
+                        keyword_span: keyword_span.clone(),
                         name: tmp_name,
                         name_span: keyword_span.derive(SpanDeriveKind::LetPattern(0)),
                         type_annot,
-                        value: Expr::Match(Match {
+                        value: Expr::Match(Box::new(Match {
                             keyword_span: keyword_span.derive(SpanDeriveKind::LetPattern(1)),
                             scrutinee: Box::new(value),
                             arms: vec![MatchArm {
@@ -175,7 +175,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             }],
                             group_span: keyword_span.derive(SpanDeriveKind::LetPattern(4)),
                             lowered_from_let: true,
-                        }),
+                        })),
                         attribute: Attribute::new(),
                         from_pipeline: false,
                     },

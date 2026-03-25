@@ -12,15 +12,15 @@ impl Session {
         match (&pattern_type, &pattern.name, &pattern.name_span) {
             // we can solve a type var!
             (Some(pattern_type), Some(name_binding), Some(name_span)) => {
-                let type_var = Type::Var { def_span: *name_span, is_return: false };
-                self.add_type_var(type_var.clone(), None);
+                let type_var = Type::Var { def_span: name_span.clone(), is_return: false };
+                self.add_type_var(type_var.clone(), Some(*name_binding));
 
                 if let Err(()) = self.solve_supertype(
                     &pattern_type,
                     &type_var,
                     /* is_checking_argument: */ false,
-                    Some(pattern.error_span_wide()),
-                    Some(*name_span),
+                    Some(&pattern.error_span_wide()),
+                    Some(name_span),
                     ErrorContext::Deep,
                     /* bidirectional: */ true,
                 ) {
@@ -39,10 +39,10 @@ impl Session {
             PatternKind::NameBinding { id, span, .. } => match self.types.get(span) {
                 Some(r#type) => (Some(r#type.clone()), false),
                 None => {
-                    self.add_type_var(Type::Var { def_span: *span, is_return: false }, Some(*id));
+                    self.add_type_var(Type::Var { def_span: span.clone(), is_return: false }, Some(*id));
                     (
                         Some(Type::Var {
-                            def_span: *span,
+                            def_span: span.clone(),
                             is_return: false,
                         }),
                         false,
@@ -52,10 +52,10 @@ impl Session {
             PatternKind::Wildcard(span) => match self.types.get(span) {
                 Some(r#type) => (Some(r#type.clone()), false),
                 None => {
-                    self.add_type_var(Type::Var { def_span: *span, is_return: false }, None);
+                    self.add_type_var(Type::Var { def_span: span.clone(), is_return: false }, None);
                     (
                         Some(Type::Var {
-                            def_span: *span,
+                            def_span: span.clone(),
                             is_return: false,
                         }),
                         false,
@@ -164,11 +164,11 @@ impl Session {
                 let mut rest_pattern_name_binding = None;
 
                 if let Some(rest) = rest {
-                    rest_pattern_name_binding = rest.name_span;
+                    rest_pattern_name_binding = rest.name_span.clone();
                 }
 
                 let (mut r#type, mut has_error) = if elements.is_empty() {
-                    let type_var = Type::GenericArg { call: *group_span, generic: self.get_lang_item_span("built_in.init_list.generic.0") };
+                    let type_var = Type::GenericArg { call: group_span.clone(), generic: self.get_lang_item_span("built_in.init_list.generic.0") };
                     self.add_type_var(type_var.clone(), None);
 
                     let r#type = Type::Data {
@@ -206,8 +206,8 @@ impl Session {
                             &elem_type,
                             &elem_types[i],
                             false,
-                            Some(elements[0].error_span_wide()),
-                            Some(elements[i].error_span_wide()),
+                            Some(&elements[0].error_span_wide()),
+                            Some(&elements[i].error_span_wide()),
                             ErrorContext::ListElementEqual,
                             true,
                         ) {
@@ -265,8 +265,8 @@ impl Session {
                             &lhs_type,
                             &rhs_type,
                             /* is_checking_argument: */ false,
-                            Some(lhs.as_ref().unwrap().error_span_wide()),
-                            Some(rhs.as_ref().unwrap().error_span_wide()),
+                            Some(&lhs.as_ref().unwrap().error_span_wide()),
+                            Some(&rhs.as_ref().unwrap().error_span_wide()),
                             ErrorContext::RangePatternEqual,
                             /* bidirectional: */ true,
                         ) {
@@ -292,8 +292,8 @@ impl Session {
                         &lhs_type,
                         &rhs_type,
                         /* is_checking_argument: */ false,
-                        Some(lhs.error_span_wide()),
-                        Some(rhs.error_span_wide()),
+                        Some(&lhs.error_span_wide()),
+                        Some(&rhs.error_span_wide()),
                         ErrorContext::OrPatternEqual,
                         /* bidirectional: */ true,
                     ) {
@@ -317,8 +317,8 @@ impl Session {
                 }
 
                 for (name, (lhs_span, rhs_span)) in name_bindings.iter() {
-                    let lhs_type_var = Type::Var { def_span: *lhs_span, is_return: false };
-                    let rhs_type_var = Type::Var { def_span: *rhs_span, is_return: false };
+                    let lhs_type_var = Type::Var { def_span: lhs_span.clone(), is_return: false };
+                    let rhs_type_var = Type::Var { def_span: rhs_span.clone(), is_return: false };
                     self.add_type_var(lhs_type_var.clone(), None);
                     self.add_type_var(rhs_type_var.clone(), None);
 
@@ -326,8 +326,8 @@ impl Session {
                         &lhs_type_var,
                         &rhs_type_var,
                         /* is_checking_argument: */ false,
-                        Some(*lhs_span),
-                        Some(*rhs_span),
+                        Some(lhs_span),
+                        Some(rhs_span),
                         ErrorContext::OrPatternNameBinding(*name),
                         /* bidirectional: */ true,
                     ) {

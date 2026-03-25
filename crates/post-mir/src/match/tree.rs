@@ -90,8 +90,8 @@ impl DecisionTree {
         let curr_field_span = scrutinee.error_span_wide().derive(SpanDeriveKind::MatchScrutinee(self.id));
         let curr_field = Expr::Ident(IdentWithOrigin {
             id: curr_field_name,
-            span: curr_field_span,
-            def_span: curr_field_span,
+            span: curr_field_span.clone(),
+            def_span: curr_field_span.clone(),
             origin: NameOrigin::Local {
                 kind: NameKind::Let { is_top_level: false },
             },
@@ -101,12 +101,12 @@ impl DecisionTree {
             Some(field) => {
                 let curr_value = to_field_expr(scrutinee, field, session);
                 let curr_value_type = type_of(&curr_value, session.global_context.clone()).unwrap();
-                session.add_type_info(curr_field_span, curr_value_type);
+                session.add_type_info(&curr_field_span, curr_value_type);
 
                 vec![Let {
                     keyword_span: Span::None,
                     name: curr_field_name,
-                    name_span: curr_field_span,
+                    name_span: curr_field_span.clone(),
                     type_annot_span: None,
                     value: curr_value,
                     origin: LetOrigin::Match,
@@ -128,7 +128,7 @@ impl DecisionTree {
                 let mut new_value = Expr::Ident(IdentWithOrigin {
                     id: curr_field_name,
                     span: Span::None,
-                    def_span: curr_field_span,
+                    def_span: curr_field_span.clone(),
                     origin: NameOrigin::Local {
                         kind: NameKind::Let { is_top_level: false },
                     },
@@ -156,17 +156,17 @@ impl DecisionTree {
                 };
 
                 let new_value_type = type_of(&new_value, session.global_context.clone()).unwrap();
-                session.add_type_info(name_binding.name_span, new_value_type);
+                session.add_type_info(&name_binding.name_span, new_value_type);
 
                 lets.push(Let {
                     keyword_span: Span::None,
                     name: name_binding.name,
-                    name_span: name_binding.name_span,
+                    name_span: name_binding.name_span.clone(),
                     type_annot_span: None,
                     value: new_value,
                     origin: LetOrigin::Match,
                 });
-                name_binding_spans.insert(name_binding.name_span);
+                name_binding_spans.insert(name_binding.name_span.clone());
             }
         }
 

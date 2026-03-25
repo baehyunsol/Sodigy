@@ -43,7 +43,7 @@ impl Alias {
         let mut generic_index = HashMap::new();
 
         for (index, Generic { name, name_span }) in ast_alias.generics.iter().enumerate() {
-            generic_params.insert(*name, (*name_span, NameKind::GenericParam, UseCount::new()));
+            generic_params.insert(*name, (name_span.clone(), NameKind::GenericParam, UseCount::new()));
             generic_index.insert(*name, index);
         }
 
@@ -59,7 +59,7 @@ impl Alias {
         let attribute = match session.lower_attribute(
             &ast_alias.attribute,
             ItemKind::Alias,
-            ast_alias.keyword_span,
+            ast_alias.keyword_span.clone(),
         ) {
             Ok(attribute) => attribute,
             Err(()) => {
@@ -71,9 +71,9 @@ impl Alias {
 
         if let Err(()) = session.collect_lang_items(
             &attribute,
-            ast_alias.name_span,
+            ast_alias.name_span.clone(),
             Some(&ast_alias.generics),
-            ast_alias.generic_group_span,
+            ast_alias.generic_group_span.clone(),
         ) {
             has_error = true;
         }
@@ -98,19 +98,19 @@ impl Alias {
         else {
             let r#type = r#type.unwrap();
             let mut self_references = vec![];
-            find_ids_with_def_span(&r#type, ast_alias.name_span, &mut self_references);
+            find_ids_with_def_span(&r#type, &ast_alias.name_span, &mut self_references);
 
             // `type T = Option<T>;` is an error
             if !self_references.is_empty() {
                 let mut error_spans = vec![RenderableSpan {
-                    span: ast_alias.name_span,
+                    span: ast_alias.name_span.clone(),
                     auxiliary: false,
                     note: None,
                 }];
 
                 for self_reference in self_references.iter() {
                     error_spans.push(RenderableSpan {
-                        span: self_reference.span,
+                        span: self_reference.span.clone(),
                         auxiliary: true,
                         note: None,
                     });
@@ -126,11 +126,11 @@ impl Alias {
 
             Ok(Alias {
                 visibility,
-                keyword_span: ast_alias.keyword_span,
+                keyword_span: ast_alias.keyword_span.clone(),
                 name: ast_alias.name,
-                name_span: ast_alias.name_span,
+                name_span: ast_alias.name_span.clone(),
                 generics: ast_alias.generics.clone(),
-                generic_group_span: ast_alias.generic_group_span,
+                generic_group_span: ast_alias.generic_group_span.clone(),
                 r#type,
                 foreign_names,
             })
@@ -155,16 +155,16 @@ impl Alias {
     }
 }
 
-fn find_ids_with_def_span(r#type: &Type, def_span: Span, result: &mut Vec<IdentWithOrigin>) {
+fn find_ids_with_def_span(r#type: &Type, def_span: &Span, result: &mut Vec<IdentWithOrigin>) {
     match r#type {
         Type::Path(Path { id, .. }) => {
-            if id.def_span == def_span {
-                result.push(*id);
+            if &id.def_span == def_span {
+                result.push(id.clone());
             }
         },
         Type::Param { constructor: Path { id, .. }, args, .. } => {
-            if id.def_span == def_span {
-                result.push(*id);
+            if &id.def_span == def_span {
+                result.push(id.clone());
             }
 
             for arg in args.iter() {
@@ -177,8 +177,8 @@ fn find_ids_with_def_span(r#type: &Type, def_span: Span, result: &mut Vec<IdentW
             }
         },
         Type::Func { fn_constructor: Path { id, .. }, params, r#return, .. } => {
-            if id.def_span == def_span {
-                result.push(*id);
+            if &id.def_span == def_span {
+                result.push(id.clone());
             }
 
             for param in params.iter() {

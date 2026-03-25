@@ -71,8 +71,8 @@ pub fn lower(
     for type_assertion in hir_session.type_assertions.iter() {
         if let Ok(r#type) = Type::from_hir(&type_assertion.r#type, &mut session) {
             session.type_assertions.push(TypeAssertion {
-                name_span: type_assertion.name_span,
-                type_span: type_assertion.type_span,
+                name_span: type_assertion.name_span.clone(),
+                type_span: type_assertion.type_span.clone(),
                 r#type,
             });
         }

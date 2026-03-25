@@ -162,8 +162,13 @@ pub fn replace_dollar(
             *has_nested_pipeline = true;
         },
         ast::Expr::PipelineData(span) => {
-            let id_span = *span;
-            *value = ast::Expr::Path(ast::Path { id: ident, id_span, fields: vec![], types: vec![None] });
+            let id_span = span.clone();
+            *value = ast::Expr::Path(ast::Path {
+                id: ident,
+                id_span: id_span.clone(),
+                fields: vec![],
+                types: vec![None],
+            });
             replaced_spans.push(id_span);
         },
     }
@@ -222,8 +227,13 @@ fn replace_dollar_in_pattern(
             );
         },
         ast::PatternKind::PipelineData(span) => {
-            let id_span = *span;
-            pattern.kind = ast::PatternKind::Path(ast::Path { id: ident, id_span, fields: vec![], types: vec![None] });
+            let id_span = span.clone();
+            pattern.kind = ast::PatternKind::Path(ast::Path {
+                id: ident,
+                id_span: id_span.clone(),
+                fields: vec![],
+                types: vec![None],
+            });
             replaced_spans.push(id_span);
         },
     }

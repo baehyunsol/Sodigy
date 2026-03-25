@@ -3,7 +3,7 @@ use sodigy_endec::{DecodeError, DumpSession, Endec};
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{EnumShape, FuncShape, Poly, StructShape};
 use sodigy_mir::Type;
-use sodigy_span::Span;
+use sodigy_span::{Span, SpanId};
 use sodigy_string::InternedString;
 use std::collections::{HashMap, HashSet};
 
@@ -27,7 +27,7 @@ impl Endec for Session {
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        let (monomorphizations, cursor) = HashMap::<u128, Monomorphization>::decode_impl(buffer, cursor)?;
+        let (monomorphizations, cursor) = HashMap::<u64, Monomorphization>::decode_impl(buffer, cursor)?;
         let (types, cursor) = HashMap::<Span, Type>::decode_impl(buffer, cursor)?;
         let (generic_args, cursor) = HashMap::<(Span, Span), Type>::decode_impl(buffer, cursor)?;
         let (func_shapes, cursor) = HashMap::<Span, FuncShape>::decode_impl(buffer, cursor)?;
@@ -36,7 +36,7 @@ impl Endec for Session {
         let (generic_def_span_rev, cursor) = HashMap::<Span, Span>::decode_impl(buffer, cursor)?;
         let (equal_generic_params, cursor) = HashMap::<Span, Vec<(usize, usize)>>::decode_impl(buffer, cursor)?;
         let (polys, cursor) = HashMap::<Span, Poly>::decode_impl(buffer, cursor)?;
-        let (span_string_map, cursor) = HashMap::<Span, InternedString>::decode_impl(buffer, cursor)?;
+        let (span_string_map, cursor) = HashMap::<SpanId, InternedString>::decode_impl(buffer, cursor)?;
         let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
         let (built_in_funcs, cursor) = HashSet::<Span>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;

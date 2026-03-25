@@ -32,7 +32,7 @@ impl Func {
             match hir_param.type_annot.as_ref().map(|type_annot| Type::from_hir(type_annot, session)) {
                 Some(Ok(type_annot)) => {
                     if let Type::GenericParam { def_span, .. } = &type_annot {
-                        match equal_generic_params.entry(*def_span) {
+                        match equal_generic_params.entry(def_span.clone()) {
                             Entry::Occupied(mut e) => {
                                 e.get_mut().push(i);
                             },
@@ -43,11 +43,11 @@ impl Func {
                     }
 
                     param_types.push(type_annot.clone());
-                    session.types.insert(hir_param.name_span, type_annot);
+                    session.types.insert(hir_param.name_span.clone(), type_annot);
                 },
                 None => {
                     param_types.push(Type::Var {
-                        def_span: hir_param.name_span,
+                        def_span: hir_param.name_span.clone(),
                         is_return: false,
                     });
                 },
@@ -59,16 +59,16 @@ impl Func {
 
             params.push(FuncParam {
                 name: hir_param.name,
-                name_span: hir_param.name_span,
+                name_span: hir_param.name_span.clone(),
                 type_annot: None,
-                default_value: hir_param.default_value,
+                default_value: hir_param.default_value.clone(),
             });
         }
 
         for indexes in equal_generic_params.values() {
             if indexes.len() > 1 {
                 session.equal_generic_params.insert(
-                    hir_func.name_span,
+                    hir_func.name_span.clone(),
                     indexes[1..].iter().map(
                         |j| (indexes[0], *j)
                     ).collect(),
@@ -87,7 +87,7 @@ impl Func {
         match hir_func.type_annot.as_ref().map(|type_annot| Type::from_hir(type_annot, session)) {
             Some(Ok(type_annot)) => {
                 session.types.insert(
-                    hir_func.name_span,
+                    hir_func.name_span.clone(),
                     Type::Func {
                         // These spans are for `Fn` in type annotations, but there's no such thing here!
                         fn_span: Span::None,
@@ -100,14 +100,14 @@ impl Func {
             },
             None => {
                 session.types.insert(
-                    hir_func.name_span,
+                    hir_func.name_span.clone(),
                     Type::Func {
                         // These spans are for `Fn` in type annotations, but there's no such thing here!
                         fn_span: Span::None,
                         group_span: Span::None,
                         params: param_types,
                         r#return: Box::new(Type::Var {
-                            def_span: hir_func.name_span,
+                            def_span: hir_func.name_span.clone(),
                             is_return: true,
                         }),
                         purity: if hir_func.is_pure { FuncPurity::Pure } else { FuncPurity::Impure },
@@ -126,12 +126,12 @@ impl Func {
         else {
             Ok(Func {
                 is_pure: hir_func.is_pure,
-                impure_keyword_span: hir_func.impure_keyword_span,
-                keyword_span: hir_func.keyword_span,
+                impure_keyword_span: hir_func.impure_keyword_span.clone(),
+                keyword_span: hir_func.keyword_span.clone(),
                 name: hir_func.name,
-                name_span: hir_func.name_span,
+                name_span: hir_func.name_span.clone(),
                 generics: hir_func.generics.to_vec(),
-                generic_group_span: hir_func.generic_group_span,
+                generic_group_span: hir_func.generic_group_span.clone(),
                 params,
                 type_annot_span,
                 value: value.unwrap(),
@@ -146,7 +146,7 @@ impl Func {
             // type annotations are already erased
             params: self.params.clone(),
             generics: self.generics.clone(),
-            generic_group_span: self.generic_group_span,
+            generic_group_span: self.generic_group_span.clone(),
         }
     }
 }

@@ -262,8 +262,8 @@ impl NotXBut {
     }
 }
 
-impl From<NameKind> for NotXBut {
-    fn from(k: NameKind) -> NotXBut {
+impl From<&NameKind> for NotXBut {
+    fn from(k: &NameKind) -> NotXBut {
         match k {
             NameKind::Let { .. } |
             NameKind::Func |

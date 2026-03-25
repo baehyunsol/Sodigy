@@ -107,7 +107,7 @@ impl Session {
 
     pub fn check_type_annot_path(&mut self, r#type: &Type) -> Result<(), ()> {
         fn check_path(path: &Path, intermediate_dir: &str) -> Result<(), Error> {
-            match path.id.origin {
+            match &path.id.origin {
                 // What kinda error is this?
                 _ if !path.fields.is_empty() => todo!(),
 

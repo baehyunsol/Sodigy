@@ -40,7 +40,7 @@ impl DocComment {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct DocCommentLine {
     pub content: InternedString,
     pub content_span: Span,
@@ -49,12 +49,10 @@ pub struct DocCommentLine {
 
 impl DocCommentLine {
     pub fn new(content: InternedString, entire_span: Span) -> Self {
-        let (marker_span, content_span) = match entire_span {
-            Span::Range { file, start, end } if start + 3 <= end => (
-                Span::Range { file, start, end: start + 3 },
-                Span::Range { file, start: start + 3, end },
-            ),
-            _ => unreachable!(),
+        let (marker_span, content_span) = {
+            let (file, (start, end)) = (entire_span.file().unwrap(), entire_span.get_bounds().unwrap());
+            assert!(start + 3 <= end);
+            (Span::range(file, start, start + 3), Span::range(file, start + 3, end))
         };
 
         DocCommentLine {
@@ -92,18 +90,18 @@ impl DecoratorArg {
     pub fn error_span_narrow(&self) -> Span {
         let mut span = Span::None;
 
-        if let Some((_, name_span)) = self.keyword {
-            span = name_span;
+        if let Some((_, name_span)) = &self.keyword {
+            span = name_span.clone();
         }
 
         // It'd be okay even if both `expr` and `type` have spans.
         // Merging them would just choose the wider one.
         if let Ok(expr) = &self.expr {
-            span = span.merge(expr.error_span_narrow());
+            span = span.merge(&expr.error_span_narrow());
         }
 
         if let Ok(r#type) = &self.r#type {
-            span = span.merge(r#type.error_span_narrow());
+            span = span.merge(&r#type.error_span_narrow());
         }
 
         span
@@ -112,18 +110,18 @@ impl DecoratorArg {
     pub fn error_span_wide(&self) -> Span {
         let mut span = Span::None;
 
-        if let Some((_, name_span)) = self.keyword {
-            span = name_span;
+        if let Some((_, name_span)) = &self.keyword {
+            span = name_span.clone();
         }
 
         // It'd be okay even if both `expr` and `type` have spans.
         // Merging them would just choose the wider one.
         if let Ok(expr) = &self.expr {
-            span = span.merge(expr.error_span_wide());
+            span = span.merge(&expr.error_span_wide());
         }
 
         if let Ok(r#type) = &self.r#type {
-            span = span.merge(r#type.error_span_wide());
+            span = span.merge(&r#type.error_span_wide());
         }
 
         span
@@ -167,7 +165,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         }
                     }
 
-                    doc_comments.push(DocCommentLine::new(*doc, *span));
+                    doc_comments.push(DocCommentLine::new(*doc, span.clone()));
                     self.cursor += 1;
                 },
                 Some(Token { kind: TokenKind::Group {
@@ -188,8 +186,8 @@ impl<'t, 's> Tokens<'t, 's> {
                         break;
                     }
 
-                    let group_span = *span;
-                    let mut tokens = Tokens::new(tokens, group_span.end(), &self.intermediate_dir);
+                    let group_span = span.clone();
+                    let mut tokens = Tokens::new(tokens, group_span.end(), false, &self.intermediate_dir);
 
                     match tokens.parse_decorator() {
                         Ok(decorator) => {
@@ -209,7 +207,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                 got: ErrorToken::Punct(Punct::Semicolon),
                             },
                             spans: vec![RenderableSpan {
-                                span: *span,
+                                span: span.clone(),
                                 auxiliary: false,
                                 note: Some(String::from("Remove this `;`.")),
                             }],
@@ -221,7 +219,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 },
                 Some(Token { kind: TokenKind::Keyword(Keyword::Pub), span }) => {
                     if !top_level {
-                        let keyword_span = *span;
+                        let keyword_span = span.clone();
                         self.cursor += 1;
 
                         match self.peek() {
@@ -267,8 +265,8 @@ impl<'t, 's> Tokens<'t, 's> {
 
         match self.peek() {
             Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }) => {
-                let group_span = *span;
-                let mut tokens = Tokens::new(tokens, group_span.end(), &self.intermediate_dir);
+                let group_span = span.clone();
+                let mut tokens = Tokens::new(tokens, group_span.end(), false, &self.intermediate_dir);
                 let args = tokens.parse_decorator_args()?;
                 let result = Decorator {
                     name,
@@ -328,7 +326,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     Some(Token { kind: TokenKind::Ident(id), span }),
                     Some(Token { kind: TokenKind::Punct(Punct::Assign), .. }),
                 ) => {
-                    let (id, span) = (*id, *span);
+                    let (id, span) = (*id, span.clone());
                     self.cursor += 2;
 
                     Some((id, span))

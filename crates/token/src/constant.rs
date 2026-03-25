@@ -39,7 +39,7 @@ impl Constant {
             Constant::Number { span, .. } |
             Constant::String { span, .. } |
             Constant::Char { span, .. } |
-            Constant::Byte { span, .. } => *span,
+            Constant::Byte { span, .. } => span.clone(),
             Constant::Scalar(_) => Span::None,
         }
     }
@@ -64,7 +64,7 @@ impl Constant {
     }
 
     #[must_use = "method returns a new constant and does not mutate the original constant"]
-    pub fn monomorphize(&self, monomorphize_id: u128) -> Self {
+    pub fn monomorphize(&self, monomorphize_id: u64) -> Self {
         match self {
             Constant::Number { n, span } => Constant::Number {
                 n: *n,

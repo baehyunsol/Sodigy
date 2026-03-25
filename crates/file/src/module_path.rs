@@ -47,7 +47,7 @@ impl ModulePath {
 
             for (i, (module_path_, _, _, _)) in STD_FILES.iter().enumerate() {
                 if module_path == *module_path_ {
-                    return Ok(FileOrStd::Std(i as u64));
+                    return Ok(FileOrStd::Std(i as u32));
                 }
             }
 

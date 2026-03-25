@@ -59,7 +59,7 @@ impl Session<'_, '_> {
         for branch in tree.branches.iter() {
             for name_binding in branch.name_bindings.iter() {
                 let span_helpers_len = span_helpers.len();
-                let nb_index = match span_helpers.entry(name_binding.name_span) {
+                let nb_index = match span_helpers.entry(name_binding.name_span.clone()) {
                     Entry::Occupied(e) => e.get().to_string(),
                     Entry::Vacant(e) => {
                         let nb_index = format!("nb_{span_helpers_len}");

@@ -135,34 +135,34 @@ impl Session {
     }
 
     // TODO: return visibility
-    pub fn iter_item_names(&self) -> impl Iterator<Item = (InternedString, Span, NameKind)> {
+    pub fn iter_item_names(&self) -> impl Iterator<Item = (InternedString, &Span, NameKind)> {
         self.lets.iter().map(
-            |r#let| (r#let.name, r#let.name_span, NameKind::Let { is_top_level: r#let.origin == LetOrigin::TopLevel })
+            |r#let| (r#let.name, &r#let.name_span, NameKind::Let { is_top_level: r#let.origin == LetOrigin::TopLevel })
         ).chain(
             self.funcs.iter().map(
-                |func| (func.name, func.name_span, NameKind::Func)
+                |func| (func.name, &func.name_span, NameKind::Func)
             )
         ).chain(
             self.structs.iter().map(
-                |r#struct| (r#struct.name, r#struct.name_span, NameKind::Struct)
+                |r#struct| (r#struct.name, &r#struct.name_span, NameKind::Struct)
             )
         )
         .chain(
             self.enums.iter().map(
-                |r#enum| (r#enum.name, r#enum.name_span, NameKind::Enum)
+                |r#enum| (r#enum.name, &r#enum.name_span, NameKind::Enum)
             )
         )
         .chain(
             self.aliases.iter().map(
-                |alias| (alias.name, alias.name_span, NameKind::Alias)
+                |alias| (alias.name, &alias.name_span, NameKind::Alias)
             )
         ).chain(
             self.uses.iter().map(
-                |r#use| (r#use.name, r#use.name_span, NameKind::Use)
+                |r#use| (r#use.name, &r#use.name_span, NameKind::Use)
             )
         ).chain(
             self.modules.iter().map(
-                |module| (module.name, module.name_span, NameKind::Use)
+                |module| (module.name, &module.name_span, NameKind::Use)
             )
         )
     }
@@ -187,12 +187,12 @@ impl Session {
         for (name, (span, kind, count)) in names.iter() {
             if ((!self.is_in_debug_context && count.always == Counter::Never) || (self.is_in_debug_context && count.debug_only == Counter::Never)) && !name.eq(b"_") {
                 let debug_only = count.debug_only != Counter::Never;
-                match names_by_kind.entry((*kind, debug_only)) {
+                match names_by_kind.entry((kind.clone(), debug_only)) {
                     Entry::Occupied(mut e) => {
-                        e.get_mut().push((*name, *span));
+                        e.get_mut().push((*name, span.clone()));
                     },
                     Entry::Vacant(e) => {
-                        e.insert(vec![(*name, *span)]);
+                        e.insert(vec![(*name, span.clone())]);
                     },
                 }
             }
@@ -207,7 +207,7 @@ impl Session {
             } else {
                 None
             };
-            names.sort_by_key(|(_, span)| *span);
+            names.sort_by_key(|(_, span)| span.clone());
             self.warnings.push(Warning {
                 kind: WarningKind::UnusedNames {
                     names: names.iter().map(
@@ -217,7 +217,7 @@ impl Session {
                 },
                 spans: names.iter().map(
                     |(_, span)| RenderableSpan {
-                        span: *span,
+                        span: span.clone(),
                         auxiliary: false,
                         note: None,
                     }

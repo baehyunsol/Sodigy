@@ -72,7 +72,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
             if !impure_calls.is_empty() {
                 session.type_errors.push(TypeError::ImpureCallInPureContext {
                     call_spans: impure_calls,
-                    keyword_span: r#let.keyword_span,
+                    keyword_span: r#let.keyword_span.clone(),
                     context: r#let.origin.into(),
                 });
             }
@@ -88,7 +88,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
             if !impure_calls.is_empty() {
                 session.type_errors.push(TypeError::ImpureCallInPureContext {
                     call_spans: impure_calls,
-                    keyword_span: assert.keyword_span,
+                    keyword_span: assert.keyword_span.clone(),
                     context: ExprContext::TopLevelAssert,
                 });
             }
@@ -113,7 +113,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
 
             for (span, solver) in poly_solver.iter() {
                 write_log!(session, LogEntry::InitPolySolver {
-                    poly_def_span: *span,
+                    poly_def_span: span.clone(),
                     solver: solver.clone(),
                 });
             }
@@ -132,8 +132,8 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                         let func = &mir_session.funcs[*index];
                         let new_func = session.monomorphize_func(func, &monomorphization);
                         session.monomorphizations.insert(monomorphization.id, monomorphization);
-                        session.func_shapes.insert(new_func.name_span, new_func.shape());
-                        session.funcs_rev.insert(new_func.name_span, mir_session.funcs.len());
+                        session.func_shapes.insert(new_func.name_span.clone(), new_func.shape());
+                        session.funcs_rev.insert(new_func.name_span.clone(), mir_session.funcs.len());
                         mir_session.funcs.push(new_func);
                     }
 
@@ -149,8 +149,8 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                         &plan.dispatch_map,
                         &session.associated_funcs.iter().map(
                             |AssociatedFuncInstance { def_span, call_span, .. }| (
-                                *call_span,
-                                *def_span,
+                                call_span.clone(),
+                                def_span.clone(),
                             )
                         ).collect(),
                         &session.func_shapes,
@@ -188,7 +188,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                 for def_span in session.blocked_type_vars.iter() {
                     session.type_errors.push(TypeError::CannotInferType {
                         id: None,
-                        span: *def_span,
+                        span: def_span.clone(),
                         is_return: false,
                     });
                 }

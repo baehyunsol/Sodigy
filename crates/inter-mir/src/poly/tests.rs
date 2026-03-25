@@ -255,7 +255,7 @@ fn into_generics(types: Vec<Type>) -> HashMap<Span, Type> {
 struct TestSession {}
 
 impl RenderStateMachine for TestSession {
-    fn span_to_string_impl(&self, span: Span) -> Option<String> {
+    fn span_to_string_impl(&self, span: &Span) -> Option<String> {
         match span {
             Span::Poly {
                 monomorphize_id: Some(n),

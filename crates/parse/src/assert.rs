@@ -12,7 +12,7 @@ pub struct Assert {
 
 impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_assert(&mut self) -> Result<Assert, Vec<Error>> {
-        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Assert))?.span;
+        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Assert))?.span.clone();
         let value = self.parse_expr(true)?;
         self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
 

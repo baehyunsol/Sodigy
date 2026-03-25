@@ -34,10 +34,10 @@ impl Struct {
 
                 match spans_by_name.entry(field.name) {
                     Entry::Occupied(mut e) => {
-                        e.get_mut().push(field.name_span);
+                        e.get_mut().push(field.name_span.clone());
                     },
                     Entry::Vacant(e) => {
-                        e.insert(vec![field.name_span]);
+                        e.insert(vec![field.name_span.clone()]);
                     },
                 }
             }
@@ -52,7 +52,7 @@ impl Struct {
                     },
                     spans: spans.iter().map(
                         |span| RenderableSpan {
-                            span: *span,
+                            span: span.clone(),
                             auxiliary: false,
                             note: None,
                         }

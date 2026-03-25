@@ -23,7 +23,7 @@ impl Session {
                 None => unreachable!(),
             };
 
-            self.types.insert(new_param.name_span, new_type);
+            self.types.insert(new_param.name_span.clone(), new_type);
             params.push(new_param);
         }
 
@@ -43,18 +43,18 @@ impl Session {
         let mut new_value = func.value.clone();
         self.monomorphize_expr(&mut new_value, monomorphization);
 
-        self.types.insert(new_name_span, new_type);
+        self.types.insert(new_name_span.clone(), new_type);
 
         Func {
             is_pure: func.is_pure,
-            impure_keyword_span: func.impure_keyword_span.map(|span| span.monomorphize(monomorphization.id)),
+            impure_keyword_span: func.impure_keyword_span.as_ref().map(|span| span.monomorphize(monomorphization.id)),
             keyword_span: func.keyword_span.monomorphize(monomorphization.id),
             name: func.name,
             name_span: new_name_span,
             generics: vec![],
             generic_group_span: None,
             params,
-            type_annot_span: func.type_annot_span.map(|span| span.monomorphize(monomorphization.id)),
+            type_annot_span: func.type_annot_span.as_ref().map(|span| span.monomorphize(monomorphization.id)),
             value: new_value,
             origin: FuncOrigin::Monomorphization,
             built_in: func.built_in,

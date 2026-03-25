@@ -45,17 +45,17 @@ pub enum EnumVariantFields {
 
 impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_enum(&mut self) -> Result<Enum, Vec<Error>> {
-        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Enum))?.span;
+        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Enum))?.span.clone();
         let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
         let mut generics = vec![];
         let mut generic_group_span = None;
 
         if let Some(Token { kind: TokenKind::Punct(Punct::Lt), span }) = self.peek() {
-            generic_group_span = Some(*span);
+            generic_group_span = Some(span.clone());
             self.cursor += 1;
             generics = self.parse_generic_defs()?;
-            let generic_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
-            generic_group_span = generic_group_span.map(|span| span.merge(generic_span_end));
+            let generic_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span.clone();
+            generic_group_span = generic_group_span.map(|span| span.merge(&generic_span_end));
         }
 
         // built-in enums don't have body
@@ -71,7 +71,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 },
                 span: enum_body_span,
             } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
-            let mut enum_body_tokens = Tokens::new(enum_body_tokens, enum_body_span.end(), &self.intermediate_dir);
+            let mut enum_body_tokens = Tokens::new(enum_body_tokens, enum_body_span.end(), false, &self.intermediate_dir);
             Some(enum_body_tokens.parse_enum_variants()?)
         };
 
@@ -114,7 +114,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     }
                 },
                 Some(Token { kind: TokenKind::Group { delim: Delim::Brace, tokens }, span }) => {
-                    let mut struct_body_tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
+                    let mut struct_body_tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
                     let fields = struct_body_tokens.parse_struct_fields()?;
                     variants.push(EnumVariant {
                         name,
@@ -144,7 +144,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     }
                 },
                 Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }) => {
-                    let mut tuple_body_tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
+                    let mut tuple_body_tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
 
                     if tuple_body_tokens.is_empty() {
                         variants.push(EnumVariant {

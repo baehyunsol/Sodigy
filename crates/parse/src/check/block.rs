@@ -30,10 +30,10 @@ impl Block {
             if !r#let.name.eq(b"_") {
                 match spans_by_name.entry(r#let.name) {
                     Entry::Occupied(mut e) => {
-                        e.get_mut().push((r#let.name_span, NameKind::Let { is_top_level }));
+                        e.get_mut().push((r#let.name_span.clone(), NameKind::Let { is_top_level }));
                     },
                     Entry::Vacant(e) => {
-                        e.insert(vec![(r#let.name_span, NameKind::Let { is_top_level })]);
+                        e.insert(vec![(r#let.name_span.clone(), NameKind::Let { is_top_level })]);
                     },
                 }
             }
@@ -46,10 +46,10 @@ impl Block {
 
             match spans_by_name.entry(func.name) {
                 Entry::Occupied(mut e) => {
-                    e.get_mut().push((func.name_span, NameKind::Func));
+                    e.get_mut().push((func.name_span.clone(), NameKind::Func));
                 },
                 Entry::Vacant(e) => {
-                    e.insert(vec![(func.name_span, NameKind::Func)]);
+                    e.insert(vec![(func.name_span.clone(), NameKind::Func)]);
                 },
             }
         }
@@ -61,10 +61,10 @@ impl Block {
 
             match spans_by_name.entry(r#struct.name) {
                 Entry::Occupied(mut e) => {
-                    e.get_mut().push((r#struct.name_span, NameKind::Struct));
+                    e.get_mut().push((r#struct.name_span.clone(), NameKind::Struct));
                 },
                 Entry::Vacant(e) => {
-                    e.insert(vec![(r#struct.name_span, NameKind::Struct)]);
+                    e.insert(vec![(r#struct.name_span.clone(), NameKind::Struct)]);
                 },
             }
         }
@@ -76,10 +76,10 @@ impl Block {
 
             match spans_by_name.entry(r#enum.name) {
                 Entry::Occupied(mut e) => {
-                    e.get_mut().push((r#enum.name_span, NameKind::Enum));
+                    e.get_mut().push((r#enum.name_span.clone(), NameKind::Enum));
                 },
                 Entry::Vacant(e) => {
-                    e.insert(vec![(r#enum.name_span, NameKind::Enum)]);
+                    e.insert(vec![(r#enum.name_span.clone(), NameKind::Enum)]);
                 },
             }
         }
@@ -99,10 +99,10 @@ impl Block {
 
             match spans_by_name.entry(module.name) {
                 Entry::Occupied(mut e) => {
-                    e.get_mut().push((module.name_span, NameKind::Module));
+                    e.get_mut().push((module.name_span.clone(), NameKind::Module));
                 },
                 Entry::Vacant(e) => {
-                    e.insert(vec![(module.name_span, NameKind::Module)]);
+                    e.insert(vec![(module.name_span.clone(), NameKind::Module)]);
                 },
             }
         }
@@ -114,10 +114,10 @@ impl Block {
 
             match spans_by_name.entry(r#use.name) {
                 Entry::Occupied(mut e) => {
-                    e.get_mut().push((r#use.name_span, NameKind::Use));
+                    e.get_mut().push((r#use.name_span.clone(), NameKind::Use));
                 },
                 Entry::Vacant(e) => {
-                    e.insert(vec![(r#use.name_span, NameKind::Use)]);
+                    e.insert(vec![(r#use.name_span.clone(), NameKind::Use)]);
                 },
             }
         }
@@ -134,20 +134,20 @@ impl Block {
                     spans.iter().any(|(_, kind)| *kind == NameKind::Module)
                 {
                     let (use_span, module_span) = if spans[0].1 == NameKind::Use {
-                        (spans[0].0, spans[1].0)
+                        (spans[0].0.clone(), spans[1].0.clone())
                     } else {
-                        (spans[1].0, spans[0].0)
+                        (spans[1].0.clone(), spans[0].0.clone())
                     };
                     let name_rendered = name.unintern_or_default(intermediate_dir);
 
                     vec![
                         RenderableSpan {
-                            span: module_span,
+                            span: module_span.clone(),
                             auxiliary: false,
                             note: Some(format!("`mod {name_rendered};` implicitly imports the name `{name_rendered}` into the namespace.")),
                         },
                         RenderableSpan {
-                            span: use_span,
+                            span: use_span.clone(),
                             auxiliary: false,
                             note: None,
                         },
@@ -155,7 +155,7 @@ impl Block {
                 } else {
                     spans.iter().map(
                         |(span, _)| RenderableSpan {
-                            span: *span,
+                            span: span.clone(),
                             auxiliary: false,
                             note: None,
                         }

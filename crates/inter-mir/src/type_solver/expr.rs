@@ -27,20 +27,20 @@ impl Session {
             Expr::Ident(id) => match self.types.get(&id.def_span) {
                 Some(r#type) => (Some(r#type.clone()), false),
                 None => {
-                    match id.origin {
+                    match &id.origin {
                         NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
                             // `False` in `Bool.False` has type `Bool`.
                             // TODO: `None` in `Option.None` must have type `Option<T>`, not `Option`.
                             NameKind::EnumVariant { parent } => {
                                 return (Some(Type::Data {
-                                    constructor_def_span: parent,
+                                    constructor_def_span: parent.clone(),
                                     constructor_span: Span::None,
                                     args: None,
                                     group_span: None,
                                 }), false);
                             },
                             NameKind::PatternNameBind => {
-                                self.pattern_name_bindings.insert(id.def_span);
+                                self.pattern_name_bindings.insert(id.def_span.clone());
                             },
                             _ => {},
                         },
@@ -49,7 +49,7 @@ impl Session {
 
                     // NOTE: inter-hir must have checked that `id` is a valid expression
 
-                    let type_var = Type::Var { def_span: id.def_span, is_return: false };
+                    let type_var = Type::Var { def_span: id.def_span.clone(), is_return: false };
                     self.add_type_var(type_var.clone(), Some(id.id));
                     (Some(type_var), false)
                 },
@@ -162,7 +162,7 @@ impl Session {
                                 &v_type,
                                 false,
                                 None,
-                                Some(v.error_span_wide()),
+                                Some(&v.error_span_wide()),
                                 context.clone(),
                                 false,
                             ) {
@@ -187,7 +187,7 @@ impl Session {
                             &cond_type,
                             false,
                             None,
-                            Some(r#if.cond.error_span_wide()),
+                            Some(&r#if.cond.error_span_wide()),
                             ErrorContext::IfConditionBool,
                             false,
                         ) {
@@ -203,8 +203,8 @@ impl Session {
                             &true_type,
                             &false_type,
                             false,
-                            Some(r#if.true_value.error_span_wide()),
-                            Some(r#if.false_value.error_span_wide()),
+                            Some(&r#if.true_value.error_span_wide()),
+                            Some(&r#if.false_value.error_span_wide()),
                             ErrorContext::IfValueEqual,
 
                             // If either `true_type <: false_type` or `false_type <: true_type` is satisfied, it's okay.
@@ -238,8 +238,8 @@ impl Session {
                                     &scrutinee_type,
                                     &pattern_type,
                                     false,
-                                    Some(r#match.scrutinee.error_span_wide()),
-                                    Some(arm.pattern.error_span_wide()),
+                                    Some(&r#match.scrutinee.error_span_wide()),
+                                    Some(&arm.pattern.error_span_wide()),
                                     ErrorContext::MatchScrutinee,
 
                                     // We don't allow `scrutinee_type <: pattern_type`.
@@ -272,7 +272,7 @@ impl Session {
                                 &guard_type,
                                 false,
                                 None,
-                                Some(guard.error_span_wide()),
+                                Some(&guard.error_span_wide()),
                                 ErrorContext::MatchGuardBool,
                                 false,
                             ) {
@@ -303,8 +303,8 @@ impl Session {
                             &expr_type,
                             &arm_types[i],
                             false,
-                            Some(r#match.arms[0].value.error_span_wide()),
-                            Some(r#match.arms[i].value.error_span_wide()),
+                            Some(&r#match.arms[0].value.error_span_wide()),
+                            Some(&r#match.arms[i].value.error_span_wide()),
                             ErrorContext::MatchArmEqual,
 
                             // If either `expr_type <: arg_types[i]` or `arg_types[i] <: expr_type` is satisfied, it's okay.
@@ -349,8 +349,8 @@ impl Session {
                     (associated_func, Ok(field_type)) => {
                         if let Some(associated_func) = associated_func {
                             write_log!(self, LogEntry::AssociatedFunc {
-                                def_span: associated_func.def_span,
-                                call_span: associated_func.call_span,
+                                def_span: associated_func.def_span.clone(),
+                                call_span: associated_func.call_span.clone(),
                             });
                             self.associated_funcs.push(associated_func);
                         }
@@ -377,8 +377,8 @@ impl Session {
                                 &field_type,
                                 &rhs_type,
                                 false,
-                                Some(merge_field_spans(fields)),
-                                Some(rhs.error_span_wide()),
+                                Some(&merge_field_spans(fields)),
+                                Some(&rhs.error_span_wide()),
                                 ErrorContext::FieldUpdate,
                                 false,
                             ) {
@@ -393,7 +393,7 @@ impl Session {
                         self.type_errors.push(TypeError::CannotUpdateAssociatedFunc {
                             r#type: lhs_type.clone(),
                             name: associated_func.field_name,
-                            name_span: associated_func.call_span,
+                            name_span: associated_func.call_span.clone(),
                         });
                         (Some(lhs_type), true)
                     },
@@ -434,36 +434,35 @@ impl Session {
                             purity,
                             ..
                         }) => {
-                            let is_convert = *def_span == self.get_lang_item_span("fn.convert");
-                            let ff = ff.clone();
+                            let is_convert = def_span == &self.get_lang_item_span("fn.convert");
 
                             if let FuncPurity::Impure | FuncPurity::Both = purity {
-                                impure_calls.push(*span);
+                                impure_calls.push(span.clone());
                             }
 
                             let mut params = params.clone();
                             let mut return_type: Type = *r#return.clone();
                             let generic_params = self.func_shapes.get(def_span).map(
                                 |func_shape| func_shape.generics.iter().map(
-                                    |generic| generic.name_span
+                                    |generic| generic.name_span.clone()
                                 ).collect()
                             ).unwrap_or(vec![]);
-                            let span = *span;
+                            let span = span.clone();
 
                             if let Some((generic_args, arg_group_span)) = generic_args {
                                 if generic_args.len() != generic_params.len() {
                                     self.type_errors.push(TypeError::WrongNumberOfGenericArgs {
                                         expected: generic_params.len(),
                                         got: generic_args.len(),
-                                        param_group_span: self.func_shapes.get(def_span).unwrap().generic_group_span.unwrap_or(Span::None),
-                                        arg_group_span: *arg_group_span,
+                                        param_group_span: self.func_shapes.get(def_span).unwrap().generic_group_span.clone().unwrap_or(Span::None),
+                                        arg_group_span: arg_group_span.clone(),
                                     });
                                     return (None, true);
                                 }
 
                                 else {
                                     for (generic_param, generic_arg) in generic_params.iter().zip(generic_args.iter()) {
-                                        let generic_arg_type_var = Type::GenericArg { call: span, generic: *generic_param };
+                                        let generic_arg_type_var = Type::GenericArg { call: span.clone(), generic: generic_param.clone() };
 
                                         for param in params.iter_mut() {
                                             param.substitute_generic_param(generic_param, generic_arg);
@@ -476,7 +475,7 @@ impl Session {
                                             generic_arg,
                                             false,
                                             None,
-                                            Some(generic_arg.error_span_wide()),
+                                            Some(&generic_arg.error_span_wide()),
                                             ErrorContext::None,
                                             true,
                                         ) {
@@ -498,7 +497,7 @@ impl Session {
                                             &at,
                                             false,
                                             None,
-                                            Some(args[0].error_span_wide()),
+                                            Some(&args[0].error_span_wide()),
                                             ErrorContext::None,
                                             true,
                                         ) {
@@ -510,13 +509,13 @@ impl Session {
 
                             else if !generic_params.is_empty() {
                                 for param in params.iter_mut() {
-                                    param.substitute_generic_param_for_arg(span, &generic_params);
+                                    param.substitute_generic_param_for_arg(&span, &generic_params);
                                 }
 
-                                return_type.substitute_generic_param_for_arg(span, &generic_params);
+                                return_type.substitute_generic_param_for_arg(&span, &generic_params);
 
                                 for generic_param in generic_params.iter() {
-                                    self.add_type_var(Type::GenericArg { call: span, generic: *generic_param }, None);
+                                    self.add_type_var(Type::GenericArg { call: span.clone(), generic: generic_param.clone() }, None);
                                 }
                             }
 
@@ -528,11 +527,11 @@ impl Session {
                                         &arg_types[*i],
                                         &arg_types[*j],
                                         false,
-                                        Some(args[*i].error_span_wide()),
-                                        Some(args[*j].error_span_wide()),
+                                        Some(&args[*i].error_span_wide()),
+                                        Some(&args[*j].error_span_wide()),
                                         ErrorContext::EqualGenericParams {
-                                            def: *def_span,
-                                            call: span,
+                                            def: def_span.clone(),
+                                            call: span.clone(),
                                             i: *i,
                                             j: *j,
                                         },
@@ -553,7 +552,7 @@ impl Session {
                                     got: arg_types,
                                     given_keyword_args: given_keyword_args.to_vec(),
                                     call: func.error_span_wide(),
-                                    def: Some(*def_span),
+                                    def: Some(def_span.clone()),
                                     arg_spans: args.iter().map(|arg| arg.error_span_wide()).collect(),
                                 });
                             }
@@ -565,7 +564,7 @@ impl Session {
                                         &arg_types[i],
                                         false,
                                         None,
-                                        Some(args[i].error_span_wide()),
+                                        Some(&args[i].error_span_wide()),
                                         ErrorContext::FuncArgs,
                                         false,
                                     ) {
@@ -581,7 +580,7 @@ impl Session {
                         Some(t @ Type::Data { .. }) => {
                             self.type_errors.push(TypeError::NotCallable {
                                 r#type: t.clone(),
-                                func_span: *span,
+                                func_span: span.clone(),
                             });
                             (None, true)
                         },
@@ -595,7 +594,7 @@ impl Session {
                         // `x` (the param definition)'s span.
                         Some(v @ (Type::Var { .. } | Type::GenericArg { .. } | Type::Blocked { .. })) => {
                             let v = v.clone();
-                            let type_var = Type::Var { def_span: *def_span, is_return: true };
+                            let type_var = Type::Var { def_span: def_span.clone(), is_return: true };
                             self.add_type_var(type_var.clone(), None);
 
                             match self.solve_supertype(
@@ -618,20 +617,20 @@ impl Session {
                             // The compiler checked it when lowering hir to mir.
                             assert_eq!(s.fields.len(), arg_types.len());
                             let s = s.clone();
-                            let call_span = *span;
+                            let call_span = span.clone();
                             let generic_params = s.generics.iter().map(
-                                |generic| generic.name_span
+                                |generic| generic.name_span.clone()
                             ).collect::<Vec<_>>();
 
                             for i in 0..arg_types.len() {
                                 let field_type = match self.types.get(&s.fields[i].name_span) {
                                     Some(r#type) => {
                                         let mut r#type = r#type.clone();
-                                        r#type.substitute_generic_param_for_arg(call_span, &generic_params);
+                                        r#type.substitute_generic_param_for_arg(&call_span, &generic_params);
                                         r#type
                                     },
                                     None => {
-                                        let type_var = Type::Var { def_span: s.fields[i].name_span, is_return: false };
+                                        let type_var = Type::Var { def_span: s.fields[i].name_span.clone(), is_return: false };
                                         self.add_type_var(type_var.clone(), Some(s.fields[i].name));
                                         type_var
                                     },
@@ -642,7 +641,7 @@ impl Session {
                                     &arg_types[i],
                                     false,
                                     None,
-                                    Some(args[i].error_span_wide()),
+                                    Some(&args[i].error_span_wide()),
                                     ErrorContext::StructFields,
                                     false,
                                 ) {
@@ -655,10 +654,10 @@ impl Session {
                             } else {
                                 (Some(s.generics.iter().map(
                                     |generic| {
-                                        match self.generic_args.get(&(call_span, generic.name_span)) {
+                                        match self.generic_args.get(&(call_span.clone(), generic.name_span.clone())) {
                                             Some(r#type) => r#type.clone(),
                                             None => {
-                                                let type_var = Type::GenericArg { call: call_span, generic: generic.name_span };
+                                                let type_var = Type::GenericArg { call: call_span.clone(), generic: generic.name_span.clone() };
                                                 self.add_type_var(type_var.clone(), None);
                                                 type_var
                                             },
@@ -669,7 +668,7 @@ impl Session {
 
                             (
                                 Some(Type::Data {
-                                    constructor_def_span: *def_span,
+                                    constructor_def_span: def_span.clone(),
                                     constructor_span: Span::None,
                                     args,
                                     group_span,
@@ -695,7 +694,7 @@ impl Session {
                     ),
                     Callable::ListInit { group_span } => {
                         if arg_types.is_empty() {
-                            let type_var = Type::GenericArg { call: *group_span, generic: self.get_lang_item_span("built_in.init_list.generic.0") };
+                            let type_var = Type::GenericArg { call: group_span.clone(), generic: self.get_lang_item_span("built_in.init_list.generic.0") };
                             self.add_type_var(type_var.clone(), None);
 
                             let r#type = Type::Data {
@@ -718,8 +717,8 @@ impl Session {
                                     &elem_type,
                                     &arg_types[i],
                                     false,
-                                    Some(args[0].error_span_wide()),
-                                    Some(args[i].error_span_wide()),
+                                    Some(&args[0].error_span_wide()),
+                                    Some(&args[i].error_span_wide()),
                                     ErrorContext::ListElementEqual,
 
                                     // If either `elem_type <: arg_types[i]` or `arg_types[i] <: elem_type` is satisfied, it's okay.
@@ -791,7 +790,7 @@ impl Session {
                                             &arg_types[i],
                                             false,
                                             None,
-                                            Some(args[i].error_span_wide()),
+                                            Some(&args[i].error_span_wide()),
                                             ErrorContext::FuncArgs,
                                             false,
                                         ) {
@@ -811,8 +810,8 @@ impl Session {
                             // TypeVar(x) and TypeVar(y). TypeVar(x)'s return type is equal to TypeVar(y), but there's
                             // no way to represent "TypeVar(x)'s return type".
                             Type::Var { def_span: span, .. } | Type::GenericArg { call: span, .. } => {
-                                self.blocked_type_vars.insert(span);
-                                (Some(Type::Blocked { origin: span }), has_error)
+                                self.blocked_type_vars.insert(span.clone());
+                                (Some(Type::Blocked { origin: span.clone() }), has_error)
                             },
 
                             t @ Type::Blocked { .. } => (Some(t), has_error),
@@ -862,7 +861,7 @@ impl Session {
                 else if let Some(struct_shape) = self.struct_shapes.get(def_span) {
                     if let Some(args) = args {
                         for (generic_param, generic_arg) in struct_shape.generics.iter().zip(args.iter()) {
-                            generic_map.insert(generic_param.name_span, generic_arg);
+                            generic_map.insert(generic_param.name_span.clone(), generic_arg);
                         }
                     }
 
@@ -875,7 +874,7 @@ impl Session {
                                             field_type = Some(r#type.clone());
                                         },
                                         None => {
-                                            let type_var = Type::Var { def_span: field.name_span, is_return: false };
+                                            let type_var = Type::Var { def_span: field.name_span.clone(), is_return: false };
                                             self.add_type_var(type_var.clone(), Some(field.name));
                                             field_type = Some(type_var);
                                         },
@@ -888,14 +887,14 @@ impl Session {
                         Field::Index(i) => {
                             let i = if *i < 0 { (*i + struct_shape.fields.len() as i64) as usize } else { *i as usize };
                             let name = struct_shape.fields[i].name;
-                            let name_span = struct_shape.fields[i].name_span;
+                            let name_span = struct_shape.fields[i].name_span.clone();
 
                             match self.types.get(&name_span) {
                                 Some(r#type) => {
                                     field_type = Some(r#type.clone());
                                 },
                                 None => {
-                                    let type_var = Type::Var { def_span: name_span, is_return: false };
+                                    let type_var = Type::Var { def_span: name_span.clone(), is_return: false };
                                     self.add_type_var(type_var.clone(), Some(name));
                                     field_type = Some(type_var);
                                 },
@@ -906,38 +905,35 @@ impl Session {
                 }
 
                 if let Field::Name { name, name_span, .. } = &field[0] && field_type.is_none() {
-                    if let Some(item_shape) = self.get_item_shape(*def_span) {
+                    if let Some(item_shape) = self.get_item_shape(def_span) {
                         // `x.unwrap()` is desugared to `associated_func::unwrap::pure::1(x)`.
                         // `associated_func::unwrap::pure::1` is a poly-generic function and we can
                         // easily reference the function with its name.
                         if let Some(AssociatedFunc { params, is_pure, .. }) = item_shape.associated_funcs().get(name) {
                             let is_pure = *is_pure;
-                            let purity = if is_pure { "pure" } else { "impure" };
                             let poly_name = get_associated_func_name(*name, is_pure, *params, &self.intermediate_dir);
                             let poly_name = intern_string(poly_name.as_bytes(), &self.intermediate_dir).unwrap();
                             associated_func_instance = Some(AssociatedFuncInstance {
                                 field_name: *name,
-                                def_span: Span::Poly { name: poly_name, kind: PolySpanKind::Name, monomorphize_id: None },
-                                call_span: *name_span,
+                                def_span: Span::Poly { name: poly_name, kind: PolySpanKind::Name },
+                                call_span: name_span.clone(),
                             });
 
                             // Type of `x.unwrap` is `Fn() -> T`, not `Fn(Option<T>) -> T`
                             let params: Vec<Type> = (1..*params).map(
                                 |i| Type::GenericArg {
-                                    call: *name_span,
+                                    call: name_span.clone(),
                                     generic: Span::Poly {
                                         name: poly_name,
                                         kind: PolySpanKind::Param(i),
-                                        monomorphize_id: None,
                                     },
                                 }
                             ).collect();
                             let r#return = Type::GenericArg {
-                                call: *name_span,
+                                call: name_span.clone(),
                                 generic: Span::Poly {
                                     name: poly_name,
                                     kind: PolySpanKind::Return,
-                                    monomorphize_id: None,
                                 },
                             };
 
@@ -965,8 +961,8 @@ impl Session {
             Type::Var { def_span: span, .. } |
             Type::GenericArg { call: span, .. } |
             Type::Blocked { origin: span } => {
-                self.blocked_type_vars.insert(*span);
-                return (associated_func_instance, Ok(Type::Blocked { origin: *span }));
+                self.blocked_type_vars.insert(span.clone());
+                return (associated_func_instance, Ok(Type::Blocked { origin: span.clone() }));
             },
             _ => panic!("TODO: {type:?}"),
         }
@@ -989,7 +985,7 @@ impl Session {
                 associated_func_instance,
                 Err(TypeError::UnknownField {
                     r#type: r#type.clone(),
-                    field: field[0],
+                    field: field[0].clone(),
                 }),
             ),
         }

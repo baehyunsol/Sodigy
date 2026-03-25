@@ -19,7 +19,6 @@ pub struct Module {
     pub name_span: Span,
 }
 
-
 impl Module {
     pub fn from_ast(ast_module: &ast::Module, session: &mut Session) -> Result<Module, ()> {
         let mut has_error = false;
@@ -27,7 +26,7 @@ impl Module {
         let attribute = match session.lower_attribute(
             &ast_module.attribute,
             ItemKind::Module,
-            ast_module.keyword_span,
+            ast_module.keyword_span.clone(),
         ) {
             Ok(attribute) => attribute,
             Err(()) => {
@@ -44,9 +43,9 @@ impl Module {
         else {
             Ok(Module {
                 visibility,
-                keyword_span: ast_module.keyword_span,
+                keyword_span: ast_module.keyword_span.clone(),
                 name: ast_module.name,
-                name_span: ast_module.name_span,
+                name_span: ast_module.name_span.clone(),
             })
         }
     }

@@ -17,20 +17,20 @@ pub struct Path {
 impl Path {
     pub fn error_span_narrow(&self) -> Span {
         match self.fields.get(0) {
-            Some(Field::Name { dot_span, .. }) => *dot_span,
-            _ => self.id_span,
+            Some(Field::Name { dot_span, .. }) => dot_span.clone(),
+            _ => self.id_span.clone(),
         }
     }
 
     // TODO: dump dotfish
     pub fn error_span_wide(&self) -> Span {
-        let mut span = self.id_span;
+        let mut span = self.id_span.clone();
 
         for field in self.fields.iter() {
             match field {
                 Field::Name { dot_span, name_span, .. } => {
-                    span = span.merge(*dot_span);
-                    span = span.merge(*name_span);
+                    span = span.merge(dot_span);
+                    span = span.merge(name_span);
                 },
                 _ => todo!(),
             }
@@ -60,7 +60,7 @@ impl Path {
 /// Even though the user code is `a._0`, it won't be parsed to `Field::Index(0)`.
 /// It'll first be parsed to `Field::Name("_0")`, then very later (after mir) lowered
 /// to `Field::Index(0)`.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum Field {
     Name {
         name: InternedString,
@@ -87,7 +87,7 @@ pub enum Field {
 impl Field {
     pub fn dot_span(&self) -> Option<Span> {
         match self {
-            Field::Name { dot_span, .. } => Some(*dot_span),
+            Field::Name { dot_span, .. } => Some(dot_span.clone()),
             Field::Index(_) |
             Field::Range(_, _) |
             Field::EnumDiscriminant |
@@ -104,7 +104,7 @@ impl Field {
 
     pub fn unwrap_name_span(&self) -> Span {
         match self {
-            Field::Name { name_span, .. } => *name_span,
+            Field::Name { name_span, .. } => name_span.clone(),
             _ => panic!(),
         }
     }
@@ -116,8 +116,8 @@ pub fn merge_field_spans(fields: &[Field]) -> Span {
     for field in fields.iter() {
         match field {
             Field::Name { dot_span, name_span, .. } => {
-                span = span.merge(*dot_span);
-                span = span.merge(*name_span);
+                span = span.merge(dot_span);
+                span = span.merge(name_span);
             },
             _ => {},
         }

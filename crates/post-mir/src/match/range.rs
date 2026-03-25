@@ -529,7 +529,7 @@ impl Merge for (Vec<(usize, &MatchArm)>, Vec<NameBinding>) {
         arms.sort_by_key(|(id, _)| *id);
         arms.dedup_by_key(|(id, _)| *id);
         name_bindings.sort_by_key(|name_binding| name_binding.id);
-        name_bindings.dedup_by_key(|name_binding| name_binding.name_span);
+        name_bindings.dedup_by_key(|name_binding| name_binding.name_span.clone());
 
         (arms, name_bindings)
     }

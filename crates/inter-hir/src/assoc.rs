@@ -24,10 +24,10 @@ impl Session {
         fn get_def_span(associated_item: &AssociatedItem, r#type: &Type) -> Result<Span, Error> {
             match r#type {
                 Type::Path(path) | Type::Param { constructor: path, .. } => {
-                    match path.id.origin {
+                    match &path.id.origin {
                         NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
-                            NameKind::Struct => Ok(path.id.def_span),
-                            NameKind::Enum => Ok(path.id.def_span),
+                            NameKind::Struct => Ok(path.id.def_span.clone()),
+                            NameKind::Enum => Ok(path.id.def_span.clone()),
                             NameKind::GenericParam => Err(Error {
                                 kind: ErrorKind::TooGeneralToAssociateItem,
                                 spans: associated_item.type_span.simple_error(),
@@ -72,7 +72,7 @@ impl Session {
 
             match get_def_span(&associated_item, &associated_item.r#type) {
                 Ok(def_span) => {
-                    let mut item_shape = self.get_item_shape(def_span).unwrap();
+                    let mut item_shape = self.get_item_shape(&def_span).unwrap();
 
                     for existing_association in item_shape.existing_associations() {
                         if existing_association.name == associated_item.name {
@@ -113,12 +113,12 @@ impl Session {
 
                         match item_shape.associated_funcs_mut().entry(associated_item.name) {
                             Entry::Occupied(mut e) => {
-                                e.get_mut().name_spans.push(associated_item.name_span);
+                                e.get_mut().name_spans.push(associated_item.name_span.clone());
                             },
                             Entry::Vacant(e) => {
                                 e.insert(AssociatedFunc {
                                     name: associated_item.name,
-                                    name_spans: vec![associated_item.name_span],
+                                    name_spans: vec![associated_item.name_span.clone()],
                                     params,
                                     is_pure,
                                 });
@@ -130,12 +130,11 @@ impl Session {
                         let poly_span: Span = Span::Poly {
                             name: poly_name_interned,
                             kind: PolySpanKind::Name,
-                            monomorphize_id: None,
                         };
 
-                        match self.polys.entry(poly_span) {
+                        match self.polys.entry(poly_span.clone()) {
                             Entry::Occupied(mut e) => {
-                                e.get_mut().impls.push(associated_item.name_span);
+                                e.get_mut().impls.push(associated_item.name_span.clone());
                             },
                             Entry::Vacant(e) => {
                                 let generic_params = (0..(params + 1)).map(
@@ -155,9 +154,9 @@ impl Session {
                                 e.insert(Poly {
                                     decorator_span: Span::None,
                                     name: poly_name_interned,
-                                    name_span: poly_span,
+                                    name_span: poly_span.clone(),
                                     has_default_impl: false,
-                                    impls: vec![associated_item.name_span],
+                                    impls: vec![associated_item.name_span.clone()],
                                 });
 
                                 for i in 0..(params + 1) {
@@ -168,8 +167,8 @@ impl Session {
                                     };
 
                                     self.generic_def_span_rev.insert(
-                                        Span::Poly { name: poly_name_interned, kind: poly_span_kind, monomorphize_id: None },
-                                        Span::Poly { name: poly_name_interned, kind: PolySpanKind::Name, monomorphize_id: None },
+                                        Span::Poly { name: poly_name_interned, kind: poly_span_kind },
+                                        Span::Poly { name: poly_name_interned, kind: PolySpanKind::Name },
                                     );
                                 }
 
@@ -184,7 +183,7 @@ impl Session {
 
                                     keyword_span: Span::None,
                                     name: poly_name_interned,
-                                    name_span: poly_span,
+                                    name_span: poly_span.clone(),
                                     generics: (0..(params + 1)).map(
                                         |i| Generic {
                                             name: generic_params[i],
@@ -195,7 +194,6 @@ impl Session {
                                                 } else {
                                                     PolySpanKind::Param(i)
                                                 },
-                                                monomorphize_id: None,
                                             },
                                         },
                                     ).collect(),
@@ -216,7 +214,6 @@ impl Session {
                                                     def_span: Span::Poly {
                                                         name: poly_name_interned,
                                                         kind: PolySpanKind::Param(i),
-                                                        monomorphize_id: None,
                                                     },
                                                     origin: NameOrigin::GenericParam { index: i },
                                                 },
@@ -233,7 +230,6 @@ impl Session {
                                             def_span: Span::Poly {
                                                 name: poly_name_interned,
                                                 kind: PolySpanKind::Return,
-                                                monomorphize_id: None,
                                             },
                                             origin: NameOrigin::GenericParam { index: params },
                                         },
@@ -247,14 +243,14 @@ impl Session {
                                     captured_names: None,
                                     use_counts: HashMap::new(),
                                 };
-                                self.func_shapes.insert(new_func.name_span, new_func.shape());
+                                self.func_shapes.insert(new_func.name_span.clone(), new_func.shape());
                                 self.new_funcs.push(new_func);
                             },
                         }
                     }
 
                     else {
-                        item_shape.associated_lets_mut().insert(associated_item.name, associated_item.name_span);
+                        item_shape.associated_lets_mut().insert(associated_item.name, associated_item.name_span.clone());
                     }
                 },
                 Err(e) => {

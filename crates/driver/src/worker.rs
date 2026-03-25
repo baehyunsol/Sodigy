@@ -212,13 +212,12 @@ impl Worker {
                     FileOrStd::File(path) => (
                         false,
                         File::register(
-                            0,  // project_id
                             &path,
                             &input_module_path.to_string(),
                             &intermediate_dir,
                         )?,
                     ),
-                    FileOrStd::Std(n) => (true, File::Std(*n)),
+                    FileOrStd::Std(n) => (true, File::std(*n)),
                 };
                 let content_hash = file.get_content_hash(&intermediate_dir)?;
 
@@ -251,6 +250,7 @@ impl Worker {
                             intermediate_dir.clone(),
                             is_std,
                         );
+                        let file_span = lex_session.file_span();
                         self.stage_end(!lex_session.errors.is_empty());
 
                         emit_irs_if_has_to(
@@ -273,7 +273,7 @@ impl Worker {
                         }
 
                         self.stage_start(CompileStage::Parse, None, Some(input_module_path.to_string()));
-                        let parse_session = sodigy_parse::parse(lex_session);
+                        let parse_session = sodigy_parse::parse(lex_session, file_span);
                         self.stage_end(!parse_session.errors.is_empty());
 
                         emit_irs_if_has_to(
@@ -314,7 +314,7 @@ impl Worker {
                             let module_name = module.name.unintern_or_default(&intermediate_dir);
                             tx_to_main.send(MessageToMain::AddModule {
                                 path: input_module_path.join(module_name),
-                                span: module.name_span,
+                                span: module.name_span.clone(),
                             })?;
                         }
                     }
@@ -494,7 +494,6 @@ impl Worker {
 
                 for (path, span) in modules.iter() {
                     let file = File::from_module_path(
-                        0,  // project_id
                         &path.to_string(),
                         &intermediate_dir,
                     )?.ok_or(Error::MiscError)?;
@@ -506,7 +505,7 @@ impl Worker {
                     )?.ok_or(Error::IrCacheNotFound(CompileStage::Hir))?;
                     let mut hir_session = sodigy_hir::Session::decode(&hir_session_bytes)?;
                     hir_session.intermediate_dir = intermediate_dir.clone();
-                    inter_hir_session.ingest(*span, hir_session);
+                    inter_hir_session.ingest(span.clone(), hir_session);
                 }
 
                 self.stage_end(false);
@@ -550,7 +549,6 @@ impl Worker {
 
                 for path in modules.keys() {
                     let file = File::from_module_path(
-                        0,  // project_id
                         &path.to_string(),
                         &intermediate_dir,
                     )?.ok_or(Error::MiscError)?;
@@ -604,7 +602,6 @@ impl Worker {
 
                 for path in modules.keys() {
                     let file = File::from_module_path(
-                        0,  // project_id
                         &path.to_string(),
                         &intermediate_dir,
                     )?.ok_or(Error::MiscError)?;
@@ -672,7 +669,6 @@ impl Worker {
 
                 for path in modules.keys() {
                     let file = File::from_module_path(
-                        0,  // project_id
                         &path.to_string(),
                         &intermediate_dir,
                     )?.ok_or(Error::MiscError)?;

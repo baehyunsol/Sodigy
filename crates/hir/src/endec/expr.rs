@@ -123,15 +123,15 @@ impl Endec for Expr {
                 Ok((Expr::Constant(constant), cursor))
             },
             Some(2) => {
-                let (r#if, cursor) = If::decode_impl(buffer, cursor + 1)?;
+                let (r#if, cursor) = Box::<If>::decode_impl(buffer, cursor + 1)?;
                 Ok((Expr::If(r#if), cursor))
             },
             Some(3) => {
-                let (r#match, cursor) = Match::decode_impl(buffer, cursor + 1)?;
+                let (r#match, cursor) = Box::<Match>::decode_impl(buffer, cursor + 1)?;
                 Ok((Expr::Match(r#match), cursor))
             },
             Some(4) => {
-                let (block, cursor) = Block::decode_impl(buffer, cursor + 1)?;
+                let (block, cursor) = Box::<Block>::decode_impl(buffer, cursor + 1)?;
                 Ok((Expr::Block(block), cursor))
             },
             Some(5) => {
@@ -196,7 +196,7 @@ impl Endec for Expr {
             Some(15) => {
                 let (keyword_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
-                let (rhs, cursor) = Type::decode_impl(buffer, cursor)?;
+                let (rhs, cursor) = Box::<Type>::decode_impl(buffer, cursor)?;
                 let (has_question_mark, cursor) = bool::decode_impl(buffer, cursor)?;
                 Ok((Expr::TypeConversion { keyword_span, lhs, rhs, has_question_mark }, cursor))
             },

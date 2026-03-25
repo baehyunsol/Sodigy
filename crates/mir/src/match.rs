@@ -64,10 +64,10 @@ impl Match {
 
         else {
             Ok(Match {
-                keyword_span: hir_match.keyword_span,
+                keyword_span: hir_match.keyword_span.clone(),
                 scrutinee: Box::new(scrutinee.unwrap()),
                 arms,
-                group_span: hir_match.group_span,
+                group_span: hir_match.group_span.clone(),
                 lowered_from_if: false,
                 lowered_from_let: hir_match.lowered_from_let,
             })

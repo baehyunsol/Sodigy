@@ -73,21 +73,21 @@ impl Span {
     #[must_use = "method returns a new span and does not mutate the original span"]
     pub fn derive(&self, kind: SpanDeriveKind) -> Span {
         match self {
-            _ if self.is_dummy() => Span::dummy(),
+            Span::None => Span::None,
             span => Span::Derived {
                 kind,
-                span: Box::new(span),
+                span: Box::new(span.clone()),
             },
         }
     }
 
     #[must_use = "method returns a new span and does not mutate the original span"]
-    pub fn monomorphize(&self, id: u128) -> Span {
+    pub fn monomorphize(&self, id: u64) -> Span {
         match self {
-            _ if self.is_dummy() => Span::dummy(),
+            Span::None => Span::None,
             span => Span::Monomorphize {
                 id,
-                span: Box::new(span),
+                span: Box::new(span.clone()),
             },
         }
     }

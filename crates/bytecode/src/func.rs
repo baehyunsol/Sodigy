@@ -19,7 +19,7 @@ impl Func {
 
         for (i, param) in mir_func.params.iter().enumerate() {
             session.local_values.insert(
-                param.name_span,
+                param.name_span.clone(),
                 LocalValue {
                     stack_offset: i,
                     dropped: false,
@@ -45,7 +45,7 @@ impl Func {
 
         Func {
             name: mir_func.name,
-            name_span: mir_func.name_span,
+            name_span: mir_func.name_span.clone(),
             bytecodes,
         }
     }

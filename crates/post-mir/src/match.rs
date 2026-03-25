@@ -247,7 +247,7 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
     check_unreachable_and_exhaustiveness(
         &tree,
         &borrowed_arms,
-        match_expr.keyword_span,
+        match_expr.keyword_span.clone(),
         extra_arm_id,
         match_expr.lowered_from_let,
         session,
@@ -267,11 +267,11 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
         },
     };
     let (scrutinee, needs_another_name_binding) = match match_expr.scrutinee.as_ref() {
-        Expr::Ident(id) => (Expr::Ident(*id), false),
-        _ => (Expr::Ident(another_name_binding), true),
+        Expr::Ident(id) => (Expr::Ident(id.clone()), false),
+        _ => (Expr::Ident(another_name_binding.clone()), true),
     };
 
-    session.add_type_info(another_name_binding.def_span, scrutinee_type);
+    session.add_type_info(&another_name_binding.def_span, scrutinee_type);
     let tree_expr = tree.into_expr(&scrutinee, &borrowed_arms, session);
 
     let tree_expr = if needs_another_name_binding {
@@ -281,7 +281,7 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
             lets: vec![Let {
                 keyword_span: Span::None,
                 name: another_name_binding.id,
-                name_span: another_name_binding.def_span,
+                name_span: another_name_binding.def_span.clone(),
                 type_annot_span: None,
                 value: *match_expr.scrutinee.clone(),
                 origin: LetOrigin::Match,
@@ -300,7 +300,7 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
         dump_expr(&tree_expr, &mut lines, &mir_session, 0, false);
 
         let dump = MatchDump {
-            keyword_span: match_expr.keyword_span,
+            keyword_span: match_expr.keyword_span.clone(),
             span_helpers,
             decision_tree,
             expr: lines.dump(),
@@ -412,13 +412,13 @@ fn read_field_of_pattern(
         }
     }
 
-    let mut name_bindings = match (curr_pattern.name, curr_pattern.name_span) {
+    let mut name_bindings = match (curr_pattern.name, curr_pattern.name_span.clone()) {
         (Some(name), Some(name_span)) => vec![NameBinding { name, name_span, offset: NameBindingOffset::None, id: arm_id }],
         _ => vec![],
     };
 
     if let PatternKind::NameBinding { id, span } = &curr_pattern.kind {
-        name_bindings.push(NameBinding { name: *id, name_span: *span, offset: NameBindingOffset::None, id: arm_id });
+        name_bindings.push(NameBinding { name: *id, name_span: span.clone(), offset: NameBindingOffset::None, id: arm_id });
     }
 
     let constructor = match field.last().unwrap() {
@@ -536,18 +536,18 @@ fn read_field_of_pattern(
             // hir must have lowered this variant to `PatternKind::List`.
             PatternKind::Constant(Constant::String { .. }) => unreachable!(),
             PatternKind::List { elements, rest, .. } => {
-                if let Some(RestPattern { name: Some(name), name_span: Some(name_span), index, .. }) = rest {
+                if let Some(rest) = rest && let RestPattern { name: Some(name), name_span: Some(name_span), index, .. } = &**rest {
                     name_bindings.push(NameBinding {
                         id: arm_id,
                         name: *name,
-                        name_span: *name_span,
+                        name_span: name_span.clone(),
                         offset: NameBindingOffset::Slice(*index as i64, -((elements.len() - *index) as i64)),
                     });
                 }
 
                 PatternConstructor::ListSubMatrix {
                     elements: elements.clone(),
-                    rest: *rest,
+                    rest: rest.as_ref().map(|r| r.as_ref().clone()),
                 }
             },
             PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => PatternConstructor::Wildcard,
@@ -712,8 +712,8 @@ fn to_field_expr(expr: &Expr, fields: &[PatternField], session: &Session) -> Exp
             PatternField::Constructor | PatternField::ListElements => None,
             PatternField::Name { name, name_span, dot_span, is_from_alias } => Some(Field::Name {
                 name: *name,
-                name_span: *name_span,
-                dot_span: *dot_span,
+                name_span: name_span.clone(),
+                dot_span: dot_span.clone(),
                 is_from_alias: *is_from_alias,
             }),
             PatternField::Index(i) => Some(Field::Index(*i)),

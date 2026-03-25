@@ -5,7 +5,7 @@ use std::collections::hash_map::{Entry, HashMap};
 pub struct Session {
     pub intermediate_dir: String,
     pub file_paths: HashMap<File, String>,
-    pub monomorphizations: HashMap<u128, MonomorphizationInfo>,
+    pub monomorphizations: HashMap<u64, MonomorphizationInfo>,
 
     // Spans only have byte offset, but we want row and col indexes.
     // So the session remembers the line breaks.
@@ -22,8 +22,8 @@ impl Session {
         }
     }
 
-    pub fn get_bytes(&mut self, span: Span) -> Option<Vec<u8>> {
-        match span.get_file() {
+    pub fn get_bytes(&mut self, span: &Span) -> Option<Vec<u8>> {
+        match span.file() {
             Some(file) => match file.read_bytes(&self.intermediate_dir) {
                 Ok(Some(bytes)) => {
                     if let Entry::Vacant(e) = self.line_breaks.entry(file) {
@@ -42,8 +42,8 @@ impl Session {
         }
     }
 
-    pub fn get_path(&mut self, span: Span) -> Option<String> {
-        match span.get_file() {
+    pub fn get_path(&mut self, span: &Span) -> Option<String> {
+        match span.file() {
             Some(file) => match self.file_paths.entry(file) {
                 Entry::Occupied(e) => Some(e.get().to_string()),
                 Entry::Vacant(e) => match file.get_path(&self.intermediate_dir) {
@@ -59,9 +59,9 @@ impl Session {
     }
 
     // rect: [left, top, right, bottom] -> all inclusive
-    pub fn get_rect(&mut self, span: Span) -> Option<(usize, usize, usize, usize)> {
-        match span {
-            Span::Range { file, start, end } | Span::Derived { file, start, end, .. } => {
+    pub fn get_rect(&mut self, span: &Span) -> Option<(usize, usize, usize, usize)> {
+        match (span.file(), span.get_bounds()) {
+            (Some(file), Some((start, end))) => {
                 let line_breaks = match self.line_breaks.entry(file) {
                     Entry::Occupied(e) => e.get().to_vec(),
                     Entry::Vacant(e) => match file.read_bytes(&self.intermediate_dir) {
@@ -80,7 +80,7 @@ impl Session {
                     },
                 };
 
-                Some(get_rect(&line_breaks, start, end))
+                Some(get_rect(&line_breaks, start as usize, end as usize))
             },
             _ => None,
         }

@@ -17,18 +17,18 @@ pub struct Alias {
 
 impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_alias(&mut self) -> Result<Alias, Vec<Error>> {
-        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Type))?.span;
+        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Type))?.span.clone();
         let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
         let mut generics = vec![];
         let mut generic_group_span = None;
 
         match self.peek() {
             Some(Token { kind: TokenKind::Punct(Punct::Lt), span }) => {
-                generic_group_span = Some(*span);
+                generic_group_span = Some(span.clone());
                 self.cursor += 1;
                 generics = self.parse_generic_defs()?;
-                let generic_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
-                generic_group_span = generic_group_span.map(|span| span.merge(generic_span_end));
+                let generic_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span.clone();
+                generic_group_span = generic_group_span.map(|span| span.merge(&generic_span_end));
             },
             _ => {},
         }

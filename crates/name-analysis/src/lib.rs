@@ -36,7 +36,7 @@ pub enum NamespaceKind {
     Local,  // anything other than the above
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct IdentWithOrigin {
     pub id: InternedString,
     pub span: Span,
@@ -46,7 +46,7 @@ pub struct IdentWithOrigin {
     pub def_span: Span,
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum NameOrigin {
     // If funcs are nested, only the inner-most function counts.
     FuncParam {
@@ -70,7 +70,7 @@ pub enum NameOrigin {
     External,
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum NameKind {
     Let { is_top_level: bool },
     Func,

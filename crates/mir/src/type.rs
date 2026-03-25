@@ -119,17 +119,17 @@ impl Type {
                 // `inter-hir`'s `check_type_annot_path` should guarantee this
                 assert!(path.fields.is_empty());
 
-                match path.id.origin {
+                match &path.id.origin {
                     NameOrigin::GenericParam { .. } => Ok(Type::GenericParam {
-                        def_span: path.id.def_span,
-                        span: path.id.span,
+                        def_span: path.id.def_span.clone(),
+                        span: path.id.span.clone(),
                     }),
                     NameOrigin::Local { kind } |
                     NameOrigin::Foreign { kind } => match kind {
                         NameKind::Struct |
                         NameKind::Enum => Ok(Type::Data {
-                            constructor_def_span: path.id.def_span,
-                            constructor_span: path.id.span,
+                            constructor_def_span: path.id.def_span.clone(),
+                            constructor_span: path.id.span.clone(),
                             args: None,
                             group_span: None,
                         }),
@@ -162,10 +162,10 @@ impl Type {
 
                 else {
                     Ok(Type::Data {
-                        constructor_def_span: constructor.id.def_span,
-                        constructor_span: constructor.id.span,
+                        constructor_def_span: constructor.id.def_span.clone(),
+                        constructor_span: constructor.id.span.clone(),
                         args: Some(args),
-                        group_span: Some(*group_span),
+                        group_span: Some(group_span.clone()),
                     })
                 }
             },
@@ -191,19 +191,19 @@ impl Type {
                 else {
                     Ok(Type::Data {
                         constructor_def_span: session.get_lang_item_span("type.Tuple"),
-                        constructor_span: *group_span,
+                        constructor_span: group_span.clone(),
                         args: Some(types),
-                        group_span: Some(*group_span),
+                        group_span: Some(group_span.clone()),
                     })
                 }
             },
             hir::Type::Func { fn_constructor, group_span, params: hir_params, r#return } => {
                 let mut has_error = false;
-                let fn_span = fn_constructor.id.span;
-                let purity = match fn_constructor.id.def_span {
-                    f if f == session.get_lang_item_span("type.Fn") => FuncPurity::Both,
-                    f if f == session.get_lang_item_span("type.PureFn") => FuncPurity::Pure,
-                    f if f == session.get_lang_item_span("type.ImpureFn") => FuncPurity::Impure,
+                let fn_span = fn_constructor.id.span.clone();
+                let purity = match &fn_constructor.id.def_span {
+                    f if f == &session.get_lang_item_span("type.Fn") => FuncPurity::Both,
+                    f if f == &session.get_lang_item_span("type.PureFn") => FuncPurity::Pure,
+                    f if f == &session.get_lang_item_span("type.ImpureFn") => FuncPurity::Impure,
                     _ => {
                         session.errors.push(Error {
                             kind: ErrorKind::InvalidFnType,
@@ -241,7 +241,7 @@ impl Type {
                 else {
                     Ok(Type::Func {
                         fn_span,
-                        group_span: *group_span,
+                        group_span: group_span.clone(),
                         params,
                         r#return: Box::new(r#return.unwrap()),
                         purity,
@@ -251,10 +251,10 @@ impl Type {
 
             // it has to be infered
             hir::Type::Wildcard(span) => Ok(Type::Var {
-                def_span: *span,
+                def_span: span.clone(),
                 is_return: false,
             }),
-            hir::Type::Never(span) => Ok(Type::Never(*span)),
+            hir::Type::Never(span) => Ok(Type::Never(span.clone())),
         }
     }
 
@@ -339,11 +339,11 @@ impl Type {
         }
     }
 
-    pub fn substitute_generic_param_for_arg(&mut self, call: Span, generics: &[Span]) {
+    pub fn substitute_generic_param_for_arg(&mut self, call: &Span, generics: &[Span]) {
         match self {
             Type::GenericParam { def_span, .. } => {
                 if generics.contains(def_span) {
-                    *self = Type::GenericArg { call, generic: *def_span };
+                    *self = Type::GenericArg { call: call.clone(), generic: def_span.clone() };
                 }
             },
             Type::Never(_) |
@@ -397,7 +397,7 @@ impl Type {
     pub fn generic_to_type_var(&mut self) {
         match self {
             Type::GenericParam { def_span, .. } => {
-                *self = Type::Var { def_span: *def_span, is_return: false };
+                *self = Type::Var { def_span: def_span.clone(), is_return: false };
             },
             Type::Never(_) |
             Type::Var { .. } |
@@ -423,7 +423,7 @@ impl Type {
     pub fn type_var_to_generic_param(&mut self) {
         match self {
             Type::Var { def_span, .. } => {
-                *self = Type::GenericParam { def_span: *def_span, span: Span::None };
+                *self = Type::GenericParam { def_span: def_span.clone(), span: Span::None };
             },
             Type::Never(_) |
             Type::GenericParam { .. } |
@@ -487,10 +487,10 @@ impl Type {
 
     pub fn error_span_narrow(&self) -> Span {
         match self {
-            Type::Data { constructor_span, .. } => *constructor_span,
-            Type::Func { fn_span, .. } => *fn_span,
-            Type::Never(span) => *span,
-            Type::GenericParam { span, .. } => *span,
+            Type::Data { constructor_span, .. } => constructor_span.clone(),
+            Type::Func { fn_span, .. } => fn_span.clone(),
+            Type::Never(span) => span.clone(),
+            Type::GenericParam { span, .. } => span.clone(),
 
             // This function is only for type annotations.
             _ => Span::None,
@@ -500,19 +500,19 @@ impl Type {
     pub fn error_span_wide(&self) -> Span {
         match self {
             Type::Data { constructor_span, group_span, .. } => {
-                let mut result = *constructor_span;
+                let mut result = constructor_span.clone();
 
-                if let Some(group_span) = group_span {
-                    result = result.merge(*group_span);
+                if let Some(group_span) = &group_span {
+                    result = result.merge(group_span);
                 }
 
                 result
             },
             Type::Func { fn_span, group_span, r#return, .. } => fn_span
-                .merge(*group_span)
-                .merge(r#return.error_span_wide()),
-            Type::Never(span) => *span,
-            Type::GenericParam { span, .. } => *span,
+                .merge(group_span)
+                .merge(&r#return.error_span_wide()),
+            Type::Never(span) => span.clone(),
+            Type::GenericParam { span, .. } => span.clone(),
 
             // This function is only for type annotations.
             _ => Span::None,
@@ -521,7 +521,7 @@ impl Type {
 
     pub fn get_generic_param_def_span(&self) -> Option<Span> {
         match self {
-            Type::GenericParam { def_span, .. } => Some(*def_span),
+            Type::GenericParam { def_span, .. } => Some(def_span.clone()),
             _ => None,
         }
     }
@@ -532,7 +532,7 @@ impl Type {
 /// or even worse, a wrong type.
 pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
     match expr {
-        Expr::Ident(id) => global_context.get_type(id.def_span),
+        Expr::Ident(id) => global_context.get_type(&id.def_span),
         Expr::Constant(Constant::Number { n, .. }) => match n.is_integer() {
             true => Some(Type::Data {
                 constructor_def_span: global_context.get_lang_item_span("type.Int"),
@@ -599,7 +599,7 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
         Expr::FieldUpdate { lhs, .. } => type_of(lhs, global_context),
         Expr::Call { func, args, .. } => match func {
             // TODO: What if it's generic?
-            Callable::Static { def_span, .. } => match global_context.get_type(*def_span) {
+            Callable::Static { def_span, .. } => match global_context.get_type(def_span) {
                 Some(Type::Func { r#return, .. }) => Some(*r#return.clone()),
                 _ => None,
             },

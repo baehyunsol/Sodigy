@@ -1,7 +1,7 @@
 use crate::Session;
 use sodigy_hir::EnumVariantFields;
 use sodigy_mir::{Assert, Callable, Enum, Expr, Func, Let, Struct};
-use sodigy_span::Span;
+use sodigy_span::{Span, SpanId};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
@@ -38,66 +38,66 @@ impl Session {
         }
 
         for (name, span) in aliases.iter() {
-            result.insert(*span, *name);
+            update_span_string_map(*name, span, &mut result);
         }
 
         self.span_string_map = result;
     }
 
-    pub fn init_span_string_map_let(&self, r#let: &Let, result: &mut HashMap<Span, InternedString>) {
-        result.insert(r#let.name_span, r#let.name);
+    pub fn init_span_string_map_let(&self, r#let: &Let, result: &mut HashMap<SpanId, InternedString>) {
+        update_span_string_map(r#let.name, &r#let.name_span, result);
         self.init_span_string_map_expr(&r#let.value, result);
     }
 
-    pub fn init_span_string_map_func(&self, func: &Func, result: &mut HashMap<Span, InternedString>) {
-        result.insert(func.name_span, func.name);
+    pub fn init_span_string_map_func(&self, func: &Func, result: &mut HashMap<SpanId, InternedString>) {
+        update_span_string_map(func.name, &func.name_span, result);
 
         for param in func.params.iter() {
-            result.insert(param.name_span, param.name);
+            update_span_string_map(param.name, &param.name_span, result);
         }
 
         for generic in func.generics.iter() {
-            result.insert(generic.name_span, generic.name);
+            update_span_string_map(generic.name, &generic.name_span, result);
         }
 
         self.init_span_string_map_expr(&func.value, result);
     }
 
-    pub fn init_span_string_map_enum(&self, r#enum: &Enum, result: &mut HashMap<Span, InternedString>) {
-        result.insert(r#enum.name_span, r#enum.name);
+    pub fn init_span_string_map_enum(&self, r#enum: &Enum, result: &mut HashMap<SpanId, InternedString>) {
+        update_span_string_map(r#enum.name, &r#enum.name_span, result);
 
         for variant in r#enum.variants.iter() {
-            result.insert(variant.name_span, variant.name);
+            update_span_string_map(variant.name, &variant.name_span, result);
 
             if let EnumVariantFields::Struct(fields) = &variant.fields {
                 for field in fields.iter() {
-                    result.insert(field.name_span, field.name);
+                    update_span_string_map(field.name, &field.name_span, result);
                 }
             }
         }
 
         for generic in r#enum.generics.iter() {
-            result.insert(generic.name_span, generic.name);
+            update_span_string_map(generic.name, &generic.name_span, result);
         }
     }
 
-    pub fn init_span_string_map_struct(&self, r#struct: &Struct, result: &mut HashMap<Span, InternedString>) {
-        result.insert(r#struct.name_span, r#struct.name);
+    pub fn init_span_string_map_struct(&self, r#struct: &Struct, result: &mut HashMap<SpanId, InternedString>) {
+        update_span_string_map(r#struct.name, &r#struct.name_span, result);
 
         for (name, name_span) in r#struct.fields.iter() {
-            result.insert(*name_span, *name);
+            update_span_string_map(*name, name_span, result);
         }
 
         for generic in r#struct.generics.iter() {
-            result.insert(generic.name_span, generic.name);
+            update_span_string_map(generic.name, &generic.name_span, result);
         }
     }
 
-    pub fn init_span_string_map_assert(&self, assert: &Assert, result: &mut HashMap<Span, InternedString>) {
+    pub fn init_span_string_map_assert(&self, assert: &Assert, result: &mut HashMap<SpanId, InternedString>) {
         self.init_span_string_map_expr(&assert.value, result);
     }
 
-    pub fn init_span_string_map_expr(&self, expr: &Expr, result: &mut HashMap<Span, InternedString>) {
+    pub fn init_span_string_map_expr(&self, expr: &Expr, result: &mut HashMap<SpanId, InternedString>) {
         match expr {
             Expr::Ident(_) | Expr::Constant(_) => {},
             Expr::Field { lhs, .. } => {
@@ -144,5 +144,26 @@ impl Session {
                 }
             },
         }
+    }
+}
+
+fn update_span_string_map(
+    name: InternedString,
+    span: &Span,
+    map: &mut HashMap<SpanId, InternedString>,
+) {
+    match span {
+        Span::Range(r) => {
+            map.insert(*r, name);
+        },
+        Span::Monomorphize { span, .. } |
+        Span::Derived { span, .. } => {
+            update_span_string_map(name, span, map);
+        },
+        Span::Prelude(_) |
+        Span::Poly { .. } |
+        Span::Std |
+        Span::Lib |
+        Span::None => {},
     }
 }

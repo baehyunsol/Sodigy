@@ -63,23 +63,23 @@ fn execute(
         match &executable.bytecodes[cursor] {
             Bytecode::Const { value, dst } => {
                 let value = heap.alloc_value(value);
-                update(*dst, value, stack, heap);
+                update(dst, value, stack, heap);
             },
             Bytecode::Move { src, dst } => {
-                let value = read(*src, stack, heap);
-                update(*dst, value, stack, heap);
+                let value = read(src, stack, heap);
+                update(dst, value, stack, heap);
             },
             Bytecode::Read { src, offset, dst } => {
-                let src = read(*src, stack, heap) as usize;
+                let src = read(src, stack, heap) as usize;
                 let offset = match offset {
                     Offset::Static(n) => *n,
                     Offset::Dynamic(src) => {
-                        let offset_ptr = read(*src, stack, heap);
+                        let offset_ptr = read(src, stack, heap);
                         todo!()
                     },
                 } as usize;
                 let result = heap.data[src + offset];
-                update(*dst, result, stack, heap);
+                update(dst, result, stack, heap);
             },
             Bytecode::IncStackPointer(n) => {
                 stack.stack_pointer += n;
@@ -88,11 +88,11 @@ fn execute(
                 stack.stack_pointer -= n;
             },
             Bytecode::IncRefCount(dst) => {
-                let dst = read(*dst, stack, heap);
+                let dst = read(dst, stack, heap);
                 heap.inc_rc(dst as usize);
             },
             Bytecode::DecRefCount { dst, drop } => {
-                let dst = read(*dst, stack, heap);
+                let dst = read(dst, stack, heap);
                 heap.dec_rc(dst as usize, drop);
             },
             Bytecode::Jump(label) => match label {
@@ -103,12 +103,12 @@ fn execute(
                 _ => unreachable!(),
             },
             Bytecode::JumpDynamic(dst) => {
-                let dst = read(*dst, stack, heap);
+                let dst = read(dst, stack, heap);
                 cursor = dst as usize;
                 continue;
             },
             Bytecode::JumpIf { value, label } => {
-                let value = read(*value, stack, heap);
+                let value = read(value, stack, heap);
 
                 if value == 1 {
                     match label {
@@ -154,7 +154,7 @@ fn execute(
                         nums,
                     });
                     let ptr = heap.alloc_value(&v);
-                    update(*dst, ptr, stack, heap);
+                    update(dst, ptr, stack, heap);
                 },
                 Intrinsic::AddInt |
                 Intrinsic::SubInt |
@@ -197,7 +197,7 @@ fn execute(
                         _ => unreachable!(),
                     };
 
-                    update(*dst, result, stack, heap);
+                    update(dst, result, stack, heap);
                 },
                 Intrinsic::ShrInt | Intrinsic::ShlInt => {
                     let lhs_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
@@ -214,13 +214,13 @@ fn execute(
                         nums,
                     });
                     let result = heap.alloc_value(&v);
-                    update(*dst, result, stack, heap);
+                    update(dst, result, stack, heap);
                 },
                 Intrinsic::Ilog2Int => {
                     let lhs = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
                     let (_, rhs) = inspect_int(&heap.data, lhs);
                     let result = ilog2_ubi(rhs);
-                    update(*dst, result, stack, heap);
+                    update(dst, result, stack, heap);
                 },
                 Intrinsic::LtScalar |
                 Intrinsic::EqScalar |
@@ -233,17 +233,17 @@ fn execute(
                         Intrinsic::GtScalar => lhs > rhs,
                         _ => unreachable!(),
                     };
-                    update(*dst, result as u32, stack, heap);
+                    update(dst, result as u32, stack, heap);
                 },
                 Intrinsic::ScalarToInt => {
                     let lhs = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow");
                     let result = heap.alloc_int_from_u32(lhs);
-                    update(*dst, result, stack, heap);
+                    update(dst, result, stack, heap);
                 },
                 Intrinsic::IntToScalar => {
                     let lhs = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
                     let (_, n) = inspect_int(&heap.data, lhs);
-                    update(*dst, n[0], stack, heap);
+                    update(dst, n[0], stack, heap);
                 },
                 Intrinsic::IndexList => {
                     let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
@@ -251,12 +251,12 @@ fn execute(
                     let buffer_ptr = heap.data[slice_ptr] as usize;
                     let start = heap.data[slice_ptr + 1] as usize;
                     let result = heap.data[buffer_ptr + start + index + 1];
-                    update(*dst, result, stack, heap);
+                    update(dst, result, stack, heap);
                 },
                 Intrinsic::LenList => {
                     let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
                     let result = heap.data[slice_ptr + 2];
-                    update(*dst, result, stack, heap);
+                    update(dst, result, stack, heap);
                 },
                 Intrinsic::SliceList => {
                     let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
@@ -270,7 +270,7 @@ fn execute(
                     heap.data[new_slice_ptr] = buffer_ptr as u32;
                     heap.data[new_slice_ptr + 1] = start + slice_start;
                     heap.data[new_slice_ptr + 2] = slice_end - slice_start;
-                    update(*dst, new_slice_ptr as u32, stack, heap);
+                    update(dst, new_slice_ptr as u32, stack, heap);
                 },
                 Intrinsic::SliceRightList => {
                     let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
@@ -283,7 +283,7 @@ fn execute(
                     heap.data[new_slice_ptr] = buffer_ptr as u32;
                     heap.data[new_slice_ptr + 1] = start + slice_start;
                     heap.data[new_slice_ptr + 2] = length - slice_start;
-                    update(*dst, new_slice_ptr as u32, stack, heap);
+                    update(dst, new_slice_ptr as u32, stack, heap);
                 },
                 Intrinsic::AppendList => {
                     let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
@@ -305,7 +305,7 @@ fn execute(
                     heap.data[new_slice_ptr + 1] = 0;
                     heap.data[new_slice_ptr + 2] = curr_list.len() as u32 + 1;
 
-                    update(*dst, new_slice_ptr as u32, stack, heap);
+                    update(dst, new_slice_ptr as u32, stack, heap);
                 },
                 Intrinsic::PrependList => todo!(),
                 Intrinsic::Exit => {
@@ -336,7 +336,7 @@ fn execute(
                 Intrinsic::RandomInt => todo!(),
                 Intrinsic::Nop => {
                     let v = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow");
-                    update(*dst, v, stack, heap);
+                    update(dst, v, stack, heap);
                 },
             },
             Bytecode::InitTuple { stack_offset, elements, dst } => {
@@ -347,7 +347,7 @@ fn execute(
                 }
 
                 let result = result as u32;
-                update(*dst, result, stack, heap);
+                update(dst, result, stack, heap);
             },
             Bytecode::InitList { stack_offset, elements, dst } => {
                 let data_ptr = heap.alloc(*elements + 1);
@@ -361,10 +361,10 @@ fn execute(
                 heap.data[slice_ptr] = data_ptr as u32;
                 heap.data[slice_ptr + 1] = 0;
                 heap.data[slice_ptr + 2] = *elements as u32;
-                update(*dst, slice_ptr as u32, stack, heap);
+                update(dst, slice_ptr as u32, stack, heap);
             },
             Bytecode::PushDebugInfo { kind, src } => {
-                let src = read(*src, stack, heap);
+                let src = read(src, stack, heap);
                 heap.debug_info.push((*kind, src));
             },
             Bytecode::PopDebugInfo => {
@@ -377,24 +377,24 @@ fn execute(
     }
 }
 
-fn read(src: Memory, stack: &mut Stack, heap: &mut Heap) -> u32 {
+fn read(src: &Memory, stack: &mut Stack, heap: &mut Heap) -> u32 {
     match src {
         Memory::Return => stack.r#return,
-        Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
-        Memory::Global(s) => *heap.global_values.get(&s).expect("global should be initialized before used"),
+        Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + *i).expect("stack overflow"),
+        Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
     }
 }
 
-fn update(dst: Memory, value: u32, stack: &mut Stack, heap: &mut Heap) {
+fn update(dst: &Memory, value: u32, stack: &mut Stack, heap: &mut Heap) {
     match dst {
         Memory::Return => {
             stack.r#return = value;
         },
         Memory::Stack(i) => {
-            *stack.stack.get_mut(stack.stack_pointer + i).expect("stack overflow") = value;
+            *stack.stack.get_mut(stack.stack_pointer + *i).expect("stack overflow") = value;
         },
         Memory::Global(s) => {
-            heap.global_values.insert(s, value);
+            heap.global_values.insert(s.clone(), value);
         },
     }
 }

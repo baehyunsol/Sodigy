@@ -47,17 +47,17 @@ impl Block {
         session.block_stack.push(BlockSession::new());
 
         let mut let_cycle_check_vertices: HashSet<Span> = ast_block.lets.iter().map(
-            |r#let| r#let.name_span
+            |r#let| r#let.name_span.clone()
         ).collect();
         let mut let_cycle_check_edges: HashMap<Span, Vec<Span>> = HashMap::new();
         let alias_cycle_check_vertices: HashSet<Span> = ast_block.aliases.iter().map(
-            |alias| alias.name_span
+            |alias| alias.name_span.clone()
         ).collect();
         let mut alias_cycle_check_edges: HashMap<Span, Vec<Span>> = HashMap::new();
 
         session.name_stack.push(Namespace::Block {
             names: ast_block.iter_names(session.is_at_top_level_block()).map(
-                |(k, v1, v2)| (k, (v1, v2, UseCount::new()))
+                |(k, v1, v2)| (k, (v1.clone(), v2, UseCount::new()))
             ).collect(),
         });
 
@@ -76,11 +76,11 @@ impl Block {
             match Let::from_ast(r#let, session) {
                 Ok(r#let) => {
                     let_cycle_check_edges.insert(
-                        r#let.name_span,
+                        r#let.name_span.clone(),
                         r#let.foreign_names.iter().filter(
                             |(_, (_, span))| let_cycle_check_vertices.contains(span)
                         ).map(
-                            |(_, (_, span))| *span
+                            |(_, (_, span))| span.clone()
                         ).collect(),
                     );
                     lets.push(r#let);
@@ -137,11 +137,11 @@ impl Block {
             match Alias::from_ast(alias, session) {
                 Ok(alias) => {
                     alias_cycle_check_edges.insert(
-                        alias.name_span,
+                        alias.name_span.clone(),
                         alias.foreign_names.iter().filter(
                             |(_, (_, span))| alias_cycle_check_vertices.contains(span)
                         ).map(
-                            |(_, (_, span))| *span
+                            |(_, (_, span))| span.clone()
                         ).collect(),
                     );
                     session.aliases.push(alias);
@@ -210,13 +210,13 @@ impl Block {
         let mut block_session = session.block_stack.pop().unwrap();
 
         for func_default_value in block_session.func_default_values.drain(..) {
-            let_cycle_check_vertices.insert(func_default_value.name_span);
+            let_cycle_check_vertices.insert(func_default_value.name_span.clone());
             let_cycle_check_edges.insert(
-                func_default_value.name_span,
+                func_default_value.name_span.clone(),
                 func_default_value.foreign_names.iter().filter(
                     |(_, (_, span))| let_cycle_check_vertices.contains(span)
                 ).map(
-                    |(_, (_, span))| *span
+                    |(_, (_, span))| span.clone()
                 ).collect(),
             );
             lets.push(func_default_value);
@@ -226,14 +226,14 @@ impl Block {
 
         for (mut func, captured_names) in session.check_captured_names(&mut lambdas) {
             if let Some(captured_names) = &captured_names {
-                session.closures.insert(func.name_span, captured_names.clone());
+                session.closures.insert(func.name_span.clone(), captured_names.clone());
             }
 
             else {
                 // FIXME: linear search
                 for tl in session.trivial_lets.values_mut() {
-                    if let TrivialLet::MaybeLambda(s) = tl && *s == func.name_span {
-                        *tl = TrivialLet::IsLambda(*s);
+                    if let TrivialLet::MaybeLambda(s) = tl && s == &func.name_span {
+                        *tl = TrivialLet::IsLambda(s.clone());
                         break;
                     }
                 }
@@ -246,7 +246,7 @@ impl Block {
         let skip_list = session.trivial_lets.iter().filter(
             |(_, tl)| matches!(tl, TrivialLet::Constant(_) | TrivialLet::IsLambda(_))
         ).map(
-            |(span, _)| *span
+            |(span, _)| span.clone()
         ).collect::<HashSet<_>>();
 
         // TOOD: It only underlines the definitions of the names.
@@ -257,7 +257,7 @@ impl Block {
             skip_list,
         ) {
             let span_to_name: HashMap<Span, InternedString> = lets.iter().map(
-                |r#let| (r#let.name_span, r#let.name)
+                |r#let| (r#let.name_span.clone(), r#let.name)
             ).collect();
             has_error = true;
             session.errors.push(Error {
@@ -266,7 +266,7 @@ impl Block {
                 },
                 spans: cycle.iter().map(
                     |span| RenderableSpan {
-                        span: *span,
+                        span: span.clone(),
                         auxiliary: false,
                         note: None,
                     }
@@ -283,7 +283,7 @@ impl Block {
             HashSet::new(),
         ) {
             let span_to_name: HashMap<Span, InternedString> = ast_block.aliases.iter().map(
-                |alias| (alias.name_span, alias.name)
+                |alias| (alias.name_span.clone(), alias.name)
             ).collect();
             has_error = true;
             session.errors.push(Error {
@@ -292,7 +292,7 @@ impl Block {
                 },
                 spans: cycle.iter().map(
                     |span| RenderableSpan {
-                        span: *span,
+                        span: span.clone(),
                         auxiliary: false,
                         note: None,
                     }
@@ -307,7 +307,7 @@ impl Block {
 
         else {
             Ok(Block {
-                group_span: ast_block.group_span,
+                group_span: ast_block.group_span.clone(),
                 lets,
                 asserts,
                 value: Box::new(value.unwrap()),
@@ -355,14 +355,14 @@ fn find_cycle(
         stack: &mut Vec<Span>,
         on_stack: &mut HashSet<Span>,
     ) -> Option<Vec<Span>> {
-        visited.insert(node);
+        visited.insert(node.clone());
 
         if skip_list.contains(&node) {
             return None;
         }
 
-        stack.push(node);
-        on_stack.insert(node);
+        stack.push(node.clone());
+        on_stack.insert(node.clone());
 
         if let Some(neighbors) = edges.get(&node) {
             for neighbor in neighbors.iter() {
@@ -372,7 +372,7 @@ fn find_cycle(
 
                 if !visited.contains(neighbor) {
                     if let Some(cycle) = dfs(
-                        *neighbor,
+                        neighbor.clone(),
                         edges,
                         skip_list,
                         visited,
@@ -401,7 +401,7 @@ fn find_cycle(
 
     for vertex in vertices.iter() {
         if !visited.contains(vertex) {
-            if let Some(cycle) = dfs(*vertex, &edges, &skip_list, &mut visited, &mut stack, &mut on_stack) {
+            if let Some(cycle) = dfs(vertex.clone(), &edges, &skip_list, &mut visited, &mut stack, &mut on_stack) {
                 return Some(cycle);
             }
         }

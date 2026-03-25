@@ -62,7 +62,7 @@ pub fn parse(
 ) -> Session {
     let mut session = Session::from_lex_session(&lex_session);
     let last_span = lex_session.tokens.last().map(|t| t.span.end()).unwrap_or(Span::None);
-    let mut tokens = Tokens::new(&lex_session.tokens, last_span, &lex_session.intermediate_dir);
+    let mut tokens = Tokens::new(&lex_session.tokens, last_span, true, &lex_session.intermediate_dir);
     let ast = match tokens.parse_block(
         true, // top-level
         file_span,

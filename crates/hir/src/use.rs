@@ -40,15 +40,15 @@ pub struct Use {
 impl Use {
     pub fn from_ast(ast_use: &ast::Use, session: &mut Session) -> Result<Use, ()> {
         let mut has_error = false;
-        let (name, span) = match ast_use.full_path[0] {
-            Field::Name { name, name_span, .. } => (name, name_span),
+        let (name, span) = match &ast_use.full_path[0] {
+            Field::Name { name, name_span, .. } => (*name, name_span.clone()),
             _ => unreachable!(),
         };
 
         let attribute = match session.lower_attribute(
             &ast_use.attribute,
             ItemKind::Use,
-            ast_use.keyword_span,
+            ast_use.keyword_span.clone(),
         ) {
             Ok(attribute) => attribute,
             Err(()) => {
@@ -61,7 +61,7 @@ impl Use {
         let root = match session.find_origin_and_count_usage(name) {
             Some((origin, def_span)) if def_span != ast_use.name_span => IdentWithOrigin {
                 id: name,
-                span,
+                span: span.clone(),
                 origin,
                 def_span,
             },
@@ -70,7 +70,7 @@ impl Use {
 
                 IdentWithOrigin {
                     id: name,
-                    span,
+                    span: span.clone(),
                     origin,
                     def_span,
                 }
@@ -83,12 +83,12 @@ impl Use {
                 kind: ErrorKind::AliasResolveRecursionLimitReached,
                 spans: vec![
                     RenderableSpan {
-                        span: ast_use.name_span,
+                        span: ast_use.name_span.clone(),
                         auxiliary: false,
                         note: None,
                     },
                     RenderableSpan {
-                        span: root.span,
+                        span: root.span.clone(),
                         auxiliary: true,
                         note: None,
                     },
@@ -115,9 +115,9 @@ impl Use {
 
             Ok(Use {
                 visibility,
-                keyword_span: ast_use.keyword_span,
+                keyword_span: ast_use.keyword_span.clone(),
                 name: ast_use.name,
-                name_span: ast_use.name_span,
+                name_span: ast_use.name_span.clone(),
                 path: Path { id: root, fields, types, },
             })
         }

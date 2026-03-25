@@ -30,7 +30,7 @@ impl Session<'_, '_> {
                     monomorphized_funcs.push(func);
                 },
                 _ => {
-                    funcs.insert(func.name_span, func);
+                    funcs.insert(func.name_span.clone(), func);
                 },
             }
         }
@@ -38,12 +38,12 @@ impl Session<'_, '_> {
         // TODO: handle monomorphized structs/enums
 
         ItemMap {
-            lets: self.lets.drain(..).map(|r#let| (r#let.name_span, r#let)).collect(),
+            lets: self.lets.drain(..).map(|r#let| (r#let.name_span.clone(), r#let)).collect(),
             funcs,
             monomorphized_funcs,
-            enums: self.enums.drain(..).map(|r#enum| (r#enum.name_span, r#enum)).collect(),
-            structs: self.structs.drain(..).map(|r#struct| (r#struct.name_span, r#struct)).collect(),
-            asserts: self.asserts.drain(..).map(|assert| (assert.keyword_span, assert)).collect(),
+            enums: self.enums.drain(..).map(|r#enum| (r#enum.name_span.clone(), r#enum)).collect(),
+            structs: self.structs.drain(..).map(|r#struct| (r#struct.name_span.clone(), r#struct)).collect(),
+            asserts: self.asserts.drain(..).map(|assert| (assert.keyword_span.clone(), assert)).collect(),
         }
     }
 

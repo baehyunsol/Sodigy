@@ -52,7 +52,7 @@ impl Block {
 
         else {
             Ok(Block {
-                group_span: hir_block.group_span,
+                group_span: hir_block.group_span.clone(),
                 lets,
                 asserts,
                 value: Box::new(value.unwrap()),

@@ -9,10 +9,10 @@ use crate::LogEntry;
 impl Session {
     pub fn solve_func(&mut self, func: &Func) -> (Option<Type>, bool /* has_error */) {
         let mut impure_calls = vec![];
-        let mut span_to_name_map = vec![(func.name_span, func.name)];
+        let mut span_to_name_map = vec![(func.name_span.clone(), func.name)];
 
         for param in func.params.iter() {
-            span_to_name_map.push((param.name_span, param.name));
+            span_to_name_map.push((param.name_span.clone(), param.name));
         }
 
         let span_to_name_map = span_to_name_map.into_iter().collect::<HashMap<_, _>>();
@@ -31,17 +31,17 @@ impl Session {
                         _ => None,
                     };
                     self.add_type_var(type_var.clone(), type_var_name);
-                    self.add_type_var_ref(type_var, Type::Var { def_span: func.name_span, is_return: true });
+                    self.add_type_var_ref(type_var, Type::Var { def_span: func.name_span.clone(), is_return: true });
                 }
 
                 (
                     r#return,
                     func.value.error_span_wide(),
-                    func.type_annot_span,
+                    func.type_annot_span.clone(),
                     if func.type_annot_span.is_some() {
                         ErrorContext::VerifyTypeAnnot
                     } else {
-                        ErrorContext::InferedAgain { type_var: Type::Var { def_span: func.name_span, is_return: true } }
+                        ErrorContext::InferedAgain { type_var: Type::Var { def_span: func.name_span.clone(), is_return: true } }
                     },
                 )
             },
@@ -68,8 +68,8 @@ impl Session {
                 &annotated_type,
                 &infered_type,
                 false,
-                type_annot_span,
-                Some(value_span),
+                type_annot_span.as_ref(),
+                Some(&value_span),
                 context,
 
                 // `infered_type` must be subtype of `annotated_type`, but not vice versa.
@@ -83,14 +83,14 @@ impl Session {
             (true, 1..) => {
                 self.type_errors.push(TypeError::ImpureCallInPureContext {
                     call_spans: impure_calls,
-                    keyword_span: func.keyword_span,
+                    keyword_span: func.keyword_span.clone(),
                     context: func.origin.into(),
                 });
                 has_error = true;
             },
             (false, 0) => {
                 self.type_warnings.push(TypeWarning::NoImpureCallInImpureContext {
-                    impure_keyword_span: func.impure_keyword_span.unwrap(),
+                    impure_keyword_span: func.impure_keyword_span.clone().unwrap(),
                 });
             },
             _ => {},

@@ -49,24 +49,24 @@ impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_func(&mut self) -> Result<Func, Vec<Error>> {
         let (is_pure, impure_keyword_span) = match self.peek() {
             Some(Token { kind: TokenKind::Keyword(Keyword::Impure), span }) => {
-                let span = *span;
+                let span = span.clone();
                 self.cursor += 1;
                 (false, Some(span))
             },
             _ => (true, None),
         };
 
-        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Fn))?.span;
+        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Fn))?.span.clone();
         let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
         let mut generics = vec![];
         let mut generic_group_span = None;
 
         if let Some(Token { kind: TokenKind::Punct(Punct::Lt), span }) = self.peek() {
-            generic_group_span = Some(*span);
+            generic_group_span = Some(span.clone());
             self.cursor += 1;
             generics = self.parse_generic_defs()?;
-            let generic_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
-            generic_group_span = generic_group_span.map(|span| span.merge(generic_span_end));
+            let generic_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span.clone();
+            generic_group_span = generic_group_span.map(|span| span.merge(&generic_span_end));
         }
 
         let param_tokens = self.match_and_pop(TokenKind::Group { delim: Delim::Parenthesis, tokens: vec![] })?;
@@ -74,7 +74,7 @@ impl<'t, 's> Tokens<'t, 's> {
             TokenKind::Group { tokens, .. } => tokens,
             _ => unreachable!(),
         };
-        let mut param_tokens = Tokens::new(param_tokens_inner, param_tokens.span.end(), &self.intermediate_dir);
+        let mut param_tokens = Tokens::new(param_tokens_inner, param_tokens.span.end(), false, &self.intermediate_dir);
         let params = param_tokens.parse_func_params(true /* allow wildcard */)?;
 
         let type_annot = match self.peek() {
@@ -144,7 +144,7 @@ impl<'t, 's> Tokens<'t, 's> {
             'colon_or_value_or_comma: loop {
                 match self.peek() {
                     Some(Token { kind: TokenKind::Punct(Punct::Colon), span }) => {
-                        let span = *span;
+                        let span = span.clone();
 
                         if type_annot.is_some() {
                             return Err(vec![Error {
@@ -154,7 +154,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                 },
                                 spans: vec![
                                     RenderableSpan {
-                                        span,
+                                        span: span.clone(),
                                         auxiliary: false,
                                         note: None,
                                     },
@@ -174,7 +174,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         continue 'colon_or_value_or_comma;
                     },
                     Some(Token { kind: TokenKind::Punct(Punct::Assign), span }) => {
-                        let span = *span;
+                        let span = span.clone();
 
                         if default_value.is_some() {
                             return Err(vec![Error {
@@ -184,7 +184,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                 },
                                 spans: vec![
                                     RenderableSpan {
-                                        span,
+                                        span: span.clone(),
                                         auxiliary: false,
                                         note: None,
                                     },
@@ -253,7 +253,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     Some(Token { kind: TokenKind::Ident(id), span }),
                     Some(Token { kind: TokenKind::Punct(Punct::Assign), .. }),
                 ) => {
-                    let (id, span) = (*id, *span);
+                    let (id, span) = (*id, span.clone());
                     self.cursor += 2;
 
                     Some((id, span))

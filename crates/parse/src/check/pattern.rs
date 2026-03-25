@@ -22,10 +22,10 @@ impl Pattern {
             for (name, name_span) in self.bound_names().iter() {
                 match spans_by_name.entry(*name) {
                     Entry::Occupied(mut e) => {
-                        e.get_mut().push(*name_span);
+                        e.get_mut().push(name_span.clone());
                     },
                     Entry::Vacant(e) => {
-                        e.insert(vec![*name_span]);
+                        e.insert(vec![name_span.clone()]);
                     },
                 }
             }
@@ -39,7 +39,7 @@ impl Pattern {
                         },
                         spans: spans.iter().map(
                             |span| RenderableSpan {
-                                span: *span,
+                                span: span.clone(),
                                 auxiliary: false,
                                 note: None,
                             }

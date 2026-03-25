@@ -70,7 +70,7 @@ impl Session {
         // replace them with the actual def_span.
         for prelude in sodigy_hir::PRELUDES {
             let name_alias = sodigy_hir::use_prelude(intern_string(prelude, intermediate_dir).unwrap());
-            name_aliases.insert(name_alias.name_span, name_alias);
+            name_aliases.insert(name_alias.name_span.clone(), name_alias);
         }
 
         Session {
@@ -99,23 +99,23 @@ impl Session {
         mut hir_session: sodigy_hir::Session,
     ) {
         for func in hir_session.funcs.iter() {
-            self.func_shapes.insert(func.name_span, func.shape());
+            self.func_shapes.insert(func.name_span.clone(), func.shape());
 
             if func.built_in {
-                self.built_in_funcs.insert(func.name_span);
+                self.built_in_funcs.insert(func.name_span.clone());
             }
         }
 
         for (def_span, struct_shape) in hir_session.structs.iter().map(
             |r#struct| (
-                r#struct.name_span,
+                r#struct.name_span.clone(),
                 StructShape {
                     name: r#struct.name,
                     fields: r#struct.fields.iter().map(
                         |field| StructField {
                             name: field.name,
-                            name_span: field.name_span,
-                            default_value: field.default_value,
+                            name_span: field.name_span.clone(),
+                            default_value: field.default_value.clone(),
 
                             // It's not gonna use this type annotation anymore.
                             // It'll use `types` in the mir-session or mir-global-context.
@@ -129,12 +129,12 @@ impl Session {
                 },
             )
         ) {
-            self.struct_shapes.insert(def_span, struct_shape);
+            self.struct_shapes.insert(def_span.clone(), struct_shape);
         }
 
         for (def_span, enum_shape) in hir_session.enums.iter().map(
             |r#enum| (
-                r#enum.name_span,
+                r#enum.name_span.clone(),
                 EnumShape {
                     name: r#enum.name,
                     variants: r#enum.variants.clone().into_iter().map(
@@ -149,13 +149,13 @@ impl Session {
                 },
             )
         ) {
-            self.enum_shapes.insert(def_span, enum_shape);
+            self.enum_shapes.insert(def_span.clone(), enum_shape);
         }
 
         let mut children = HashMap::new();
 
         for (name, span, kind) in hir_session.iter_item_names() {
-            children.insert(name, (span, kind));
+            children.insert(name, (span.clone(), kind));
         }
 
         self.item_name_map.insert(
@@ -173,8 +173,8 @@ impl Session {
                 variants.insert(
                     variant.name,
                     (
-                        variant.name_span,
-                        NameKind::EnumVariant { parent: r#enum.name_span },
+                        variant.name_span.clone(),
+                        NameKind::EnumVariant { parent: r#enum.name_span.clone() },
                     ),
                 );
             }
@@ -193,11 +193,11 @@ impl Session {
         }
 
         for r#use in hir_session.uses.drain(..) {
-            self.name_aliases.insert(r#use.name_span, r#use);
+            self.name_aliases.insert(r#use.name_span.clone(), r#use);
         }
 
         for alias in hir_session.aliases.drain(..) {
-            self.type_aliases.insert(alias.name_span, alias);
+            self.type_aliases.insert(alias.name_span.clone(), alias);
         }
 
         self.polys.extend(hir_session.polys.drain());
@@ -206,10 +206,10 @@ impl Session {
         self.generic_def_span_rev.extend(hir_session.generic_def_span_rev.drain());
     }
 
-    pub fn get_item_shape<'s>(&'s mut self, def_span: Span) -> Option<ItemShapeMut<'s>> {
-        match self.struct_shapes.get_mut(&def_span) {
+    pub fn get_item_shape<'s>(&'s mut self, def_span: &Span) -> Option<ItemShapeMut<'s>> {
+        match self.struct_shapes.get_mut(def_span) {
             Some(s) => Some(ItemShapeMut::Struct(s)),
-            None => match self.enum_shapes.get_mut(&def_span) {
+            None => match self.enum_shapes.get_mut(def_span) {
                 Some(e) => Some(ItemShapeMut::Enum(e)),
                 None => None,
             },

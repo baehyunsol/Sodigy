@@ -20,11 +20,11 @@ impl Session {
                 Namespace::GenericParam { names, index } if is_local => match names.get_mut(&id) {
                     Some((def_span, _, count)) => {
                         let index = *index.get(&id).unwrap();
-                        let span = *def_span;
+                        let span = def_span.clone();
                         result = if is_generic {
-                            Some((NameOrigin::GenericParam { index }, span))
+                            Some((NameOrigin::GenericParam { index }, span.clone()))
                         } else {
-                            Some((NameOrigin::FuncParam { index }, span))
+                            Some((NameOrigin::FuncParam { index }, span.clone()))
                         };
                         stack_index = Some(i);
 
@@ -46,11 +46,11 @@ impl Session {
                 Namespace::Pattern { names } => match names.get_mut(&id) {
                     Some((def_span, name_kind, count)) => {
                         if is_local {
-                            result = Some((NameOrigin::Local { kind: *name_kind }, *def_span));
+                            result = Some((NameOrigin::Local { kind: name_kind.clone() }, def_span.clone()));
                         }
 
                         else {
-                            result = Some((NameOrigin::Foreign { kind: *name_kind }, *def_span));
+                            result = Some((NameOrigin::Foreign { kind: name_kind.clone() }, def_span.clone()));
                         }
 
                         stack_index = Some(i);
@@ -78,7 +78,7 @@ impl Session {
             (Some(result), Some(stack_index)) => {
                 for namespace in self.name_stack.iter_mut().rev().take(stack_index) {
                     if let Namespace::ForeignNameCollector { foreign_names, .. } = namespace {
-                        foreign_names.insert(id, result);
+                        foreign_names.insert(id, result.clone());
                     }
                 }
 

@@ -273,7 +273,7 @@ impl Session {
                     match type_var {
                         Type::Var { def_span, is_return } => {
                             spans.push(RenderableSpan {
-                                span: *def_span,
+                                span: def_span.clone(),
                                 auxiliary: false,
                                 note: Some(format!(
                                     "You didn't annotate the {}, so I tried to infer it. Some information says the type is `{}`, while another information says it's `{}`. Perhaps add a type annotation?",
@@ -285,39 +285,39 @@ impl Session {
                         },
                         Type::GenericArg { call, generic } => {
                             spans.push(RenderableSpan {
-                                span: *call,
+                                span: call.clone(),
                                 auxiliary: false,
                                 note: Some(format!(
                                     "This is a generic function, so I tried to infer its type arguments, but there's a problem with `{}`. Some information says `{}`'s type is `{}`, while other says it's `{}`.",
-                                    self.span_to_string(*generic).unwrap_or_else(|| String::from("???")),
-                                    self.span_to_string(*generic).unwrap_or_else(|| String::from("???")),
+                                    self.span_to_string(generic).unwrap_or_else(|| String::from("???")),
+                                    self.span_to_string(generic).unwrap_or_else(|| String::from("???")),
                                     expected_type,
                                     got_type,
                                 )),
                             });
                             spans.push(RenderableSpan {
-                                span: *generic,
+                                span: generic.clone(),
                                 auxiliary: true,
                                 note: Some(format!(
                                     "Type parameter `{}` is defined here.",
-                                    self.span_to_string(*generic).unwrap_or_else(|| String::from("???")),
+                                    self.span_to_string(generic).unwrap_or_else(|| String::from("???")),
                                 )),
                             });
                         },
                         _ => unreachable!(),
                     }
 
-                    if let Some(span) = *expected_span {
+                    if let Some(span) = expected_span {
                         spans.push(RenderableSpan {
-                            span,
+                            span: span.clone(),
                             auxiliary: false,
                             note: Some(format!("This information says the type is `{expected_type}`.")),
                         });
                     }
 
-                    if let Some(span) = *got_span {
+                    if let Some(span) = got_span {
                         spans.push(RenderableSpan {
-                            span,
+                            span: span.clone(),
                             auxiliary: false,
                             note: Some(format!("This information says the type is `{got_type}`.")),
                         });
@@ -325,7 +325,7 @@ impl Session {
                 }
 
                 else {
-                    if let Some(span) = *expected_span {
+                    if let Some(span) = expected_span {
                         let note = if let ErrorContext::FieldUpdate = context {
                             format!("The type of this field is `{expected_type}`.")
                         } else if let ErrorContext::MatchScrutinee = context {
@@ -344,15 +344,15 @@ impl Session {
                         };
 
                         spans.push(RenderableSpan {
-                            span,
+                            span: span.clone(),
                             auxiliary: true,
                             note: Some(note),
                         });
                     }
 
-                    if let Some(span) = *got_span {
+                    if let Some(span) = got_span {
                         spans.push(RenderableSpan {
-                            span,
+                            span: span.clone(),
                             auxiliary: false,
                             note: Some(format!("This value is expected to have type `{expected_type}`, but has type `{got_type}`.")),
                         });
@@ -361,7 +361,7 @@ impl Session {
 
                 if let ErrorContext::EqualGenericParams { def, call, i, j } = context {
                     spans.push(RenderableSpan {
-                        span: *call,
+                        span: call.clone(),
                         auxiliary: true,
                         note: Some(format!(
                             "The {} and {} arguments of this function should have the same type.",
@@ -370,7 +370,7 @@ impl Session {
                         )),
                     });
                     spans.push(RenderableSpan {
-                        span: *def,
+                        span: def.clone(),
                         auxiliary: true,
                         note: Some(String::from("The function is defined here.")),
                     });
@@ -407,7 +407,7 @@ impl Session {
 
                 let mut spans = vec![
                     RenderableSpan {
-                        span: *call,
+                        span: call.clone(),
                         auxiliary: false,
                         note: Some(format!(
                             "It has {} argument{}.",
@@ -419,7 +419,7 @@ impl Session {
 
                 if let Some(def) = def {
                     spans.push(RenderableSpan {
-                        span: *def,
+                        span: def.clone(),
                         auxiliary: true,
                         note: Some(format!(
                             "It has {} parameter{}.",
@@ -447,7 +447,7 @@ impl Session {
                 kind: ErrorKind::WrongNumberOfGenericArgs { expected: *expected, got: *got },
                 spans: vec![
                     RenderableSpan {
-                        span: *param_group_span,
+                        span: param_group_span.clone(),
                         auxiliary: true,
                         note: Some(format!(
                             "It has {expected} generic parameter{}.",
@@ -455,7 +455,7 @@ impl Session {
                         )),
                     },
                     RenderableSpan {
-                        span: *arg_group_span,
+                        span: arg_group_span.clone(),
                         auxiliary: false,
                         note: Some(format!(
                             "You provided {got} generic argument{}.",
@@ -482,11 +482,11 @@ impl Session {
             },
             TypeError::CannotInferGenericType { call, generic, func_def } |
             TypeError::PartiallyInferedGenericType { call, generic, func_def, .. } => {
-                let generic_id = self.span_to_string(*generic);
-                let spans = match (func_def.map(|def_span| self.func_shapes.get(&def_span)), &generic_id) {
+                let generic_id = self.span_to_string(generic);
+                let spans = match (func_def.as_ref().map(|def_span| self.func_shapes.get(&def_span)), &generic_id) {
                     (Some(Some(func_shape)), Some(generic_id)) => vec![
                         RenderableSpan {
-                            span: *call,
+                            span: call.clone(),
                             auxiliary: false,
                             note: Some(format!(
                                 "This function has {} type parameter{} ({}), and I cannot infer the type of `{generic_id}`.",
@@ -503,7 +503,7 @@ impl Session {
                             )),
                         },
                         RenderableSpan {
-                            span: *generic,
+                            span: generic.clone(),
                             auxiliary: true,
                             note: Some(format!("Type parameter `{generic_id}` is defined here.")),
                         },
@@ -542,7 +542,7 @@ impl Session {
             TypeError::CannotUpdateAssociatedFunc { r#type, name, name_span } => Error {
                 kind: ErrorKind::CannotUpdateAssociatedFunc { r#type: self.render_type(r#type), name: *name },
                 spans: vec![RenderableSpan {
-                    span: *name_span,
+                    span: name_span.clone(),
                     auxiliary: false,
                     note: Some(String::from("This is an associated function, not a field.")),
                 }],
@@ -553,7 +553,7 @@ impl Session {
                     r#type: self.render_type(r#type),
                 },
                 spans: vec![RenderableSpan {
-                    span: *func_span,
+                    span: func_span.clone(),
                     auxiliary: false,
                     note: None,
                 }],
@@ -573,21 +573,21 @@ impl Session {
                 spans: vec![
                     vec![
                         RenderableSpan {
-                            span: *call,
+                            span: call.clone(),
                             auxiliary: false,
-                            note: Some(format!("Cannot specialize `{}` here.", self.span_to_string(*poly_def).unwrap_or_else(|| String::from("????")))),
+                            note: Some(format!("Cannot specialize `{}` here.", self.span_to_string(poly_def).unwrap_or_else(|| String::from("????")))),
                         },
                         RenderableSpan {
-                            span: *poly_def,
+                            span: poly_def.clone(),
                             auxiliary: true,
-                            note: Some(format!("`{}` is defined here.", self.span_to_string(*poly_def).unwrap_or_else(|| String::from("????")))),
+                            note: Some(format!("`{}` is defined here.", self.span_to_string(poly_def).unwrap_or_else(|| String::from("????")))),
                         },
                     ],
                     generics.iter().map(
                         |(span, r#type)| RenderableSpan {
-                            span: *span,
+                            span: span.clone(),
                             auxiliary: true,
-                            note: Some(format!("Type parameter `{}` is infered to be `{}`.", self.span_to_string(*span).unwrap_or_else(|| String::from("????")), self.render_type(r#type))),
+                            note: Some(format!("Type parameter `{}` is infered to be `{}`.", self.span_to_string(span).unwrap_or_else(|| String::from("????")), self.render_type(r#type))),
                         }
                     ).collect(),
                 ].concat(),
@@ -605,7 +605,7 @@ impl Session {
                 let expected_type = self.render_type(expected_type);
                 let got_type = self.render_type(got_type);
 
-                if let Some(span) = *expected_span {
+                if let Some(span) = expected_span {
                     let note = match expected_purity {
                         FuncPurity::Pure => "It expects a pure function.",
                         FuncPurity::Impure => "It expects an impure function.",
@@ -613,13 +613,13 @@ impl Session {
                     }.to_string();
 
                     spans.push(RenderableSpan {
-                        span,
+                        span: span.clone(),
                         auxiliary: true,
                         note: Some(note),
                     });
                 }
 
-                if let Some(span) = *got_span {
+                if let Some(span) = got_span {
                     let note = match got_purity {
                         FuncPurity::Pure => "This is a pure function.",
                         FuncPurity::Impure => "This is an impure function.",
@@ -627,7 +627,7 @@ impl Session {
                     }.to_string();
 
                     spans.push(RenderableSpan {
-                        span,
+                        span: span.clone(),
                         auxiliary: false,
                         note: Some(note),
                     });
@@ -653,7 +653,7 @@ impl Session {
             TypeError::CannotInferPolyGenericParam { poly_span, param_index } => Error {
                 kind: ErrorKind::CannotInferPolyGenericParam { param_index: *param_index },
                 spans: vec![RenderableSpan {
-                    span: *poly_span,
+                    span: poly_span.clone(),
                     auxiliary: false,
                     note: Some(String::from("This function needs a type annotation.")),
                 }],
@@ -663,12 +663,12 @@ impl Session {
                 kind: ErrorKind::CannotInferPolyGenericImpl { param_index: *param_index },
                 spans: vec![
                     RenderableSpan {
-                        span: *impl_span,
+                        span: impl_span.clone(),
                         auxiliary: false,
                         note: Some(String::from("This function needs a type annotation.")),
                     },
                     RenderableSpan {
-                        span: *poly_span,
+                        span: poly_span.clone(),
                         auxiliary: true,
                         note: Some(String::from("`#[poly]` is defined here.")),
                     },
@@ -679,12 +679,12 @@ impl Session {
                 kind: ErrorKind::PolyImplDifferentNumberOfParams { poly_params: *poly_params, impl_params: *impl_params },
                 spans: vec![
                     RenderableSpan {
-                        span: *impl_span,
+                        span: impl_span.clone(),
                         auxiliary: false,
                         note: Some(format!("It has {impl_params} parameter{}.", if *impl_params == 1 { "" } else { "s" })),
                     },
                     RenderableSpan {
-                        span: *poly_span,
+                        span: poly_span.clone(),
                         auxiliary: true,
                         note: Some(format!("It has {poly_params} parameter{}.", if *poly_params == 1 { "" } else { "s" })),
                     },
@@ -705,12 +705,12 @@ impl Session {
                 },
                 spans: vec![
                     RenderableSpan {
-                        span: *impl_span,
+                        span: impl_span.clone(),
                         auxiliary: false,
                         note: None,
                     },
                     RenderableSpan {
-                        span: *poly_span,
+                        span: poly_span.clone(),
                         auxiliary: true,
                         note: Some(String::from("`#[poly]` is defined here.")),
                     },
@@ -720,12 +720,12 @@ impl Session {
             TypeError::MultiplePolyCandidates { call, poly_def, candidates } => {
                 let mut spans = vec![
                     RenderableSpan {
-                        span: *call,
+                        span: call.clone(),
                         auxiliary: false,
                         note: None,
                     },
                     RenderableSpan {
-                        span: *poly_def,
+                        span: poly_def.clone(),
                         auxiliary: true,
                         note: Some(String::from("This is the definition of the #[poly] you're trying to impl.")),
                     },
@@ -733,7 +733,7 @@ impl Session {
 
                 for candidate in candidates.iter() {
                     spans.push(RenderableSpan {
-                        span: *candidate,
+                        span: candidate.clone(),
                         auxiliary: true,
                         note: Some(String::from("This is a valid implementation.")),
                     });
@@ -762,14 +762,14 @@ impl Session {
                 let (keyword_note, error_note) = (keyword_note.map(|s| s.to_string()), error_note.map(|s| s.to_string()));
 
                 spans.push(RenderableSpan {
-                    span: *keyword_span,
+                    span: keyword_span.clone(),
                     auxiliary: true,
                     note: keyword_note,
                 });
 
                 for call_span in call_spans.iter() {
                     spans.push(RenderableSpan {
-                        span: *call_span,
+                        span: call_span.clone(),
                         auxiliary: false,
                         note: Some(String::from("You're calling an impure function here.")),
                     });
@@ -786,7 +786,7 @@ impl Session {
             TypeWarning::NoImpureCallInImpureContext { impure_keyword_span } => Warning {
                 kind: WarningKind::NoImpureCallInImpureContext,
                 spans: vec![RenderableSpan {
-                    span: *impure_keyword_span,
+                    span: impure_keyword_span.clone(),
                     auxiliary: false,
                     note: Some(String::from("This `impure` keyword makes this function impure.")),
                 }],
@@ -805,7 +805,7 @@ impl Session {
         )
     }
 
-    pub fn span_to_string(&self, span: Span) -> Option<String> {
+    pub fn span_to_string(&self, span: &Span) -> Option<String> {
         span_to_string(
             span,
             &self.intermediate_dir,

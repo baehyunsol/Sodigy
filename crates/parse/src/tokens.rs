@@ -10,17 +10,24 @@ pub struct Tokens<'t, 's> {
     // It's used by `Tokens::unexpected_end`.
     // It's the span of the closing delimitor of the group.
     pub(crate) span_end: Span,
+    pub(crate) is_whole_file: bool,
 
     // In `sodigy_parse`, `Tokens` act like a session.
     pub (crate) intermediate_dir: &'s String,
 }
 
 impl<'t, 's> Tokens<'t, 's> {
-    pub fn new(tokens: &'t [Token], span_end: Span, intermediate_dir: &'s String) -> Tokens<'t, 's> {
+    pub fn new(
+        tokens: &'t [Token],
+        span_end: Span,
+        is_whole_file: bool,
+        intermediate_dir: &'s String,
+    ) -> Tokens<'t, 's> {
         Tokens {
             tokens,
             cursor: 0,
             span_end,
+            is_whole_file,
             intermediate_dir,
         }
     }
@@ -55,7 +62,7 @@ impl<'t, 's> Tokens<'t, 's> {
         match self.peek() {
             Some(Token { kind: TokenKind::Wildcard, span }) => {
                 if allow_wildcard {
-                    let span = *span;
+                    let span = span.clone();
                     self.cursor += 1;
                     Ok((intern_string(b"_", "").unwrap(), span))
                 } else {
@@ -67,7 +74,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 }
             },
             Some(Token { kind: TokenKind::Ident(id), span }) => {
-                let (id, span) = (*id, *span);  // bypass the borrow-checker
+                let (id, span) = (*id, span.clone());  // bypass the borrow-checker
                 self.cursor += 1;
                 Ok((id, span))
             },
@@ -83,23 +90,17 @@ impl<'t, 's> Tokens<'t, 's> {
         }
     }
 
-    pub fn unexpected_end(&self, expected_token: ErrorToken) -> Error {
-        match self.span_end {
-            Span::Lib | Span::Std | Span::Eof(_) | Span::File(_) | Span::None => Error {
-                kind: ErrorKind::UnexpectedEof {
-                    expected: expected_token,
-                },
-                spans: self.span_end.simple_error(),
-                note: None,
-            },
-            Span::Range { .. } | Span::Derived { .. } => Error {
-                kind: ErrorKind::UnexpectedEog {
-                    expected: expected_token,
-                },
-                spans: self.span_end.simple_error(),
-                note: None,
-            },
-            Span::Prelude(_) | Span::Poly { .. } => unreachable!(),
+    pub fn unexpected_end(&self, expected: ErrorToken) -> Error {
+        let kind = if self.is_whole_file {
+            ErrorKind::UnexpectedEof { expected }
+        } else {
+            ErrorKind::UnexpectedEog { expected }
+        };
+
+        Error {
+            kind,
+            spans: self.span_end.simple_error(),
+            note: None,
         }
     }
 

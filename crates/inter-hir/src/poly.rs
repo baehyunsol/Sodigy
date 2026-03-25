@@ -25,21 +25,21 @@ impl Session {
                         poly.impls.push(impl_span);
                     },
                     None => {
-                        let is_func = match id.origin {
-                            NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => kind == NameKind::Func,
+                        let is_func = match &id.origin {
+                            NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => kind == &NameKind::Func,
                             _ => false,
                         };
 
                         self.errors.push(Error {
-                            kind: ErrorKind::NotPolyGeneric { id: Some(id) },
+                            kind: ErrorKind::NotPolyGeneric { id: Some(id.clone()) },
                             spans: vec![
                                 RenderableSpan {
-                                    span: id.span,
+                                    span: id.span.clone(),
                                     auxiliary: false,
                                     note: Some(String::from("This is not a poly generic function.")),
                                 },
                                 RenderableSpan {
-                                    span: id.def_span,
+                                    span: id.def_span.clone(),
                                     auxiliary: true,
                                     note: Some(format!(
                                         "`{}` is defined here.",

@@ -43,8 +43,8 @@ pub fn dump_errors(
     option: DumpErrorOption,
     elapsed_ms: Option<u64>,  // may or may not be available
 ) {
-    errors.sort_by_key(|e| e.spans.get(0).map(|s| s.span).unwrap_or(Span::None));
-    warnings.sort_by_key(|w| w.spans.get(0).map(|s| s.span).unwrap_or(Span::None));
+    errors.sort_by_key(|e| e.spans.get(0).map(|s| s.span.clone()).unwrap_or(Span::None));
+    warnings.sort_by_key(|w| w.spans.get(0).map(|s| s.span.clone()).unwrap_or(Span::None));
 
     let mut stderr = vec![];
     let mut session = RenderSpanSession::new(intermediate_dir);

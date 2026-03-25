@@ -29,7 +29,7 @@ impl Session {
                     },
                     _ => {},
                 },
-                Type::GenericArg { call, generic } => match self.generic_args.get(&(*call, *generic)) {
+                Type::GenericArg { call, generic } => match self.generic_args.get(&(call.clone(), generic.clone())) {
                     None | Some(Type::Var { .. } | Type::GenericArg { .. }) => {
                         if let Some(never_type) = self.maybe_never_type.get(type_var) {
                             never_types.push((type_var.clone(), never_type.clone()));
@@ -54,13 +54,13 @@ impl Session {
                     }
 
                     else {
-                        self.types.insert(*def_span, never_type.clone());
+                        self.types.insert(def_span.clone(), never_type.clone());
                     }
 
                     self.substitute(type_var, never_type);
                 },
                 Type::GenericArg { call, generic } => {
-                    self.generic_args.insert((*call, *generic), never_type.clone());
+                    self.generic_args.insert((call.clone(), generic.clone()), never_type.clone());
                     self.substitute(type_var, never_type);
                 },
                 _ => unreachable!(),
@@ -82,7 +82,7 @@ impl Session {
                         has_error = true;
                         self.type_errors.push(TypeError::CannotInferType {
                             id: *id,
-                            span: *def_span,
+                            span: def_span.clone(),
                             is_return: false,
                         });
                     },
@@ -99,7 +99,7 @@ impl Session {
                                         has_error = true;
                                         self.type_errors.push(TypeError::CannotInferType {
                                             id: *id,
-                                            span: *def_span,
+                                            span: def_span.clone(),
                                             is_return: true,
                                         });
                                     },
@@ -110,7 +110,7 @@ impl Session {
                                             has_error = true;
                                             self.type_errors.push(TypeError::PartiallyInferedType {
                                                 id: *id,
-                                                span: *def_span,
+                                                span: def_span.clone(),
                                                 r#type: return_type,
                                                 is_return: true,
                                             });
@@ -123,7 +123,7 @@ impl Session {
                                 has_error = true;
                                 self.type_errors.push(TypeError::PartiallyInferedType {
                                     id: *id,
-                                    span: *def_span,
+                                    span: def_span.clone(),
                                     r#type: t.clone(),
                                     is_return: false,
                                 });
@@ -132,17 +132,17 @@ impl Session {
                     },
                 },
                 Type::GenericArg { call, generic } => {
-                    if self.solved_generic_args.contains(&(*call, *generic)) {
+                    if self.solved_generic_args.contains(&(call.clone(), generic.clone())) {
                         continue;
                     }
 
-                    match self.generic_args.get(&(*call, *generic)) {
+                    match self.generic_args.get(&(call.clone(), generic.clone())) {
                         None | Some(Type::Var { .. } | Type::GenericArg { .. }) => {
                             has_error = true;
                             self.type_errors.push(TypeError::CannotInferGenericType {
-                                call: *call,
-                                generic: *generic,
-                                func_def: self.generic_def_span_rev.get(generic).map(|g| *g),
+                                call: call.clone(),
+                                generic: generic.clone(),
+                                func_def: self.generic_def_span_rev.get(generic).map(|g| g.clone()),
                             });
                         },
                         Some(t) => {
@@ -151,9 +151,9 @@ impl Session {
                             if !type_vars.is_empty() {
                                 has_error = true;
                                 self.type_errors.push(TypeError::PartiallyInferedGenericType {
-                                    call: *call,
-                                    generic: *generic,
-                                    func_def: self.generic_def_span_rev.get(generic).map(|g| *g),
+                                    call: call.clone(),
+                                    generic: generic.clone(),
+                                    func_def: self.generic_def_span_rev.get(generic).map(|g| g.clone()),
                                     r#type: t.clone(),
                                 });
                             }
@@ -187,8 +187,8 @@ impl Session {
                         &type_assertion.r#type,
                         &solved_type,
                         false,
-                        Some(type_assertion.type_span),
-                        Some(type_assertion.name_span),
+                        Some(&type_assertion.type_span),
+                        Some(&type_assertion.name_span),
                         ErrorContext::TypeAssertion,
                         false,
                     ) {
@@ -265,8 +265,8 @@ impl Session {
         is_checking_argument: bool,
 
         // for helpful error messages
-        lhs_span: Option<Span>,
-        rhs_span: Option<Span>,
+        lhs_span: Option<&Span>,
+        rhs_span: Option<&Span>,
         context: ErrorContext,
         bidirectional: bool,
     ) -> Result<Type, ()> {
@@ -288,9 +288,9 @@ impl Session {
                     if !is_checking_argument {
                         self.type_errors.push(TypeError::UnexpectedType {
                             expected: lhs.clone(),
-                            expected_span: lhs_span,
+                            expected_span: lhs_span.cloned(),
                             got: rhs.clone(),
-                            got_span: rhs_span,
+                            got_span: rhs_span.cloned(),
                             context: context.clone(),
                         });
                     }
@@ -304,9 +304,9 @@ impl Session {
                             if !is_checking_argument {
                                 self.type_errors.push(TypeError::UnexpectedType {
                                     expected: lhs.clone(),
-                                    expected_span: lhs_span,
+                                    expected_span: lhs_span.cloned(),
                                     got: rhs.clone(),
-                                    got_span: rhs_span,
+                                    got_span: rhs_span.cloned(),
                                     context: context.clone(),
                                 });
                             }
@@ -335,9 +335,9 @@ impl Session {
                                         if !is_checking_argument {
                                             self.type_errors.push(TypeError::UnexpectedType {
                                                 expected: lhs.clone(),
-                                                expected_span: lhs_span,
+                                                expected_span: lhs_span.cloned(),
                                                 got: rhs.clone(),
-                                                got_span: rhs_span,
+                                                got_span: rhs_span.cloned(),
                                                 context: context.clone(),
                                             });
                                         }
@@ -352,7 +352,7 @@ impl Session {
 
                             else {
                                 Ok(Type::Data {
-                                    constructor_def_span: *constructor1,
+                                    constructor_def_span: constructor1.clone(),
                                     constructor_span: Span::None,
                                     args: Some(args),
                                     group_span: Some(Span::None),
@@ -379,9 +379,9 @@ impl Session {
                         if !is_checking_argument {
                             self.type_errors.push(TypeError::UnexpectedType {
                                 expected: lhs.clone(),
-                                expected_span: lhs_span,
+                                expected_span: lhs_span.cloned(),
                                 got: rhs.clone(),
-                                got_span: rhs_span,
+                                got_span: rhs_span.cloned(),
                                 context: context.clone(),
                             });
                         }
@@ -394,9 +394,9 @@ impl Session {
                     if !is_checking_argument {
                         self.type_errors.push(TypeError::UnexpectedType {
                             expected: lhs.clone(),
-                            expected_span: lhs_span,
+                            expected_span: lhs_span.cloned(),
                             got: rhs.clone(),
-                            got_span: rhs_span,
+                            got_span: rhs_span.cloned(),
                             context: context.clone(),
                         });
                     }
@@ -428,9 +428,9 @@ impl Session {
                                 if !is_checking_argument {
                                     self.type_errors.push(TypeError::UnexpectedType {
                                         expected: lhs.clone(),
-                                        expected_span: lhs_span,
+                                        expected_span: lhs_span.cloned(),
                                         got: rhs.clone(),
-                                        got_span: rhs_span,
+                                        got_span: rhs_span.cloned(),
                                         context: context.clone(),
                                     });
                                 }
@@ -458,10 +458,10 @@ impl Session {
                                         self.type_errors.push(TypeError::UnexpectedPurity {
                                             expected_type: lhs.clone(),
                                             expected_purity: *p1,
-                                            expected_span: lhs_span,
+                                            expected_span: lhs_span.cloned(),
                                             got_type: rhs.clone(),
                                             got_purity: *p2,
-                                            got_span: rhs_span,
+                                            got_span: rhs_span.cloned(),
                                         });
                                     }
 
@@ -529,7 +529,7 @@ impl Session {
                             _ => unreachable!(),
                         }
                     } else {
-                        self.types.insert(*v1, t2.clone());
+                        self.types.insert(v1.clone(), t2.clone());
                     }
 
                     self.add_type_var(t1.clone(), None);
@@ -543,7 +543,7 @@ impl Session {
                             _ => unreachable!(),
                         }
                     } else {
-                        self.types.insert(*v2, t1.clone());
+                        self.types.insert(v2.clone(), t1.clone());
                     }
 
                     self.add_type_var(t2.clone(), None);
@@ -552,12 +552,12 @@ impl Session {
                 }
             },
             (t1 @ Type::GenericArg { call: c1, generic: g1 }, t2 @ Type::GenericArg { call: c2, generic: g2 }) => {
-                if *c1 == *c2 && *g1 == *g2 {
+                if c1 == c2 && g1 == g2 {
                     Ok(lhs.clone())
                 }
 
                 else {
-                    match self.generic_args.get(&(*c1, *g1)) {
+                    match self.generic_args.get(&(c1.clone(), g1.clone())) {
                         Some(Type::Var { .. } | Type::GenericArg { .. }) => {},
                         Some(type1) => {
                             let type1 = type1.clone();
@@ -574,7 +574,7 @@ impl Session {
                         None => {},
                     }
 
-                    match self.generic_args.get(&(*c2, *g2)) {
+                    match self.generic_args.get(&(c2.clone(), g2.clone())) {
                         Some(Type::Var { .. } | Type::GenericArg { .. }) => {},
                         Some(type2) => {
                             let type2 = type2.clone();
@@ -591,10 +591,10 @@ impl Session {
                         None => {},
                     }
 
-                    self.generic_args.insert((*c1, *g1), t2.clone());
+                    self.generic_args.insert((c1.clone(), g1.clone()), t2.clone());
                     self.add_type_var(t1.clone(), None);
                     self.add_type_var_ref(t1.clone(), t2.clone());
-                    self.generic_args.insert((*c2, *g2), t1.clone());
+                    self.generic_args.insert((c2.clone(), g2.clone()), t1.clone());
                     self.add_type_var(t2.clone(), None);
                     self.add_type_var_ref(t2.clone(), t1.clone());
                     Ok(t1.clone())
@@ -625,9 +625,9 @@ impl Session {
                 } else {
                     self.type_errors.push(TypeError::UnexpectedType {
                         expected: lhs.clone(),
-                        expected_span: lhs_span,
+                        expected_span: lhs_span.cloned(),
                         got: rhs.clone(),
-                        got_span: rhs_span,
+                        got_span: rhs_span.cloned(),
                         context: context.clone(),
                     });
                     Err(())
@@ -703,7 +703,7 @@ impl Session {
                         None => {},
                     }
 
-                    self.types.insert(*def_span, maybe_concrete.clone());
+                    self.types.insert(def_span.clone(), maybe_concrete.clone());
                 }
 
                 if ref_type_vars.is_empty() {
@@ -732,7 +732,7 @@ impl Session {
                     lhs_span
                 };
 
-                match self.generic_args.get(&(*call, *generic)) {
+                match self.generic_args.get(&(call.clone(), generic.clone())) {
                     Some(Type::Var { .. } | Type::GenericArg { .. }) => {},
                     Some(prev_infered) => {
                         let prev_infered = prev_infered.clone();
@@ -752,7 +752,7 @@ impl Session {
                     None => {},
                 }
 
-                self.generic_args.insert((*call, *generic), maybe_concrete.clone());
+                self.generic_args.insert((call.clone(), generic.clone()), maybe_concrete.clone());
 
                 if ref_type_vars.is_empty() {
                     self.substitute(type_var, maybe_concrete);
@@ -770,9 +770,9 @@ impl Session {
                 if !is_checking_argument {
                     self.type_errors.push(TypeError::UnexpectedType {
                         expected: lhs.clone(),
-                        expected_span: lhs_span,
+                        expected_span: lhs_span.cloned(),
                         got: rhs.clone(),
-                        got_span: rhs_span,
+                        got_span: rhs_span.cloned(),
                         context,
                     });
                 }
@@ -838,14 +838,14 @@ impl Session {
                     None => {},
                 }
 
-                // TODO: I want to `match generic_args.get(&(*call, *generic))`, but it's
+                // TODO: I want to `match generic_args.get(&(call.clone(), generic.clone()))`, but it's
                 //       complicated due to the `is_return` field...
 
                 if !*is_return {
-                    self.types.insert(*def_span, gi.clone());
+                    self.types.insert(def_span.clone(), gi.clone());
                     self.add_type_var(tv.clone(), None);
                     self.add_type_var_ref(tv.clone(), gi.clone());
-                    self.generic_args.insert((*call, *generic), tv.clone());
+                    self.generic_args.insert((call.clone(), generic.clone()), tv.clone());
                     self.add_type_var(gi.clone(), None);
                     self.add_type_var_ref(gi.clone(), tv.clone());
                     Ok(tv.clone())
@@ -891,7 +891,7 @@ impl Session {
                     },
                     None => unreachable!(),
                 },
-                Type::GenericArg { call, generic } => match self.generic_args.get_mut(&(*call, *generic)) {
+                Type::GenericArg { call, generic } => match self.generic_args.get_mut(&(call.clone(), generic.clone())) {
                     Some(ref_type) => {
                         ref_type.substitute(type_var, r#type);
 
@@ -919,7 +919,7 @@ impl Session {
                     self.substitute(type_var, &r#type);
                 },
                 Type::GenericArg { call, generic } => {
-                    let r#type = self.generic_args.get_mut(&(*call, *generic)).unwrap().clone();
+                    let r#type = self.generic_args.get_mut(&(call.clone(), generic.clone())).unwrap().clone();
                     self.substitute(type_var, &r#type);
                 },
                 _ => unreachable!(),

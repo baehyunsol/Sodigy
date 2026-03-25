@@ -50,7 +50,7 @@ impl Session {
                     let mut old_type = match self.types.get(&r#let.name_span) {
                         Some(r#type) => r#type.clone(),
                         None => {
-                            let type_var = Type::Var { def_span: r#let.name_span, is_return: false };
+                            let type_var = Type::Var { def_span: r#let.name_span.clone(), is_return: false };
                             self.add_type_var(type_var.clone(), Some(r#let.name));
                             type_var
                         },
@@ -63,11 +63,11 @@ impl Session {
                     let new_type = old_type;
                     r#let.keyword_span = r#let.keyword_span.monomorphize(monomorphization.id);
                     r#let.name_span = r#let.name_span.monomorphize(monomorphization.id);
-                    r#let.type_annot_span = r#let.type_annot_span.map(|span| span.monomorphize(monomorphization.id));
+                    r#let.type_annot_span = r#let.type_annot_span.as_ref().map(|span| span.monomorphize(monomorphization.id));
                     self.monomorphize_expr(&mut r#let.value, monomorphization);
                     // TODO: do we have to change `LetOrigin`?
 
-                    self.types.insert(r#let.name_span, new_type);
+                    self.types.insert(r#let.name_span.clone(), new_type);
                 }
 
                 for assert in block.asserts.iter_mut() {

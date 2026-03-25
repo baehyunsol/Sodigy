@@ -29,3 +29,9 @@ pub struct Session {
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
 }
+
+impl Session {
+    pub fn file_span(&self) -> Span {
+        Span::range(self.file, 0, self.input_bytes.len() as u32)
+    }
+}

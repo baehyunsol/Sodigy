@@ -21,13 +21,13 @@ impl Struct {
         for field in hir_struct.fields.iter() {
             match field.type_annot.as_ref().map(|type_annot| Type::from_hir(type_annot, session)) {
                 Some(Ok(type_annot)) => {
-                    session.types.insert(field.name_span, type_annot);
+                    session.types.insert(field.name_span.clone(), type_annot);
                 },
                 None => {
                     session.types.insert(
-                        field.name_span,
+                        field.name_span.clone(),
                         Type::Var {
-                            def_span: field.name_span,
+                            def_span: field.name_span.clone(),
                             is_return: false,
                         },
                     );
@@ -38,7 +38,7 @@ impl Struct {
                 },
             }
 
-            fields.push((field.name, field.name_span));
+            fields.push((field.name, field.name_span.clone()));
         }
 
         if has_error {
@@ -48,7 +48,7 @@ impl Struct {
         else {
             Ok(Struct {
                 name: hir_struct.name,
-                name_span: hir_struct.name_span,
+                name_span: hir_struct.name_span.clone(),
                 fields,
                 generics: hir_struct.generics.clone(),
             })

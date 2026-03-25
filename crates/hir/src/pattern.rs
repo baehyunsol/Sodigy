@@ -33,23 +33,23 @@ pub enum PatternKind {
     Struct {
         r#struct: Path,
         fields: Vec<StructFieldPattern>,
-        rest: Option<RestPattern>,
+        rest: Option<Box<RestPattern>>,
         group_span: Span,
     },
     TupleStruct {
         r#struct: Path,
         elements: Vec<Pattern>,
-        rest: Option<RestPattern>,
+        rest: Option<Box<RestPattern>>,
         group_span: Span,
     },
     Tuple {
         elements: Vec<Pattern>,
-        rest: Option<RestPattern>,
+        rest: Option<Box<RestPattern>>,
         group_span: Span,
     },
     List {
         elements: Vec<Pattern>,
-        rest: Option<RestPattern>,
+        rest: Option<Box<RestPattern>>,
         group_span: Span,
     },
     Range {
@@ -96,7 +96,7 @@ impl Pattern {
         else {
             Ok(Pattern {
                 name: ast_pattern.name,
-                name_span: ast_pattern.name_span,
+                name_span: ast_pattern.name_span.clone(),
                 kind: kind.unwrap(),
             })
         }
@@ -105,8 +105,8 @@ impl Pattern {
     pub fn bound_names(&self) -> Vec<(InternedString, Span)> {
         let mut result = vec![];
 
-        if let (Some(name), Some(name_span)) = (self.name, self.name_span) {
-            result.push((name, name_span));
+        if let (Some(name), Some(name_span)) = (self.name, &self.name_span) {
+            result.push((name, name_span.clone()));
         }
 
         result.extend(self.kind.bound_names());
@@ -118,8 +118,8 @@ impl Pattern {
     }
 
     pub fn error_span_wide(&self) -> Span {
-        if let Some(name_span) = self.name_span {
-            name_span.merge(self.kind.error_span_wide())
+        if let Some(name_span) = &self.name_span {
+            name_span.merge(&self.kind.error_span_wide())
         }
 
         else {
@@ -166,16 +166,16 @@ impl PatternKind {
                 Ok(PatternKind::List {
                     elements,
                     rest: None,
-                    group_span: *span,
+                    group_span: span.clone(),
                 })
             },
             ast::PatternKind::Constant(c) => Ok(PatternKind::Constant(c.clone())),
-            ast::PatternKind::NameBinding { id, span } => Ok(PatternKind::NameBinding { id: *id, span: *span }),
+            ast::PatternKind::NameBinding { id, span } => Ok(PatternKind::NameBinding { id: *id, span: span.clone() }),
             ast::PatternKind::Regex { s, span } => {
                 session.errors.push(Error::todo(
                     18211,
                     "regex pattern",
-                    *span,
+                    span.clone(),
                 ));
                 Err(())
             },
@@ -209,8 +209,8 @@ impl PatternKind {
                     Ok(PatternKind::TupleStruct {
                         r#struct: r#struct.unwrap(),
                         elements,
-                        rest: *rest,
-                        group_span: *group_span,
+                        rest: rest.clone(),
+                        group_span: group_span.clone(),
                     })
                 }
             },
@@ -236,11 +236,11 @@ impl PatternKind {
                 }
 
                 else if is_tuple {
-                    Ok(PatternKind::Tuple { elements, rest: *rest, group_span: *group_span })
+                    Ok(PatternKind::Tuple { elements, rest: rest.clone(), group_span: group_span.clone() })
                 }
 
                 else {
-                    Ok(PatternKind::List { elements, rest: *rest, group_span: *group_span })
+                    Ok(PatternKind::List { elements, rest: rest.clone(), group_span: group_span.clone() })
                 }
             },
             ast::PatternKind::Range { lhs, rhs, op_span, is_inclusive } => match (
@@ -251,12 +251,12 @@ impl PatternKind {
                 (lhs, rhs) => Ok(PatternKind::Range {
                     lhs: lhs.map(|lhs| Box::new(lhs.unwrap())),
                     rhs: rhs.map(|rhs| Box::new(rhs.unwrap())),
-                    op_span: *op_span,
+                    op_span: op_span.clone(),
                     is_inclusive: *is_inclusive,
                 }),
             },
             ast::PatternKind::InfixOp { kind, lhs, op_span, rhs, .. } => {
-                let result_span = lhs.error_span_wide().merge(*op_span).merge(rhs.error_span_wide());
+                let result_span = lhs.error_span_wide().merge(op_span).merge(&rhs.error_span_wide());
 
                 match kind {
                     ast::PatternValueKind::Constant | ast::PatternValueKind::Value => {
@@ -283,18 +283,18 @@ impl PatternKind {
                                     lhs: Box::new(Expr::Path(Path {
                                         id: IdentWithOrigin {
                                             id: tmp_value_name,
-                                            span: derived_span,
+                                            span: derived_span.clone(),
                                             origin: NameOrigin::Local { kind: NameKind::PatternNameBind },
-                                            def_span: derived_span,
+                                            def_span: derived_span.clone(),
                                         },
                                         fields: vec![],
                                         types: vec![None],
                                     })),
                                     rhs: Box::new(expr),
-                                    op_span: derived_span,
+                                    op_span: derived_span.clone(),
                                 };
-                                extra_guards.push((tmp_value_name, derived_span, extra_guard));
-                                Ok(PatternKind::NameBinding { id: tmp_value_name, span: derived_span })
+                                extra_guards.push((tmp_value_name, derived_span.clone(), extra_guard));
+                                Ok(PatternKind::NameBinding { id: tmp_value_name, span: derived_span.clone() })
                             },
                             _ => unreachable!(),
                         }
@@ -322,13 +322,13 @@ impl PatternKind {
                         _ => Ok(PatternKind::Or {
                             lhs: Box::new(lhs),
                             rhs: Box::new(rhs),
-                            op_span: *op_span,
+                            op_span: op_span.clone(),
                         }),
                     }
                 },
                 _ => Err(()),
             },
-            ast::PatternKind::Wildcard(span) => Ok(PatternKind::Wildcard(*span)),
+            ast::PatternKind::Wildcard(span) => Ok(PatternKind::Wildcard(span.clone())),
             _ => panic!("TODO: {ast_pattern:?}"),
         }
     }
@@ -339,15 +339,15 @@ impl PatternKind {
             PatternKind::Constant(_) |
             PatternKind::Regex { .. } |
             PatternKind::Wildcard(_) => vec![],
-            PatternKind::NameBinding { id, span } => vec![(*id, *span)],
+            PatternKind::NameBinding { id, span } => vec![(*id, span.clone())],
             PatternKind::TupleStruct { elements, rest, .. } |
             PatternKind::Tuple { elements, rest, .. } |
             PatternKind::List { elements, rest, .. } => {
                 let mut result = elements.iter().flat_map(|e| e.bound_names()).collect::<Vec<_>>();
 
                 if let Some(rest) = rest {
-                    if let (Some(name), Some(name_span)) = (rest.name, rest.name_span) {
-                        result.push((name, name_span));
+                    if let (Some(name), Some(name_span)) = (rest.name, &rest.name_span) {
+                        result.push((name, name_span.clone()));
                     }
                 }
 
@@ -367,7 +367,7 @@ impl PatternKind {
             PatternKind::Tuple { group_span: span, .. } |
             PatternKind::List { group_span: span, .. } |
             PatternKind::Range { op_span: span, .. } |
-            PatternKind::Or { op_span: span, .. } => *span,
+            PatternKind::Or { op_span: span, .. } => span.clone(),
             _ => panic!("TODO: {self:?}"),
         }
     }
@@ -380,22 +380,22 @@ impl PatternKind {
             PatternKind::Regex { span, .. } |
             PatternKind::Wildcard(span) |
             PatternKind::Tuple { group_span: span, .. } |
-            PatternKind::List { group_span: span, .. } => *span,
+            PatternKind::List { group_span: span, .. } => span.clone(),
             PatternKind::Range { lhs, op_span, rhs, .. } => {
                 let mut span = match lhs {
-                    Some(lhs) => lhs.error_span_wide().merge(*op_span),
-                    None => *op_span,
+                    Some(lhs) => lhs.error_span_wide().merge(op_span),
+                    None => op_span.clone(),
                 };
 
                 if let Some(rhs) = rhs {
-                    span = span.merge(rhs.error_span_wide());
+                    span = span.merge(&rhs.error_span_wide());
                 }
 
                 span
             },
             PatternKind::Or { lhs, rhs, op_span } => lhs.error_span_wide()
-                .merge(*op_span)
-                .merge(rhs.error_span_wide()),
+                .merge(op_span)
+                .merge(&rhs.error_span_wide()),
             _ => panic!("TODO: {self:?}"),
         }
     }

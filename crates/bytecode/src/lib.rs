@@ -153,7 +153,7 @@ pub enum Bytecode {
     PopDebugInfo,
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Memory {
     // A register that can hold single value.
     // But some instructions use this register for tmp values.
@@ -167,7 +167,7 @@ pub enum Memory {
     Global(Span),
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Label {
     Local(u32),
     Global(Span /* def_span of the item */),
@@ -177,13 +177,13 @@ pub enum Label {
     Flatten(usize),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum Offset {
     Static(u32),
     Dynamic(Memory),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum InPlaceOrMemory {
     InPlace,
     Memory(Memory),

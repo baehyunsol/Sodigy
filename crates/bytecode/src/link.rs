@@ -9,23 +9,23 @@ impl Session<'_, '_> {
         let mut func_pointer_map: HashMap<Span, usize> = HashMap::new();
 
         for (def_span, bytecodes) in self.asserts.iter().map(
-            |assert| (assert.keyword_span, &assert.bytecodes)
+            |assert| (assert.keyword_span.clone(), &assert.bytecodes)
         ).chain(
             self.lets.iter().map(
-                |r#let| (r#let.name_span, &r#let.bytecodes)
+                |r#let| (r#let.name_span.clone(), &r#let.bytecodes)
             )
         ).chain(
             self.funcs.iter().map(
-                |func| (func.name_span, &func.bytecodes)
+                |func| (func.name_span.clone(), &func.bytecodes)
             )
         ) {
-            let mut curr_label = (def_span, Label::Global(def_span));
+            let mut curr_label = (def_span.clone(), Label::Global(def_span.clone()));
             let mut last_index = 0;
 
             // `Bytecode::Label` does nothing in runtime, but we need this in order to
             // flatten the labels.
-            concated_bytecodes.push(Bytecode::Label(Label::Global(def_span)));
-            func_pointer_map.insert(def_span, concated_bytecodes.len());
+            concated_bytecodes.push(Bytecode::Label(Label::Global(def_span.clone())));
+            func_pointer_map.insert(def_span.clone(), concated_bytecodes.len());
 
             for (i, bytecode) in bytecodes.iter().enumerate() {
                 match bytecode {
@@ -33,7 +33,7 @@ impl Session<'_, '_> {
                         label_map.insert(curr_label, concated_bytecodes.len());
                         concated_bytecodes.extend(bytecodes[last_index..i].to_vec());
                         last_index = i + 1;
-                        curr_label = (def_span, *label);
+                        curr_label = (def_span.clone(), label.clone());
                     },
                     _ => {},
                 }
@@ -51,9 +51,9 @@ impl Session<'_, '_> {
                 Bytecode::JumpIf { label, .. } |
                 Bytecode::JumpIfUninit { label, .. } |
                 Bytecode::PushCallStack(label) => {
-                    let flattened_index = match *label {
-                        Label::Local(ll) => label_map.get(&(curr_item_span, *label)).unwrap(),
-                        Label::Global(s) => match label_map.get(&(s, Label::Global(s))) {
+                    let flattened_index = match label {
+                        Label::Local(ll) => label_map.get(&(curr_item_span.clone(), label.clone())).unwrap(),
+                        Label::Global(s) => match label_map.get(&(s.clone(), Label::Global(s.clone()))) {
                             Some(i) => i,
                             None => panic!("Internal Compiler Error: Cannot find bytecode of {s:?}. Perhaps it's defined as a built-in in Sodigy, but not implemented in the compiler?"),
                         },
@@ -63,7 +63,7 @@ impl Session<'_, '_> {
                     *label = Label::Flatten(*flattened_index);
                 },
                 Bytecode::Label(Label::Global(def_span)) => {
-                    curr_item_span = *def_span;
+                    curr_item_span = def_span.clone();
                 },
                 Bytecode::Const { value: Value::FuncPointer { def_span, program_counter }, .. } => {
                     *program_counter = Some(*func_pointer_map.get(def_span).unwrap());
@@ -76,7 +76,7 @@ impl Session<'_, '_> {
             asserts: self.asserts.iter().map(
                 |assert| (
                     assert.name.unintern_or_default(&self.intermediate_dir),
-                    *label_map.get(&(assert.keyword_span, Label::Global(assert.keyword_span))).unwrap(),
+                    *label_map.get(&(assert.keyword_span.clone(), Label::Global(assert.keyword_span.clone()))).unwrap(),
                 )
             ).collect(),
             bytecodes: concated_bytecodes,

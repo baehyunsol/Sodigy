@@ -57,9 +57,9 @@ impl Struct {
         let mut generic_index = HashMap::new();
 
         for (index, generic) in ast_struct.generics.iter().enumerate() {
-            generic_params.insert(generic.name, (generic.name_span, NameKind::GenericParam, UseCount::new()));
+            generic_params.insert(generic.name, (generic.name_span.clone(), NameKind::GenericParam, UseCount::new()));
             generic_index.insert(generic.name, index);
-            session.generic_def_span_rev.insert(generic.name_span, ast_struct.name_span);
+            session.generic_def_span_rev.insert(generic.name_span.clone(), ast_struct.name_span.clone());
         }
 
         session.name_stack.push(Namespace::GenericParam {
@@ -70,7 +70,7 @@ impl Struct {
         let attribute = match session.lower_attribute(
             &ast_struct.attribute,
             ItemKind::Struct,
-            ast_struct.keyword_span,
+            ast_struct.keyword_span.clone(),
         ) {
             Ok(attribute) => attribute,
             Err(()) => {
@@ -83,9 +83,9 @@ impl Struct {
 
         if let Err(()) = session.collect_lang_items(
             &attribute,
-            ast_struct.name_span,
+            ast_struct.name_span.clone(),
             Some(&ast_struct.generics),
-            ast_struct.generic_group_span,
+            ast_struct.generic_group_span.clone(),
         ) {
             has_error = true;
         }
@@ -122,9 +122,9 @@ impl Struct {
         else {
             Ok(Struct {
                 visibility,
-                keyword_span: ast_struct.keyword_span,
+                keyword_span: ast_struct.keyword_span.clone(),
                 name: ast_struct.name,
-                name_span: ast_struct.name_span,
+                name_span: ast_struct.name_span.clone(),
                 generics: ast_struct.generics.clone(),
                 fields,
             })

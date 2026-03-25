@@ -23,8 +23,8 @@ impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_lambda(&mut self) -> Result<Lambda, Vec<Error>> {
         match self.peek() {
             Some(Token { kind: TokenKind::Group { delim: Delim::Lambda, tokens }, span }) => {
-                let span = *span;
-                let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
+                let span = span.clone();
+                let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
                 let params = tokens.parse_func_params(true /* allow_wildcard */)?;
                 self.cursor += 1;
                 let mut type_annot = None;
@@ -37,7 +37,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     _ => {},
                 }
 
-                let arrow_span = self.match_and_pop(TokenKind::Punct(Punct::Arrow))?.span;
+                let arrow_span = self.match_and_pop(TokenKind::Punct(Punct::Arrow))?.span.clone();
                 let value = self.parse_expr(true)?;
 
                 Ok(Lambda {

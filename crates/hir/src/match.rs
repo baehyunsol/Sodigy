@@ -46,7 +46,7 @@ impl Match {
                 },
             };
             let names = ast_arm.pattern.bound_names().iter().map(
-                |(id, span)| (*id, (*span, NameKind::PatternNameBind, UseCount::new()))
+                |(id, span)| (*id, (span.clone(), NameKind::PatternNameBind, UseCount::new()))
             ).collect();
 
             session.name_stack.push(Namespace::Pattern { names });
@@ -91,10 +91,10 @@ impl Match {
 
         else {
             Ok(Match {
-                keyword_span: ast_match.keyword_span,
+                keyword_span: ast_match.keyword_span.clone(),
                 scrutinee: Box::new(scrutinee.unwrap()),
                 arms,
-                group_span: ast_match.group_span,
+                group_span: ast_match.group_span.clone(),
                 lowered_from_let: ast_match.lowered_from_let,
             })
         }

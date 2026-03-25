@@ -33,14 +33,14 @@ impl Let {
             &mir_let.value,
             session,
             &mut bytecodes,
-            Memory::Global(mir_let.name_span),
+            Memory::Global(mir_let.name_span.clone()),
             /* is_tail_call: */ false,
         );
         bytecodes.push(Bytecode::Return);
 
         Let {
             name: mir_let.name,
-            name_span: mir_let.name_span,
+            name_span: mir_let.name_span.clone(),
             bytecodes,
         }
     }

@@ -1,7 +1,7 @@
 use crate::{ErrorContext, GenericCall, Session, TypeError, write_log};
 use sodigy_error::ParamIndex;
 use sodigy_mir::{Func, Session as MirSession, Type};
-use sodigy_span::Span;
+use sodigy_span::{Span, SpanId};
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
@@ -48,14 +48,14 @@ impl Session {
                 match candidates.len() {
                     0 => {
                         if poly.has_default_impl {
-                            SolvePolyResult::DefaultImpl(poly.name_span)
+                            SolvePolyResult::DefaultImpl(poly.name_span.clone())
                         }
 
                         else {
                             SolvePolyResult::NoCandidates
                         }
                     },
-                    1 => SolvePolyResult::OneCandidate(candidates[0]),
+                    1 => SolvePolyResult::OneCandidate(candidates[0].clone()),
                     2.. => SolvePolyResult::MultiCandidates(candidates),
                 }
             },
@@ -74,7 +74,7 @@ impl Session {
         let mut has_error = false;
         let mut result = HashMap::new();
         let index_by_span = mir_session.funcs.iter().enumerate().map(
-            |(i, f)| (f.name_span, i)
+            |(i, f)| (f.name_span.clone(), i)
         ).collect::<HashMap<Span, usize>>();
 
         // poly: `#[poly] fn add<T, U>(a: T, b: U) -> Int;`
@@ -93,14 +93,14 @@ impl Session {
             if let Some(param_index) = poly_type.find_unsolved_type() {
                 has_error = true;
                 self.type_errors.push(TypeError::CannotInferPolyGenericParam {
-                    poly_span: *span,
+                    poly_span: span.clone(),
                     param_index,
                 });
                 continue;
             }
 
             // poly_type_vars: `?T`, `?U`
-            let poly_type_vars = poly_def.generics.iter().map(|generic| generic.name_span).collect::<Vec<_>>();
+            let poly_type_vars = poly_def.generics.iter().map(|generic| generic.name_span.clone()).collect::<Vec<_>>();
             poly_type.generics_to_type_vars();
 
             for r#impl in poly.impls.iter() {
@@ -112,8 +112,8 @@ impl Session {
                 if let Some(param_index) = impl_type.find_unsolved_type() {
                     has_error = true;
                     self.type_errors.push(TypeError::CannotInferPolyGenericImpl {
-                        poly_span: *span,
-                        impl_span: *r#impl,
+                        poly_span: span.clone(),
+                        impl_span: r#impl.clone(),
                         param_index,
                     });
                     continue;
@@ -125,8 +125,8 @@ impl Session {
                     &poly_type,
                     &impl_type,
                     &poly_type_vars,
-                    *span,
-                    *r#impl,
+                    span.clone(),
+                    r#impl.clone(),
                     self,
                 ) {
                     // constraints: `?T = Int`, `?U = Int`
@@ -137,7 +137,7 @@ impl Session {
                                 (span, r#type)
                             }
                         ).collect();
-                        solver.impls.insert(*r#impl, constraints);
+                        solver.impls.insert(r#impl.clone(), constraints);
                     },
                     Err(e) => {
                         has_error = true;
@@ -149,7 +149,7 @@ impl Session {
 
             if !has_error {
                 solver.build_state_machine();
-                result.insert(*span, solver);
+                result.insert(span.clone(), solver);
             }
         }
 
@@ -194,7 +194,7 @@ impl PolySolver {
         }
 
         else {
-            let all_impls: Vec<Span> = self.impls.keys().map(|r#impl| *r#impl).collect();
+            let all_impls: Vec<Span> = self.impls.keys().map(|r#impl| r#impl.clone()).collect();
             let mut generic_params = vec![];
             let mut impls_by_generics: HashMap<Span, HashMap<SimpleType, Vec<Span>>> = HashMap::new();
             //                                 ^^^^                          ^^^^
@@ -209,21 +209,21 @@ impl PolySolver {
                     let simple_type = SimpleType::from_type_param(r#type);
 
                     if simple_type == SimpleType::GenericParam {
-                        generic_params.push((*impl_def_span, *generic_def_span, r#type.get_generic_param_def_span()));
+                        generic_params.push((impl_def_span.clone(), generic_def_span.clone(), r#type.get_generic_param_def_span()));
                         continue;
                     }
 
-                    match impls_by_generics.entry(*generic_def_span) {
+                    match impls_by_generics.entry(generic_def_span.clone()) {
                         Entry::Occupied(mut e) => match e.get_mut().entry(simple_type) {
                             Entry::Occupied(mut e) => {
-                                e.get_mut().push(*impl_def_span);
+                                e.get_mut().push(impl_def_span.clone());
                             },
                             Entry::Vacant(e) => {
-                                e.insert(vec![*impl_def_span]);
+                                e.insert(vec![impl_def_span.clone()]);
                             },
                         },
                         Entry::Vacant(e) => {
-                            e.insert([(simple_type, vec![*impl_def_span])].into_iter().collect());
+                            e.insert([(simple_type, vec![impl_def_span.clone()])].into_iter().collect());
                         },
                     }
                 }
@@ -248,13 +248,13 @@ impl PolySolver {
             // It means "T1 and T2 of foo1 must be the same".
 
             for (impl_def_span, generic_def_span, generic_param) in generic_params.iter() {
-                if let Some(generic_param) = *generic_param {
-                    match same_generic_params_.entry(generic_param) {
+                if let Some(generic_param) = generic_param {
+                    match same_generic_params_.entry(generic_param.clone()) {
                         Entry::Occupied(mut e) => {
-                            e.get_mut().push((*impl_def_span, *generic_def_span));
+                            e.get_mut().push((impl_def_span.clone(), generic_def_span.clone()));
                         },
                         Entry::Vacant(e) => {
-                            e.insert(vec![(*impl_def_span, *generic_def_span)]);
+                            e.insert(vec![(impl_def_span.clone(), generic_def_span.clone())]);
                         },
                     }
                 }
@@ -275,7 +275,7 @@ impl PolySolver {
 
             for (impl_generic_param_def_span, params) in same_generic_params_.into_iter() {
                 for (impl_def_span, generic_def_span) in params.into_iter() {
-                    match same_generic_params.entry((impl_def_span, impl_generic_param_def_span)) {
+                    match same_generic_params.entry((impl_def_span.clone(), impl_generic_param_def_span.clone())) {
                         Entry::Occupied(mut e) => {
                             e.get_mut().push(generic_def_span);
                         },
@@ -299,7 +299,7 @@ impl PolySolver {
                 match impls_by_generics.entry(generic_def_span) {
                     Entry::Occupied(mut e) => {
                         for impls in e.get_mut().values_mut() {
-                            impls.push(impl_def_span);
+                            impls.push(impl_def_span.clone());
                         }
 
                         match e.get_mut().entry(SimpleType::GenericParam) {
@@ -359,7 +359,7 @@ impl PolySolver {
 
                 apply_same_generic_params(
                     &mut state_machine,
-                    impl_def_span,
+                    &impl_def_span,
                     &generic_def_spans,
                     None,
                     false,
@@ -384,7 +384,7 @@ impl PolySolver {
     ) -> Vec<Span> {
         let mut matched = vec![];
         let impls = self.impls.keys().map(
-            |def_span| *def_span
+            |def_span| def_span.clone()
         ).collect::<Vec<_>>();
 
         'candidates: for candidate in self.state_machine.as_ref().map(
@@ -415,7 +415,7 @@ impl PolySolver {
                 }
             }
 
-            matched.push(*candidate);
+            matched.push(candidate.clone());
         }
 
         matched
@@ -424,7 +424,7 @@ impl PolySolver {
 
 fn apply_same_generic_params(
     state_machine: &mut StateMachine,
-    impl_def_span: Span,
+    impl_def_span: &Span,
     generic_def_spans: &[Span],
 
     // `generic_def_span` must have this type.
@@ -454,17 +454,17 @@ fn apply_same_generic_params(
                 match (*r#type, state_machine, unreachable) {
                     (_, StateMachineOrLeaves::Leaves(leaves), true) => {
                         *leaves = leaves.iter().filter(
-                            |span| **span != impl_def_span
+                            |span| *span != impl_def_span
                         ).map(
-                            |span| *span
+                            |span| span.clone()
                         ).collect();
                     },
                     (t @ SimpleType::Data { .. }, StateMachineOrLeaves::Leaves(leaves), _) => {
                         if t != target_type {
                             *leaves = leaves.iter().filter(
-                                |span| **span != impl_def_span
+                                |span| *span != impl_def_span
                             ).map(
-                                |span| *span
+                                |span| span.clone()
                             ).collect();
                         }
                     },
@@ -484,9 +484,9 @@ fn apply_same_generic_params(
                 match state_machine {
                     StateMachineOrLeaves::Leaves(leaves) if unreachable => {
                         *leaves = leaves.iter().filter(
-                            |span| **span != impl_def_span
+                            |span| *span != impl_def_span
                         ).map(
-                            |span| *span
+                            |span| span.clone()
                         ).collect();
                     },
                     StateMachineOrLeaves::Leaves(_) => {},
@@ -552,7 +552,11 @@ pub enum StateMachineOrLeaves {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum SimpleType {
-    Data { constructor: Span, arity: usize },
+    Data {
+        // base of def_span
+        constructor: SpanId,
+        arity: usize,
+    },
     Func { params: usize },
     GenericParam,
     Var,
@@ -615,7 +619,7 @@ impl StateMachine {
                 };
 
                 StateMachine {
-                    generic_param: *generic_param,
+                    generic_param: generic_param.clone(),
                     branches: branches.iter().filter(
                         |(r#type, _)| **r#type != SimpleType::GenericParam
                     ).map(
@@ -643,7 +647,7 @@ impl StateMachine {
 
                     classify.sort_by_key(|(_, _, n)| usize::MAX - *n);
                     classify.sort_by_key(|(_, g, _)| *g as usize);
-                    *classify[0].0
+                    classify[0].0.clone()
                 };
 
                 let branches = impls_by_generics.remove(&generic_param).unwrap();
@@ -742,7 +746,7 @@ fn intersect_and_sort(spans: &[Span], superset: &HashSet<Span>) -> Vec<Span> {
     let mut s = spans.iter().filter(
         |span| superset.contains(span)
     ).map(
-        |span| *span
+        |span| span.clone()
     ).collect::<Vec<_>>();
     s.sort();
     s
@@ -752,7 +756,7 @@ impl SimpleType {
     fn from_type_param(r#type: &Type) -> SimpleType {
         match r#type {
             Type::Data { constructor_def_span, args, .. } => SimpleType::Data {
-                constructor: *constructor_def_span,
+                constructor: constructor_def_span.id().unwrap(),
                 arity: args.as_ref().map(|args| args.len()).unwrap_or(0),
             },
             Type::Func { params, .. } => SimpleType::Func { params: params.len() },
@@ -771,7 +775,7 @@ impl SimpleType {
     fn from_type_arg(r#type: &Type) -> SimpleType {
         match r#type {
             Type::Data { constructor_def_span, args, .. } => SimpleType::Data {
-                constructor: *constructor_def_span,
+                constructor: constructor_def_span.id().unwrap(),
                 arity: args.as_ref().map(|args| args.len()).unwrap_or(0),
             },
             Type::Func { params, .. } => SimpleType::Func { params: params.len() },
@@ -900,9 +904,9 @@ fn solve_fn_types(
         ) {
             errors.push(TypeError::CannotImplPoly {
                 poly_type: poly_type.clone(),
-                poly_span,
+                poly_span: poly_span.clone(),
                 impl_type: impl_type.clone(),
-                impl_span,
+                impl_span: impl_span.clone(),
                 param_index: if i < poly.params.len() { ParamIndex::Param(i) } else { ParamIndex::Return },
             });
         }
@@ -911,7 +915,7 @@ fn solve_fn_types(
     if errors.is_empty() {
         Ok(type_vars.iter().filter_map(
             |type_var| match tmp_session.types.get(type_var) {
-                Some(r#type) => Some((*type_var, r#type.clone())),
+                Some(r#type) => Some((type_var.clone(), r#type.clone())),
 
                 // Let's say `poly` has 2 generic parameters `T` and `U` but
                 // `U` is not used anywhere. Then this parameter won't be in `types`

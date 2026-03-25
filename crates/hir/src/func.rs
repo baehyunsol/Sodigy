@@ -125,14 +125,14 @@ impl Func {
         let mut generic_param_index = HashMap::new();
 
         for (index, param) in ast_func.params.iter().enumerate() {
-            func_param_names.insert(param.name, (param.name_span, NameKind::FuncParam, UseCount::new()));
+            func_param_names.insert(param.name, (param.name_span.clone(), NameKind::FuncParam, UseCount::new()));
             func_param_index.insert(param.name, index);
         }
 
         for (index, generic) in ast_func.generics.iter().enumerate() {
-            generic_param_names.insert(generic.name, (generic.name_span, NameKind::GenericParam, UseCount::new()));
+            generic_param_names.insert(generic.name, (generic.name_span.clone(), NameKind::GenericParam, UseCount::new()));
             generic_param_index.insert(generic.name, index);
-            session.generic_def_span_rev.insert(generic.name_span, ast_func.name_span);
+            session.generic_def_span_rev.insert(generic.name_span.clone(), ast_func.name_span.clone());
         }
 
         session.name_stack.push(Namespace::ForeignNameCollector {
@@ -147,7 +147,7 @@ impl Func {
         let attribute = match session.lower_attribute(
             &ast_func.attribute,
             ItemKind::Func,
-            ast_func.keyword_span,
+            ast_func.keyword_span.clone(),
         ) {
             Ok(attribute) => attribute,
             Err(()) => {
@@ -160,10 +160,10 @@ impl Func {
 
         let is_poly = match attribute.get_decorator(b"poly", &session.intermediate_dir) {
             Some(d) => {
-                session.polys.insert(ast_func.name_span, Poly {
-                    decorator_span: d.name_span,
+                session.polys.insert(ast_func.name_span.clone(), Poly {
+                    decorator_span: d.name_span.clone(),
                     name: ast_func.name,
-                    name_span: ast_func.name_span,
+                    name_span: ast_func.name_span.clone(),
                     has_default_impl: ast_func.value.is_some(),
                     impls: vec![],
                 });
@@ -174,7 +174,7 @@ impl Func {
 
         let is_impl = match attribute.get_decorator(b"impl", &session.intermediate_dir) {
             Some(d) => {
-                session.poly_impls.push((d.args[0].clone().unwrap_expr(), ast_func.name_span));
+                session.poly_impls.push((d.args[0].clone().unwrap_expr(), ast_func.name_span.clone()));
                 true
             },
             None => false,
@@ -187,7 +187,7 @@ impl Func {
 
         if let Some(asserted_type) = attribute.get_decorator(b"assert_type", &session.intermediate_dir) {
             session.type_assertions.push(TypeAssertion {
-                name_span: ast_func.name_span,
+                name_span: ast_func.name_span.clone(),
                 type_span: asserted_type.args[0].error_span_wide(),
                 r#type: asserted_type.args[0].clone().unwrap_type(),
             });
@@ -202,7 +202,7 @@ impl Func {
             session.associated_items.push(AssociatedItem {
                 kind: AssociatedItemKind::Func,
                 name: ast_func.name,
-                name_span: ast_func.name_span,
+                name_span: ast_func.name_span.clone(),
                 is_pure: Some(ast_func.is_pure),
                 params: Some(ast_func.params.len()),
                 type_span: association.args[0].error_span_wide(),
@@ -255,9 +255,9 @@ impl Func {
 
         if let Err(()) = session.collect_lang_items(
             &attribute,
-            ast_func.name_span,
+            ast_func.name_span.clone(),
             Some(&ast_func.generics),
-            ast_func.generic_group_span,
+            ast_func.generic_group_span.clone(),
         ) {
             has_error = true;
         }
@@ -384,13 +384,13 @@ impl Func {
         else {
             Ok(Func {
                 is_pure: ast_func.is_pure,
-                impure_keyword_span: ast_func.impure_keyword_span,
+                impure_keyword_span: ast_func.impure_keyword_span.clone(),
                 visibility,
-                keyword_span: ast_func.keyword_span,
+                keyword_span: ast_func.keyword_span.clone(),
                 name: ast_func.name,
-                name_span: ast_func.name_span,
+                name_span: ast_func.name_span.clone(),
                 generics: ast_func.generics.clone(),
-                generic_group_span: ast_func.generic_group_span,
+                generic_group_span: ast_func.generic_group_span.clone(),
                 params,
                 type_annot,
                 value: value.unwrap(),
@@ -473,13 +473,13 @@ impl Func {
             params: self.params.iter().map(
                 |param| FuncParam {
                     name: param.name,
-                    name_span: param.name_span,
+                    name_span: param.name_span.clone(),
                     type_annot: None,
-                    default_value: param.default_value,
+                    default_value: param.default_value.clone(),
                 }
             ).collect(),
             generics: self.generics.clone(),
-            generic_group_span: self.generic_group_span,
+            generic_group_span: self.generic_group_span.clone(),
         }
     }
 }
@@ -514,7 +514,7 @@ impl FuncParam {
                         visibility: Visibility::private(),
                         keyword_span: ast_param.name_span.derive(SpanDeriveKind::FuncDefaultValue),
                         name: ast_param.name,
-                        name_span: ast_param.name_span,
+                        name_span: ast_param.name_span.clone(),
                         type_annot: type_annot.clone(),
                         value: v,
                         origin: LetOrigin::FuncDefaultValue,
@@ -523,11 +523,11 @@ impl FuncParam {
 
                     default_value = Some(IdentWithOrigin {
                         id: ast_param.name,
-                        span: ast_param.name_span,
+                        span: ast_param.name_span.clone(),
                         origin: NameOrigin::Local {
                             kind: NameKind::Let { is_top_level: session.is_at_top_level_block() },
                         },
-                        def_span: ast_param.name_span,
+                        def_span: ast_param.name_span.clone(),
                     });
                 },
                 Err(()) => {
@@ -544,7 +544,7 @@ impl FuncParam {
         else {
             Ok(FuncParam {
                 name: ast_param.name,
-                name_span: ast_param.name_span,
+                name_span: ast_param.name_span.clone(),
                 type_annot,
                 default_value,
             })

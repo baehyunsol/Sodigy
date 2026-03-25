@@ -1,6 +1,6 @@
 use sodigy_bytecode::{DebugInfoKind, DropType, Value};
 use sodigy_file::File;
-use sodigy_span::Span;
+use sodigy_span::{Span, SpanId};
 use std::collections::HashMap;
 
 #[cfg(feature="debug-heap")]
@@ -174,27 +174,15 @@ impl Heap {
                 ptr
             },
             Value::FuncPointer { program_counter, .. } => program_counter.unwrap() as u32,
-            Value::Span(span) => match span {
-                Span::Range { file: File::File { project, file }, start, end } |
-                Span::Derived { file: File::File { project, file }, start, end, .. } => {
+            Value::Span(span) => match span.id() {
+                Some(SpanId(id)) => {
                     let ptr = self.alloc(4);
 
                     // TODO: any better representation?
-                    self.data[ptr] = *project;
-                    self.data[ptr + 1] = *file;
-                    self.data[ptr + 2] = *start as u32;
-                    self.data[ptr + 3] = *end as u32;
-                    ptr as u32
-                },
-                Span::Range { file: File::Std(id), start, end } |
-                Span::Derived { file: File::Std(id), start, end, .. } => {
-                    let ptr = self.alloc(4);
-
-                    // TODO: any better representation?
-                    self.data[ptr] = u32::MAX;
-                    self.data[ptr + 1] = *id as u32;
-                    self.data[ptr + 2] = *start as u32;
-                    self.data[ptr + 3] = *end as u32;
+                    self.data[ptr] = (id >> 96) as u32;
+                    self.data[ptr + 1] = ((id >> 64) & 0xffff_ffff) as u32;
+                    self.data[ptr + 2] = ((id >> 32) & 0xffff_ffff) as u32;
+                    self.data[ptr + 3] = (id & 0xffff_ffff) as u32;
                     ptr as u32
                 },
                 _ => panic!("TODO: {span:?}"),

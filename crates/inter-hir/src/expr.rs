@@ -17,7 +17,7 @@ impl Session {
                 else {
                     *expr = Expr::Field {
                         lhs: Box::new(Expr::Path(Path {
-                            id: p.id,
+                            id: p.id.clone(),
                             fields: vec![],
                             types: vec![None],
                         })),
@@ -200,7 +200,7 @@ impl Session {
 
     pub fn check_expr_path(&mut self, expr: &Expr) -> Result<(), ()> {
         fn check_path(path: &Path, intermediate_dir: &str) -> Result<(), Error> {
-            match path.id.origin {
+            match &path.id.origin {
                 NameOrigin::FuncParam { .. } => Ok(()),
                 NameOrigin::GenericParam { .. } => Err(not_x_but_y(path, TypeStructExpr::Expr, NotXBut::GenericParam, intermediate_dir)),
                 NameOrigin::Local { kind } |
@@ -218,7 +218,7 @@ impl Session {
         }
 
         fn check_struct_path(path: &Path, intermediate_dir: &str) -> Result<(), Error> {
-            match path.id.origin {
+            match &path.id.origin {
                 // what error?
                 _ if !path.fields.is_empty() => todo!(),
                 NameOrigin::FuncParam { .. } => Err(not_x_but_y(path, TypeStructExpr::Struct, NotXBut::Expr, intermediate_dir)),
@@ -438,7 +438,7 @@ pub(crate) fn not_x_but_y(
         kind: error_kind,
         spans: vec![
             RenderableSpan {
-                span: path.id.span,
+                span: path.id.span.clone(),
                 auxiliary: false,
                 note: Some(format!(
                     "This is not {kind_str}, but {}.",
@@ -446,7 +446,7 @@ pub(crate) fn not_x_but_y(
                 )),
             },
             RenderableSpan {
-                span: path.id.def_span,
+                span: path.id.def_span.clone(),
                 auxiliary: true,
                 note: Some(format!(
                     "`{}` is defined here.",

@@ -64,12 +64,12 @@ pub fn render_spans(
     let mut monomorphizations = HashSet::new();
 
     for span in spans.iter() {
-        if let Span::Derived { monomorphize_id: Some(id), .. } = span.span {
+        if let Span::Monomorphize { id, .. } = &span.span {
             // TODO: use this info
             // let mono_info = session.get_monomorphization_info(*id).unwrap();
             // Some(format!("This is inside a monomorphization of `{}`.", mono_info.info));
 
-            monomorphizations.insert(id);
+            monomorphizations.insert(*id);
         }
     }
 
@@ -78,8 +78,8 @@ pub fn render_spans(
     let mut files_with_empty_rects = HashMap::new();
 
     for span in spans.iter() {
-        let Some(file) = span.span.get_file() else { continue };
-        let Some(rect) = session.get_rect(span.span) else {
+        let Some(file) = span.span.file() else { continue };
+        let Some(rect) = session.get_rect(&span.span) else {
             files_with_empty_rects.insert(file, span.clone());
             continue;
         };
@@ -148,7 +148,7 @@ pub fn render_spans(
 
     // 1. auxiliary spans come after important ones
     // 2. other than that, groups are sorted by the first span
-    groups.sort_by_key(|spans| spans[0].span);
+    groups.sort_by_key(|spans| spans[0].span.clone());
     groups.sort_by_key(|spans| !spans.iter().any(|span| !span.auxiliary) as u8);
 
     let mut rendered_groups = Vec::with_capacity(groups.len());
@@ -181,8 +181,8 @@ fn render_close_spans(
         None => (Color::None, Color::None, Color::None),
     };
 
-    let file_name = session.get_path(spans[0].span);
-    let bytes = session.get_bytes(spans[0].span);
+    let file_name = session.get_path(&spans[0].span);
+    let bytes = session.get_bytes(&spans[0].span);
 
     if let (Some(file_name), None) = (&file_name, &bytes) {
         return format!(
@@ -198,7 +198,7 @@ fn render_close_spans(
     let file_name = file_name.unwrap();
     let bytes = bytes.unwrap();
 
-    if bytes.is_empty() || spans.iter().all(|span| span.span.get_file().is_none()) {
+    if bytes.is_empty() || spans.iter().all(|span| span.span.file().is_none()) {
         return String::new();
     }
 
@@ -219,36 +219,33 @@ fn render_close_spans(
         let mut curr_byte_color = None;
 
         for s in spans.iter() {
-            match s.span {
-                Span::Range { start, end, .. } | Span::Derived { start, end, .. } => {
-                    let curr_span_color = if s.auxiliary { auxiliary_color } else { primary_color };
+            if let Some((start, end)) = s.span.get_bounds() {
+                let (start, end) = (start as usize, end as usize);
+                let curr_span_color = if s.auxiliary { auxiliary_color } else { primary_color };
 
-                    if i == start {
-                        if let Span::Derived { kind, .. } = s.span {
-                            if let Some(note) = kind.error_note(session) {
-                                curr_notes.push((col, note.to_string(), curr_span_color));
-                            }
-                        }
-
-                        if let Some(note) = &s.note {
+                if i == start {
+                    if let Span::Derived { kind, .. } = &s.span {
+                        if let Some(note) = kind.error_note(session) {
                             curr_notes.push((col, note.to_string(), curr_span_color));
                         }
                     }
 
-                    if start <= i && i < end {
-                        top = top.min(row);
-                        bottom = bottom.max(row);
-                        left = left.min(col);
-                        right = right.max(col);
-                        curr_byte_color = Some(curr_span_color);
-
-                        if beginning_row_col.is_none() {
-                            beginning_row_col = Some((row + 1, col + 1));
-                        }
+                    if let Some(note) = &s.note {
+                        curr_notes.push((col, note.to_string(), curr_span_color));
                     }
-                },
-                Span::None => {},
-                _ => panic!("TODO: {s:?}"),
+                }
+
+                if start <= i && i < end {
+                    top = top.min(row);
+                    bottom = bottom.max(row);
+                    left = left.min(col);
+                    right = right.max(col);
+                    curr_byte_color = Some(curr_span_color);
+
+                    if beginning_row_col.is_none() {
+                        beginning_row_col = Some((row + 1, col + 1));
+                    }
+                }
             }
         }
 

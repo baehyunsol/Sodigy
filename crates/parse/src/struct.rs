@@ -33,17 +33,17 @@ pub struct StructInitField {
 
 impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_struct(&mut self) -> Result<Struct, Vec<Error>> {
-        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Struct))?.span;
+        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Struct))?.span.clone();
         let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
         let mut generics = vec![];
         let mut generic_group_span = None;
 
         if let Some(Token { kind: TokenKind::Punct(Punct::Lt), span }) = self.peek() {
-            generic_group_span = Some(*span);
+            generic_group_span = Some(span.clone());
             self.cursor += 1;
             generics = self.parse_generic_defs()?;
-            let generic_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
-            generic_group_span = generic_group_span.map(|span| span.merge(generic_span_end));
+            let generic_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span.clone();
+            generic_group_span = generic_group_span.map(|span| span.merge(&generic_span_end));
         }
 
         let fields = if let Some(Token { kind: TokenKind::Punct(Punct::Semicolon), .. }) = self.peek() {
@@ -58,7 +58,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 },
                 span: struct_body_span,
             } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
-            let mut struct_body_tokens = Tokens::new(struct_body_tokens, struct_body_span.end(), &self.intermediate_dir);
+            let mut struct_body_tokens = Tokens::new(struct_body_tokens, struct_body_span.end(), false, &self.intermediate_dir);
             Some(struct_body_tokens.parse_struct_fields()?)
         };
 

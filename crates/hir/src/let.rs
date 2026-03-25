@@ -78,7 +78,7 @@ impl Let {
         let attribute = match session.lower_attribute(
             &ast_let.attribute,
             ItemKind::Let,
-            ast_let.keyword_span,
+            ast_let.keyword_span.clone(),
         ) {
             Ok(attribute) => attribute,
             Err(()) => {
@@ -90,7 +90,7 @@ impl Let {
 
         if let Some(asserted_type) = attribute.get_decorator(b"assert_type", &session.intermediate_dir) {
             session.type_assertions.push(TypeAssertion {
-                name_span: ast_let.name_span,
+                name_span: ast_let.name_span.clone(),
                 type_span: asserted_type.args[0].error_span_wide(),
                 r#type: asserted_type.args[0].clone().unwrap_type(),
             });
@@ -100,7 +100,7 @@ impl Let {
             session.associated_items.push(AssociatedItem {
                 kind: AssociatedItemKind::Let,
                 name: ast_let.name,
-                name_span: ast_let.name_span,
+                name_span: ast_let.name_span.clone(),
                 is_pure: None,
                 params: None,
                 type_span: association.args[0].error_span_wide(),
@@ -127,7 +127,7 @@ impl Let {
         let value = match Expr::from_ast(&ast_let.value, session) {
             Ok(value) => {
                 if let Some(t) = session.check_trivial_value(&value) {
-                    session.trivial_lets.insert(ast_let.name_span, t);
+                    session.trivial_lets.insert(ast_let.name_span.clone(), t);
                 }
 
                 Some(value)
@@ -147,9 +147,9 @@ impl Let {
         else {
             Ok(Let {
                 visibility,
-                keyword_span: ast_let.keyword_span,
+                keyword_span: ast_let.keyword_span.clone(),
                 name: ast_let.name,
-                name_span: ast_let.name_span,
+                name_span: ast_let.name_span.clone(),
                 type_annot,
                 value: value.unwrap(),
                 origin: if session.is_at_top_level_block() {
@@ -213,7 +213,7 @@ impl Session {
                     // FIXME: linear search
                     for func in self.funcs.iter() {
                         if func.name_span == p.id.def_span && func.origin == FuncOrigin::Lambda {
-                            return Some(TrivialLet::MaybeLambda(p.id.def_span));
+                            return Some(TrivialLet::MaybeLambda(p.id.def_span.clone()));
                         }
                     }
 
@@ -224,14 +224,14 @@ impl Session {
                     for block in self.block_stack.iter() {
                         for lambda in block.lambdas.iter() {
                             if lambda.name_span == p.id.def_span {
-                                return Some(TrivialLet::MaybeLambda(p.id.def_span));
+                                return Some(TrivialLet::MaybeLambda(p.id.def_span.clone()));
                             }
                         }
                     }
 
-                    Some(TrivialLet::Reference(p.id.def_span))
+                    Some(TrivialLet::Reference(p.id.def_span.clone()))
                 },
-                _ => Some(TrivialLet::Reference(p.id.def_span)),
+                _ => Some(TrivialLet::Reference(p.id.def_span.clone())),
             },
             Expr::Constant(c) => Some(TrivialLet::Constant(c.clone())),
             Expr::Block(b) if b.asserts.is_empty() => match self.check_trivial_value(&b.value) {

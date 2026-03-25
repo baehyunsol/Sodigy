@@ -15,7 +15,7 @@ impl Session {
             context,
         ) = match self.types.get(&r#let.name_span) {
             None | Some(Type::Var { .. }) => {
-                let type_var = Type::Var { def_span: r#let.name_span, is_return: false };
+                let type_var = Type::Var { def_span: r#let.name_span.clone(), is_return: false };
                 self.add_type_var(type_var.clone(), Some(r#let.name));
                 (
                     type_var,
@@ -27,11 +27,11 @@ impl Session {
             Some(annotated_type) => (
                 annotated_type.clone(),
                 r#let.value.error_span_wide(),
-                r#let.type_annot_span,
+                r#let.type_annot_span.clone(),
                 if r#let.type_annot_span.is_some() {
                     ErrorContext::VerifyTypeAnnot
                 } else {
-                    ErrorContext::InferedAgain { type_var: Type::Var { def_span: r#let.name_span, is_return: false } }
+                    ErrorContext::InferedAgain { type_var: Type::Var { def_span: r#let.name_span.clone(), is_return: false } }
                 },
             ),
         };
@@ -49,8 +49,8 @@ impl Session {
                     &annotated_type,
                     &infered_type,
                     false,
-                    type_annot_span,
-                    Some(value_span),
+                    type_annot_span.as_ref(),
+                    Some(&value_span),
                     context,
 
                     // `infered_type` must be subtype of `annotated_type`, but not vice versa.

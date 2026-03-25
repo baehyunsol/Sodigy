@@ -13,7 +13,7 @@ pub(crate) fn lower_fields(lhs: &Expr, fields: &mut Vec<Field>, session: &mut Se
     for (i, field) in fields.iter_mut().enumerate() {
         match &curr_type {
             Type::Data { constructor_def_span, args, .. } => {
-                if *constructor_def_span == session.get_lang_item_span("type.Tuple") {
+                if constructor_def_span == &session.get_lang_item_span("type.Tuple") {
                     let args = args.as_ref().unwrap();
 
                     match field {
@@ -57,7 +57,7 @@ pub(crate) fn lower_fields(lhs: &Expr, fields: &mut Vec<Field>, session: &mut Se
         }
 
         if i + 1 != last_index {
-            curr_type = type_of_field(&curr_type, &[*field], session.global_context.clone()).unwrap();
+            curr_type = type_of_field(&curr_type, &[field.clone()], session.global_context.clone()).unwrap();
         }
     }
 }

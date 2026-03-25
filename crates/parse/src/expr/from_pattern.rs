@@ -6,7 +6,7 @@ impl Expr {
     pub fn from_pattern(pattern: &Pattern) -> Result<Expr, Vec<Error>> {
         let mut errors = vec![];
 
-        if let (Some(name), Some(name_span)) = (pattern.name, pattern.name_span) {
+        if let (Some(name), Some(name_span)) = (pattern.name, pattern.name_span.clone()) {
             errors.push(Error {
                 kind: ErrorKind::CannotBindName(name),
                 spans: name_span.simple_error(),
@@ -46,7 +46,7 @@ impl Expr {
             ) {
                 (Ok(lhs), Ok(rhs)) => Ok(Expr::InfixOp {
                     op: *op,
-                    op_span: *op_span,
+                    op_span: op_span.clone(),
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
                 }),

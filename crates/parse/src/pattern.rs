@@ -31,23 +31,23 @@ pub enum PatternKind {
     Struct {
         r#struct: Path,
         fields: Vec<StructFieldPattern>,
-        rest: Option<RestPattern>,
+        rest: Option<Box<RestPattern>>,
         group_span: Span,
     },
     TupleStruct {
         r#struct: Path,
         elements: Vec<Pattern>,
-        rest: Option<RestPattern>,
+        rest: Option<Box<RestPattern>>,
         group_span: Span,
     },
     Tuple {
         elements: Vec<Pattern>,
-        rest: Option<RestPattern>,
+        rest: Option<Box<RestPattern>>,
         group_span: Span,
     },
     List {
         elements: Vec<Pattern>,
-        rest: Option<RestPattern>,
+        rest: Option<Box<RestPattern>>,
         group_span: Span,
         is_lowered_from_concat: bool,
     },
@@ -108,7 +108,7 @@ pub struct StructFieldPattern {
 
 // `..` in `[$a, $b, .., $c]`
 // Parser guarantees that there's at most 1 rest in a group.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct RestPattern {
     pub span: Span,
     pub index: usize,
@@ -123,7 +123,7 @@ impl Pattern {
     pub fn bound_names(&self) -> Vec<(InternedString, Span)> {
         let mut result = vec![];
 
-        if let (Some(name), Some(name_span)) = (self.name, self.name_span) {
+        if let (Some(name), Some(name_span)) = (self.name, self.name_span.clone()) {
             result.push((name, name_span));
         }
 
@@ -136,8 +136,8 @@ impl Pattern {
     }
 
     pub fn error_span_wide(&self) -> Span {
-        if let Some(name_span) = self.name_span {
-            name_span.merge(self.kind.error_span_wide())
+        if let Some(name_span) = &self.name_span {
+            name_span.merge(&self.kind.error_span_wide())
         }
 
         else {
@@ -156,7 +156,7 @@ impl Pattern {
     pub fn to_list_pattern(self, is_lhs: bool, intermediate_dir: &str) -> Result<PatternKind, Vec<Error>> {
         let mut errors = vec![];
 
-        if let (Some(name), Some(name_span)) = (self.name, self.name_span) {
+        if let (Some(name), Some(name_span)) = (self.name, self.name_span.clone()) {
             errors.push(Error {
                 kind: ErrorKind::CannotBindName(name),
                 spans: name_span.simple_error(),
@@ -164,33 +164,33 @@ impl Pattern {
             });
         }
 
-        let result = match self.kind {
+        let result = match &self.kind {
             PatternKind::NameBinding { id, span } => PatternKind::List {
                 elements: vec![],
-                rest: Some(RestPattern {
+                rest: Some(Box::new(RestPattern {
                     span: span.derive(SpanDeriveKind::ConcatPatternRest),
                     index: 0,
-                    name: Some(id),
-                    name_span: Some(span),
-                }),
+                    name: Some(*id),
+                    name_span: Some(span.clone()),
+                })),
                 group_span: span.derive(SpanDeriveKind::ConcatPatternList),
                 is_lowered_from_concat: true,
             },
             PatternKind::Constant(Constant::String { binary, s, span }) => {
                 // TODO: return ICE instead of unwrap
-                let bs = unintern_string(s, intermediate_dir).unwrap().unwrap();
+                let bs = unintern_string(*s, intermediate_dir).unwrap().unwrap();
 
                 // Lexer must guarantee that it's a valid utf8.
                 let s = String::from_utf8(bs.clone()).unwrap();
 
-                let elements: Vec<Pattern> = if binary {
+                let elements: Vec<Pattern> = if *binary {
                     bs.iter().map(
                         |b| Pattern {
                             name: None,
                             name_span: None,
 
                             // TODO: maybe derive the span?
-                            kind: PatternKind::Constant(Constant::Byte { b: *b, span }),
+                            kind: PatternKind::Constant(Constant::Byte { b: *b, span: span.clone() }),
                         }
                     ).collect()
                 } else {
@@ -200,7 +200,7 @@ impl Pattern {
                             name_span: None,
 
                             // TODO: maybe derive the span?
-                            kind: PatternKind::Constant(Constant::Char { ch: ch as u32, span }),
+                            kind: PatternKind::Constant(Constant::Char { ch: ch as u32, span: span.clone() }),
                         }
                     ).collect()
                 };
@@ -208,11 +208,11 @@ impl Pattern {
                 PatternKind::List {
                     elements,
                     rest: None,
-                    group_span: span,
+                    group_span: span.clone(),
                     is_lowered_from_concat: true,
                 }
             },
-            l @ PatternKind::List { .. } => l,
+            l @ PatternKind::List { .. } => l.clone(),
             p => {
                 errors.push(Error {
                     kind: ErrorKind::InvalidConcatPattern,
@@ -247,7 +247,7 @@ impl PatternKind {
             PatternKind::List { group_span: span, .. } |
             PatternKind::Range { op_span: span, .. } |
             PatternKind::Or { op_span: span, .. } |
-            PatternKind::InfixOp { op_span: span, .. } => *span,
+            PatternKind::InfixOp { op_span: span, .. } => span.clone(),
             PatternKind::Path(path) |
             PatternKind::Struct { r#struct: path, .. } |
             PatternKind::TupleStruct { r#struct: path, .. } => path.error_span_narrow(),
@@ -263,25 +263,25 @@ impl PatternKind {
             PatternKind::Wildcard(span) |
             PatternKind::PipelineData(span) |
             PatternKind::Tuple { group_span: span, .. } |
-            PatternKind::List { group_span: span, .. } => *span,
+            PatternKind::List { group_span: span, .. } => span.clone(),
             PatternKind::Struct { r#struct, group_span, .. } |
-            PatternKind::TupleStruct { r#struct, group_span, .. } => r#struct.error_span_wide().merge(*group_span),
+            PatternKind::TupleStruct { r#struct, group_span, .. } => r#struct.error_span_wide().merge(group_span),
             PatternKind::Range { lhs, op_span, rhs, .. } => {
                 let mut span = match lhs {
-                    Some(lhs) => lhs.error_span_wide().merge(*op_span),
-                    None => *op_span,
+                    Some(lhs) => lhs.error_span_wide().merge(op_span),
+                    None => op_span.clone(),
                 };
 
                 if let Some(rhs) = rhs {
-                    span = span.merge(rhs.error_span_wide());
+                    span = span.merge(&rhs.error_span_wide());
                 }
 
                 span
             },
             PatternKind::InfixOp { lhs, op_span, rhs, .. } |
             PatternKind::Or { lhs, op_span, rhs } => lhs.error_span_wide()
-                .merge(*op_span)
-                .merge(rhs.error_span_wide()),
+                .merge(op_span)
+                .merge(&rhs.error_span_wide()),
         }
     }
 
@@ -292,12 +292,12 @@ impl PatternKind {
             PatternKind::Regex { .. } |
             PatternKind::Wildcard(_) |
             PatternKind::PipelineData(_) => vec![],
-            PatternKind::NameBinding { id, span } => vec![(*id, *span)],
+            PatternKind::NameBinding { id, span } => vec![(*id, span.clone())],
             PatternKind::Struct { fields, rest, .. } => {
                 let mut result = fields.iter().flat_map(|f| f.pattern.bound_names()).collect::<Vec<_>>();
 
                 if let Some(rest) = rest {
-                    if let (Some(name), Some(name_span)) = (rest.name, rest.name_span) {
+                    if let (Some(name), Some(name_span)) = (rest.name, rest.name_span.clone()) {
                         result.push((name, name_span));
                     }
                 }
@@ -310,7 +310,7 @@ impl PatternKind {
                 let mut result = elements.iter().flat_map(|e| e.bound_names()).collect::<Vec<_>>();
 
                 if let Some(rest) = rest {
-                    if let (Some(name), Some(name_span)) = (rest.name, rest.name_span) {
+                    if let (Some(name), Some(name_span)) = (rest.name, rest.name_span.clone()) {
                         result.push((name, name_span));
                     }
                 }
@@ -385,7 +385,7 @@ impl<'t, 's> Tokens<'t, 's> {
     fn pratt_parse_pattern(&mut self, context: ParsePatternContext, min_bp: u32) -> Result<Pattern, Vec<Error>> {
         let mut lhs = match self.peek2() {
             (Some(Token { kind: TokenKind::Wildcard, span }), _) => {
-                let span = *span;
+                let span = span.clone();
                 self.cursor += 1;
                 Pattern {
                     name: None,
@@ -394,7 +394,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 }
             },
             (Some(Token { kind: TokenKind::Ident(id), span }), _) => {
-                let (id, id_span) = (*id, *span);
+                let (id, id_span) = (*id, span.clone());
                 self.cursor += 1;
 
                 // no dotfish operators in patterns
@@ -409,8 +409,8 @@ impl<'t, 's> Tokens<'t, 's> {
                         ) => {
                             fields.push(Field::Name {
                                 name: *id,
-                                name_span: *span,
-                                dot_span: *dot_span,
+                                name_span: span.clone(),
+                                dot_span: dot_span.clone(),
                                 is_from_alias: false,
                             });
                             types.push(None);
@@ -430,7 +430,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 Some(Token { kind: TokenKind::Punct(Punct::Dollar), span: dollar_span }),
                 Some(Token { kind: TokenKind::Ident(id), span: id_span }),
             ) => {
-                let span = dollar_span.merge(*id_span);
+                let span = dollar_span.merge(id_span);
                 let id = *id;
                 self.cursor += 2;
                 Pattern {
@@ -440,7 +440,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 }
             },
             (Some(Token { kind: TokenKind::Punct(Punct::Dollar), span }), _) => {
-                let span = *span;
+                let span = span.clone();
                 self.cursor += 1;
                 Pattern {
                     name: None,
@@ -452,9 +452,9 @@ impl<'t, 's> Tokens<'t, 's> {
                 Some(Token { kind: TokenKind::Punct(Punct::Sub), span: op_span }),
                 Some(Token { kind: TokenKind::Number(n), span: n_span }),
             ) => {
-                let (mut n, op_span, n_span) = (*n, *op_span, *n_span);
+                let (mut n, op_span, n_span) = (*n, op_span.clone(), n_span.clone());
                 n = n.negate();
-                let span = op_span.merge(n_span);
+                let span = op_span.merge(&n_span);
                 self.cursor += 2;
                 Pattern {
                     name: None,
@@ -463,7 +463,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 }
             },
             (Some(Token { kind: TokenKind::Number(n), span }), _) => {
-                let (n, span) = (*n, *span);
+                let (n, span) = (*n, span.clone());
                 self.cursor += 1;
                 Pattern {
                     name: None,
@@ -472,7 +472,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 }
             },
             (Some(Token { kind: TokenKind::String { binary, raw: _, regex, s }, span }), _) => {
-                let (binary, regex, s, span) = (*binary, *regex, *s, *span);
+                let (binary, regex, s, span) = (*binary, *regex, *s, span.clone());
                 self.cursor += 1;
 
                 if regex {
@@ -492,7 +492,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 }
             },
             (Some(Token { kind: TokenKind::Char(ch), span }), _) => {
-                let (ch, span) = (*ch, *span);
+                let (ch, span) = (*ch, span.clone());
                 self.cursor += 1;
                 Pattern {
                     name: None,
@@ -501,7 +501,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 }
             },
             (Some(Token { kind: TokenKind::Byte(b), span }), _) => {
-                let (b, span) = (*b, *span);
+                let (b, span) = (*b, span.clone());
                 self.cursor += 1;
                 Pattern {
                     name: None,
@@ -527,8 +527,8 @@ impl<'t, 's> Tokens<'t, 's> {
                     Delim::Parenthesis | Delim::Bracket => {},
                 }
 
-                let (group_span, delim) = (*span, *delim);
-                let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
+                let (group_span, delim) = (span.clone(), *delim);
+                let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
                 let (mut elements, rest) = tokens.parse_patterns(/* may_have_dot_dot: */ true)?;
 
                 // If it's parenthesis, we have to distinguish `(3)` and `(3,)`
@@ -551,7 +551,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             kind: PatternKind::Tuple {
                                 elements,
                                 group_span,
-                                rest,
+                                rest: rest.map(|r| Box::new(r)),
                             },
                         }
                     } else {
@@ -563,7 +563,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         kind: PatternKind::List {
                             elements,
                             group_span,
-                            rest,
+                            rest: rest.map(|r| Box::new(r)),
                             is_lowered_from_concat: false,
                         },
                     },
@@ -575,7 +575,7 @@ impl<'t, 's> Tokens<'t, 's> {
             },
             (Some(Token { kind: TokenKind::Punct(p @ (Punct::DotDot | Punct::DotDotEq)), span }), _) => {
                 let is_inclusive = matches!(p, Punct::DotDotEq);
-                let op_span = *span;
+                let op_span = span.clone();
                 self.cursor += 1;
                 let rhs = self.parse_pattern(context)?;
 
@@ -608,7 +608,7 @@ impl<'t, 's> Tokens<'t, 's> {
         loop {
             match self.peek() {
                 Some(Token { kind: TokenKind::Punct(p), span }) => {
-                    let (p, op_span) = (*p, *span);
+                    let (p, op_span) = (*p, span.clone());
 
                     match p {
                         Punct::At => {
@@ -630,10 +630,10 @@ impl<'t, 's> Tokens<'t, 's> {
                                     name_span,
                                     kind: PatternKind::NameBinding { id, span },
                                 } => {
-                                    name_binding = Some((id, span));
+                                    name_binding = Some((id, span.clone()));
 
                                     // `$a @ $b @ 1..2`
-                                    if let (Some(name), Some(name_span)) = (name, name_span) {
+                                    if let (Some(name), Some(name_span)) = (name, name_span.clone()) {
                                         errors.push(Error {
                                             kind: ErrorKind::RedundantNameBinding(name, id),
                                             spans: vec![
@@ -674,7 +674,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                         kind: ErrorKind::RedundantNameBinding(*name, prev_name),
                                         spans: vec![
                                             RenderableSpan {
-                                                span: *name_span,
+                                                span: name_span.clone(),
                                                 auxiliary: false,
                                                 note: Some(String::from("It binds a name, so you don't have to bind again.")),
                                             },
@@ -1068,8 +1068,8 @@ impl<'t, 's> Tokens<'t, 's> {
 
                     match delim {
                         Delim::Parenthesis => {
-                            let group_span = *span;
-                            let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
+                            let group_span = span.clone();
+                            let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
                             let (elements, rest) = tokens.parse_patterns(/* may_have_dot_dot: */ true)?;
                             self.cursor += 1;
 
@@ -1080,7 +1080,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                     r#struct,
                                     elements,
                                     group_span,
-                                    rest,
+                                    rest: rest.map(|r| Box::new(r)),
                                 },
                             };
                         },
@@ -1150,13 +1150,13 @@ impl<'t, 's> Tokens<'t, 's> {
                             Some(Token { kind: TokenKind::Punct(Punct::At), .. }),
                             Some(Token { kind: TokenKind::Punct(Punct::DotDot), span: dot_dot_span }),
                             Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }) | None,
-                        ) => (Some(*name), Some(*name_span), *dot_dot_span),
+                        ) => (Some(*name), Some(name_span.clone()), dot_dot_span.clone()),
                         (
                             Some(Token { kind: TokenKind::Punct(Punct::DotDot), span }),
                             Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }) | None,
                             _,
                             _,
-                        ) => (None, None, *span),
+                        ) => (None, None, span.clone()),
                         _ => unreachable!(),
                     };
 

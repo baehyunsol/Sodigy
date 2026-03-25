@@ -18,7 +18,7 @@ impl Session {
                 &assertion_type,
                 false,
                 None,
-                Some(assert.value.error_span_wide()),
+                Some(&assert.value.error_span_wide()),
                 ErrorContext::AssertConditionBool,
                 false,
             ) {
@@ -48,7 +48,7 @@ impl Session {
                     &note_type,
                     false,
                     None,
-                    Some(note.error_span_wide()),
+                    Some(&note.error_span_wide()),
                     ErrorContext::AssertConditionBool,
                     false,
                 ) {

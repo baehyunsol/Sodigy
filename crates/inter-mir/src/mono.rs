@@ -28,7 +28,7 @@ pub struct MonomorphizePlan {
 
 #[derive(Clone, Debug)]
 pub struct Monomorphization {
-    pub id: u128,
+    pub id: u64,
     pub def_span: Span,
 
     // This is later used for error messages.
@@ -51,33 +51,33 @@ impl Session {
         for type_var in self.type_vars.keys() {
             match type_var {
                 Type::GenericArg { call, generic } => {
-                    if self.solved_generic_args.contains(&(*call, *generic)) {
+                    if self.solved_generic_args.contains(&(call.clone(), generic.clone())) {
                         continue;
                     }
 
-                    let r#type = match self.generic_args.get(&(*call, *generic)) {
+                    let r#type = match self.generic_args.get(&(call.clone(), generic.clone())) {
                         Some(r#type) => {
                             if r#type.has_unsolved_type() {
-                                incomplete_generics.insert(*call);
+                                incomplete_generics.insert(call.clone());
                             }
 
                             r#type.clone()
                         },
                         None => {
-                            incomplete_generics.insert(*call);
+                            incomplete_generics.insert(call.clone());
                             type_var.clone()
                         },
                     };
 
-                    match generic_calls.entry(*call) {
+                    match generic_calls.entry(call.clone()) {
                         Entry::Occupied(mut e) => {
-                            e.get_mut().generics.insert(*generic, r#type);
+                            e.get_mut().generics.insert(generic.clone(), r#type);
                         },
                         Entry::Vacant(e) => {
                             e.insert(GenericCall {
-                                call: *call,
-                                def: *self.generic_def_span_rev.get(generic).unwrap(),
-                                generics: [(*generic, r#type)].into_iter().collect(),
+                                call: call.clone(),
+                                def: self.generic_def_span_rev.get(generic).unwrap().clone(),
+                                generics: [(generic.clone(), r#type)].into_iter().collect(),
                             });
                         },
                     }
@@ -100,7 +100,7 @@ impl Session {
                     }
 
                     for generic in generic_call.generics.keys() {
-                        self.solved_generic_args.insert((generic_call.call, *generic));
+                        self.solved_generic_args.insert((generic_call.call.clone(), generic.clone()));
                     }
 
                     // We don't monomorphize built_in functions.
@@ -108,21 +108,21 @@ impl Session {
                         continue;
                     }
 
-                    let monomorphization_id = get_monomorphization_id(generic_call.def, &generic_call.generics);
+                    let monomorphization_id = get_monomorphization_id(&generic_call.def, &generic_call.generics);
                     let monomorphized_span = generic_call.def.monomorphize(monomorphization_id);
                     monomorphizations.push(Monomorphization {
-                        def_span: generic_call.def,
-                        call_span: generic_call.call,
+                        def_span: generic_call.def.clone(),
+                        call_span: generic_call.call.clone(),
                         generics: generic_call.generics.clone(),
                         id: monomorphization_id,
                     });
-                    dispatch_map.insert(generic_call.call, monomorphized_span);
+                    dispatch_map.insert(generic_call.call.clone(), monomorphized_span);
                 },
                 SolvePolyResult::NoCandidates => {
                     has_error = true;
                     self.type_errors.push(TypeError::CannotSpecializePolyGeneric {
-                        call: generic_call.call,
-                        poly_def: generic_call.def,
+                        call: generic_call.call.clone(),
+                        poly_def: generic_call.def.clone(),
                         generics: generic_call.generics.clone(),
                         num_candidates: 0,
                     });
@@ -130,7 +130,7 @@ impl Session {
                 // It's still a generic function, so we have to monomorphize this.
                 SolvePolyResult::DefaultImpl(_) => {
                     for generic in generic_call.generics.keys() {
-                        self.solved_generic_args.insert((generic_call.call, *generic));
+                        self.solved_generic_args.insert((generic_call.call.clone(), generic.clone()));
                     }
 
                     // We don't monomorphize built_in functions.
@@ -138,21 +138,21 @@ impl Session {
                         continue;
                     }
 
-                    let monomorphization_id = get_monomorphization_id(generic_call.def, &generic_call.generics);
+                    let monomorphization_id = get_monomorphization_id(&generic_call.def, &generic_call.generics);
                     let monomorphized_span = generic_call.def.monomorphize(monomorphization_id);
                     monomorphizations.push(Monomorphization {
-                        def_span: generic_call.def,
-                        call_span: generic_call.call,
+                        def_span: generic_call.def.clone(),
+                        call_span: generic_call.call.clone(),
                         generics: generic_call.generics.clone(),
                         id: monomorphization_id,
                     });
-                    dispatch_map.insert(generic_call.call, monomorphized_span);
+                    dispatch_map.insert(generic_call.call.clone(), monomorphized_span);
                 },
                 SolvePolyResult::OneCandidate(p) => {
-                    dispatch_map.insert(generic_call.call, p);
+                    dispatch_map.insert(generic_call.call.clone(), p);
 
                     for generic in generic_call.generics.keys() {
-                        self.solved_generic_args.insert((generic_call.call, *generic));
+                        self.solved_generic_args.insert((generic_call.call.clone(), generic.clone()));
                     }
                 },
                 SolvePolyResult::MultiCandidates(ps) => {
@@ -164,8 +164,8 @@ impl Session {
                     //    4. ...
                     has_error = true;
                     self.type_errors.push(TypeError::MultiplePolyCandidates {
-                        call: generic_call.call,
-                        poly_def: generic_call.def,
+                        call: generic_call.call.clone(),
+                        poly_def: generic_call.def.clone(),
                         candidates: ps.clone(),
                     });
                 },
@@ -219,8 +219,8 @@ impl Session {
         MonomorphizationInfo {
             id: mono.id,
             parent: None,  // TODO: track parents
-            info: format!("{}<{generics}>", self.span_to_string(mono.def_span).unwrap_or(String::from("????"))),
-            span: mono.call_span,
+            info: format!("{}<{generics}>", self.span_to_string(&mono.def_span).unwrap_or(String::from("????"))),
+            span: mono.call_span.clone(),
         }
     }
 }
@@ -239,16 +239,16 @@ pub struct GenericCall {
     pub generics: HashMap<Span, Type>,
 }
 
-fn get_monomorphization_id(def_span: Span, generics: &HashMap<Span, Type>) -> u128 {
+fn get_monomorphization_id(def_span: &Span, generics: &HashMap<Span, Type>) -> u64 {
     let mut bytes = vec![];
     bytes.extend(def_span.hash().to_le_bytes());
 
-    let mut generics: Vec<(Span, &Type)> = generics.iter().map(|(s, t)| (*s, t)).collect();
-    generics.sort_by_key(|(s, _)| *s);
+    let mut generics: Vec<(Span, &Type)> = generics.iter().map(|(s, t)| (s.clone(), t)).collect();
+    generics.sort_by_key(|(s, _)| s.clone());
 
     for (_, r#type) in generics.iter() {
         bytes.extend(r#type.hash().to_le_bytes());
     }
 
-    hash(&bytes) & 0xffff_ffff_ffff_ffff_ffff_ffff
+    (hash(&bytes) & 0xffff_ffff_ffff_ffff) as u64
 }

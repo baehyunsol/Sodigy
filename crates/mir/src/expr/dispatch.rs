@@ -67,7 +67,7 @@ impl Expr {
             Expr::Call { func, args, arg_group_span, types, given_keyword_args } => {
                 let dispatch = match func {
                     Callable::Static { span, .. } => match generics.get(span) {
-                        Some(new_def_span) => Some((*new_def_span, *span)),
+                        Some(new_def_span) => Some((new_def_span.clone(), span.clone())),
                         None => None,
                     },
                     Callable::Dynamic(f) => {
@@ -91,11 +91,11 @@ impl Expr {
 
                                 *self = Expr::Call {
                                     func: Callable::Static {
-                                        def_span: *poly_def_span,
-                                        span: *name_span,
+                                        def_span: poly_def_span.clone(),
+                                        span: name_span.clone(),
                                     },
                                     args: new_args,
-                                    arg_group_span: *arg_group_span,
+                                    arg_group_span: arg_group_span.clone(),
                                     types: types.clone(),
                                     given_keyword_args: given_keyword_args.clone(),
                                 };
@@ -109,18 +109,18 @@ impl Expr {
                     _ => None,
                 };
 
-                if let Some((def_span, span)) = dispatch {
-                    *func = Callable::Static { def_span, span };
+                if let Some((def_span, span)) = &dispatch {
+                    *func = Callable::Static { def_span: def_span.clone(), span: span.clone() };
                     *types = None;
 
-                    match func_shapes.get(&def_span) {
+                    match func_shapes.get(def_span) {
                         Some(func_shape) => {
                             for generic in func_shape.generics.iter() {
                                 generic_args.insert(
-                                    (span, generic.name_span),
+                                    (span.clone(), generic.name_span.clone()),
                                     Type::GenericArg {
-                                        call: span,
-                                        generic: generic.name_span,
+                                        call: span.clone(),
+                                        generic: generic.name_span.clone(),
                                     },
                                 );
                             }

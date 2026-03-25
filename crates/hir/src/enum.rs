@@ -62,7 +62,7 @@ impl Enum {
         let mut generic_index = HashMap::new();
 
         for (index, generic) in ast_enum.generics.iter().enumerate() {
-            generic_params.insert(generic.name, (generic.name_span, NameKind::GenericParam, UseCount::new()));
+            generic_params.insert(generic.name, (generic.name_span.clone(), NameKind::GenericParam, UseCount::new()));
             generic_index.insert(generic.name, index);
         }
 
@@ -74,7 +74,7 @@ impl Enum {
         let attribute = match session.lower_attribute(
             &ast_enum.attribute,
             ItemKind::Enum,
-            ast_enum.keyword_span,
+            ast_enum.keyword_span.clone(),
         ) {
             Ok(attribute) => attribute,
             Err(()) => {
@@ -87,9 +87,9 @@ impl Enum {
 
         if let Err(()) = session.collect_lang_items(
             &attribute,
-            ast_enum.name_span,
+            ast_enum.name_span.clone(),
             Some(&ast_enum.generics),
-            ast_enum.generic_group_span,
+            ast_enum.generic_group_span.clone(),
         ) {
             has_error = true;
         }
@@ -126,9 +126,9 @@ impl Enum {
         else {
             Ok(Enum {
                 visibility,
-                keyword_span: ast_enum.keyword_span,
+                keyword_span: ast_enum.keyword_span.clone(),
                 name: ast_enum.name,
-                name_span: ast_enum.name_span,
+                name_span: ast_enum.name_span.clone(),
                 generics: ast_enum.generics.clone(),
                 variants,
             })
@@ -162,7 +162,7 @@ impl EnumVariant {
             ItemKind::EnumVariant,
 
             // TODO: it has to be keyword_span, but a variant doesn't have a keyword_span!!
-            ast_variant.name_span,
+            ast_variant.name_span.clone(),
         ) {
             Ok(attribute) => attribute,
             Err(()) => {
@@ -173,7 +173,7 @@ impl EnumVariant {
 
         if let Err(()) = session.collect_lang_items(
             &attribute,
-            ast_variant.name_span,
+            ast_variant.name_span.clone(),
             None,
             None,
         ) {
@@ -225,7 +225,7 @@ impl EnumVariant {
         else {
             Ok(EnumVariant {
                 name: ast_variant.name,
-                name_span: ast_variant.name_span,
+                name_span: ast_variant.name_span.clone(),
                 fields,
             })
         }

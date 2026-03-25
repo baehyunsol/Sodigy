@@ -1,14 +1,8 @@
 use crate::std_file::STD_FILES;
-use sodigy_fs_api::{
-    FileError,
-    WriteMode,
-    exists,
-    join,
-    read_bytes,
-    write_bytes,
-};
-use sodigy_string::{InternedString, intern_string, unintern_string};
+use sodigy_fs_api::{FileError, join3, read_bytes};
+use sodigy_string::{InternedString, hash, intern_string, unintern_string};
 use std::fs::File as StdFile;
+use std::io::{Read, Write};
 
 mod endec;
 mod error;
@@ -36,26 +30,11 @@ use file_map::{
 pub struct File(pub u32);
 
 impl File {
-    pub fn clear_cache(project_id: u32, intermediate_dir: &str) -> Result<(), FileError> {
-        let lock_file_path = join(
-            intermediate_dir,
-            &format!("file_map_{project_id}_lock"),
-        )?;
-        let lock_file = StdFile::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
-        lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
-
-        let file_map_path = join(
-            intermediate_dir,
-            &format!("files_{project_id}"),
-        )?;
-        write_bytes(&file_map_path, b"", WriteMode::CreateOrTruncate)?;
-        lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
-        Ok(())
+    pub fn std(id: u32) -> Self {
+        File(0x8000_0000 | id)
     }
 
     pub fn register(
-        project_id: u32,
-
         // `read_bytes(file_path)` should work
         file_path: &str,
 
@@ -66,92 +45,68 @@ impl File {
 
         intermediate_dir: &str,
     ) -> Result<File, FileError> {
-        let lock_file_path = join(
+        let module_path_hash = (hash(module_path.as_bytes()) & 0xff) as u32;
+        let file_map_path = join3(
             intermediate_dir,
-            &format!("file_map_{project_id}_lock"),
+            "file_map",
+            &format!("{module_path_hash:02x}"),
         )?;
-        let lock_file = StdFile::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
-        lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
+        let mut file_map_fd = StdFile::options()
+            .read(true)
+            .create(true)
+            .append(true)
+            .open(&file_map_path)
+            .map_err(|e| FileError::from_std(e, &file_map_path))?;
 
-        let file_map_path = join(
-            intermediate_dir,
-            &format!("files_{project_id}"),
+        file_map_fd.lock().map_err(
+            |e| FileError::from_std(e, &file_map_path)
+        )?;
+
+        let mut file_map = vec![];
+        file_map_fd.read_to_end(&mut file_map).map_err(
+            |e| FileError::from_std(e, &file_map_path)
         )?;
 
         // file_map is a list of `file_id: u32`, `content_hash: u128`, `module_path: String`
-        let (mut file_map, file, file_id) = if exists(&file_map_path) {
-            let file_map = read_bytes(&file_map_path)?;
-
+        let file_id = if file_map.is_empty() {
+            module_path_hash
+        } else {
             match search_file_map_by_module_path(&file_map, module_path, &file_map_path)? {
                 // If it's already registered, it returns the previous one without updating its content_hash.
                 // That means you cannot update a file while a compilation is going on.
                 Some((file_id, _)) => {
-                    return Ok(File::File {
-                        project: project_id,
-                        file: file_id,
-                    });
+                    return Ok(File(file_id));
                 },
-                None => {
-                    let file_id = length_file_map(&file_map, &file_map_path)? as u32;
-                    (
-                        file_map,
-                        File::File {
-                            project: project_id,
-                            file: file_id,
-                        },
-                        file_id,
-                    )
-                },
+                None => ((length_file_map(&file_map, &file_map_path)? as u32) << 8) | module_path_hash,
             }
-        } else {
-            (
-                vec![],
-                File::File {
-                    project: project_id,
-                    // This is the first file!
-                    file: 0,
-                },
-                0,
-            )
         };
 
         let content = read_bytes(file_path)?;
         let content_hash = intern_string(&content, intermediate_dir)?;
         push_file_map(&mut file_map, file_id, content_hash.0, module_path, file_path);
-        write_bytes(
-            &join(
-                intermediate_dir,
-                &format!("files_{project_id}"),
-            )?,
-            &file_map,
-            WriteMode::CreateOrTruncate,
+        file_map_fd.write_all(&file_map).map_err(
+            |e| FileError::from_std(e, &file_map_path)
         )?;
-        lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
-        Ok(file)
+        file_map_fd.unlock().map_err(|e| FileError::from_std(e, &file_map_path))?;
+
+        Ok(File(file_id))
     }
 
-    pub fn from_module_path(project_id: u32, path: &str, intermediate_dir: &str) -> Result<Option<File>, FileError> {
-        let lock_file_path = join(
+    pub fn from_module_path(module_path: &str, intermediate_dir: &str) -> Result<Option<File>, FileError> {
+        let module_path_hash = (hash(module_path.as_bytes()) & 0xff) as u32;
+        let file_map_path = join3(
             intermediate_dir,
-            &format!("file_map_{project_id}_lock"),
-        )?;
-        let lock_file = StdFile::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
-        lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
-
-        let file_map_path = join(
-            intermediate_dir,
-            &format!("files_{project_id}"),
+            "file_map",
+            &format!("{module_path_hash:02x}"),
         )?;
         let file_map = read_bytes(&file_map_path)?;
 
-        lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
-
-        match search_file_map_by_module_path(&file_map, path, &file_map_path)? {
-            Some((file_id, _)) => Ok(Some(File::File { project: project_id, file: file_id })),
+        match search_file_map_by_module_path(&file_map, module_path, &file_map_path)? {
+            Some((file_id, _)) => Ok(Some(File(file_id))),
             None => {
                 for (i, (p, _, _, _)) in STD_FILES.iter().enumerate() {
-                    if *p == path {
-                        return Ok(Some(File::Std(i as u64)));
+                    if *p == module_path {
+                        return Ok(Some(File(0x8000_0000 | i as u32)));
                     }
                 }
 
@@ -163,32 +118,26 @@ impl File {
     // It returns (module_path, file_path).
     // This is very very expensive.
     pub fn get_path(&self, intermediate_dir: &str) -> Result<Option<(String, String)>, FileError> {
-        match self {
-            File::File { project: project_id, file: file_id } => {
-                let lock_file_path = join(
-                    intermediate_dir,
-                    &format!("file_map_{project_id}_lock"),
-                )?;
-                let lock_file = StdFile::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
-                lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
+        let is_std = self.0 >= 0x8000_0000;
+        let id = self.0 & 0x7fff_ffff;
 
-                let file_map_path = join(
-                    intermediate_dir,
-                    &format!("files_{project_id}"),
-                )?;
-                let file_map = read_bytes(&file_map_path)?;
+        if is_std {
+            Ok(Some((
+                STD_FILES[id as usize].0.to_string(),
+                STD_FILES[id as usize].1.to_string(),
+            )))
+        } else {
+            let file_map_path = join3(
+                intermediate_dir,
+                "file_map",
+                &format!("{:02x}", id & 0xff),
+            )?;
+            let file_map = read_bytes(&file_map_path)?;
 
-                lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
-
-                match search_file_map_by_id(&file_map, *file_id, &file_map_path)? {
-                    Some((module_path, file_path, _)) => Ok(Some((module_path.to_string(), file_path.to_string()))),
-                    None => Ok(None),
-                }
-            },
-            File::Std(id) => Ok(Some((
-                STD_FILES[*id as usize].0.to_string(),
-                STD_FILES[*id as usize].1.to_string(),
-            ))),
+            match search_file_map_by_id(&file_map, id, &file_map_path)? {
+                Some((module_path, file_path, _)) => Ok(Some((module_path.to_string(), file_path.to_string()))),
+                None => Ok(None),
+            }
         }
     }
 
@@ -199,22 +148,14 @@ impl File {
         if is_std {
             Ok(STD_FILES[id as usize].3)
         } else {
-            let lock_file_path = join(
+            let file_map_path = join3(
                 intermediate_dir,
-                &format!("file_map_{project_id}_lock"),
-            )?;
-            let lock_file = StdFile::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
-            lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
-
-            let file_map_path = join(
-                intermediate_dir,
-                &format!("files_{project_id}"),
+                "file_map",
+                &format!("{:02x}", id & 0xff),
             )?;
             let file_map = read_bytes(&file_map_path)?;
 
-            lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
-
-            match search_file_map_by_id(&file_map, *file_id, &file_map_path)? {
+            match search_file_map_by_id(&file_map, id, &file_map_path)? {
                 Some((_, _, content_hash)) => Ok(content_hash),
 
                 // error? panic? unreachable?
@@ -240,5 +181,5 @@ impl File {
 #[derive(Clone, Debug)]
 pub enum FileOrStd {
     File(String),
-    Std(u64),
+    Std(u32),
 }

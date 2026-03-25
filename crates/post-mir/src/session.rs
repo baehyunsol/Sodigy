@@ -28,18 +28,18 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
 
     pub fn get_lang_item_span(&self, lang_item: &str) -> Span {
         match self.global_context.lang_items.unwrap().get(lang_item) {
-            Some(span) => *span,
+            Some(span) => span.clone(),
             None => panic!("lang_item {lang_item:?}"),
         }
     }
 
-    pub fn add_type_info(&mut self, def_span: Span, r#type: Type) {
+    pub fn add_type_info(&mut self, def_span: &Span, r#type: Type) {
         self.global_context.types
             .as_mut()
             .expect("global context not initialized")
             .write()
             .expect("global context poisoned")
-            .insert(def_span, r#type);
+            .insert(def_span.clone(), r#type);
     }
 
     // for `dump_expr`

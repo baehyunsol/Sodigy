@@ -129,7 +129,7 @@ pub fn get_matrix(
                 vec![
                     MatrixRow {
                         field: vec![PatternField::Constructor],
-                        constructor: MatrixConstructor::DefSpan(*constructor_def_span),
+                        constructor: MatrixConstructor::DefSpan(constructor_def_span.clone()),
                     },
                     MatrixRow {
                         field: vec![PatternField::ListLength],
