@@ -84,7 +84,7 @@ pub fn lower_expr(
                                 value: Value::FuncPointer {
                                     def_span: id.def_span.clone(),
 
-                                    // `Session::into_executable()` will fill this
+                                    // `Session::link()` will fill this
                                     program_counter: None,
                                 },
                                 dst,
