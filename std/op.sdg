@@ -84,6 +84,16 @@ fn append<T, U, V>(lhs: T, rhs: U) -> V;
 fn prepend<T, U, V>(lhs: T, rhs: U) -> V;
 
 #[poly]
+#[lang_item("op.inclusive_range")]
+#[lang_item_generics("op.inclusive_range.generic.0", "op.inclusive_range.generic.1", "op.inclusive_range.generic.2")]
+fn inclusive_range<T, U, V>(lhs: T, rhs: U) -> V;
+
+#[poly]
+#[lang_item("op.exclusive_range")]
+#[lang_item_generics("op.exclusive_range.generic.0", "op.exclusive_range.generic.1", "op.exclusive_range.generic.2")]
+fn exclusive_range<T, U, V>(lhs: T, rhs: U) -> V;
+
+#[poly]
 #[lang_item("op.bit_and")]
 #[lang_item_generics("op.bit_and.generic.0", "op.bit_and.generic.1", "op.bit_and.generic.2")]
 fn bit_and<T, U, V>(lhs: T, rhs: U) -> V;

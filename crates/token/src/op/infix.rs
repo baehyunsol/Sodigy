@@ -48,6 +48,8 @@ impl InfixOp {
             InfixOp::Concat => "op.concat",
             InfixOp::Append => "op.append",
             InfixOp::Prepend => "op.prepend",
+            InfixOp::Range { inclusive: true } => "op.inclusive_range",
+            InfixOp::Range { inclusive: false } => "op.exclusive_range",
             InfixOp::BitAnd => "op.bit_and",
             InfixOp::BitOr => "op.bit_or",
             InfixOp::LogicAnd => "op.logic_and",
