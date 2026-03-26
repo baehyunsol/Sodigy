@@ -97,7 +97,7 @@ pub use poly::Poly;
 pub use prelude::{PRELUDES, use_prelude};
 pub use session::Session;
 pub use r#struct::{Struct, StructField, StructInitField, StructShape};
-pub use r#type::{Type, TypeAssertion};
+pub use r#type::{Dotfish, Type, TypeAssertion};
 pub use r#use::Use;
 
 pub use sodigy_parse::Generic;

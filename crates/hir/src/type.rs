@@ -88,7 +88,7 @@ impl Type {
                             def_span: Span::Prelude(list_id),
                         },
                         fields: vec![],
-                        types: vec![None],
+                        dotfish: vec![None],
                     },
                     args: vec![Type::from_ast(r#type, session)?],
                     group_span: group_span.clone(),
@@ -211,4 +211,10 @@ impl Type {
             _ => todo!(),
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct Dotfish {
+    pub types: Vec<Type>,
+    pub group_span: Span,
 }

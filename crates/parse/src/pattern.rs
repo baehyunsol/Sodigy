@@ -399,7 +399,7 @@ impl<'t, 's> Tokens<'t, 's> {
 
                 // no dotfish operators in patterns
                 let mut fields = vec![];
-                let mut types = vec![None];
+                let mut dotfish = vec![None];
 
                 loop {
                     match self.peek2() {
@@ -413,7 +413,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                 dot_span: dot_span.clone(),
                                 is_from_alias: false,
                             });
-                            types.push(None);
+                            dotfish.push(None);
                             self.cursor += 2;
                         },
                         _ => break,
@@ -423,7 +423,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 Pattern {
                     name: None,
                     name_span: None,
-                    kind: PatternKind::Path(Path { id, id_span, fields, types }),
+                    kind: PatternKind::Path(Path { id, id_span, fields, dotfish }),
                 }
             },
             (

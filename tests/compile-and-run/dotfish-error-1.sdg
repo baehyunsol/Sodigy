@@ -1,3 +1,5 @@
+//% compile-error == 1
+
 fn foo(n) = n;
 
 assert foo.<_>(30) == 30;

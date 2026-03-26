@@ -1,4 +1,4 @@
-use crate::Type;
+use crate::{Dotfish, Type};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
@@ -11,7 +11,7 @@ pub struct Path {
     // `foo.bar.<T>.baz.bor.<U, V>()`
     // ->
     // `{ id: foo, fields: [bar, baz, bor], types: [None, Some([T]), None, Some([U, V])]}`
-    pub types: Vec<Option<Vec<Type>>>,
+    pub dotfish: Vec<Option<Dotfish>>,
 }
 
 impl Path {

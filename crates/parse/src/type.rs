@@ -172,7 +172,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                             is_from_alias: false,
                                         },
                                     ).collect(),
-                                    types: vec![None; path.len()],
+                                    dotfish: vec![None; path.len()],
                                 },
                                 args,
                                 group_span: group_span_start.merge(&group_span_end),
@@ -196,7 +196,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                         is_from_alias: false,
                                     },
                                 ).collect(),
-                                types: vec![None; path.len()],
+                                dotfish: vec![None; path.len()],
                             }));
                         },
                         (Some(t), _) => {
@@ -229,7 +229,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         id,
                         id_span,
                         fields: vec![],
-                        types: vec![None],
+                        dotfish: vec![None],
                     },
                     args,
                     group_span: group_span_start.merge(&group_span_end),
@@ -254,7 +254,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         id,
                         id_span,
                         fields: vec![],
-                        types: vec![None],
+                        dotfish: vec![None],
                     },
                     group_span,
                     params,
@@ -271,7 +271,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     fields: vec![],
 
                     // no dotfish operators for type annotations
-                    types: vec![None],
+                    dotfish: vec![None],
                 }))
             },
             (Some(Token { kind: TokenKind::Group { delim, tokens }, span }), _) => {
@@ -465,4 +465,10 @@ impl<'t, 's> Tokens<'t, 's> {
             }
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct Dotfish {
+    pub types: Vec<Type>,
+    pub group_span: Span,
 }

@@ -2,6 +2,7 @@ use crate::{
     Assert,
     Block,
     Callable,
+    Dotfish,
     Expr,
     If,
     Let,
@@ -21,9 +22,10 @@ use sodigy_token::Constant;
 impl Endec for Expr {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            Expr::Ident(id) => {
+            Expr::Ident { id, dotfish } => {
                 buffer.push(0);
                 id.encode_impl(buffer);
+                dotfish.encode_impl(buffer);
             },
             Expr::Constant(c) => {
                 buffer.push(1);
@@ -41,10 +43,11 @@ impl Endec for Expr {
                 buffer.push(4);
                 block.encode_impl(buffer);
             },
-            Expr::Field { lhs, fields } => {
+            Expr::Field { lhs, fields, dotfish } => {
                 buffer.push(5);
                 lhs.encode_impl(buffer);
                 fields.encode_impl(buffer);
+                dotfish.encode_impl(buffer);
             },
             Expr::FieldUpdate { fields, lhs, rhs } => {
                 buffer.push(6);
@@ -67,7 +70,8 @@ impl Endec for Expr {
         match buffer.get(cursor) {
             Some(0) => {
                 let (id, cursor) = IdentWithOrigin::decode_impl(buffer, cursor + 1)?;
-                Ok((Expr::Ident(id), cursor))
+                let (dotfish, cursor) = Option::<Dotfish>::decode_impl(buffer, cursor)?;
+                Ok((Expr::Ident { id, dotfish }, cursor))
             },
             Some(1) => {
                 let (c, cursor) = Constant::decode_impl(buffer, cursor + 1)?;
@@ -88,7 +92,8 @@ impl Endec for Expr {
             Some(5) => {
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
                 let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor)?;
-                Ok((Expr::Field { lhs, fields }, cursor))
+                let (dotfish, cursor) = Vec::<Option<Dotfish>>::decode_impl(buffer, cursor)?;
+                Ok((Expr::Field { lhs, fields, dotfish }, cursor))
             },
             Some(6) => {
                 let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor + 1)?;
@@ -100,7 +105,7 @@ impl Endec for Expr {
                 let (func, cursor) = Callable::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<Expr>::decode_impl(buffer, cursor)?;
                 let (arg_group_span, cursor) = Span::decode_impl(buffer, cursor)?;
-                let (types, cursor) = Option::<(Vec<Type>, Span)>::decode_impl(buffer, cursor)?;
+                let (types, cursor) = Option::<Dotfish>::decode_impl(buffer, cursor)?;
                 let (given_keyword_args, cursor) = Vec::<(InternedString, usize)>::decode_impl(buffer, cursor)?;
                 Ok((Expr::Call { func, args, arg_group_span, types, given_keyword_args }, cursor))
             },

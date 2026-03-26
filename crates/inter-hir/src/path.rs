@@ -1,6 +1,7 @@
 use crate::Session;
 use sodigy_error::{Error, ErrorKind};
 use sodigy_hir::{
+    Dotfish,
     Path,
     Type,
 };
@@ -70,9 +71,9 @@ impl Session {
                     alias_fields,
                     path.fields.to_vec(),
                 ].concat();
-                path.types = vec![
-                    alias.path.types.clone(),
-                    path.types[1..].to_vec(),
+                path.dotfish = vec![
+                    alias.path.dotfish.clone(),
+                    path.dotfish[1..].to_vec(),
                 ].concat();
             },
             None => {},
@@ -82,8 +83,8 @@ impl Session {
             Some(alias) => {
                 log.push(path.id.span.clone());
                 log.push(path.id.def_span.clone());
-                let generic_args = match path.types.last() {
-                    Some(Some(types)) => types.to_vec(),
+                let generic_args = match path.dotfish.last() {
+                    Some(Some(dotfish)) => dotfish.types.to_vec(),
                     _ => match type_args {
                         Some(types) => types.to_vec(),
                         None => vec![],
@@ -127,8 +128,8 @@ impl Session {
                             _ => unreachable!(),
                         }
                     ).collect();
-                    path.types = alias_path.types.clone();
-                    *path.types.last_mut().unwrap() = alias_generic_args;
+                    path.dotfish = alias_path.dotfish.clone();
+                    *path.dotfish.last_mut().unwrap() = alias_generic_args.map(|types| Dotfish { types, group_span: Span::None });
 
                     if !generic_args.is_empty() {
                         // apply generic args
@@ -158,7 +159,7 @@ impl Session {
                         *path = Path {
                             id: new_id,
                             fields: vec![],
-                            types: vec![None],
+                            dotfish: vec![None],
                         };
                         return Ok(());
                     }
@@ -167,9 +168,9 @@ impl Session {
                         *path = Path {
                             id: new_id,
                             fields: path.fields[1..].to_vec(),
-                            types: vec![
+                            dotfish: vec![
                                 vec![None],
-                                path.types[2..].to_vec(),
+                                path.dotfish[2..].to_vec(),
                             ].concat(),
                         };
                         return self.resolve_path(path, None, log);
@@ -194,7 +195,7 @@ impl Session {
                                 *path = Path {
                                     id: new_id,
                                     fields: vec![],
-                                    types: vec![None],
+                                    dotfish: vec![None],
                                 };
                             }
 
@@ -202,9 +203,9 @@ impl Session {
                                 *path = Path {
                                     id: new_id,
                                     fields: path.fields[1..].to_vec(),
-                                    types: vec![
+                                    dotfish: vec![
                                         vec![None],
-                                        path.types[2..].to_vec(),
+                                        path.dotfish[2..].to_vec(),
                                     ].concat(),
                                 };
                             }

@@ -16,15 +16,15 @@ impl Session {
             Type::Path(path) => {
                 self.resolve_path(path, None, log)?;
 
-                if let Some(Some(types)) = path.types.last() {
+                if let Some(Some(dotfish)) = path.dotfish.last() {
                     let mut path = path.clone();
-                    let types = types.clone();
+                    let dotfish = dotfish.clone();
 
-                    *path.types.last_mut().unwrap() = None;
+                    *path.dotfish.last_mut().unwrap() = None;
                     *r#type = Type::Param {
                         constructor: path,
-                        args: types,
-                        group_span: Span::None,
+                        args: dotfish.types.clone(),
+                        group_span: dotfish.group_span.clone(),
                     };
                 }
 
@@ -44,10 +44,10 @@ impl Session {
                         has_error = true;
                     }
 
-                    if let Some(Some(types)) = constructor.types.last() {
-                        let types = types.clone();
-                        *constructor.types.last_mut().unwrap() = None;
-                        *args = types;
+                    if let Some(Some(dotfish)) = constructor.dotfish.last() {
+                        let dotfish = dotfish.clone();
+                        *constructor.dotfish.last_mut().unwrap() = None;
+                        *args = dotfish.types.clone();
                     }
                 }
 
@@ -112,7 +112,7 @@ impl Session {
                 _ if !path.fields.is_empty() => todo!(),
 
                 // `parse::parse_type` will never generate this, neither inter-hir
-                _ if path.types[0].is_some() => Err(Error::ice(636810, path.error_span_wide())),
+                _ if path.dotfish[0].is_some() => Err(Error::ice(636810, path.error_span_wide())),
                 NameOrigin::FuncParam { .. } => Err(not_x_but_y(path, TypeStructExpr::Type, NotXBut::Expr, intermediate_dir)),
                 NameOrigin::GenericParam { .. } => Ok(()),
                 NameOrigin::Local { kind } |

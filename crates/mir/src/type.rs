@@ -532,7 +532,10 @@ impl Type {
 /// or even worse, a wrong type.
 pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
     match expr {
-        Expr::Ident(id) => global_context.get_type(&id.def_span),
+        Expr::Ident { id, dotfish } => {
+            assert!(dotfish.is_none());
+            global_context.get_type(&id.def_span)
+        },
         Expr::Constant(Constant::Number { n, .. }) => match n.is_integer() {
             true => Some(Type::Data {
                 constructor_def_span: global_context.get_lang_item_span("type.Int"),
@@ -592,7 +595,8 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
         Expr::If(r#if) => type_of(&r#if.true_value, global_context),
         Expr::Match(r#match) => type_of(&r#match.arms[0].value, global_context),
         Expr::Block(block) => type_of(&block.value, global_context),
-        Expr::Field { lhs, fields } => {
+        Expr::Field { lhs, fields, dotfish } => {
+            assert!(dotfish.last().unwrap().is_none());
             let Some(lhs_type) = type_of(lhs, global_context.clone()) else { return None; };
             type_of_field(&lhs_type, fields, global_context)
         },
@@ -664,5 +668,42 @@ pub fn type_of_field(r#type: &Type, field: &[Field], global_context: GlobalConte
 
     else {
         type_of_field(&t, &field[1..], global_context)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Dotfish {
+    pub types: Vec<Type>,
+    pub group_span: Span,
+}
+
+impl Dotfish {
+    pub fn from_hir(hir_dotfish: &Option<hir::Dotfish>, session: &mut Session) -> Result<Option<Dotfish>, ()> {
+        match hir_dotfish {
+            Some(hir::Dotfish { types: hir_types, group_span }) => {
+                let mut types = Vec::with_capacity(hir_types.len());
+                let mut has_error = false;
+
+                for hir_type in hir_types.iter() {
+                    match Type::from_hir(hir_type, session) {
+                        Ok(r#type) => {
+                            types.push(r#type);
+                        },
+                        Err(()) => {
+                            has_error = true;
+                        },
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(Some(Dotfish { types, group_span: group_span.clone() }))
+                }
+            },
+            None => Ok(None),
+        }
     }
 }

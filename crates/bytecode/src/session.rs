@@ -115,7 +115,7 @@ impl Session<'_, '_> {
 
     pub fn collect_local_names(&mut self, expr: &Expr, offset: usize) {
         match expr {
-            Expr::Ident(_) |
+            Expr::Ident { .. } |
             Expr::Constant(_) => {},
             Expr::If(r#if) => {
                 self.collect_local_names(&r#if.cond, offset);

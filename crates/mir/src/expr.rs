@@ -1,4 +1,4 @@
-use crate::{Block, If, Match, Session, Type, lower_hir_if};
+use crate::{Block, Dotfish, If, Match, Session, Type, lower_hir_if};
 use sodigy_error::{Error, ErrorKind, comma_list_strs, to_ordinal};
 use sodigy_hir as hir;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
@@ -13,7 +13,10 @@ mod dispatch;
 
 #[derive(Clone, Debug)]
 pub enum Expr {
-    Ident(IdentWithOrigin),
+    Ident {
+        id: IdentWithOrigin,
+        dotfish: Option<Dotfish>,
+    },
     Constant(Constant),
     If(If),
 
@@ -23,6 +26,7 @@ pub enum Expr {
     Field {
         lhs: Box<Expr>,
         fields: Vec<Field>,
+        dotfish: Vec<Option<Dotfish>>,
     },
     FieldUpdate {
         fields: Vec<Field>,
@@ -36,7 +40,7 @@ pub enum Expr {
 
         // It's lowered from dotfish operators.
         // Only `Callable::Static` and `Callable::StructInit` can have this.
-        types: Option<(Vec<Type>, Span /* group span of the angle brackets */)>,
+        types: Option<Dotfish>,
 
         // It helps generating error messages.
         // It has type `Vec<(keyword: InternedString, n: usize)>` where
@@ -78,8 +82,12 @@ impl Expr {
             hir::Expr::Path(path) => {
                 // inter-hir's `check_expr_path` should guarantee this
                 assert!(path.fields.is_empty());
+                assert!(path.dotfish.len() == 1);
 
-                Ok(Expr::Ident(path.id.clone()))
+                Ok(Expr::Ident {
+                    id: path.id.clone(),
+                    dotfish: Dotfish::from_hir(path.dotfish.last().unwrap(), session)?,
+                })
             },
             hir::Expr::Constant(c) => Ok(Expr::Constant(c.clone())),
 
@@ -96,41 +104,53 @@ impl Expr {
                 let mut has_error = false;
                 let mut def_span = None;
                 let mut given_keyword_args = vec![];
+                let mut dotfish = None;
 
                 // TODO: This is the right place to lower dotfish operators.
 
                 let (call_span, func) = match Expr::from_hir(func, session) {
-                    Ok(ref e @ Expr::Ident(ref id)) => match &id.origin {
-                        NameOrigin::Local { kind } |
-                        NameOrigin::Foreign { kind } => match kind {
-                            NameKind::Func => {
-                                def_span = Some(id.def_span.clone());
-                                (
-                                    id.span.clone(),
-                                    Callable::Static {
-                                        def_span: id.def_span.clone(),
-                                        span: id.span.clone(),
-                                    },
-                                )
+                    Ok(ref e @ Expr::Ident { ref id, dotfish: ref hir_dotfish }) => {
+                        if hir_dotfish.is_some() {
+                            dotfish = hir_dotfish.clone();
+                        }
+
+                        match &id.origin {
+                            NameOrigin::Local { kind } |
+                            NameOrigin::Foreign { kind } => match kind {
+                                NameKind::Func => {
+                                    def_span = Some(id.def_span.clone());
+                                    (
+                                        id.span.clone(),
+                                        Callable::Static {
+                                            def_span: id.def_span.clone(),
+                                            span: id.span.clone(),
+                                        },
+                                    )
+                                },
+                                // The programmer defines a functor using `let` keyword
+                                // and calls it. In this case, we have to dynamically call the
+                                // function on runtime. (Maybe we can do some optimizations and turn it into a static call?)
+                                NameKind::Let { .. } => {
+                                    def_span = Some(id.def_span.clone());
+                                    (id.span.clone(), Callable::Dynamic(Box::new(e.clone())))
+                                },
+                                _ => panic!("TODO: {kind:?}"),
                             },
-                            // The programmer defines a functor using `let` keyword
-                            // and calls it. In this case, we have to dynamically call the
-                            // function on runtime. (Maybe we can do some optimizations and turn it into a static call?)
-                            NameKind::Let { .. } => {
-                                def_span = Some(id.def_span.clone());
-                                (id.span.clone(), Callable::Dynamic(Box::new(e.clone())))
-                            },
-                            _ => panic!("TODO: {kind:?}"),
-                        },
-                        NameOrigin::FuncParam { .. } => (id.span.clone(), Callable::Dynamic(Box::new(e.clone()))),
-                        NameOrigin::GenericParam { .. } => unreachable!(),
-                        NameOrigin::External => unreachable!(),
+                            NameOrigin::FuncParam { .. } => (id.span.clone(), Callable::Dynamic(Box::new(e.clone()))),
+                            NameOrigin::GenericParam { .. } => unreachable!(),
+                            NameOrigin::External => unreachable!(),
+                        }
                     },
                     // call_span has to be the name_span of the last field, because `get_type_of_field` works this way
-                    Ok(Expr::Field { lhs, fields }) => (
-                        fields.last().unwrap().unwrap_name_span(),
-                        Callable::Dynamic(Box::new(Expr::Field { lhs, fields })),
-                    ),
+                    // TODO: I guess I have to do something with `dotfish` here?
+                    Ok(Expr::Field { lhs, fields, dotfish: hir_dotfish }) => {
+                        dotfish = hir_dotfish.last().unwrap().clone();
+
+                        (
+                            fields.last().unwrap().unwrap_name_span(),
+                            Callable::Dynamic(Box::new(Expr::Field { lhs, dotfish: vec![None; fields.len() + 1], fields })),
+                        )
+                    },
                     Ok(func) => (func.error_span_wide(), Callable::Dynamic(Box::new(func))),
                     Err(()) => {
                         has_error = true;
@@ -307,7 +327,10 @@ impl Expr {
                             for i in 0..params.len() {
                                 match (&mir_args[i], &params[i].default_value) {
                                     (None, Some(default_value)) => {
-                                        mir_args[i] = Some(Expr::Ident(default_value.clone()));
+                                        mir_args[i] = Some(Expr::Ident {
+                                            id: default_value.clone(),
+                                            dotfish: None,
+                                        });
                                     },
                                     _ => {},
                                 }
@@ -379,7 +402,7 @@ impl Expr {
                         func,
                         args,
                         arg_group_span: arg_group_span.clone(),
-                        types: None,
+                        types: dotfish,
                         given_keyword_args,
                     })
                 }
@@ -415,8 +438,8 @@ impl Expr {
                                     },
                                     args: vec![e],
                                     arg_group_span: derived_span.clone(),
-                                    types: Some((
-                                        vec![
+                                    types: Some(Dotfish {
+                                        types: vec![
                                             Type::Var { def_span: derived_span.clone(), is_return: false },
                                             Type::Data {
                                                 constructor_def_span: session.get_lang_item_span("type.List"),
@@ -430,8 +453,8 @@ impl Expr {
                                                 group_span: Some(Span::None),
                                             },
                                         ],
-                                        Span::None,
-                                    )),
+                                        group_span: Span::None,
+                                    }),
                                     given_keyword_args: vec![],
                                 };
 
@@ -645,7 +668,10 @@ impl Expr {
                             for i in 0..field_defs.len() {
                                 match (&mir_fields[i], &field_defs[i].default_value) {
                                     (None, Some(default_value)) => {
-                                        mir_fields[i] = Some(Expr::Ident(default_value.clone()));
+                                        mir_fields[i] = Some(Expr::Ident {
+                                            id: default_value.clone(),
+                                            dotfish: None,
+                                        });
                                     },
                                     _ => {},
                                 }
@@ -749,12 +775,34 @@ impl Expr {
                     None => unreachable!(),
                 }
             },
-            hir::Expr::Field { lhs, fields, types } => match Expr::from_hir(lhs, session) {
-                Ok(lhs) => Ok(Expr::Field {
-                    lhs: Box::new(lhs),
-                    fields: fields.clone(),
-                    // TODO: types
-                }),
+            hir::Expr::Field { lhs, fields, dotfish: hir_dotfish } => match Expr::from_hir(lhs, session) {
+                Ok(lhs) => {
+                    let mut dotfish = Vec::with_capacity(hir_dotfish.len());
+                    let mut has_error = false;
+
+                    for hir_dotfish in hir_dotfish.iter() {
+                        match Dotfish::from_hir(hir_dotfish, session) {
+                            Ok(d) => {
+                                dotfish.push(d);
+                            },
+                            Err(()) => {
+                                has_error = true;
+                            },
+                        }
+                    }
+
+                    if has_error {
+                        Err(())
+                    }
+
+                    else {
+                        Ok(Expr::Field {
+                            lhs: Box::new(lhs),
+                            fields: fields.clone(),
+                            dotfish,
+                        })
+                    }
+                },
                 Err(()) => Err(()),
             },
             hir::Expr::FieldUpdate { fields, lhs, rhs } => match (
@@ -799,16 +847,19 @@ impl Expr {
                                 else_span: Span::None,
                                 true_value: Box::new(rhs),
                                 true_group_span: expr_span.clone(),
-                                false_value: Box::new(Expr::Ident(IdentWithOrigin {
-                                    id: intern_string(b"False", &session.intermediate_dir).unwrap(),
-                                    span: Span::None,
-                                    origin: NameOrigin::Foreign {
-                                        kind: NameKind::EnumVariant {
-                                            parent: session.get_lang_item_span("type.Bool"),
+                                false_value: Box::new(Expr::Ident {
+                                    id: IdentWithOrigin {
+                                        id: intern_string(b"False", &session.intermediate_dir).unwrap(),
+                                        span: Span::None,
+                                        origin: NameOrigin::Foreign {
+                                            kind: NameKind::EnumVariant {
+                                                parent: session.get_lang_item_span("type.Bool"),
+                                            },
                                         },
+                                        def_span: session.get_lang_item_span("variant.Bool.False"),
                                     },
-                                    def_span: session.get_lang_item_span("variant.Bool.False"),
-                                })),
+                                    dotfish: None,
+                                }),
                                 false_group_span: expr_span.clone(),
                                 from_short_circuit: Some(ShortCircuitKind::And),
                             })),
@@ -817,16 +868,19 @@ impl Expr {
                                 if_span: op_span.clone(),
                                 cond: Box::new(lhs),
                                 else_span: Span::None,
-                                true_value: Box::new(Expr::Ident(IdentWithOrigin {
-                                    id: intern_string(b"True", &session.intermediate_dir).unwrap(),
-                                    span: Span::None,
-                                    origin: NameOrigin::Foreign {
-                                        kind: NameKind::EnumVariant {
-                                            parent: session.get_lang_item_span("type.Bool"),
+                                true_value: Box::new(Expr::Ident {
+                                    id: IdentWithOrigin {
+                                        id: intern_string(b"True", &session.intermediate_dir).unwrap(),
+                                        span: Span::None,
+                                        origin: NameOrigin::Foreign {
+                                            kind: NameKind::EnumVariant {
+                                                parent: session.get_lang_item_span("type.Bool"),
+                                            },
                                         },
+                                        def_span: session.get_lang_item_span("variant.Bool.True"),
                                     },
-                                    def_span: session.get_lang_item_span("variant.Bool.True"),
-                                })),
+                                    dotfish: None,
+                                }),
                                 true_group_span: expr_span.clone(),
                                 false_value: Box::new(rhs),
                                 false_group_span: expr_span.clone(),
@@ -876,8 +930,8 @@ impl Expr {
                 },
                 args: vec![Expr::from_hir(lhs, session)?],
                 arg_group_span: rhs.error_span_wide(),
-                types: Some((
-                    if *has_question_mark {
+                types: Some(Dotfish {
+                    types: if *has_question_mark {
                         // `"3" as? <Int>` -> `std.convert.try_convert.<_, Int, _>("3")`
                         vec![
                             Type::Var { def_span: keyword_span.clone(), is_return: false },
@@ -891,8 +945,8 @@ impl Expr {
                             Type::from_hir(rhs, session)?,
                         ]
                     },
-                    rhs.error_span_wide(),
-                )),
+                    group_span: rhs.error_span_wide(),
+                }),
                 given_keyword_args: vec![],
             }),
             hir::Expr::Closure { fp, captures } => todo!(),
@@ -906,7 +960,7 @@ impl Expr {
 
     pub fn error_span_narrow(&self) -> Span {
         match self {
-            Expr::Ident(id) => id.span.clone(),
+            Expr::Ident { id, .. } => id.span.clone(),
             Expr::Constant(c) => c.span(),
             Expr::If(r#if) => r#if.if_span.clone(),
             Expr::Match(r#match) => r#match.keyword_span.clone(),
@@ -919,14 +973,16 @@ impl Expr {
 
     pub fn error_span_wide(&self) -> Span {
         match self {
-            Expr::Ident(id) => id.span.clone(),
+            // TODO: dotfish
+            Expr::Ident { id, dotfish } => id.span.clone(),
             Expr::Constant(c) => c.span(),
             Expr::If(r#if) => r#if.if_span.merge(&r#if.true_group_span).merge(&r#if.false_group_span),
             Expr::Match(r#match) => r#match.keyword_span
                 .merge(&r#match.scrutinee.error_span_wide())
                 .merge(&r#match.group_span),
             Expr::Block(block) => block.group_span.clone(),
-            Expr::Field { lhs, fields } => lhs.error_span_wide().merge(&merge_field_spans(fields)),
+            // TODO: dotfish
+            Expr::Field { lhs, fields, dotfish } => lhs.error_span_wide().merge(&merge_field_spans(fields)),
             Expr::FieldUpdate { lhs, fields, rhs } => lhs.error_span_wide()
                 .merge(&merge_field_spans(fields))
                 .merge(&rhs.error_span_wide()),

@@ -218,7 +218,7 @@ impl Session {
                                                     origin: NameOrigin::GenericParam { index: i },
                                                 },
                                                 fields: vec![],
-                                                types: vec![None],
+                                                dotfish: vec![None],
                                             })),
                                             default_value: None,
                                         }
@@ -234,7 +234,7 @@ impl Session {
                                             origin: NameOrigin::GenericParam { index: params },
                                         },
                                         fields: vec![],
-                                        types: vec![None],
+                                        dotfish: vec![None],
                                     })),
                                     value: Expr::dummy(),
                                     origin: FuncOrigin::AssociatedFunc,

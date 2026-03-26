@@ -19,10 +19,10 @@ impl Session {
                         lhs: Box::new(Expr::Path(Path {
                             id: p.id.clone(),
                             fields: vec![],
-                            types: vec![None],
+                            dotfish: vec![None],
                         })),
                         fields: p.fields.to_vec(),
-                        types: p.types.to_vec(),
+                        dotfish: p.dotfish.to_vec(),
                     };
                     Ok(())
                 }

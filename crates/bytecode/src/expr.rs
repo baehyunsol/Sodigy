@@ -25,7 +25,8 @@ pub fn lower_expr(
     is_tail_call: bool,
 ) {
     match expr {
-        Expr::Ident(id) => {
+        Expr::Ident { id, dotfish } => {
+            assert!(dotfish.is_none());
             let src = match session.local_values.get(&id.def_span) {
                 Some(src) => Memory::Stack(src.stack_offset),
                 None => match &id.origin {
@@ -187,7 +188,8 @@ pub fn lower_expr(
                 session.drop_block(&local_names);
             }
         },
-        Expr::Field { lhs, fields } => {
+        Expr::Field { lhs, fields, dotfish } => {
+            assert!(dotfish.last().unwrap().is_none());
             lower_expr(
                 lhs,
                 session,

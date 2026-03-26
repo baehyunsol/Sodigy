@@ -51,7 +51,7 @@ pub(crate) use pattern::ParsePatternContext;
 pub use session::Session;
 pub use r#struct::{Struct, StructField, StructInitField};
 pub(crate) use tokens::Tokens;
-pub use r#type::{Generic, Type};
+pub use r#type::{Dotfish, Generic, Type};
 pub use r#use::Use;
 
 pub fn parse(

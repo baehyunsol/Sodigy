@@ -2,7 +2,7 @@ use crate::{AssociatedFuncInstance, Expr, Session, Type, write_log};
 use crate::error::{ErrorContext, TypeError};
 use sodigy_inter_hir::get_associated_func_name;
 use sodigy_hir::{AssociatedFunc, FuncPurity};
-use sodigy_mir::{Callable, ShortCircuitKind};
+use sodigy_mir::{Callable, Dotfish, ShortCircuitKind};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::{Field, merge_field_spans};
 use sodigy_span::{PolySpanKind, Span};
@@ -24,20 +24,50 @@ impl Session {
     // can find more type errors (only obvious ones).
     pub fn solve_expr(&mut self, expr: &Expr, impure_calls: &mut Vec<Span>) -> (Option<Type>, bool /* has_error */) {
         match expr {
-            Expr::Ident(id) => match self.types.get(&id.def_span) {
+            Expr::Ident { id, dotfish } => match self.types.get(&id.def_span) {
                 Some(r#type) => (Some(r#type.clone()), false),
                 None => {
                     match &id.origin {
                         NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
                             // `False` in `Bool.False` has type `Bool`.
-                            // TODO: `None` in `Option.None` must have type `Option<T>`, not `Option`.
                             NameKind::EnumVariant { parent } => {
-                                return (Some(Type::Data {
-                                    constructor_def_span: parent.clone(),
-                                    constructor_span: Span::None,
-                                    args: None,
-                                    group_span: None,
-                                }), false);
+                                // If it has generic parameters, do something
+                                let enum_shape = match self.enum_shapes.get(parent) {
+                                    Some(e) => {
+                                        if e.generics.is_empty() {
+                                            return (
+                                                Some(Type::Data {
+                                                    constructor_def_span: parent.clone(),
+                                                    constructor_span: Span::None,
+                                                    args: None,
+                                                    group_span: None,
+                                                }),
+                                                false,
+                                            );
+                                        }
+
+                                        else {
+                                            todo!()
+                                        }
+                                    },
+                                    None => todo!(),  // unreachable?
+                                };
+                            },
+                            NameKind::Struct => {
+                                // If it has generic parameters, do something
+                                let struct_shape = match self.struct_shapes.get(&id.def_span) {
+                                    _ => todo!(),
+                                };
+
+                                todo!()
+                            },
+                            NameKind::Func => {
+                                // If it has generic parameters, do something
+                                let func_shape = match self.func_shapes.get(&id.def_span) {
+                                    _ => todo!(),
+                                };
+
+                                todo!()
                             },
                             NameKind::PatternNameBind => {
                                 self.pattern_name_bindings.insert(id.def_span.clone());
@@ -344,7 +374,7 @@ impl Session {
                 let (expr_type, e) = self.solve_expr(block.value.as_ref(), impure_calls);
                 (expr_type, e || has_error)
             },
-            Expr::Field { lhs, fields } => match self.solve_expr(lhs, impure_calls) {
+            Expr::Field { lhs, fields, dotfish } => match self.solve_expr(lhs, impure_calls) {
                 (Some(lhs_type), has_error) => match self.get_type_of_field(&lhs_type, fields) {
                     (associated_func, Ok(field_type)) => {
                         if let Some(associated_func) = associated_func {
@@ -449,7 +479,7 @@ impl Session {
                             ).unwrap_or(vec![]);
                             let span = span.clone();
 
-                            if let Some((generic_args, arg_group_span)) = generic_args {
+                            if let Some(Dotfish { types: generic_args, group_span: arg_group_span }) = generic_args {
                                 if generic_args.len() != generic_params.len() {
                                     self.type_errors.push(TypeError::WrongNumberOfGenericArgs {
                                         expected: generic_params.len(),

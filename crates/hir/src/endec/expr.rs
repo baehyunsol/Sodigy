@@ -1,6 +1,7 @@
 use crate::{
     Block,
     CallArg,
+    Dotfish,
     Expr,
     ExprOrString,
     If,
@@ -66,11 +67,11 @@ impl Endec for Expr {
                 fields.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
-            Expr::Field { lhs, fields, types } => {
+            Expr::Field { lhs, fields, dotfish } => {
                 buffer.push(10);
                 lhs.encode_impl(buffer);
                 fields.encode_impl(buffer);
-                types.encode_impl(buffer);
+                dotfish.encode_impl(buffer);
             },
             Expr::FieldUpdate { fields, lhs, rhs } => {
                 buffer.push(11);
@@ -165,8 +166,8 @@ impl Endec for Expr {
             Some(10) => {
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
                 let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor)?;
-                let (types, cursor) = Vec::<Option<Vec<Type>>>::decode_impl(buffer, cursor)?;
-                Ok((Expr::Field { lhs, fields, types }, cursor))
+                let (dotfish, cursor) = Vec::<Option<Dotfish>>::decode_impl(buffer, cursor)?;
+                Ok((Expr::Field { lhs, fields, dotfish }, cursor))
             },
             Some(11) => {
                 let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor + 1)?;

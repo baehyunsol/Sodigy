@@ -1,4 +1,4 @@
-use super::{dump_assert, dump_let, span_to_string_or_verbose};
+use super::{dump_assert, dump_let, dump_type, span_to_string_or_verbose};
 use crate::{Callable, Expr, Session};
 use sodigy_endec::IndentedLines;
 use sodigy_hir::dump::dump_pattern;
@@ -16,8 +16,18 @@ pub fn dump_expr(
     }
 
     match expr {
-        Expr::Ident(id) => {
+        Expr::Ident { id, dotfish } => {
             lines.push(&id.id.unintern_or_default(&session.intermediate_dir));
+
+            if let Some(dotfish) = dotfish {
+                lines.push(".<");
+
+                for r#type in dotfish.types.iter() {
+                    dump_type(r#type, lines, session);
+                }
+
+                lines.push(">");
+            }
         },
         Expr::Constant(c) => {
             lines.push(&c.dump(&session.intermediate_dir));
@@ -159,10 +169,22 @@ pub fn dump_expr(
 
             lines.push("}");
         },
-        Expr::Field { lhs, fields } => {
+        Expr::Field { lhs, fields, dotfish } => {
             dump_expr(lhs, lines, session, max_len, single_line);
 
-            for field in fields.iter() {
+            if let Some(dotfish) = &dotfish[0] {
+                lines.push(".<");
+
+                for r#type in dotfish.types.iter() {
+                    dump_type(r#type, lines, session);
+                }
+
+                lines.push(">");
+            }
+
+            assert_eq!(fields.len() + 1, dotfish.len());
+
+            for (field, dotfish) in fields.iter().zip(dotfish[1..].iter()) {
                 lines.push(".");
 
                 match field {
@@ -180,6 +202,16 @@ pub fn dump_expr(
                     Field::ListLength => {
                         lines.push("__LIST_LENGTH__");
                     },
+                }
+
+                if let Some(dotfish) = dotfish {
+                    lines.push(".<");
+
+                    for r#type in dotfish.types.iter() {
+                        dump_type(r#type, lines, session);
+                    }
+
+                    lines.push(">");
                 }
             }
         },

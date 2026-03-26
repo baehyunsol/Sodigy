@@ -33,7 +33,7 @@ impl Expr {
 
     pub fn from_pattern_kind(pattern_kind: &PatternKind) -> Result<Expr, Vec<Error>> {
         match pattern_kind {
-            PatternKind::Path(p) => Ok(Expr::Path(p.clone())),
+            PatternKind::Path(p) => Ok(Expr::Path(p.clone().into())),
             PatternKind::Constant(c) => Ok(Expr::Constant(c.clone())),
             PatternKind::NameBinding { .. } => Err(vec![Error {
                 kind: ErrorKind::CannotEvaluateConst,

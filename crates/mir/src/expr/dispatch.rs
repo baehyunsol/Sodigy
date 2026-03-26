@@ -18,7 +18,15 @@ impl Expr {
             //       e.g. let's say `add` is a generic function
             //       `let x: [Fn(Int, Int) -> Int] = [add, sub, mul, div];`
             //       Then we have to dispatch the identifiers in the list.
-            Expr::Ident(_) => {},
+            Expr::Ident { id, dotfish } => match generics.get(&id.span) {
+                Some(new_def_span) => {
+                    // TODO: I guess I have to update the name_kind?
+                    //       -> I have to update `parent` in `EnumVariant { parent }`
+                    id.def_span = new_def_span.clone();
+                    *dotfish = None;
+                },
+                None => {},
+            },
             Expr::Constant(_) => {},
             Expr::If(r#if) => {
                 r#if.cond.dispatch(generics, associated_funcs, func_shapes, generic_args);
@@ -51,7 +59,7 @@ impl Expr {
 
                 block.value.dispatch(generics, associated_funcs, func_shapes, generic_args);
             },
-            Expr::Field { lhs, fields } => {
+            Expr::Field { lhs, fields, dotfish } => {
                 lhs.dispatch(generics, associated_funcs, func_shapes, generic_args);
 
                 // `x.y.push` -> `\(z) => associated_func::push(x.y, z)`
@@ -71,7 +79,9 @@ impl Expr {
                         None => None,
                     },
                     Callable::Dynamic(f) => {
-                        if let Expr::Field { lhs, fields } = &**f {
+                        if let Expr::Field { lhs, fields, dotfish } = &**f {
+                            assert!(dotfish.last().unwrap().is_none());
+
                             // `x.y.push(z)` -> `associated_func::push(x.y, z)`
                             if let Some(Field::Name { name_span, .. }) = fields.last() && let Some(poly_def_span) = associated_funcs.get(name_span) {
                                 let new_lhs = if fields.len() == 1 {
@@ -80,6 +90,7 @@ impl Expr {
                                     Expr::Field {
                                         lhs: lhs.clone(),
                                         fields: fields[..(fields.len() - 1)].to_vec(),
+                                        dotfish: dotfish[..(dotfish.len() - 1)].to_vec(),
                                     }
                                 };
                                 let mut new_args = vec![new_lhs];
@@ -115,6 +126,7 @@ impl Expr {
 
                     match func_shapes.get(def_span) {
                         Some(func_shape) => {
+                            // TODO: Why am I inserting these? I don't remember...
                             for generic in func_shape.generics.iter() {
                                 generic_args.insert(
                                     (span.clone(), generic.name_span.clone()),

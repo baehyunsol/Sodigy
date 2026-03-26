@@ -1,6 +1,7 @@
 use crate::{
     Block,
     CallArg,
+    Dotfish,
     Func,
     FuncOrigin,
     If,
@@ -61,9 +62,7 @@ pub enum Expr {
     Field {
         lhs: Box<Expr>,
         fields: Vec<Field>,
-
-        // dotfish operators
-        types: Vec<Option<Vec<Type>>>,
+        dotfish: Vec<Option<Dotfish>>,
     },
     FieldUpdate {
         fields: Vec<Field>,
@@ -236,10 +235,10 @@ impl Expr {
                     _ => Err(()),
                 }
             },
-            ast::Expr::Field { lhs, field, r#type: ast_type } => {
+            ast::Expr::Field { lhs, field, dotfish: ast_dotfish } => {
                 let mut has_error = false;
-                let dotfish = match ast_type {
-                    Some(ast_types) => {
+                let new_dotfish = match ast_dotfish {
+                    Some(ast::Dotfish { types: ast_types, group_span }) => {
                         let mut types = vec![];
 
                         for ast_type in ast_types.iter() {
@@ -253,26 +252,26 @@ impl Expr {
                             }
                         }
 
-                        Some(types)
+                        Some(Dotfish { types, group_span: group_span.clone() })
                     },
                     None => None,
                 };
 
                 match Expr::from_ast(lhs, session) {
                     _ if has_error => Err(()),
-                    Ok(Expr::Field { lhs, mut fields, mut types }) => {
+                    Ok(Expr::Field { lhs, mut fields, mut dotfish }) => {
                         fields.push(field.clone());
-                        types.push(dotfish);
+                        dotfish.push(new_dotfish);
                         Ok(Expr::Field {
                             lhs,
                             fields,
-                            types,
+                            dotfish,
                         })
                     },
                     Ok(lhs) => Ok(Expr::Field {
                         lhs: Box::new(lhs),
                         fields: vec![field.clone()],
-                        types: vec![None, dotfish],
+                        dotfish: vec![None, new_dotfish],
                     }),
                     Err(()) => Err(()),
                 }
@@ -330,7 +329,7 @@ impl Expr {
                                 },
                             },
                             fields: vec![],
-                            types: vec![None],
+                            dotfish: vec![None],
                         }))
                     },
                     Err(()) => Err(()),
@@ -513,7 +512,7 @@ impl Expr {
             Expr::StructInit { constructor, group_span, .. } => constructor.error_span_wide().merge(group_span),
 
             // TODO: dump dotfish
-            Expr::Field { lhs, fields, types } => lhs.error_span_wide().merge(&merge_field_spans(fields)),
+            Expr::Field { lhs, fields, dotfish } => lhs.error_span_wide().merge(&merge_field_spans(fields)),
             Expr::FieldUpdate { lhs, fields, rhs } => lhs.error_span_wide()
                 .merge(&merge_field_spans(fields))
                 .merge(&rhs.error_span_wide()),

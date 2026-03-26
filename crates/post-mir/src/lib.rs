@@ -35,7 +35,7 @@ pub fn lower<'a, 'b>(mir_session: &mut MirSession<'a, 'b>, dump_matches: bool) -
 
 fn lower_expr(expr: &mut Expr, session: &mut Session) -> Result<(), ()> {
     match expr {
-        Expr::Ident(_) | Expr::Constant(_) => Ok(()),
+        Expr::Ident { .. } | Expr::Constant(_) => Ok(()),
         Expr::If(r#if) => match (
             lower_expr(r#if.cond.as_mut(), session),
             lower_expr(r#if.true_value.as_mut(), session),
@@ -69,7 +69,7 @@ fn lower_expr(expr: &mut Expr, session: &mut Session) -> Result<(), ()> {
                 Ok(())
             }
         },
-        Expr::Field { lhs, fields } => {
+        Expr::Field { lhs, fields, dotfish: _ } => {
             lower_fields(lhs, fields, session);
             lower_expr(lhs, session)
         },

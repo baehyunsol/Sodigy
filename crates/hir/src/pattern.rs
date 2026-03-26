@@ -288,7 +288,7 @@ impl PatternKind {
                                             def_span: derived_span.clone(),
                                         },
                                         fields: vec![],
-                                        types: vec![None],
+                                        dotfish: vec![None],
                                     })),
                                     rhs: Box::new(expr),
                                     op_span: derived_span.clone(),

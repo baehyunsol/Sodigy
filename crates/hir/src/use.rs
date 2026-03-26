@@ -111,14 +111,14 @@ impl Use {
             };
 
             // no dotfish here
-            let types = vec![None; fields.len() + 1];
+            let dotfish = vec![None; fields.len() + 1];
 
             Ok(Use {
                 visibility,
                 keyword_span: ast_use.keyword_span.clone(),
                 name: ast_use.name,
                 name_span: ast_use.name_span.clone(),
-                path: Path { id: root, fields, types, },
+                path: Path { id: root, fields, dotfish },
             })
         }
     }

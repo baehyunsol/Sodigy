@@ -1,5 +1,4 @@
 use sodigy_bytecode::{DebugInfoKind, DropType, Value};
-use sodigy_file::File;
 use sodigy_span::{Span, SpanId};
 use std::collections::HashMap;
 

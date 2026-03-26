@@ -167,7 +167,7 @@ pub fn replace_dollar(
                 id: ident,
                 id_span: id_span.clone(),
                 fields: vec![],
-                types: vec![None],
+                dotfish: vec![None],
             });
             replaced_spans.push(id_span);
         },
@@ -232,7 +232,7 @@ fn replace_dollar_in_pattern(
                 id: ident,
                 id_span: id_span.clone(),
                 fields: vec![],
-                types: vec![None],
+                dotfish: vec![None],
             });
             replaced_spans.push(id_span);
         },

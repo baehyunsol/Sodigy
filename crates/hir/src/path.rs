@@ -1,4 +1,4 @@
-use crate::{Session, Type};
+use crate::{Dotfish, Session, Type};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_parse::{self as ast, Field};
@@ -21,8 +21,8 @@ pub struct Path {
     //
     // `foo.bar.<T>.baz.bor.<U, V>()`
     // ->
-    // `{ id: foo, fields: [bar, baz, bor], types: [None, Some([T]), None, Some([U, V])]}`
-    pub types: Vec<Option<Vec<Type>>>,
+    // `{ id: foo, fields: [bar, baz, bor], dotfish: [None, Some([T]), None, Some([U, V])]}`
+    pub dotfish: Vec<Option<Dotfish>>,
 }
 
 impl Path {
@@ -44,17 +44,17 @@ impl Path {
                 return Err(());
             },
         };
-        let mut types = Vec::with_capacity(ast_path.types.len());
+        let mut dotfish = Vec::with_capacity(ast_path.dotfish.len());
 
-        for ast_type in ast_path.types.iter() {
-            match ast_type {
-                Some(ast_types) => {
-                    let mut types_ = vec![];
+        for ast_dotfish in ast_path.dotfish.iter() {
+            match ast_dotfish {
+                Some(ast::Dotfish { types: ast_types, group_span }) => {
+                    let mut types = vec![];
 
                     for ast_type in ast_types.iter() {
                         match Type::from_ast(ast_type, session) {
                             Ok(r#type) => {
-                                types_.push(r#type);
+                                types.push(r#type);
                             },
                             Err(()) => {
                                 has_error = true;
@@ -62,10 +62,10 @@ impl Path {
                         }
                     }
 
-                    types.push(Some(types_));
+                    dotfish.push(Some(Dotfish { types, group_span: group_span.clone() }));
                 },
                 None => {
-                    types.push(None);
+                    dotfish.push(None);
                 },
             }
         }
@@ -78,7 +78,7 @@ impl Path {
             Ok(Path {
                 id,
                 fields: ast_path.fields.clone(),
-                types,
+                dotfish,
             })
         }
     }

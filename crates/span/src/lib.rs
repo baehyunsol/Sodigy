@@ -1,5 +1,6 @@
 use sodigy_file::File;
 use sodigy_string::{InternedString, hash};
+use std::fmt;
 
 mod cmp;
 mod derive;
@@ -20,8 +21,23 @@ pub use render::{
     render_spans,
 };
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct SpanId(pub u128);
+
+impl fmt::Debug for SpanId {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let file_id = (self.0 >> 64) & 0xffff_ffff;
+        let file_type = if file_id >= 0x8000_0000 { "Std" } else { "File" };
+        let file_id = file_id & 0x7fff_ffff;
+        let start = (self.0 >> 32) & 0xffff_ffff;
+        let end = self.0 & 0xffff_ffff;
+
+        write!(
+            fmt,
+            "{{ file: {file_type}({file_id}), start: {start}, end: {end} }}",
+        )
+    }
+}
 
 // Span is used everywhere and we have to do our best to keep it small.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]

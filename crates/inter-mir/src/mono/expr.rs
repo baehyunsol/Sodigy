@@ -1,19 +1,31 @@
 use super::Monomorphization;
 use crate::Session;
 use sodigy_mir::{Callable, Expr, Type};
-use sodigy_name_analysis::NameOrigin;
+use sodigy_name_analysis::{NameKind, NameOrigin};
 
 impl Session {
     pub fn monomorphize_expr(&mut self, expr: &mut Expr, monomorphization: &Monomorphization) {
         match expr {
-            Expr::Ident(id) => {
+            Expr::Ident { id, dotfish } => {
                 id.span = id.span.monomorphize(monomorphization.id);
 
-                match id.origin {
+                match &id.origin {
                     NameOrigin::FuncParam { .. } | NameOrigin::Local { .. } => {
                         id.def_span = id.def_span.monomorphize(monomorphization.id);
                     },
                     _ => {},
+                }
+
+                if let Some(dotfish) = dotfish {
+                    dotfish.group_span = dotfish.group_span.monomorphize(monomorphization.id);
+
+                    for r#type in dotfish.types.iter_mut() {
+                        if let Type::GenericParam { def_span, .. } = r#type {
+                            if let Some(monomorphized_type) = monomorphization.generics.get(def_span) {
+                                *r#type = monomorphized_type.clone();
+                            }
+                        }
+                    }
                 }
             },
             Expr::Constant(c) => {

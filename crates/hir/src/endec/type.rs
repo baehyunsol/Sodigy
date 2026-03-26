@@ -1,4 +1,4 @@
-use crate::{Path, Type, TypeAssertion};
+use crate::{Dotfish, Path, Type, TypeAssertion};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::Span;
 
@@ -96,5 +96,18 @@ impl Endec for TypeAssertion {
             },
             cursor,
         ))
+    }
+}
+
+impl Endec for Dotfish {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.types.encode_impl(buffer);
+        self.group_span.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (types, cursor) = Vec::<Type>::decode_impl(buffer, cursor)?;
+        let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
+        Ok((Dotfish { types, group_span }, cursor))
     }
 }

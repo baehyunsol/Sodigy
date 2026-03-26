@@ -36,7 +36,7 @@ pub use r#match::{ArmSplit, Match, MatchArm};
 pub use pattern::{Pattern, PatternKind};
 pub use session::Session;
 pub use r#struct::Struct;
-pub use r#type::{Type, TypeAssertion, type_of, type_of_field};
+pub use r#type::{Dotfish, Type, TypeAssertion, type_of, type_of_field};
 
 pub fn lower(
     hir_session: HirSession,

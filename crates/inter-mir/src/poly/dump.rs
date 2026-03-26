@@ -1,6 +1,6 @@
 use super::{SimpleType, StateMachine, StateMachineOrLeaves};
 use crate::Session;
-use sodigy_span::{Span, SpanId};
+use sodigy_span::Span;
 use std::collections::HashMap;
 
 impl Session {

@@ -1,5 +1,6 @@
 use crate::{
     Block,
+    Dotfish,
     Field,
     FuncArg,
     If,
@@ -62,9 +63,7 @@ pub enum Expr {
     Field {
         lhs: Box<Expr>,
         field: Field,
-
-        // dotfish operator
-        r#type: Option<Vec<Type>>,
+        dotfish: Option<Dotfish>,
     },
     FieldUpdate {
         fields: Vec<Field>,
@@ -237,7 +236,7 @@ impl<'t, 's> Tokens<'t, 's> {
             Some(Token { kind: TokenKind::Ident(id), span }) => {
                 let (id, id_span) = (*id, span.clone());
                 self.cursor += 1;
-                Expr::Path(Path { id, id_span, fields: vec![], types: vec![None] })
+                Expr::Path(Path { id, id_span, fields: vec![], dotfish: vec![None] })
             },
             Some(Token { kind: TokenKind::Wildcard, span }) => {
                 return Err(vec![Error {
@@ -452,29 +451,57 @@ impl<'t, 's> Tokens<'t, 's> {
                         }
 
                         self.cursor += 1;
-                        let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
 
-                        // TODO: dotfish operator
-                        let dotfish = None;
+                        if let Some(Token {
+                            kind: TokenKind::Punct(Punct::Lt),
+                            ..
+                        }) = self.peek() {
+                            let (types, group_span) = self.parse_types_in_angle_brackets()?;
 
-                        let field = Field::Name {
-                            name,
-                            name_span,
-                            dot_span: punct_span,
-                            is_from_alias: false,
-                        };
+                            // `Option.<Int>`
+                            if let Expr::Path(p) = &mut lhs {
+                                *p.dotfish.last_mut().unwrap() = Some(Dotfish { types, group_span });
+                            }
 
-                        if let Expr::Path(p) = &mut lhs {
-                            p.fields.push(field);
-                            p.types.push(dotfish);
+                            // `foo().bar.<Int>()`
+                            else if let Expr::Field { dotfish, .. } = &mut lhs {
+                                if dotfish.is_none() {
+                                    *dotfish = Some(Dotfish { types, group_span });
+                                }
+
+                                // `foo().bar.<Int>.<Int>()`
+                                else {
+                                    todo!()
+                                }
+                            }
+
+                            // `(x + y).<Int>`
+                            else {
+                                todo!()
+                            }
                         }
 
                         else {
-                            lhs = Expr::Field {
-                                lhs: Box::new(lhs),
-                                field,
-                                r#type: None,
+                            let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
+                            let field = Field::Name {
+                                name,
+                                name_span,
+                                dot_span: punct_span,
+                                is_from_alias: false,
                             };
+
+                            if let Expr::Path(p) = &mut lhs {
+                                p.fields.push(field);
+                                p.dotfish.push(None);
+                            }
+
+                            else {
+                                lhs = Expr::Field {
+                                    lhs: Box::new(lhs),
+                                    field,
+                                    dotfish: None,
+                                };
+                            }
                         }
 
                         continue;

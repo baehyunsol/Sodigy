@@ -174,9 +174,9 @@ impl Session {
 
             // In case of `use x as y; type x = Foo<Int>;`, we have to
             // resolve the `use` statement to a type alias: `type y = Foo<Int>;`
-            if let Some(Some(types)) = r#use.path.types.last() {
-                let types = types.clone();
-                *r#use.path.types.last_mut().unwrap() = None;
+            if let Some(Some(dotfish)) = r#use.path.dotfish.last() {
+                let dotfish = dotfish.clone();
+                *r#use.path.dotfish.last_mut().unwrap() = None;
 
                 name_aliases_to_type_aliases.push((
                     r#use.name_span.clone(),
@@ -189,7 +189,7 @@ impl Session {
                         generic_group_span: None,
                         r#type: Type::Param {
                             constructor: r#use.path.clone(),
-                            args: types,
+                            args: dotfish.types,
                             group_span: Span::None,
                         },
                         foreign_names: HashMap::new(),

@@ -208,7 +208,7 @@ impl Let {
 impl Session {
     pub fn check_trivial_value(&self, value: &Expr) -> Option<TrivialLet> {
         match value {
-            Expr::Path(p) if p.fields.is_empty() && p.types[0].is_none() => match p.id.origin {
+            Expr::Path(p) if p.fields.is_empty() && p.dotfish[0].is_none() => match p.id.origin {
                 NameOrigin::Foreign { kind: NameKind::Func } => {
                     // FIXME: linear search
                     for func in self.funcs.iter() {

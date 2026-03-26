@@ -267,8 +267,8 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
         },
     };
     let (scrutinee, needs_another_name_binding) = match match_expr.scrutinee.as_ref() {
-        Expr::Ident(id) => (Expr::Ident(id.clone()), false),
-        _ => (Expr::Ident(another_name_binding.clone()), true),
+        Expr::Ident { id, .. } => (Expr::Ident { id: id.clone(), dotfish: None }, false),
+        _ => (Expr::Ident { id: another_name_binding.clone(), dotfish: None }, true),
     };
 
     session.add_type_info(&another_name_binding.def_span, scrutinee_type);
@@ -735,6 +735,7 @@ fn to_field_expr(expr: &Expr, fields: &[PatternField], session: &Session) -> Exp
             Expr::Field {
                 lhs: Box::new(expr.clone()),
                 fields: fields[..list_length_at].to_vec(),
+                dotfish: vec![None; list_length_at + 1],
             }
         };
 
@@ -757,6 +758,7 @@ fn to_field_expr(expr: &Expr, fields: &[PatternField], session: &Session) -> Exp
             Expr::Field {
                 lhs: Box::new(list_length),
                 fields: fields[(list_length_at + 1)..].to_vec(),
+                dotfish: vec![None; fields.len() - list_length_at],
             }
         }
     }
@@ -764,6 +766,7 @@ fn to_field_expr(expr: &Expr, fields: &[PatternField], session: &Session) -> Exp
     else {
         Expr::Field {
             lhs: Box::new(expr.clone()),
+            dotfish: vec![None; fields.len() + 1],
             fields,
         }
     }
