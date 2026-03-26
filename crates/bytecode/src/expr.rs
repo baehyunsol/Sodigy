@@ -68,11 +68,13 @@ pub fn lower_expr(
                         NameKind::Let { is_top_level: true } => {
                             let value_inited = session.get_local_label();
                             bytecodes.push(Bytecode::PushCallStack(value_inited.clone()));
+                            bytecodes.push(Bytecode::IncStackPointer(session.stack_offset));
                             bytecodes.push(Bytecode::JumpIfUninit {
                                 def_span: id.def_span.clone(),
                                 label: Label::Global(id.def_span.clone()),
                             });
                             bytecodes.push(Bytecode::Label(value_inited.clone()));
+                            bytecodes.push(Bytecode::DecStackPointer(session.stack_offset));
                             bytecodes.push(Bytecode::PopCallStack);
                             // TODO: inc_ref_count if it has to
                             Memory::Global(id.def_span.clone())
