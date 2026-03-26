@@ -23,6 +23,9 @@ use sodigy_number::{
     sub_bi,
 };
 
+#[cfg(feature="debug-bytecode")]
+mod debug;
+
 mod heap;
 mod stack;
 
@@ -57,7 +60,7 @@ fn execute(
 
     loop {
         #[cfg(feature="debug-bytecode")] {
-            debug(stack, heap, &executable.bytecodes, cursor);
+            debug::debug(stack, heap, &executable.bytecodes, cursor);
         }
 
         match &executable.bytecodes[cursor] {
@@ -399,78 +402,10 @@ fn update(dst: &Memory, value: u32, stack: &mut Stack, heap: &mut Heap) {
     }
 }
 
-#[cfg(feature="debug-bytecode")]
-fn debug(
-    stack: &Stack,
-    heap: &Heap,
-    bytecodes: &[Bytecode],
-    cursor: usize,
-) {
-    println!("-------");
-    println!("return: 0x{:08x}", stack.r#return);
-    println!(
-        "stack pointer: {:04x}\nstack: {}...",
-        stack.stack_pointer,
-        stack.stack.iter().skip(stack.stack_pointer).take(5).map(
-            |v| format!("0x{v:08x}")
-        ).collect::<Vec<_>>().join(", "),
-    );
-    println!(
-        "call_stack: {:?}",
-        if stack.call_stack.len() > 10 {
-            &stack.call_stack[(stack.call_stack.len() - 10)..]
-        } else {
-            &stack.call_stack
-        },
-    );
-    println!("- heap");
-
-    for v in std::iter::once(&stack.r#return).chain(stack.stack.iter().skip(stack.stack_pointer).take(5)) {
-        let heap = if *v as usize >= heap.data.len() {
-            String::from("N/A")
-        } else {
-            let data = &heap.data[(*v as usize)..(*v as usize + 5).min(heap.data.len())];
-            format!(
-                "{}...",
-                data.iter().map(
-                    |n| format!("0x{n:08x}")
-                ).collect::<Vec<_>>().join(", "),
-            )
-        };
-
-        println!("0x{v:08x}: {heap}");
-    }
-
-    println!();
-
-    for c in (cursor.max(2) - 2)..(cursor + 3).min(bytecodes.len()) {
-        if c == cursor {
-            println!("{} |", if cursor + 2 > 1000 { "       " } else { "     " });
-        }
-
-        println!(
-            "{}{} | {:?}",
-            if c == cursor { "->" } else { "  " },
-            if cursor + 2 > 1000 { format!("{c:>5}") } else { format!("{c:>3}") },
-            &bytecodes[c],
-        );
-
-        if c == cursor {
-            println!("{} |", if cursor + 2 > 1000 { "       " } else { "     " });
-        }
-    }
-
-    std::io::stdin().read_line(&mut String::new()).unwrap();
-}
-
 fn inspect_int(heap: &[u32], ptr: usize) -> (bool, &[u32]) {
     let metadata = heap[ptr];
     let is_neg = metadata > 0x7fff_ffff;
     let length = metadata & 0x7fff_ffff;
-
-    // TODO: should I do runtime checks..??
-    // assert!(length > 0);
-
     let nums = &heap[(ptr + 1)..(ptr + 1 + length as usize)];
     (is_neg, nums)
 }

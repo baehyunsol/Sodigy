@@ -2,6 +2,7 @@ use sodigy_mir::{Intrinsic, Session as MirSession};
 use sodigy_span::Span;
 
 mod assert;
+mod dump;
 mod endec;
 mod executable;
 mod expr;
