@@ -60,7 +60,23 @@ fn main() {
             );
         },
         Some("crates") => {
-            crate_test::run_all(&join(&root, "crates").unwrap());
+            let parsed_args = ArgParser::new()
+                .args(ArgType::String, ArgCount::Geq(0))
+                .parse(&args, 2)
+                .map_err(|_| "cli error")
+                .unwrap();
+
+            let filter = {
+                let args = parsed_args.get_args();
+
+                if args.is_empty() {
+                    None
+                } else {
+                    Some(args.iter().map(|f| f.to_string()).collect())
+                }
+            };
+            let crates_at = join(&root, "crates").unwrap();
+            crate_test::run_cases(&crates_at, filter, true);
         },
         Some("fuzz") => {
             let parsed_args = ArgParser::new()
@@ -142,7 +158,8 @@ fn main() {
             let mut empty_fuzzer = Fuzzer::init(&fuzz_dir, &cnr_dir, FuzzTarget::Empty, true);
             let mut cnr_fuzzer = Fuzzer::init(&fuzz_dir, &cnr_dir, FuzzTarget::Cnr, true);
 
-            let crates = Some(crate_test::run_all(&join(&root, "crates").unwrap()));
+            let crates_at = join(&root, "crates").unwrap();
+            let crates = Some(crate_test::run_cases(&crates_at, None, false));
             let compile_and_run_result = Some(compile_and_run::run_cases(
                 None,
                 &root,
