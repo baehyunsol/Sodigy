@@ -25,6 +25,7 @@ pub struct Struct {
     pub name: InternedString,
     pub name_span: Span,
     pub generics: Vec<Generic>,
+    pub generic_group_span: Option<Span>,
     pub fields: Vec<StructField>,
 }
 
@@ -44,6 +45,7 @@ pub struct StructShape {
     pub name: InternedString,
     pub fields: Vec<StructField>,
     pub generics: Vec<Generic>,
+    pub generic_group_span: Option<Span>,
     pub associated_funcs: HashMap<InternedString, AssociatedFunc>,
     pub associated_lets: HashMap<InternedString, Span>,
 }
@@ -126,6 +128,7 @@ impl Struct {
                 name: ast_struct.name,
                 name_span: ast_struct.name_span.clone(),
                 generics: ast_struct.generics.clone(),
+                generic_group_span: ast_struct.generic_group_span.clone(),
                 fields,
             })
         }

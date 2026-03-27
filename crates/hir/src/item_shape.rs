@@ -3,6 +3,7 @@ use crate::{
     AssociatedItem,
     AssociatedItemKind,
     EnumShape,
+    Generic,
     StructShape,
 };
 use sodigy_span::Span;
@@ -96,6 +97,20 @@ macro_rules! item_shape_impl {
                 match self {
                     $type_name::Struct(s) => &s.associated_lets,
                     $type_name::Enum(e) => &e.associated_lets,
+                }
+            }
+
+            pub fn generics(&self) -> &[Generic] {
+                match self {
+                    $type_name::Struct(s) => &s.generics,
+                    $type_name::Enum(e) => &e.generics,
+                }
+            }
+
+            pub fn generic_group_span(&self) -> &Option<Span> {
+                match self {
+                    $type_name::Struct(s) => &s.generic_group_span,
+                    $type_name::Enum(e) => &e.generic_group_span,
                 }
             }
         }

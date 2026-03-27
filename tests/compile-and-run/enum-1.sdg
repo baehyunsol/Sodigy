@@ -3,5 +3,6 @@ pub enum MyOption<T> = {
     None,
 };
 
-// TODO: it's supposed to be a type error!!
-let x = MyOption.None;
+assert MyOption.Some(3) == MyOption.Some(3);
+assert MyOption.Some(3) != MyOption.None;
+assert MyOption.Some(3) != MyOption.Some(4);

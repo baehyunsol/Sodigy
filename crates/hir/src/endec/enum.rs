@@ -21,6 +21,7 @@ impl Endec for Enum {
         self.name.encode_impl(buffer);
         self.name_span.encode_impl(buffer);
         self.generics.encode_impl(buffer);
+        self.generic_group_span.encode_impl(buffer);
         self.variants.encode_impl(buffer);
     }
 
@@ -30,6 +31,7 @@ impl Endec for Enum {
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
+        let (generic_group_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (variants, cursor) = Vec::<EnumVariant>::decode_impl(buffer, cursor)?;
 
         Ok((
@@ -39,6 +41,7 @@ impl Endec for Enum {
                 name,
                 name_span,
                 generics,
+                generic_group_span,
                 variants,
             },
             cursor,
@@ -108,6 +111,7 @@ impl Endec for EnumShape {
         self.name.encode_impl(buffer);
         self.variants.encode_impl(buffer);
         self.generics.encode_impl(buffer);
+        self.generic_group_span.encode_impl(buffer);
         self.associated_funcs.encode_impl(buffer);
         self.associated_lets.encode_impl(buffer);
     }
@@ -116,12 +120,14 @@ impl Endec for EnumShape {
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (variants, cursor) = Vec::<EnumVariant>::decode_impl(buffer, cursor)?;
         let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
+        let (generic_group_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (associated_funcs, cursor) = HashMap::<InternedString, AssociatedFunc>::decode_impl(buffer, cursor)?;
         let (associated_lets, cursor) = HashMap::<InternedString, Span>::decode_impl(buffer, cursor)?;
         Ok((EnumShape {
             name,
             variants,
             generics,
+            generic_group_span,
             associated_funcs,
             associated_lets,
         }, cursor))

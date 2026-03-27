@@ -1,0 +1,8 @@
+//% compile-error > 1
+
+pub enum MyOption<T> = {
+    Some(T),
+    None,
+};
+
+let x = MyOption.None;

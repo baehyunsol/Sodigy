@@ -85,7 +85,7 @@ impl Span {
             (_, Span::None) => self.clone(),
             (Span::Range(_), Span::Range(_)) => {
                 let (f1, (s1, e1)) = (self.file().unwrap(), self.get_bounds().unwrap());
-                let (f2, (s2, e2)) = (self.file().unwrap(), self.get_bounds().unwrap());
+                let (f2, (s2, e2)) = (other.file().unwrap(), other.get_bounds().unwrap());
 
                 if f1 != f2 {
                     todo!()

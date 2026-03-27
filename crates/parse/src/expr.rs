@@ -375,10 +375,7 @@ impl<'t, 's> Tokens<'t, 's> {
 
         loop {
             match self.peek() {
-                Some(Token {
-                    kind: TokenKind::Punct(p),
-                    span,
-                }) => {
+                Some(Token { kind: TokenKind::Punct(p), span }) => {
                     let punct = *p;
                     let punct_span = span.clone();
 
@@ -452,11 +449,10 @@ impl<'t, 's> Tokens<'t, 's> {
 
                         self.cursor += 1;
 
-                        if let Some(Token {
-                            kind: TokenKind::Punct(Punct::Lt),
-                            ..
-                        }) = self.peek() {
-                            let (types, group_span) = self.parse_types_in_angle_brackets()?;
+                        if let Some(Token { kind: TokenKind::Punct(Punct::Lt), span }) = self.peek() {
+                            let group_span_start = span.clone();
+                            let (types, group_span_end) = self.parse_types_in_angle_brackets()?;
+                            let group_span = group_span_start.merge(&group_span_end);
 
                             // `Option.<Int>`
                             if let Expr::Path(p) = &mut lhs {
@@ -576,10 +572,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         },
                     }
                 },
-                Some(Token {
-                    kind: TokenKind::Group { delim, tokens },
-                    span,
-                }) => {
+                Some(Token { kind: TokenKind::Group { delim, tokens }, span }) => {
                     let span = span.clone();
 
                     match delim {
@@ -710,10 +703,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     };
                     continue;
                 },
-                Some(Token {
-                    kind: TokenKind::Keyword(Keyword::As),
-                    span,
-                }) => {
+                Some(Token { kind: TokenKind::Keyword(Keyword::As), span }) => {
                     let (l_bp, r_bp) = as_binding_power();
                     let mut keyword_span = span.clone();
 

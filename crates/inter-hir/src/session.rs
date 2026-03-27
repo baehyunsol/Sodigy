@@ -124,6 +124,7 @@ impl Session {
                         }
                     ).collect(),
                     generics: r#struct.generics.clone(),
+                    generic_group_span: r#struct.generic_group_span.clone(),
                     associated_funcs: HashMap::new(),
                     associated_lets: HashMap::new(),
                 },
@@ -144,6 +145,7 @@ impl Session {
                         }
                     ).collect(),
                     generics: r#enum.generics.clone(),
+                    generic_group_span: r#enum.generic_group_span.clone(),
                     associated_funcs: HashMap::new(),
                     associated_lets: HashMap::new(),
                 },

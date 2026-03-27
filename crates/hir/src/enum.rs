@@ -24,6 +24,7 @@ pub struct Enum {
     pub name: InternedString,
     pub name_span: Span,
     pub generics: Vec<Generic>,
+    pub generic_group_span: Option<Span>,
     pub variants: Vec<EnumVariant>,
 }
 
@@ -49,6 +50,7 @@ pub struct EnumShape {
     pub name: InternedString,
     pub variants: Vec<EnumVariant>,
     pub generics: Vec<Generic>,
+    pub generic_group_span: Option<Span>,
     pub associated_funcs: HashMap<InternedString, AssociatedFunc>,
     pub associated_lets: HashMap<InternedString, Span>,
 }
@@ -64,6 +66,7 @@ impl Enum {
         for (index, generic) in ast_enum.generics.iter().enumerate() {
             generic_params.insert(generic.name, (generic.name_span.clone(), NameKind::GenericParam, UseCount::new()));
             generic_index.insert(generic.name, index);
+            session.generic_def_span_rev.insert(generic.name_span.clone(), ast_enum.name_span.clone());
         }
 
         session.name_stack.push(Namespace::GenericParam {
@@ -130,6 +133,7 @@ impl Enum {
                 name: ast_enum.name,
                 name_span: ast_enum.name_span.clone(),
                 generics: ast_enum.generics.clone(),
+                generic_group_span: ast_enum.generic_group_span.clone(),
                 variants,
             })
         }

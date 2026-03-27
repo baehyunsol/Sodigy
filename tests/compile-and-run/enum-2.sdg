@@ -1,15 +1,8 @@
-enum Animal = {
-    Human { name: String, age: Int },
-    Dog(String),
-    Cat,
+pub enum MyOption<T> = {
+    Some { id: Int, value: T },
+    None,
 };
 
-fn get_name(animal) = match animal {
-    Animal.Human { name: $name, .. } => Some(name),
-    Animal.Dog($name) => Some(name),
-    Animal.Cat => None,
-};
-
-assert get_name(Animal.Human { name: "Bae", age: 28 }).unwrap() == "Bae";
-assert get_name(Animal.Dog("Kim")).unwrap() == "Kim";
-assert get_name(Animal.Cat) == None;
+assert MyOption.Some { id: 0, value: "abc" } == MyOption.Some { id: 0, value: "abc" };
+assert MyOption.Some { id: 0, value: "abc" } != MyOption.None;
+assert MyOption.Some { id: 0, value: "abc" } != MyOption.Some { id: 0, value: "abcd" };
