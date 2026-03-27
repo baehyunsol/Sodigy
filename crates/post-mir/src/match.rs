@@ -151,6 +151,9 @@
 //!
 //! Some special patterns have multiple constructors: ranges, wildcards, var-length lists and or-patterns.
 
+// There's an error in clippy...
+#![allow(clippy::unnecessary_unwrap)]
+
 use crate::Session;
 use sodigy_endec::IndentedLines;
 use sodigy_error::{Error, ErrorKind, Warning, WarningKind};

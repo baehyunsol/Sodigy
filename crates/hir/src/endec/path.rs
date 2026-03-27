@@ -1,4 +1,4 @@
-use crate::{Dotfish, Path, Type};
+use crate::{Dotfish, Path};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_parse::Field;

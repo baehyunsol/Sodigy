@@ -70,7 +70,7 @@ impl Session {
                 continue;
             }
 
-            match get_def_span(&associated_item, &associated_item.r#type) {
+            match get_def_span(associated_item, &associated_item.r#type) {
                 Ok(def_span) => {
                     let mut item_shape = self.get_item_shape(&def_span).unwrap();
 

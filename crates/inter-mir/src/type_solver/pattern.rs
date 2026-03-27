@@ -16,7 +16,7 @@ impl Session {
                 self.add_type_var(type_var.clone(), Some(*name_binding));
 
                 if let Err(()) = self.solve_supertype(
-                    &pattern_type,
+                    pattern_type,
                     &type_var,
                     /* is_checking_argument: */ false,
                     Some(&pattern.error_span_wide()),

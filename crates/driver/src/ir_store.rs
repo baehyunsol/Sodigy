@@ -70,7 +70,7 @@ pub fn emit_irs_if_has_to<T: Endec + DumpSession>(
 
         match store {
             StoreIrAt::File(s) => {
-                write_bytes(&s, content, WriteMode::Atomic)?;
+                write_bytes(s, content, WriteMode::Atomic)?;
             },
             StoreIrAt::IntermediateDir => {
                 let path = join4(

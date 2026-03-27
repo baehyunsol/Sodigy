@@ -26,8 +26,8 @@ pub(crate) trait RenderStateMachine {
                 "\n{indent_s}{} => {},",
                 self.render_simple_type(condition),
                 match branch {
-                    StateMachineOrLeaves::StateMachine(s) => self.render_state_machine_inner(&s, name_map, indent + 1),
-                    StateMachineOrLeaves::Leaves(leaves) => render_leaves(&leaves, name_map),
+                    StateMachineOrLeaves::StateMachine(s) => self.render_state_machine_inner(s, name_map, indent + 1),
+                    StateMachineOrLeaves::Leaves(leaves) => render_leaves(leaves, name_map),
                 },
             ));
         }
@@ -35,8 +35,8 @@ pub(crate) trait RenderStateMachine {
         arms.push(format!(
             "\n{indent_s}_ => {},",
             match &*state_machine.default {
-                StateMachineOrLeaves::StateMachine(s) => self.render_state_machine_inner(&s, name_map, indent + 1),
-                StateMachineOrLeaves::Leaves(leaves) => render_leaves(&leaves, name_map),
+                StateMachineOrLeaves::StateMachine(s) => self.render_state_machine_inner(s, name_map, indent + 1),
+                StateMachineOrLeaves::Leaves(leaves) => render_leaves(leaves, name_map),
             },
         ));
         let arms = arms.concat();

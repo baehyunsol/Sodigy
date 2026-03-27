@@ -138,7 +138,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session, max_
             }
 
             lines.push("(");
-            let arg_per_line = lookahead_args(&args, session, 21) > 20;
+            let arg_per_line = lookahead_args(args, session, 21) > 20;
 
             if args.len() > 1 {
                 if arg_per_line {
@@ -190,7 +190,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session, max_
                 }
 
                 for (i, element) in elements.iter().enumerate() {
-                    dump_expr(&element, lines, session, max_len);
+                    dump_expr(element, lines, session, max_len);
                     lines.push(",");
 
                     if i != elements.len() - 1 {
@@ -212,7 +212,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session, max_
 
             else {
                 for element in elements.iter() {
-                    dump_expr(&element, lines, session, max_len);
+                    dump_expr(element, lines, session, max_len);
                 }
 
                 if is_tuple && elements.len() == 1 {
@@ -300,7 +300,7 @@ fn lookahead_exprs(exprs: &[Expr], session: &Session, max_len: usize) -> usize {
 
     for expr in exprs.iter() {
         let mut indented_lines = IndentedLines::new();
-        dump_expr(&expr, &mut indented_lines, session, max_len);
+        dump_expr(expr, &mut indented_lines, session, max_len);
         count += indented_lines.dump().len();
     }
 

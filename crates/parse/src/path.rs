@@ -1,4 +1,4 @@
-use crate::{Dotfish, Type};
+use crate::Dotfish;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 

@@ -443,7 +443,7 @@ impl Expr {
                     aliases: vec![],
                     uses: vec![],
                     modules: vec![],
-                    value: Box::new(values.last().map(|v| v.clone())),
+                    value: Box::new(values.last().cloned()),
                     attribute: None,
                     from_pipeline: true,
                 };

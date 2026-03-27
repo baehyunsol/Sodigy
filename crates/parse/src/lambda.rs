@@ -24,7 +24,7 @@ impl<'t, 's> Tokens<'t, 's> {
         match self.peek() {
             Some(Token { kind: TokenKind::Group { delim: Delim::Lambda, tokens }, span }) => {
                 let span = span.clone();
-                let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
+                let mut tokens = Tokens::new(tokens, span.end(), false, self.intermediate_dir);
                 let params = tokens.parse_func_params(true /* allow_wildcard */)?;
                 self.cursor += 1;
                 let mut type_annot = None;

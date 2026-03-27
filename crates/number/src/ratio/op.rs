@@ -41,7 +41,7 @@ pub fn div_ratio(lhs: &Ratio, rhs: &Ratio) -> Ratio {
 fn reduce_and_return(mut numer: (bool, Vec<u32>), mut denom: (bool, Vec<u32>)) -> Ratio {
     let r = gcd_ubi(&numer.1, &denom.1);
 
-    if &r != &[1] {
+    if r != [1] {
         numer = div_bi(numer.0, &numer.1, false, &r);
         denom = div_bi(denom.0, &denom.1, false, &r);
     }

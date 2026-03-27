@@ -40,7 +40,7 @@ impl Session {
                 }
 
                 if !has_error {
-                    if let Err(()) = self.resolve_path(constructor, Some(&args), log) {
+                    if let Err(()) = self.resolve_path(constructor, Some(args), log) {
                         has_error = true;
                     }
 

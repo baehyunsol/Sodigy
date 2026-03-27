@@ -178,7 +178,7 @@ impl Block {
         // If `ast_block.value` is None, that means the block is top-level.
         // An ast_block can be top-level or inline, but an hir_block is always an inline block.
         // If it's a top-level block, `HirSession::lower` will do proper handlings, so this function doesn't have to worry about anything.
-        let value = match ast_block.value.as_ref().as_ref().map(|value| Expr::from_ast(&value, session)) {
+        let value = match ast_block.value.as_ref().as_ref().map(|value| Expr::from_ast(value, session)) {
             Some(Ok(value)) => Some(value),
             Some(Err(())) => {
                 has_error = true;

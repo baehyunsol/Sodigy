@@ -74,7 +74,7 @@ impl<'t, 's> Tokens<'t, 's> {
             TokenKind::Group { tokens, .. } => tokens,
             _ => unreachable!(),
         };
-        let mut param_tokens = Tokens::new(param_tokens_inner, param_tokens.span.end(), false, &self.intermediate_dir);
+        let mut param_tokens = Tokens::new(param_tokens_inner, param_tokens.span.end(), false, self.intermediate_dir);
         let params = param_tokens.parse_func_params(true /* allow wildcard */)?;
 
         let type_annot = match self.peek() {

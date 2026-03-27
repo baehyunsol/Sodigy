@@ -47,7 +47,7 @@ impl Session {
                     if *is_return {
                         match self.types.get_mut(def_span) {
                             Some(Type::Func { r#return, .. }) => {
-                                *r#return = Box::new(never_type.clone());
+                                **r#return = never_type.clone();
                             },
                             _ => unreachable!(),
                         }
@@ -142,7 +142,7 @@ impl Session {
                             self.type_errors.push(TypeError::CannotInferGenericType {
                                 call: call.clone(),
                                 generic: generic.clone(),
-                                func_def: self.generic_def_span_rev.get(generic).map(|g| g.clone()),
+                                func_def: self.generic_def_span_rev.get(generic).cloned(),
                             });
                         },
                         Some(t) => {
@@ -153,7 +153,7 @@ impl Session {
                                 self.type_errors.push(TypeError::PartiallyInferedGenericType {
                                     call: call.clone(),
                                     generic: generic.clone(),
-                                    func_def: self.generic_def_span_rev.get(generic).map(|g| g.clone()),
+                                    func_def: self.generic_def_span_rev.get(generic).cloned(),
                                     r#type: t.clone(),
                                 });
                             }
@@ -524,7 +524,7 @@ impl Session {
                     if *is_return1 {
                         match self.types.get_mut(v1) {
                             Some(Type::Func { r#return, .. }) => {
-                                *r#return = Box::new(t2.clone());
+                                **r#return = t2.clone();
                             },
                             _ => unreachable!(),
                         }
@@ -538,7 +538,7 @@ impl Session {
                     if *is_return2 {
                         match self.types.get_mut(v2) {
                             Some(Type::Func { r#return, .. }) => {
-                                *r#return = Box::new(t1.clone());
+                                **r#return = t1.clone();
                             },
                             _ => unreachable!(),
                         }
@@ -674,7 +674,7 @@ impl Session {
 
                     match self.types.get_mut(def_span) {
                         Some(Type::Func { r#return, .. }) => {
-                            *r#return = Box::new(maybe_concrete.clone());
+                            **r#return = maybe_concrete.clone();
                         },
                         _ => unreachable!(),
                     }
@@ -865,7 +865,7 @@ impl Session {
     // In this case, we call `self.substitute(y, Int)`.
     // The relationship between `x` and `y` are stored in `self.type_var_refs`.
     fn substitute(&mut self, type_var: &Type, r#type: &Type) {
-        let ref_types = self.type_var_refs.get(&type_var).map(|refs| refs.to_vec()).unwrap_or(vec![]);
+        let ref_types = self.type_var_refs.get(type_var).map(|refs| refs.to_vec()).unwrap_or(vec![]);
         let mut newly_completed_type_vars = vec![];
 
         for ref_type_var in ref_types.iter() {

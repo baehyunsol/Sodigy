@@ -147,7 +147,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 //    - It uses `@` character so that this name cannot appear in user code.
                 // 2. The name has to be shorter than 16 bytes for efficient `intern_string`.
                 let tmp_name = format!("@{:012x}", keyword_span.hash() & 0xffff_ffff_ffff);
-                let tmp_name = intern_string(tmp_name.as_bytes(), &self.intermediate_dir).unwrap();
+                let tmp_name = intern_string(tmp_name.as_bytes(), self.intermediate_dir).unwrap();
 
                 let mut lets = vec![
                     Let {
@@ -203,7 +203,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             fields: vec![Field::Name {
                                 name: intern_string(
                                     format!("_{i}").as_bytes(),
-                                    &self.intermediate_dir,
+                                    self.intermediate_dir,
                                 ).unwrap(),
                                 name_span: keyword_span.derive(SpanDeriveKind::LetPattern(span_derive_index + 2)),
                                 dot_span: keyword_span.derive(SpanDeriveKind::LetPattern(span_derive_index + 3)),

@@ -67,7 +67,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             },
                             // `use a.{`
                             Some(Token { kind: TokenKind::Group { delim: Delim::Brace, tokens }, span }) => {
-                                let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
+                                let mut tokens = Tokens::new(tokens, span.end(), false, self.intermediate_dir);
                                 let mut inner = tokens.parse_use_recurse(true)?;
                                 self.cursor += 1;
 

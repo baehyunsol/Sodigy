@@ -32,7 +32,7 @@ pub fn lower_hir_if(hir_if: &hir::If, session: &mut Session) -> Result<Expr, ()>
 
     if let (Some(let_span), Some(pattern)) = (&hir_if.let_span, &hir_if.pattern) {
         Ok(Expr::Match(Match {
-            keyword_span: hir_if.if_span.merge(&let_span).derive(SpanDeriveKind::IfLet),
+            keyword_span: hir_if.if_span.merge(let_span).derive(SpanDeriveKind::IfLet),
             scrutinee: Box::new(cond),
             arms: vec![
                 MatchArm {

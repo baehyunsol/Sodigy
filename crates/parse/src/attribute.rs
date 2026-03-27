@@ -187,7 +187,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     }
 
                     let group_span = span.clone();
-                    let mut tokens = Tokens::new(tokens, group_span.end(), false, &self.intermediate_dir);
+                    let mut tokens = Tokens::new(tokens, group_span.end(), false, self.intermediate_dir);
 
                     match tokens.parse_decorator() {
                         Ok(decorator) => {
@@ -266,7 +266,7 @@ impl<'t, 's> Tokens<'t, 's> {
         match self.peek() {
             Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }) => {
                 let group_span = span.clone();
-                let mut tokens = Tokens::new(tokens, group_span.end(), false, &self.intermediate_dir);
+                let mut tokens = Tokens::new(tokens, group_span.end(), false, self.intermediate_dir);
                 let args = tokens.parse_decorator_args()?;
                 let result = Decorator {
                     name,

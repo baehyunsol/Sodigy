@@ -84,7 +84,7 @@ impl InternedNumber {
     }
 
     pub fn from_i32(n: i32, is_integer: bool) -> Self {
-        let mut n = n as i128;
+        let n = n as i128;
         let n = n as u128 & SMALL_INT_PAYLOAD_MASK;
         InternedNumber(((is_integer as u128) << 125) | n)
     }

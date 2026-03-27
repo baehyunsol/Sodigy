@@ -77,7 +77,7 @@ impl<'t, 's> Tokens<'t, 's> {
             span: true_group_span,
         } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
         let true_group_span = true_group_span.clone();
-        let mut true_value_tokens = Tokens::new(true_value_tokens, true_group_span.end(), false, &self.intermediate_dir);
+        let mut true_value_tokens = Tokens::new(true_value_tokens, true_group_span.end(), false, self.intermediate_dir);
         let true_value = Box::new(Expr::block_or_expr(true_value_tokens.parse_block(false /* top-level */, true_group_span.clone())?));
 
         let (else_span, false_value, false_group_span) = match self.peek2() {
@@ -97,7 +97,7 @@ impl<'t, 's> Tokens<'t, 's> {
             ) => {
                 let span1 = span1.clone();
                 let false_group_span = false_group_span.clone();
-                let mut false_value_tokens = Tokens::new(false_value_tokens, false_group_span.end(), false, &self.intermediate_dir);
+                let mut false_value_tokens = Tokens::new(false_value_tokens, false_group_span.end(), false, self.intermediate_dir);
                 let false_value = Expr::block_or_expr(false_value_tokens.parse_block(false /* top-level */, false_group_span.clone())?);
                 self.cursor += 2;
                 (span1, Box::new(false_value), false_group_span)

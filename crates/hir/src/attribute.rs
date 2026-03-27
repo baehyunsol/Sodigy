@@ -233,7 +233,7 @@ impl Attribute {
                     note: rule.visibility_error_note.clone(),
                 });
 
-                match Visibility::from_ast(&ast_visibility, session) {
+                match Visibility::from_ast(ast_visibility, session) {
                     Ok(visibility) => visibility,
                     Err(()) => {
                         has_error = true;
@@ -242,7 +242,7 @@ impl Attribute {
                 }
             },
             (_, None) => Visibility::private(),
-            (_, Some(ast_visibility)) => match Visibility::from_ast(&ast_visibility, session) {
+            (_, Some(ast_visibility)) => match Visibility::from_ast(ast_visibility, session) {
                 Ok(visibility) => visibility,
                 Err(()) => {
                     has_error = true;
@@ -309,7 +309,7 @@ impl Attribute {
 
                             for ast_arg in ast_args.iter() {
                                 match &ast_arg.keyword {
-                                    Some((keyword, span)) => match rule.keyword_args.get(&keyword) {
+                                    Some((keyword, span)) => match rule.keyword_args.get(keyword) {
                                         Some(KeywordArgRule {
                                             requirement,
                                             requirement_error_note,
@@ -334,7 +334,7 @@ impl Attribute {
                                                 },
                                             }
 
-                                            match DecoratorArg::from_ast(&ast_arg, *arg_type, session) {
+                                            match DecoratorArg::from_ast(ast_arg, *arg_type, session) {
                                                 Ok(arg) => match check_arg_type(&arg, *arg_type, arg_type_error_note, session) {
                                                     Ok(()) => {
                                                         keyword_args.insert(*keyword, arg);
@@ -382,7 +382,7 @@ impl Attribute {
 
                             for (keyword, KeywordArgRule { requirement, requirement_error_note, .. }) in rule.keyword_args.iter() {
                                 if let Requirement::Must = requirement {
-                                    if spans_by_keyword.get(keyword).is_none() {
+                                    if !spans_by_keyword.contains_key(keyword) {
                                         session.errors.push(Error {
                                             kind: ErrorKind::MissingKeywordArg(*keyword),
                                             spans: ast_decorator.name_span.simple_error(),

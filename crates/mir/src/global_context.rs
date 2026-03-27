@@ -58,7 +58,7 @@ impl<'hir> GlobalContext<'hir, '_> {
     pub fn get_item_shape(&self, def_span: &Span) -> Option<ItemShape<'hir>> {
         match self.struct_shapes.map(|ss| ss.get(def_span)) {
             Some(Some(struct_shape)) => Some(ItemShape::Struct(struct_shape)),
-            _ => match self.enum_shapes.map(|es| es.get(&def_span)) {
+            _ => match self.enum_shapes.map(|es| es.get(def_span)) {
                 Some(Some(enum_shape)) => Some(ItemShape::Enum(enum_shape)),
                 _ => None,
             },
@@ -67,7 +67,7 @@ impl<'hir> GlobalContext<'hir, '_> {
 
     pub fn get_type(&self, span: &Span) -> Option<Type> {
         match self.types.as_ref().map(|types| types.read()) {
-            Some(Ok(types)) => types.get(span).map(|r#type| r#type.clone()),
+            Some(Ok(types)) => types.get(span).cloned(),
             Some(Err(_)) => panic!("global context is poisoned"),
             None => panic!("global context is not initialized"),
         }

@@ -322,7 +322,7 @@ impl Session {
                         match self.solve_pattern(&arm.pattern) {
                             (Some(pattern_type), e) => {
                                 if let Err(()) = self.solve_supertype(
-                                    &scrutinee_type,
+                                    scrutinee_type,
                                     &pattern_type,
                                     false,
                                     Some(&r#match.scrutinee.error_span_wide()),
@@ -580,8 +580,8 @@ impl Session {
                                 if is_convert {
                                     if let (Some(gt), Some(at)) = (generic_args.get(0), arg_types.get(0)) {
                                         if let Err(()) = self.solve_supertype(
-                                            &gt,
-                                            &at,
+                                            gt,
+                                            at,
                                             false,
                                             None,
                                             Some(&args[0].error_span_wide()),

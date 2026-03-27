@@ -3,10 +3,10 @@ use crate::{FileOrStd, ModulePath};
 // TODO: It's just a proof-of-concept!
 // TODO: I'm too lazy to calc its hash... so the hash values are all dummies
 pub(crate) const STD_FILES: [(
-    &'static str,   // module_path
-    &'static str,   // file_path
-    &'static [u8],  // contents
-    u128,           // content_hash
+    &str,   // module_path
+    &str,   // file_path
+    &[u8],  // contents
+    u128,   // content_hash
 ); 18] = [
     (
         "@std.lib.bool",

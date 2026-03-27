@@ -69,7 +69,7 @@ impl Session {
                 has_error = true;
             }
 
-            else if let Err(()) = self.check_type_annot_path(&type_annot) {
+            else if let Err(()) = self.check_type_annot_path(type_annot) {
                 has_error = true;
             }
         }

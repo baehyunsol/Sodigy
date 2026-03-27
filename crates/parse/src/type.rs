@@ -123,7 +123,7 @@ impl Type {
             Type::Tuple { group_span, .. } => group_span.clone(),
             Type::List { group_span, .. } => group_span.clone(),
             Type::Func { fn_constructor, group_span, r#return, .. } => fn_constructor.error_span_wide()
-                .merge(&group_span)
+                .merge(group_span)
                 .merge(&r#return.error_span_wide()),
             Type::Wildcard(span) | Type::Never(span) => span.clone(),
         }
@@ -242,7 +242,7 @@ impl<'t, 's> Tokens<'t, 's> {
             ) => {
                 let (id, id_span) = (*id, span1.clone());
                 let group_span = span2.clone();
-                let mut param_tokens = Tokens::new(tokens, span2.end(), false, &self.intermediate_dir);
+                let mut param_tokens = Tokens::new(tokens, span2.end(), false, self.intermediate_dir);
                 let params = param_tokens.parse_types()?;
 
                 self.cursor += 2;
@@ -277,7 +277,7 @@ impl<'t, 's> Tokens<'t, 's> {
             (Some(Token { kind: TokenKind::Group { delim, tokens }, span }), _) => {
                 let group_span = span.clone();
                 let delim = *delim;
-                let mut tokens = Tokens::new(tokens, group_span.end(), false, &self.intermediate_dir);
+                let mut tokens = Tokens::new(tokens, group_span.end(), false, self.intermediate_dir);
 
                 let result = match delim {
                     Delim::Parenthesis => {
@@ -426,7 +426,7 @@ impl<'t, 's> Tokens<'t, 's> {
         }
 
         self.cursor = next_cursor + 1;
-        let mut new_tokens = Tokens::new(&new_tokens, span_end.clone(), false, &self.intermediate_dir);
+        let mut new_tokens = Tokens::new(&new_tokens, span_end.clone(), false, self.intermediate_dir);
         Ok((new_tokens.parse_types()?, span_end))
     }
 

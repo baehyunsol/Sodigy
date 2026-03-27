@@ -41,7 +41,7 @@ pub use r#type::{Dotfish, Type, TypeAssertion, type_of, type_of_field};
 pub fn lower(
     hir_session: HirSession,
     inter_hir_session: &InterHirSession,
-) -> Session {
+) -> Session<'_, '_> {
     let mut session = Session::from_hir(&hir_session, inter_hir_session);
 
     for hir_let in hir_session.lets.iter() {

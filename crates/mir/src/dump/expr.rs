@@ -245,7 +245,7 @@ pub fn dump_expr(
                     lines.push(&span_to_string_or_verbose(
                         def_span,
                         &session.intermediate_dir,
-                        &session.global_context.span_string_map.unwrap_or(&HashMap::new()),
+                        session.global_context.span_string_map.unwrap_or(&HashMap::new()),
                     ));
                     ("(", ")")
                 },
@@ -253,7 +253,7 @@ pub fn dump_expr(
                     lines.push(&span_to_string_or_verbose(
                         def_span,
                         &session.intermediate_dir,
-                        &session.global_context.span_string_map.unwrap_or(&HashMap::new()),
+                        session.global_context.span_string_map.unwrap_or(&HashMap::new()),
                     ));
                     ("{", "}")
                 },
@@ -271,7 +271,7 @@ pub fn dump_expr(
             };
 
             lines.push(open_delim);
-            let arg_per_line = !single_line && lookahead_args(&args, session, 21) > 20;
+            let arg_per_line = !single_line && lookahead_args(args, session, 21) > 20;
             let has_trailing_comma = is_tuple && args.len() == 1 || arg_per_line;
 
             if args.len() > 1 {
@@ -281,7 +281,7 @@ pub fn dump_expr(
                 }
 
                 for (i, arg) in args.iter().enumerate() {
-                    dump_expr(&arg, lines, session, max_len, single_line);
+                    dump_expr(arg, lines, session, max_len, single_line);
 
                     if has_trailing_comma || i < args.len() - 1 {
                         lines.push(",");
@@ -306,7 +306,7 @@ pub fn dump_expr(
 
             else {
                 for arg in args.iter() {
-                    dump_expr(&arg, lines, session, max_len, single_line);
+                    dump_expr(arg, lines, session, max_len, single_line);
                 }
             }
 

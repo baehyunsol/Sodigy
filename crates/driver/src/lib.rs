@@ -7,7 +7,7 @@ use sodigy_error::{
     ErrorLevel,
     Warning as SodigyWarning,
 };
-use sodigy_file::{File, FileOrStd, ModulePath};
+use sodigy_file::{FileOrStd, ModulePath};
 use sodigy_fs_api::{
     FileError,
     FileErrorKind,
@@ -252,7 +252,7 @@ pub fn init_workers_and_compile(
     };
 
     apply_custom_error_levels(
-        &custom_error_levels,
+        custom_error_levels,
         &mut errors,
         &mut warnings,
     );
@@ -720,7 +720,7 @@ fn interpret(exe: StoreIrAt, profile: Profile, intermediate_dir: &str) -> Result
 pub fn init_project(name: &str) -> Result<(), FileError> {
     // TODO: make sure that `project_name` is a valid identifier
 
-    if exists(&name) {
+    if exists(name) {
         eprintln!("`{name}` already exists!");
         return Err(FileError {
             kind: FileErrorKind::AlreadyExists,
@@ -728,14 +728,14 @@ pub fn init_project(name: &str) -> Result<(), FileError> {
         });
     }
 
-    create_dir(&name)?;
-    let src = join(&name, "src")?;
+    create_dir(name)?;
+    let src = join(name, "src")?;
     create_dir(&src)?;
 
     let lib = join(&src, "lib.sdg")?;
     write_string(&lib, "", WriteMode::CreateOrTruncate)?;
 
-    let config = join(&name, "sodigy.toml")?;
+    let config = join(name, "sodigy.toml")?;
     write_string(
         &config,
         "# TODO",
@@ -771,8 +771,8 @@ fn init_ir_dir(
             // after inter-hir.
             // TODO: We have to reuse everything if nothing's changed.
             if stage > CompileStage::Hir || !incremental_compilation {
-                if exists(&dir_path) {
-                    remove_dir(&dir_path)?;
+                if exists(dir_path) {
+                    remove_dir(dir_path)?;
                 }
             }
 

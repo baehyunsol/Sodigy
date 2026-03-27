@@ -483,7 +483,7 @@ impl Session {
             TypeError::CannotInferGenericType { call, generic, func_def } |
             TypeError::PartiallyInferedGenericType { call, generic, func_def, .. } => {
                 let generic_id = self.span_to_string(generic);
-                let spans = match (func_def.as_ref().map(|def_span| self.func_shapes.get(&def_span)), &generic_id) {
+                let spans = match (func_def.as_ref().map(|def_span| self.func_shapes.get(def_span)), &generic_id) {
                     (Some(Some(func_shape)), Some(generic_id)) => vec![
                         RenderableSpan {
                             span: call.clone(),

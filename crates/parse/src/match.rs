@@ -30,7 +30,7 @@ impl<'t, 's> Tokens<'t, 's> {
             span: group_span,
         } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
         let group_span = group_span.clone();
-        let mut arm_tokens = Tokens::new(tokens, group_span.end(), false, &self.intermediate_dir);
+        let mut arm_tokens = Tokens::new(tokens, group_span.end(), false, self.intermediate_dir);
         let arms = arm_tokens.parse_match_arms()?;
 
         Ok(Match {

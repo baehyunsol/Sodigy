@@ -2,6 +2,7 @@ use crate::Session;
 use sodigy_mir::{Expr, Type, type_of, type_of_field};
 use sodigy_parse::Field;
 use sodigy_string::InternedString;
+use std::slice;
 
 // Imagine `struct Person = { age: _, name: _ };` and `p = Person { .. };`.
 // It lowers `p.age` to `p._0`.
@@ -57,7 +58,7 @@ pub(crate) fn lower_fields(lhs: &Expr, fields: &mut Vec<Field>, session: &mut Se
         }
 
         if i + 1 != last_index {
-            curr_type = type_of_field(&curr_type, &[field.clone()], session.global_context.clone()).unwrap();
+            curr_type = type_of_field(&curr_type, slice::from_ref(field), session.global_context.clone()).unwrap();
         }
     }
 }

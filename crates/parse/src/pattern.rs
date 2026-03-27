@@ -528,7 +528,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 }
 
                 let (group_span, delim) = (span.clone(), *delim);
-                let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
+                let mut tokens = Tokens::new(tokens, span.end(), false, self.intermediate_dir);
                 let (mut elements, rest) = tokens.parse_patterns(/* may_have_dot_dot: */ true)?;
 
                 // If it's parenthesis, we have to distinguish `(3)` and `(3,)`
@@ -702,7 +702,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                                 auxiliary: false,
                                                 note: Some(format!(
                                                     "It already has a name `{}`. You can just use this name.",
-                                                    path.unintern_or_default(&self.intermediate_dir),
+                                                    path.unintern_or_default(self.intermediate_dir),
                                                 )),
                                             },
                                         ],
@@ -798,7 +798,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             self.cursor += 1;
                             let rhs = self.pratt_parse_pattern(context, r_bp)?;
 
-                            match (lhs.to_list_pattern(true, &self.intermediate_dir), rhs.to_list_pattern(false, &self.intermediate_dir)) {
+                            match (lhs.to_list_pattern(true, self.intermediate_dir), rhs.to_list_pattern(false, self.intermediate_dir)) {
                                 (
                                     Ok(PatternKind::List {
                                         elements: elems1,
@@ -926,7 +926,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                                             auxiliary: true,
                                                             note: Some(format!(
                                                                 "There's a name binding `{}`.",
-                                                                aux_name.unintern_or_default(&self.intermediate_dir),
+                                                                aux_name.unintern_or_default(self.intermediate_dir),
                                                             )),
                                                         },
                                                     ],
@@ -957,7 +957,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                                     auxiliary: true,
                                                     note: Some(format!(
                                                         "There's a name binding `{}`.",
-                                                        lhs_name_binding.unintern_or_default(&self.intermediate_dir),
+                                                        lhs_name_binding.unintern_or_default(self.intermediate_dir),
                                                     )),
                                                 },
                                                 RenderableSpan {
@@ -965,7 +965,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                                     auxiliary: true,
                                                     note: Some(format!(
                                                         "There's a name binding `{}`.",
-                                                        rhs_name_binding.unintern_or_default(&self.intermediate_dir),
+                                                        rhs_name_binding.unintern_or_default(self.intermediate_dir),
                                                     )),
                                                 },
                                             ],
@@ -1069,7 +1069,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     match delim {
                         Delim::Parenthesis => {
                             let group_span = span.clone();
-                            let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
+                            let mut tokens = Tokens::new(tokens, span.end(), false, self.intermediate_dir);
                             let (elements, rest) = tokens.parse_patterns(/* may_have_dot_dot: */ true)?;
                             self.cursor += 1;
 

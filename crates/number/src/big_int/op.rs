@@ -7,7 +7,7 @@ use std::cmp::Ordering;
 
 
 pub(crate) fn gcd_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {
-    if rhs == &[0] {
+    if rhs == [0] {
         lhs.to_vec()
     }
 
@@ -17,7 +17,7 @@ pub(crate) fn gcd_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {
 }
 
 pub fn neg_bi(rhs_neg: bool, rhs: &[u32]) -> (bool, Vec<u32>) {
-    if rhs == &[0] {
+    if rhs == [0] {
         (false, vec![0])
     }
 
@@ -81,7 +81,7 @@ pub fn sub_bi(
                 sub_ubi(lhs, rhs)
             };
 
-            if &abs_diff == &[0] {
+            if abs_diff == [0] {
                 (false, abs_diff)
             } else {
                 // lhs  -  rhs    lhs_less     lhs_neg      result

@@ -348,7 +348,7 @@ impl Session {
                 (Some(b'/'), Some(b'/'), Some(z @ (b'/' | b'!'))) => {
                     let top_level = *z == b'!';
                     self.token_start = self.cursor;
-                    self.state = LexState::DocComment { top_level: top_level };
+                    self.state = LexState::DocComment { top_level };
                     self.cursor += 3;
                 },
                 (Some(b'/'), Some(b'/'), _) => {
@@ -378,7 +378,7 @@ impl Session {
                     self.group_stack.push((closing_delim, opening_span.clone()));
                     self.tokens.push(Token {
                         kind: TokenKind::GroupDelim {
-                            delim: Some(opening_delim.clone()),
+                            delim: Some(opening_delim),
                             id: opening_span.clone(),
                         },
                         span: opening_span,

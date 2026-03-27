@@ -1,7 +1,7 @@
 use super::Monomorphization;
 use crate::Session;
 use sodigy_mir::{Callable, Expr, Type};
-use sodigy_name_analysis::{NameKind, NameOrigin};
+use sodigy_name_analysis::NameOrigin;
 
 impl Session {
     pub fn monomorphize_expr(&mut self, expr: &mut Expr, monomorphization: &Monomorphization) {

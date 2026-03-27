@@ -1,6 +1,6 @@
 use super::{Frame, Row, TimingsEntry, render_micro_seconds};
 
-const ERROR_MARK: &'static str = r#"<span class="color-red error-mark">!</span>"#;
+const ERROR_MARK: &str = r#"<span class="color-red error-mark">!</span>"#;
 
 pub fn render_graph(id: &str, rows: &[Row], start: u64, end: u64, canvas_size: usize) -> String {
     let frame_count = rows[0].frames.len();

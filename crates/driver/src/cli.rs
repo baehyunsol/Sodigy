@@ -79,7 +79,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .alias("-O", "--release")
                 .short_flag(&["--output", "--jobs"])
                 .args(ArgType::String, ArgCount::None)
-                .parse(&args, 2)?;
+                .parse(args, 2)?;
 
             if parsed_args.show_help() {
                 return Ok(CliCommand::Help(String::from("build")));
@@ -121,7 +121,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             };
 
             let emit_irs = parsed_args.get_flag(2).is_some();
-            let import_std = !parsed_args.get_flag(3).is_some();
+            let import_std = parsed_args.get_flag(3).is_none();
             let log_post_mir = parsed_args.get_flag(4).is_some();
 
             let output_path = match output_path {
@@ -146,7 +146,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
         Some("clean") => {
             let parsed_args = ArgParser::new()
                 .args(ArgType::String, ArgCount::None)
-                .parse(&args, 2)?;
+                .parse(args, 2)?;
 
             if parsed_args.show_help() {
                 return Ok(CliCommand::Help(String::from("clean")));
@@ -157,7 +157,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
         Some("help") => {
             let parsed_args = ArgParser::new()
                 .args(ArgType::String, ArgCount::Exact(1))
-                .parse(&args, 2)?;
+                .parse(args, 2)?;
 
             if parsed_args.show_help() {
                 return Ok(CliCommand::Help(String::from("clean")));
@@ -170,7 +170,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
         Some("interpret") => {
             let parsed_args = ArgParser::new()
                 .args(ArgType::String, ArgCount::Exact(1))  // bytecodes path
-                .parse(&args, 2)?;
+                .parse(args, 2)?;
 
             if parsed_args.show_help() {
                 return Ok(CliCommand::Help(String::from("interpret")));
@@ -188,7 +188,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
         Some("new") => {
             let parsed_args = ArgParser::new()
                 .args(ArgType::String, ArgCount::Exact(1))  // project name
-                .parse(&args, 2)?;
+                .parse(args, 2)?;
 
             if parsed_args.show_help() {
                 return Ok(CliCommand::Help(String::from("new")));
@@ -209,7 +209,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .alias("-O", "--release")
                 .short_flag(&["--jobs"])
                 .args(ArgType::String, ArgCount::None)
-                .parse(&args, 2)?;
+                .parse(args, 2)?;
 
             if parsed_args.show_help() {
                 return Ok(CliCommand::Help(String::from("run")));
@@ -233,7 +233,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 || std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4)
             );
             let emit_irs = parsed_args.get_flag(1).is_some();
-            let import_std = !parsed_args.get_flag(2).is_some();
+            let import_std = parsed_args.get_flag(2).is_none();
             let log_post_mir = parsed_args.get_flag(3).is_some();
 
             Ok(CliCommand::Run {
@@ -258,7 +258,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .alias("-O", "--release")
                 .short_flag(&["--jobs"])
                 .args(ArgType::String, ArgCount::None)
-                .parse(&args, 2)?;
+                .parse(args, 2)?;
 
             if parsed_args.show_help() {
                 return Ok(CliCommand::Help(String::from("test")));
@@ -282,7 +282,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 || std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4)
             );
             let emit_irs = parsed_args.get_flag(1).is_some();
-            let import_std = !parsed_args.get_flag(2).is_some();
+            let import_std = parsed_args.get_flag(2).is_none();
             let log_post_mir = parsed_args.get_flag(3).is_some();
 
             Ok(CliCommand::Test {

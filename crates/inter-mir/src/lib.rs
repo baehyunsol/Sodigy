@@ -103,7 +103,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
         // If we initialize it at every iteration, that'd be too expensive.
         // If we initialize it before the first iteration, we have too small type information to use.
         if poly_solver.is_empty() {
-            poly_solver = match session.init_poly_solvers(&mir_session) {
+            poly_solver = match session.init_poly_solvers(mir_session) {
                 Ok(s) => s,
                 Err(()) => {
                     has_error = true;

@@ -13,7 +13,7 @@ use sodigy_string::{InternedString, intern_string};
 // TODO: read `std/prelude.sdg` and actually import names from the file.
 // TODO: I want to call `intern_string(b"Int")`, but it's not a const function.
 //       I can solve it by importing lazy_static, but I don't want external dependencies.
-pub const PRELUDES: [&'static [u8]; 13] = [
+pub const PRELUDES: [&[u8]; 13] = [
     b"Int",
     b"Number",
     b"Bool",

@@ -1,4 +1,4 @@
-use crate::{Bytecode, Label, Memory, Offset, Session, Value};
+use crate::{Bytecode, Label, Memory, Offset, Value};
 use sodigy_number::bi_to_string;
 use std::fmt::{Display, Error, Formatter};
 

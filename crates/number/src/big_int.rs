@@ -29,11 +29,11 @@ impl BigInt {
     }
 
     pub fn is_zero(&self) -> bool {
-        !self.is_neg && &self.nums == &[0]
+        !self.is_neg && self.nums == [0]
     }
 
     pub fn is_one(&self) -> bool {
-        !self.is_neg && &self.nums == &[1]
+        !self.is_neg && self.nums == [1]
     }
 
     pub fn parse_positive_hex(bytes: &[u8]) -> Result<BigInt, ()> {

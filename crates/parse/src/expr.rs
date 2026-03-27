@@ -27,6 +27,7 @@ use sodigy_token::{
     TokenKind,
     TokensOrString,
 };
+use std::slice;
 
 mod from_pattern;
 
@@ -123,7 +124,7 @@ impl Expr {
             Expr::Block(block) => block.group_span.clone(),
             Expr::Call { func, .. } => func.error_span_narrow(),
             Expr::StructInit { constructor, .. } => constructor.error_span_narrow(),
-            Expr::Field { field, .. } => merge_field_spans(&[field.clone()]),
+            Expr::Field { field, .. } => merge_field_spans(slice::from_ref(field)),
             Expr::FieldUpdate { fields, .. } => merge_field_spans(fields),
             Expr::Lambda(Lambda { arrow_span, .. }) => arrow_span.clone(),
             Expr::Pipeline { pipe_spans, .. } => pipe_spans[0].clone(),
@@ -145,7 +146,7 @@ impl Expr {
             Expr::StructInit { constructor, group_span, .. } => constructor.error_span_wide().merge(group_span),
 
             // TODO: render dotfish operator
-            Expr::Field { lhs, field, .. } => lhs.error_span_wide().merge(&merge_field_spans(&[field.clone()])),
+            Expr::Field { lhs, field, .. } => lhs.error_span_wide().merge(&merge_field_spans(slice::from_ref(field))),
             Expr::FieldUpdate { lhs, fields, rhs } => lhs.error_span_wide()
                 .merge(&merge_field_spans(fields))
                 .merge(&rhs.error_span_wide()),
@@ -276,7 +277,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             elements.push(ExprOrString::String { s: *s, span: span.clone() });
                         },
                         TokensOrString::Tokens { tokens, span } => {
-                            let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
+                            let mut tokens = Tokens::new(tokens, span.end(), false, self.intermediate_dir);
                             let expr = tokens.parse_expr(true)?;
 
                             // TODO: make sure that there's no remaining tokens
@@ -306,7 +307,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 Delim::Lambda => Expr::Lambda(self.parse_lambda()?),
                 Delim::Parenthesis => {
                     let span = span.clone();
-                    let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
+                    let mut tokens = Tokens::new(tokens, span.end(), false, self.intermediate_dir);
                     let exprs = tokens.parse_exprs()?;
                     let mut is_tuple = exprs.len() != 1;
 
@@ -333,7 +334,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 },
                 Delim::Brace => {
                     let span = span.clone();
-                    let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
+                    let mut tokens = Tokens::new(tokens, span.end(), false, self.intermediate_dir);
                     let block = tokens.parse_block(false /* top_level */, span)?;
                     self.cursor += 1;
 
@@ -341,7 +342,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 },
                 Delim::Bracket => {
                     let span = span.clone();
-                    let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
+                    let mut tokens = Tokens::new(tokens, span.end(), false, self.intermediate_dir);
                     let exprs = tokens.parse_exprs()?;
                     self.cursor += 1;
 
@@ -601,7 +602,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                 break;
                             }
 
-                            let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
+                            let mut tokens = Tokens::new(tokens, span.end(), false, self.intermediate_dir);
                             let args = tokens.parse_func_args()?;
                             self.cursor += 1;
                             lhs = Expr::Call {
@@ -625,7 +626,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             match &lhs {
                                 Expr::Path(p) => {
                                     let constructor = p.clone();
-                                    let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
+                                    let mut tokens = Tokens::new(tokens, span.end(), false, self.intermediate_dir);
                                     let fields = tokens.parse_struct_initialization()?;
                                     self.cursor += 1;
                                     lhs = Expr::StructInit {
@@ -648,7 +649,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                 break;
                             }
 
-                            let mut tokens = Tokens::new(tokens, span.end(), false, &self.intermediate_dir);
+                            let mut tokens = Tokens::new(tokens, span.end(), false, self.intermediate_dir);
                             let rhs = tokens.parse_expr(true)?;
 
                             // TODO: make sure that there's no remaining tokens

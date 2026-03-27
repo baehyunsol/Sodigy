@@ -403,7 +403,7 @@ impl<'t, 's> Tokens<'t, 's> {
         // we can emit as many error messages as possible.
         // But since we discard `result` here, we have to check the `result` before we discard it.
         else {
-            if let Err(more_errors) = result.check(is_top_level, &self.intermediate_dir) {
+            if let Err(more_errors) = result.check(is_top_level, self.intermediate_dir) {
                 errors.extend(more_errors);
             }
 

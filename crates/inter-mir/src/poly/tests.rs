@@ -1,7 +1,7 @@
 use super::PolySolver;
 use crate::RenderStateMachine;
 use sodigy_mir::Type;
-use sodigy_span::{PolySpanKind, Span};
+use sodigy_span::{Span, SpanId};
 use sodigy_string::InternedString;
 use std::collections::{HashMap, HashSet};
 
@@ -169,11 +169,7 @@ fn check_answer(candidates: &[String], answer: &[String], false_positive: bool) 
 }
 
 fn dummy_span(id: u32) -> Span {
-    Span::Poly {
-        name: InternedString::dummy(),
-        kind: PolySpanKind::Name,
-        monomorphize_id: Some(id as u128),
-    }
+    Span::Range(SpanId(id as u128))
 }
 
 fn simple_type(id: u32) -> Type {
@@ -257,10 +253,7 @@ struct TestSession {}
 impl RenderStateMachine for TestSession {
     fn span_to_string_impl(&self, span: &Span) -> Option<String> {
         match span {
-            Span::Poly {
-                monomorphize_id: Some(n),
-                ..
-            } => match n {
+            Span::Range(SpanId(n)) => match n {
                 10000 => Some("int"),
                 10001 => Some("number"),
                 10002 => Some("byte"),

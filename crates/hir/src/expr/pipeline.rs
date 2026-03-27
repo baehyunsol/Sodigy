@@ -24,7 +24,6 @@ pub fn replace_dollar(
                     pattern,
                     ident,
                     replaced_spans,
-                    has_nested_pipeline,
                 );
             }
 
@@ -54,7 +53,6 @@ pub fn replace_dollar(
                     &mut arm.pattern,
                     ident,
                     replaced_spans,
-                    has_nested_pipeline,
                 );
 
                 if let Some(guard) = &mut arm.guard {
@@ -178,7 +176,6 @@ fn replace_dollar_in_pattern(
     pattern: &mut ast::Pattern,
     ident: InternedString,
     replaced_spans: &mut Vec<Span>,
-    has_nested_pipeline: &mut bool,
 ) {
     match &mut pattern.kind {
         ast::PatternKind::Path(_) |
@@ -195,7 +192,6 @@ fn replace_dollar_in_pattern(
                     element,
                     ident,
                     replaced_spans,
-                    has_nested_pipeline,
                 );
             }
         },
@@ -206,7 +202,6 @@ fn replace_dollar_in_pattern(
                         pat,
                         ident,
                         replaced_spans,
-                        has_nested_pipeline,
                     );
                 }
             }
@@ -217,13 +212,11 @@ fn replace_dollar_in_pattern(
                 lhs,
                 ident,
                 replaced_spans,
-                has_nested_pipeline,
             );
             replace_dollar_in_pattern(
                 rhs,
                 ident,
                 replaced_spans,
-                has_nested_pipeline,
             );
         },
         ast::PatternKind::PipelineData(span) => {

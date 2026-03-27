@@ -9,7 +9,6 @@ use crate::{
     Match,
     MatchArm,
     ShortCircuitKind,
-    Type,
 };
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_hir as hir;

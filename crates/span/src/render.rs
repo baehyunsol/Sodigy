@@ -1,4 +1,4 @@
-use crate::{Span, SpanDeriveKind};
+use crate::Span;
 use sodigy_file::File;
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
@@ -163,7 +163,7 @@ pub fn render_spans(
         ));
     }
 
-    rendered_groups = rendered_groups.into_iter().filter(|g| !g.is_empty()).collect();
+    rendered_groups.retain(|g| !g.is_empty());
     let delim = option.group_delim.as_ref().map(|(delim, color)| color.render_fg(delim)).unwrap_or_else(|| String::from("\n\n"));
     rendered_groups.join(&delim)
 }
@@ -362,8 +362,8 @@ fn render_span_worker(
             format!(
                 "{}{}{}{}{}",
                 info_color.render_fg(&line_no),
-                info_color.render_fg(&line_bar),
-                auxiliary_color.render_fg(&pre_dots),
+                info_color.render_fg(line_bar),
+                auxiliary_color.render_fg(pre_dots),
                 String::from_utf8_lossy(&line.content[left.min(line.content.len())..(right + 1).min(line.content.len())]),
                 if right < line.content.len() {
                     auxiliary_color.render_fg(" ... ")
@@ -379,7 +379,7 @@ fn render_span_worker(
                 format!(
                     "{}{}{}{}",
                     " ".repeat(line_no.len()),
-                    info_color.render_fg(&line_bar),
+                    info_color.render_fg(line_bar),
                     " ".repeat(pre_dots.len()),
                     line.colors[left.min(line.colors.len())..(right + 1).min(line.colors.len())].iter().map(
                         |color| match color {
@@ -578,7 +578,7 @@ fn render_span_worker(
                     format!(
                         "{}{}{}{}",
                         " ".repeat(line_no.len()),
-                        info_color.render_fg(&line_bar),
+                        info_color.render_fg(line_bar),
                         " ".repeat(pre_dots.len()),
                         apply_colors(&line, &colors),
                     ),

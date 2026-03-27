@@ -92,7 +92,7 @@ impl Session {
         let mut monomorphizations = vec![];
 
         for (_, generic_call) in generic_calls.iter() {
-            match self.try_solve_poly(&poly_solver, generic_call) {
+            match self.try_solve_poly(poly_solver, generic_call) {
                 SolvePolyResult::NotPoly => {
                     // We can do monomorphization only if every generic arguments are known.
                     if incomplete_generics.contains(&generic_call.call) {

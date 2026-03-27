@@ -21,9 +21,10 @@ pub struct CrateTestResult {
 
 impl CrateTest {
     pub fn has_error(&self) -> bool {
+        self.clippy.has_error() ||
+        self.doc.has_error() ||
         self.debug.has_error() ||
-        self.release.has_error() ||
-        self.doc.has_error()
+        self.release.has_error()
     }
 }
 

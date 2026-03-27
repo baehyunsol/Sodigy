@@ -58,7 +58,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 },
                 span: struct_body_span,
             } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
-            let mut struct_body_tokens = Tokens::new(struct_body_tokens, struct_body_span.end(), false, &self.intermediate_dir);
+            let mut struct_body_tokens = Tokens::new(struct_body_tokens, struct_body_span.end(), false, self.intermediate_dir);
             Some(struct_body_tokens.parse_struct_fields()?)
         };
 

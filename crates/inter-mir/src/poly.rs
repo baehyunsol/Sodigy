@@ -139,9 +139,9 @@ impl Session {
                         ).collect();
                         solver.impls.insert(r#impl.clone(), constraints);
                     },
-                    Err(e) => {
+                    Err(mut e) => {
                         has_error = true;
-                        self.type_errors.extend(e.into_iter().map(|e| TypeError::from(e)));
+                        self.type_errors.extend(e.drain(..));
                         continue;
                     },
                 }
@@ -194,7 +194,7 @@ impl PolySolver {
         }
 
         else {
-            let all_impls: Vec<Span> = self.impls.keys().map(|r#impl| r#impl.clone()).collect();
+            let all_impls: Vec<Span> = self.impls.keys().cloned().collect();
             let mut generic_params = vec![];
             let mut impls_by_generics: HashMap<Span, HashMap<SimpleType, Vec<Span>>> = HashMap::new();
             //                                 ^^^^                          ^^^^
@@ -383,9 +383,7 @@ impl PolySolver {
         session: &Session,
     ) -> Vec<Span> {
         let mut matched = vec![];
-        let impls = self.impls.keys().map(
-            |def_span| def_span.clone()
-        ).collect::<Vec<_>>();
+        let impls = self.impls.keys().cloned().collect::<Vec<_>>();
 
         'candidates: for candidate in self.state_machine.as_ref().map(
             |state_machine| state_machine.get_candidates(generics)
@@ -455,17 +453,13 @@ fn apply_same_generic_params(
                     (_, StateMachineOrLeaves::Leaves(leaves), true) => {
                         *leaves = leaves.iter().filter(
                             |span| *span != impl_def_span
-                        ).map(
-                            |span| span.clone()
-                        ).collect();
+                        ).cloned().collect();
                     },
                     (t @ SimpleType::Data { .. }, StateMachineOrLeaves::Leaves(leaves), _) => {
                         if t != target_type {
                             *leaves = leaves.iter().filter(
                                 |span| *span != impl_def_span
-                            ).map(
-                                |span| span.clone()
-                            ).collect();
+                            ).cloned().collect();
                         }
                     },
                     (_, StateMachineOrLeaves::Leaves(_), false) => {},
@@ -485,9 +479,7 @@ fn apply_same_generic_params(
                     StateMachineOrLeaves::Leaves(leaves) if unreachable => {
                         *leaves = leaves.iter().filter(
                             |span| *span != impl_def_span
-                        ).map(
-                            |span| span.clone()
-                        ).collect();
+                        ).cloned().collect();
                     },
                     StateMachineOrLeaves::Leaves(_) => {},
                     StateMachineOrLeaves::StateMachine(s) => {
@@ -745,9 +737,7 @@ impl StateMachineOrLeaves {
 fn intersect_and_sort(spans: &[Span], superset: &HashSet<Span>) -> Vec<Span> {
     let mut s = spans.iter().filter(
         |span| superset.contains(span)
-    ).map(
-        |span| span.clone()
-    ).collect::<Vec<_>>();
+    ).cloned().collect::<Vec<_>>();
     s.sort();
     s
 }
@@ -891,8 +881,8 @@ fn solve_fn_types(
     ).chain(std::iter::once((&poly.r#return, &r#impl.r#return))).enumerate() {
         // Solves `?T = Int`, `?U = Int` and `Int = Int`.
         if let Err(()) = tmp_session.solve_supertype(
-            &poly_type,
-            &impl_type,
+            poly_type,
+            impl_type,
 
             // Below 5 arguments are for error messages.
             // Since we're creating new error messages, we don't care about these.

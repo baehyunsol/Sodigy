@@ -59,7 +59,7 @@ pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, 
 
             let is_tuple = matches!(pattern_kind, PatternKind::TupleStruct { .. } | PatternKind::Tuple { .. });
             lines.push(if is_tuple { "(" } else { "[" });
-            let element_per_line = lookahead_elements(&elements, session) > 20;
+            let element_per_line = lookahead_elements(elements, session) > 20;
 
             if elements.len() > 1 {
                 if element_per_line {
@@ -80,7 +80,7 @@ pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, 
                         }
                     }
 
-                    dump_pattern(&element, lines, session);
+                    dump_pattern(element, lines, session);
                     lines.push(",");
 
                     if i != elements.len() - 1 {
@@ -118,7 +118,7 @@ pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, 
                 }
 
                 for element in elements.iter() {
-                    dump_pattern(&element, lines, session);
+                    dump_pattern(element, lines, session);
                     lines.push(",");
                 }
 

@@ -279,7 +279,7 @@ impl Session {
 
                 for r#let in block.lets.iter() {
                     match (
-                        r#let.type_annot.as_ref().map(|type_annot| self.check_type_annot_path(&type_annot)),
+                        r#let.type_annot.as_ref().map(|type_annot| self.check_type_annot_path(type_annot)),
                         self.check_expr_path(&r#let.value),
                     ) {
                         (Some(Ok(())) | None, Ok(())) => {},

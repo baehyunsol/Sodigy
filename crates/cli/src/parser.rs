@@ -264,14 +264,14 @@ impl ArgParser {
             }
         }
 
-        loop {
+        'arg_count_checker: {
             let span = match self.arg_count {
                 ArgCount::Geq(n) if args.len() < n => { Span::End },
                 ArgCount::Leq(n) if args.len() > n => { Span::NthArg(n + 1) },
                 ArgCount::Exact(n) if args.len() > n => { Span::NthArg(n + 1) },
                 ArgCount::Exact(n) if args.len() < n => { Span::NthArg(args.len().max(1) - 1) },
                 ArgCount::None if args.len() > 0 => { Span::FirstArg },
-                _ => { break; },
+                _ => { break 'arg_count_checker; },
             };
 
             return Err(RawError {

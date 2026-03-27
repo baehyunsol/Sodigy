@@ -13,7 +13,6 @@ use sodigy_span::{
     RenderSpanOption,
     RenderSpanSession,
     RenderableSpan,
-    Span,
     render_spans,
 };
 use sodigy_post_mir::MatchDump;
@@ -154,7 +153,7 @@ pub fn log_inter_mir(session: &inter_mir::Session) -> Result<(), FileError> {
                 )).into_bytes());
             },
             LogEntry::Monomorphization(monomorphization) => {
-                let info = session.render_monomorphization_info(&monomorphization);
+                let info = session.render_monomorphization_info(monomorphization);
 
                 buffer.push(b"\n-------- Monomorphization --------\n".to_vec());
                 buffer.push(prettify(format!("{entry:?}\n").into_bytes()));

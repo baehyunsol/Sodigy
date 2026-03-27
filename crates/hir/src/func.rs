@@ -295,7 +295,7 @@ impl Func {
         let mut type_annot = None;
 
         if let Some(ast_type) = &ast_func.type_annot {
-            match Type::from_ast(&ast_type, session) {
+            match Type::from_ast(ast_type, session) {
                 Ok(ty) => {
                     type_annot = Some(ty);
                 },

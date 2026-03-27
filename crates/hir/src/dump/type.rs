@@ -25,7 +25,7 @@ pub fn dump_type(r#type: &Type, lines: &mut IndentedLines, session: &Session) {
                 lines.break_line();
 
                 for r#type in types.iter() {
-                    dump_type(&r#type, lines, session);
+                    dump_type(r#type, lines, session);
                     lines.push(",");
                     lines.break_line();
                 }
@@ -36,7 +36,7 @@ pub fn dump_type(r#type: &Type, lines: &mut IndentedLines, session: &Session) {
 
             else {
                 for r#type in types.iter() {
-                    dump_type(&r#type, lines, session);
+                    dump_type(r#type, lines, session);
                 }
 
                 if types.len() == 1 {

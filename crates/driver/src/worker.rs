@@ -212,7 +212,7 @@ impl Worker {
                     FileOrStd::File(path) => (
                         false,
                         File::register(
-                            &path,
+                            path,
                             &input_module_path.to_string(),
                             &intermediate_dir,
                         )?,
