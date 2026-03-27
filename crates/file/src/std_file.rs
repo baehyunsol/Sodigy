@@ -7,7 +7,7 @@ pub(crate) const STD_FILES: [(
     &str,   // file_path
     &[u8],  // contents
     u128,   // content_hash
-); 18] = [
+); 19] = [
     (
         "@std.lib.bool",
         "@std/bool.sdg",
@@ -81,40 +81,46 @@ pub(crate) const STD_FILES: [(
         1011,
     ),
     (
+        "@std.lib.option",
+        "@std/option.sdg",
+        include_bytes!("../../../std/option.sdg"),
+        1012,
+    ),
+    (
         "@std.lib.prelude",
         "@std/prelude.sdg",
         include_bytes!("../../../std/prelude.sdg"),
-        1012,
+        1013,
     ),
     (
         "@std.lib.random",
         "@std/random.sdg",
         include_bytes!("../../../std/random.sdg"),
-        1013,
+        1014,
     ),
     (
         "@std.lib.result",
         "@std/result.sdg",
         include_bytes!("../../../std/result.sdg"),
-        1014,
+        1015,
     ),
     (
         "@std.lib.scalar",
         "@std/scalar.sdg",
         include_bytes!("../../../std/scalar.sdg"),
-        1015,
+        1016,
     ),
     (
         "@std.lib.string",
         "@std/string.sdg",
         include_bytes!("../../../std/string.sdg"),
-        1016,
+        1017,
     ),
     (
         "@std.lib.tuple",
         "@std/tuple.sdg",
         include_bytes!("../../../std/tuple.sdg"),
-        1017,
+        1018,
     ),
 ];
 

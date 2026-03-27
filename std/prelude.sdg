@@ -6,4 +6,8 @@ pub use std.r#fn.{Fn, ImpureFn, PureFn};
 pub use std.int.Int;
 pub use std.list.List;
 pub use std.number.Number;
+pub use std.option.Option;
+pub use std.option.Option.{None, Some};
+pub use std.result.Result;
+pub use std.result.Result.{Error, Ok};
 pub use std.string.String;

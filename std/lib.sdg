@@ -9,6 +9,7 @@ mod io;
 mod list;
 mod number;
 mod op;
+mod option;
 mod prelude;
 mod random;
 mod result;

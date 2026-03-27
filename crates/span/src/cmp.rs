@@ -20,7 +20,10 @@ impl Ord for Span {
             // dummy span is the smallest
             (Some(_), Some(_), None, None) => Ordering::Greater,
             (None, None, Some(_), Some(_)) => Ordering::Less,
-            (None, None, None, None) => todo!(),
+            (None, None, None, None) => match (self, other) {
+                (Span::None, Span::None) => Ordering::Equal,
+                p => panic!("TODO: {p:?}"),
+            },
             _ => unreachable!(),
         }
     }
