@@ -66,14 +66,12 @@ impl Session {
     pub fn init_span_string_map_enum(&self, r#enum: &Enum, result: &mut HashMap<SpanId, InternedString>) {
         update_span_string_map(r#enum.name, &r#enum.name_span, result);
 
-        for variant in r#enum.variants.iter() {
-            update_span_string_map(variant.name, &variant.name_span, result);
+        for (name, name_span) in r#enum.variants.iter() {
+            update_span_string_map(*name, name_span, result);
+        }
 
-            if let EnumVariantFields::Struct(fields) = &variant.fields {
-                for field in fields.iter() {
-                    update_span_string_map(field.name, &field.name_span, result);
-                }
-            }
+        for (name, name_span) in r#enum.name_span_map.iter() {
+            update_span_string_map(*name, name_span, result);
         }
 
         for generic in r#enum.generics.iter() {

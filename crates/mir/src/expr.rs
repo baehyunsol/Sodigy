@@ -1,4 +1,13 @@
-use crate::{Block, Dotfish, If, Match, Session, Type, lower_hir_if};
+use crate::{
+    Block,
+    Dotfish,
+    EnumFieldKind,
+    If,
+    Match,
+    Session,
+    Type,
+    lower_hir_if,
+};
 use sodigy_error::{Error, ErrorKind, comma_list_strs, to_ordinal};
 use sodigy_hir as hir;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
@@ -39,7 +48,7 @@ pub enum Expr {
         arg_group_span: Span,
 
         // It's lowered from dotfish operators.
-        // Only `Callable::Static` and `Callable::StructInit` can have this.
+        // Only `Callable::Static`, `Callable::StructInit` and `Callable::EnumInit` can have this.
         types: Option<Dotfish>,
 
         // It helps generating error messages.
@@ -58,6 +67,12 @@ pub enum Callable {
     },
     StructInit {
         def_span: Span,
+        span: Span,
+    },
+    EnumInit {
+        parent_def_span: Span,
+        variant_def_span: Span,
+        kind: EnumFieldKind,
         span: Span,
     },
     TupleInit {
@@ -83,6 +98,27 @@ impl Expr {
                 // inter-hir's `check_expr_path` should guarantee this
                 assert!(path.fields.is_empty());
                 assert!(path.dotfish.len() == 1);
+
+                match &path.id.origin {
+                    NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
+                        NameKind::EnumVariant { parent } => {
+                            return Ok(Expr::Call {
+                                func: Callable::EnumInit {
+                                    parent_def_span: parent.clone(),
+                                    variant_def_span: path.id.def_span.clone(),
+                                    kind: EnumFieldKind::None,
+                                    span: path.id.span.clone(),
+                                },
+                                args: vec![],
+                                arg_group_span: Span::None,
+                                types: Dotfish::from_hir(path.dotfish.last().unwrap(), session)?,
+                                given_keyword_args: vec![],
+                            });
+                        },
+                        _ => {},
+                    },
+                    _ => {},
+                }
 
                 Ok(Expr::Ident {
                     id: path.id.clone(),
@@ -142,7 +178,6 @@ impl Expr {
                         }
                     },
                     // call_span has to be the name_span of the last field, because `get_type_of_field` works this way
-                    // TODO: I guess I have to do something with `dotfish` here?
                     Ok(Expr::Field { lhs, fields, dotfish: hir_dotfish }) => {
                         dotfish = hir_dotfish.last().unwrap().clone();
 
@@ -150,6 +185,13 @@ impl Expr {
                             fields.last().unwrap().unwrap_name_span(),
                             Callable::Dynamic(Box::new(Expr::Field { lhs, dotfish: vec![None; fields.len() + 1], fields })),
                         )
+                    },
+                    Ok(Expr::Call { func: Callable::EnumInit { parent_def_span, variant_def_span, kind, span }, arg_group_span, types, .. }) => match kind {
+                        EnumFieldKind::None => todo!(),
+                        _ => {
+                            session.errors.push(todo!());
+                            return Err(());
+                        },
                     },
                     Ok(func) => (func.error_span_wide(), Callable::Dynamic(Box::new(func))),
                     Err(()) => {
@@ -166,9 +208,9 @@ impl Expr {
 
                 // If we know `def_span` and the `def_span` is in `func_shapes`,
                 // we know the exact definition of the function, and can process keyword arguments and default values.
-                let mut mir_args = match def_span {
-                    Some(def_span) => match session.global_context.func_shapes.unwrap().get(&def_span) {
-                        Some(func_shape) => {
+                let mut mir_args: Option<Vec<Expr>> = match def_span {
+                    Some(def_span) => {
+                        if let Some(func_shape) = session.global_context.func_shapes.unwrap().get(&def_span) {
                             for generic in func_shape.generics.iter() {
                                 session.generic_args.insert(
                                     (call_span.clone(), generic.name_span.clone()),
@@ -354,8 +396,15 @@ impl Expr {
 
                             given_keyword_args = g;
                             Some(result)
-                        },
-                        None => None,
+                        }
+
+                        else if let Some(enum_shape) = session.global_context.enum_shapes.unwrap().get(&def_span) {
+                            todo!()
+                        }
+
+                        else {
+                            None
+                        }
                     },
                     None => None,
                 };
@@ -527,6 +576,7 @@ impl Expr {
                 let mut has_error = false;
                 let (def_span, call_span) = (constructor.id.def_span.clone(), constructor.id.span.clone());
 
+                // TODO: enum variants
                 // TODO: it has to lower dotfish operators
 
                 // for better error messages
@@ -996,6 +1046,7 @@ impl Callable {
         match self {
             Callable::Static { span, .. } |
             Callable::StructInit { span, .. } |
+            Callable::EnumInit { span, .. } |
             Callable::TupleInit { group_span: span } |
             Callable::ListInit { group_span: span } => span.clone(),
             Callable::Dynamic(expr) => expr.error_span_narrow(),
@@ -1006,6 +1057,7 @@ impl Callable {
         match self {
             Callable::Static { span, .. } |
             Callable::StructInit { span, .. } |
+            Callable::EnumInit { span, .. } |
             Callable::TupleInit { group_span: span } |
             Callable::ListInit { group_span: span } => span.clone(),
             Callable::Dynamic(expr) => expr.error_span_wide(),

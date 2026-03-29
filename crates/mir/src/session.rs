@@ -67,11 +67,7 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
             lets: vec![],
             funcs: vec![],
             structs: vec![],
-
-            // TODO: actually lower these
-            enums: hir_session.enums.clone(),
-
-            // will be lowered soon
+            enums: vec![],
             asserts: vec![],
             type_assertions: vec![],
             equal_generic_params: HashMap::new(),

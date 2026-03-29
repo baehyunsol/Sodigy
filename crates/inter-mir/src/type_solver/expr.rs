@@ -768,6 +768,12 @@ impl Session {
                         // inter-hir must check whether a struct constructor is from `NameKind::Struct`.
                         None => unreachable!(),
                     },
+                    Callable::EnumInit { parent_def_span, variant_def_span, kind, span } => match self.enum_shapes.get(parent_def_span) {
+                        Some(_) => todo!(),
+
+                        // ICE
+                        None => unreachable!(),
+                    },
                     Callable::TupleInit { .. } => (
                         Some(Type::Data {
                             constructor_def_span: self.get_lang_item_span("type.Tuple"),

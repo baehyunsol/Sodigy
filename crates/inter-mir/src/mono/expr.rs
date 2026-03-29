@@ -103,6 +103,7 @@ impl Session {
                 match func {
                     Callable::Static { span, .. } |
                     Callable::StructInit { span, .. } |
+                    Callable::EnumInit { span, .. } |
                     Callable::TupleInit { group_span: span, .. } |
                     Callable::ListInit { group_span: span, .. } => {
                         *span = span.monomorphize(monomorphization.id);

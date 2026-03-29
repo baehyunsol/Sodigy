@@ -3,6 +3,7 @@ use crate::{
     Block,
     Callable,
     Dotfish,
+    EnumFieldKind,
     Expr,
     If,
     Let,
@@ -249,16 +250,23 @@ impl Endec for Callable {
                 def_span.encode_impl(buffer);
                 span.encode_impl(buffer);
             },
-            Callable::TupleInit { group_span } => {
+            Callable::EnumInit { parent_def_span, variant_def_span, kind, span } => {
                 buffer.push(2);
-                group_span.encode_impl(buffer);
+                parent_def_span.encode_impl(buffer);
+                variant_def_span.encode_impl(buffer);
+                kind.encode_impl(buffer);
+                span.encode_impl(buffer);
             },
-            Callable::ListInit { group_span } => {
+            Callable::TupleInit { group_span } => {
                 buffer.push(3);
                 group_span.encode_impl(buffer);
             },
-            Callable::Dynamic(f) => {
+            Callable::ListInit { group_span } => {
                 buffer.push(4);
+                group_span.encode_impl(buffer);
+            },
+            Callable::Dynamic(f) => {
+                buffer.push(5);
                 f.encode_impl(buffer);
             },
         }
@@ -277,18 +285,25 @@ impl Endec for Callable {
                 Ok((Callable::StructInit { def_span, span }, cursor))
             },
             Some(2) => {
-                let (group_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
-                Ok((Callable::TupleInit { group_span }, cursor))
+                let (parent_def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                let (variant_def_span, cursor) = Span::decode_impl(buffer, cursor)?;
+                let (kind, cursor) = EnumFieldKind::decode_impl(buffer, cursor)?;
+                let (span, cursor) = Span::decode_impl(buffer, cursor)?;
+                Ok((Callable::EnumInit { parent_def_span, variant_def_span, kind, span }, cursor))
             },
             Some(3) => {
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
-                Ok((Callable::ListInit { group_span }, cursor))
+                Ok((Callable::TupleInit { group_span }, cursor))
             },
             Some(4) => {
+                let (group_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                Ok((Callable::ListInit { group_span }, cursor))
+            },
+            Some(5) => {
                 let (f, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
                 Ok((Callable::Dynamic(f), cursor))
             },
-            Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 6..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

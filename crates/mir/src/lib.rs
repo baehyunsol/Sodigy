@@ -24,7 +24,7 @@ mod tests;
 pub use assert::Assert;
 pub use block::Block;
 pub use dump::{dump_expr, render_type, span_to_string, span_to_string_or_verbose};
-pub use r#enum::Enum;
+pub use r#enum::{Enum, EnumFieldKind};
 pub use expr::{Callable, Expr, ShortCircuitKind};
 pub use func::Func;
 pub use global_context::GlobalContext;
@@ -65,6 +65,12 @@ pub fn lower(
     for hir_struct in hir_session.structs.iter() {
         if let Ok(r#struct) = Struct::from_hir(hir_struct, &mut session) {
             session.structs.push(r#struct);
+        }
+    }
+
+    for hir_enum in hir_session.enums.iter() {
+        if let Ok(r#enum) = Enum::from_hir(hir_enum, &mut session) {
+            session.enums.push(r#enum);
         }
     }
 

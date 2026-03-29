@@ -330,6 +330,7 @@ pub fn lower_expr(
                         bytecodes.push(Bytecode::Return);
                     }
                 },
+                Callable::EnumInit { .. } => todo!(),
                 Callable::Dynamic(f) => {
                     lower_expr(
                         f,

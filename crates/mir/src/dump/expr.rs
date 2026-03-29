@@ -1,5 +1,5 @@
 use super::{dump_assert, dump_let, dump_type, span_to_string_or_verbose};
-use crate::{Callable, Expr, Session};
+use crate::{Callable, EnumFieldKind, Expr, Session};
 use sodigy_endec::IndentedLines;
 use sodigy_hir::dump::dump_pattern;
 use sodigy_parse::Field;
@@ -249,6 +249,7 @@ pub fn dump_expr(
                     ));
                     ("(", ")")
                 },
+                // TODO: dump field names
                 Callable::StructInit { def_span, .. } => {
                     lines.push(&span_to_string_or_verbose(
                         def_span,
@@ -256,6 +257,28 @@ pub fn dump_expr(
                         session.global_context.span_string_map.unwrap_or(&HashMap::new()),
                     ));
                     ("{", "}")
+                },
+                Callable::EnumInit { parent_def_span, variant_def_span, kind, .. } => {
+                    lines.push(&format!(
+                        "{}.{}",
+                        span_to_string_or_verbose(
+                            parent_def_span,
+                            &session.intermediate_dir,
+                            session.global_context.span_string_map.unwrap_or(&HashMap::new()),
+                        ),
+                        span_to_string_or_verbose(
+                            variant_def_span,
+                            &session.intermediate_dir,
+                            session.global_context.span_string_map.unwrap_or(&HashMap::new()),
+                        ),
+                    ));
+
+                    // TODO: dump field names for `EnumFieldKind::Struct`
+                    match kind {
+                        EnumFieldKind::None => ("", ""),
+                        EnumFieldKind::Tuple => ("(", ")"),
+                        EnumFieldKind::Struct => ("{", "}"),
+                    }
                 },
                 Callable::TupleInit { .. } => {
                     is_tuple = true;
