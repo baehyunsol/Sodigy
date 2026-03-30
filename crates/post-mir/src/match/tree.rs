@@ -16,7 +16,17 @@ use super::{
 };
 use crate::Session;
 use sodigy_hir::LetOrigin;
-use sodigy_mir::{Block, Callable, Expr, If, Let, MatchArm, type_of};
+use sodigy_mir::{
+    Block,
+    Callable,
+    Expr,
+    If,
+    Let,
+    MatchArm,
+    false_value,
+    true_value,
+    type_of,
+};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_span::{Span, SpanDeriveKind};
 use sodigy_string::intern_string;
@@ -88,17 +98,15 @@ impl DecisionTree {
         //       we don't have to evaluate `scrutinee._0._0` twice.
         let curr_field_name = intern_string(b"curr", "").unwrap();
         let curr_field_span = scrutinee.error_span_wide().derive(SpanDeriveKind::MatchScrutinee(self.id));
-        let curr_field = Expr::Ident {
-            id: IdentWithOrigin {
-                id: curr_field_name,
-                span: curr_field_span.clone(),
-                def_span: curr_field_span.clone(),
-                origin: NameOrigin::Local {
-                    kind: NameKind::Let { is_top_level: false },
-                },
+        let curr_field = IdentWithOrigin {
+            id: curr_field_name,
+            span: curr_field_span.clone(),
+            def_span: curr_field_span.clone(),
+            origin: NameOrigin::Local {
+                kind: NameKind::Let { is_top_level: false },
             },
-            dotfish: None,
         };
+        let curr_field = Expr::from_ident_with_origin(&curr_field, None);
 
         let mut lets = match &self.field {
             Some(field) => {
@@ -128,17 +136,15 @@ impl DecisionTree {
                     continue;
                 }
 
-                let mut new_value = Expr::Ident {
-                    id: IdentWithOrigin {
-                        id: curr_field_name,
-                        span: Span::None,
-                        def_span: curr_field_span.clone(),
-                        origin: NameOrigin::Local {
-                            kind: NameKind::Let { is_top_level: false },
-                        },
+                let new_value = IdentWithOrigin {
+                    id: curr_field_name,
+                    span: Span::None,
+                    def_span: curr_field_span.clone(),
+                    origin: NameOrigin::Local {
+                        kind: NameKind::Let { is_top_level: false },
                     },
-                    dotfish: None,
                 };
+                let mut new_value = Expr::from_ident_with_origin(&new_value, None);
 
                 match &name_binding.offset {
                     NameBindingOffset::None => {},
@@ -417,19 +423,7 @@ fn constructor_to_expr(
                                     given_keyword_args: vec![],
                                 }),
                                 true_group_span: Span::None,
-                                false_value: Box::new(Expr::Ident {
-                                    id: IdentWithOrigin {
-                                        id: intern_string(b"False", &session.intermediate_dir).unwrap(),
-                                        span: Span::None,
-                                        origin: NameOrigin::Foreign {
-                                            kind: NameKind::EnumVariant {
-                                                parent: session.get_lang_item_span("type.Bool"),
-                                            },
-                                        },
-                                        def_span: session.get_lang_item_span("variant.Bool.False"),
-                                    },
-                                    dotfish: None,
-                                }),
+                                false_value: Box::new(false_value(session)),
                                 false_group_span: Span::None,
                                 from_short_circuit: None,
                             });
@@ -487,19 +481,7 @@ fn constructors_to_expr(
             if_span: Span::None,
             cond: Box::new(constructor_to_expr(&constructors[0], curr_field, session)),
             else_span: Span::None,
-            true_value: Box::new(Expr::Ident {
-                id: IdentWithOrigin {
-                    id: intern_string(b"True", &session.intermediate_dir).unwrap(),
-                    span: Span::None,
-                    origin: NameOrigin::Foreign {
-                        kind: NameKind::EnumVariant {
-                            parent: session.get_lang_item_span("type.Bool"),
-                        },
-                    },
-                    def_span: session.get_lang_item_span("variant.Bool.True"),
-                },
-                dotfish: None,
-            }),
+            true_value: Box::new(true_value(session)),
             true_group_span: Span::None,
             false_value: Box::new(constructors_to_expr(&constructors[1..], curr_field, session)),
             false_group_span: Span::None,
@@ -897,38 +879,6 @@ fn split_or_patterns(
     }
 
     result
-}
-
-fn true_value(session: &Session) -> Expr {
-    Expr::Ident {
-        id: IdentWithOrigin {
-            id: intern_string(b"True", &session.intermediate_dir).unwrap(),
-            span: Span::None,
-            origin: NameOrigin::Foreign {
-                kind: NameKind::EnumVariant {
-                    parent: session.get_lang_item_span("type.Bool"),
-                },
-            },
-            def_span: session.get_lang_item_span("variant.Bool.True"),
-        },
-        dotfish: None,
-    }
-}
-
-fn false_value(session: &Session) -> Expr {
-    Expr::Ident {
-        id: IdentWithOrigin {
-            id: intern_string(b"False", &session.intermediate_dir).unwrap(),
-            span: Span::None,
-            origin: NameOrigin::Foreign {
-                kind: NameKind::EnumVariant {
-                    parent: session.get_lang_item_span("type.Bool"),
-                },
-            },
-            def_span: session.get_lang_item_span("variant.Bool.False"),
-        },
-        dotfish: None,
-    }
 }
 
 #[derive(Clone, Debug)]

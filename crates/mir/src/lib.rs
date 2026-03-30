@@ -24,8 +24,8 @@ mod tests;
 pub use assert::Assert;
 pub use block::Block;
 pub use dump::{dump_expr, render_type, span_to_string, span_to_string_or_verbose};
-pub use r#enum::{Enum, EnumFieldKind};
-pub use expr::{Callable, Expr, ShortCircuitKind};
+pub use r#enum::{Enum, EnumVariant, EnumVariantFields};
+pub use expr::{Callable, Expr, ShortCircuitKind, false_value, true_value};
 pub use func::Func;
 pub use global_context::GlobalContext;
 pub use r#if::If;
@@ -35,7 +35,7 @@ pub use r#let::Let;
 pub use r#match::{ArmSplit, Match, MatchArm};
 pub use pattern::{Pattern, PatternKind};
 pub use session::Session;
-pub use r#struct::Struct;
+pub use r#struct::{Struct, StructField};
 pub use r#type::{Dotfish, Type, TypeAssertion, type_of, type_of_field};
 
 pub fn lower(

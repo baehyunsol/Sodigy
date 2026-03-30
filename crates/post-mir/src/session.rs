@@ -1,7 +1,9 @@
 use crate::MatchDump;
 use sodigy_error::{Error, Warning};
 use sodigy_mir::{GlobalContext, Session as MirSession, Type};
-use sodigy_span::Span;
+use sodigy_session::SodigySession;
+use sodigy_span::{Span, SpanId};
+use sodigy_string::InternedString;
 use std::collections::HashMap;
 
 pub struct Session<'hir, 'mir> {
@@ -41,24 +43,18 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
             .expect("global context poisoned")
             .insert(def_span.clone(), r#type);
     }
+}
 
-    // for `dump_expr`
-    pub fn tmp_mir_session(&self) -> MirSession<'hir, 'mir> {
-        MirSession {
-            intermediate_dir: self.intermediate_dir.clone(),
-            lets: vec![],
-            funcs: vec![],
-            structs: vec![],
-            enums: vec![],
-            asserts: vec![],
-            type_assertions: vec![],
-            equal_generic_params: HashMap::new(),
-            aliases: vec![],
-            types: HashMap::new(),
-            generic_args: HashMap::new(),
-            errors: vec![],
-            warnings: vec![],
-            global_context: self.global_context.clone(),
-        }
+impl SodigySession for Session<'_, '_> {
+    fn intermediate_dir(&self) -> &str {
+        &self.intermediate_dir
+    }
+
+    fn lang_items(&self) -> Option<&HashMap<String, Span>> {
+        self.global_context.lang_items
+    }
+
+    fn span_string_map(&self) -> Option<&HashMap<SpanId, InternedString>> {
+        self.global_context.span_string_map
     }
 }

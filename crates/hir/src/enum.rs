@@ -9,7 +9,7 @@ use crate::{
     Visibility,
     get_decorator_error_notes,
 };
-use sodigy_error::{Error, ErrorKind, ItemKind};
+use sodigy_error::{EnumFieldKind, Error, ErrorKind, ItemKind};
 use sodigy_name_analysis::{Namespace, NameKind, UseCount};
 use sodigy_parse::{self as ast, Generic};
 use sodigy_span::Span;
@@ -48,7 +48,11 @@ pub enum EnumVariantFields {
 #[derive(Clone, Debug)]
 pub struct EnumShape {
     pub name: InternedString,
+
+    // variants[variant_index[def_span]] will give you an EnumVariant with the def_span
     pub variants: Vec<EnumVariant>,
+    pub variant_index: HashMap<Span, usize>,
+
     pub generics: Vec<Generic>,
     pub generic_group_span: Option<Span>,
     pub associated_funcs: HashMap<InternedString, AssociatedFunc>,
@@ -268,6 +272,16 @@ impl EnumVariantFields {
                     field.type_annot = None;
                 }
             },
+        }
+    }
+}
+
+impl From<&EnumVariantFields> for EnumFieldKind {
+    fn from(f: &EnumVariantFields) -> EnumFieldKind {
+        match f {
+            EnumVariantFields::None => EnumFieldKind::None,
+            EnumVariantFields::Tuple(_) => EnumFieldKind::Tuple,
+            EnumVariantFields::Struct(_) => EnumFieldKind::Struct,
         }
     }
 }

@@ -1,17 +1,18 @@
 use crate::{Session, Type};
 use sodigy_endec::IndentedLines;
 use sodigy_hir::FuncPurity;
+use sodigy_session::SodigySession;
 use sodigy_span::{PolySpanKind, Span, SpanId};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
-pub fn dump_type(r#type: &Type, lines: &mut IndentedLines, session: &Session) {
+pub fn dump_type<S: SodigySession>(r#type: &Type, lines: &mut IndentedLines, session: &S) {
     lines.push(&render_type(
         r#type,
         true,  // verbose
-        session.global_context.lang_items.unwrap_or(&HashMap::new()),
-        &session.intermediate_dir,
-        session.global_context.span_string_map.unwrap_or(&HashMap::new()),
+        session.lang_items().unwrap_or(&HashMap::new()),
+        session.intermediate_dir(),
+        session.span_string_map().unwrap_or(&HashMap::new()),
     ));
 }
 

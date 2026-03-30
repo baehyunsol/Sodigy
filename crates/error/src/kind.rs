@@ -130,13 +130,14 @@ error_kinds!(
 
     // TODO: more context!
     // TODO: suggest similar names
-    (InvalidKeywordArg(InternedString),                         370,    Error),
+    (InvalidKeywordArg(InternedString),                              370,    Error),
 
     (MissingFunctionParameter { expected: usize, got: usize },       375,    Error),
     (UnexpectedFunctionParameter { expected: usize, got: usize },    380,    Error),
     (StructFieldRepeated(InternedString),                            385,    Error),
-    (MissingStructFields { struct_name: InternedString, missing_fields: Vec<InternedString> }, 390,    Error),
-    (InvalidStructFields { struct_name: InternedString, invalid_fields: Vec<InternedString> }, 395,    Error),
+    (MissingStructFields { struct_name: InternedString, is_enum_variant: bool, missing_fields: Vec<InternedString> }, 390, Error),
+    (InvalidStructFields { struct_name: InternedString, is_enum_variant: bool, invalid_fields: Vec<InternedString> }, 395, Error),
+    (MismatchedEnumFieldKind { expected: EnumFieldKind, got: EnumFieldKind }, 396, Error),
 
     (CannotAssociateItem,                                            398,    Error),
     (TooGeneralToAssociateItem,                                      399,    Error),
@@ -279,4 +280,11 @@ impl From<&NameKind> for NotXBut {
             NameKind::GenericParam => NotXBut::GenericParam,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum EnumFieldKind {
+    None,
+    Tuple,
+    Struct,
 }

@@ -12,7 +12,7 @@ mod warning;
 mod tests;
 
 pub use dump::{DumpErrorOption, dump_errors};
-pub use kind::{ErrorKind, NameCollisionKind, NotXBut};
+pub use kind::{EnumFieldKind, ErrorKind, NameCollisionKind, NotXBut};
 pub use lint::{Lint, LintKind};
 pub use token::ErrorToken;
 pub use warning::{Warning, WarningKind};

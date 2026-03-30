@@ -30,8 +30,8 @@ impl ErrorKind {
                 "Keyword argument `{}` is repeated.",
                 keyword.unintern_or_default(intermediate_dir),
             ),
-            ErrorKind::MissingStructFields { struct_name, missing_fields } => format!(
-                "Field{} {} of struct `{}` {} missing.",
+            ErrorKind::MissingStructFields { struct_name, is_enum_variant, missing_fields } => format!(
+                "Field{} {} of {} `{}` {} missing.",
                 if missing_fields.len() == 1 { "" } else { "s" },
                 comma_list_strs(
                     &missing_fields.iter().map(|name| name.unintern_or_default(intermediate_dir)).collect::<Vec<_>>(),
@@ -39,11 +39,13 @@ impl ErrorKind {
                     "`",
                     "and",
                 ),
+                if *is_enum_variant { "enum variant" } else { "struct" },
                 struct_name.unintern_or_default(intermediate_dir),
                 if missing_fields.len() == 1 { "is" } else { "are" },
             ),
-            ErrorKind::InvalidStructFields { struct_name, invalid_fields } => format!(
-                "Struct `{}` has no field{} {}.",
+            ErrorKind::InvalidStructFields { struct_name, is_enum_variant, invalid_fields } => format!(
+                "{} `{}` doesn't have field{} {}.",
+                if *is_enum_variant { "Enum variant" } else { "Struct" },
                 struct_name.unintern_or_default(intermediate_dir),
                 if invalid_fields.len() == 1 { "" } else { "s" },
                 comma_list_strs(

@@ -103,7 +103,7 @@ pub struct FuncShape {
 }
 
 /// Type signature `Fn` is for both pure and impure functions.
-/// `PureFn` is subtype of `Fn`, and so is `ImpureFn`.
+/// `PureFn` and `ImpureFn` are subtypes of `Fn`.
 /// You cannot use `Fn` in pure contexts.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum FuncPurity {

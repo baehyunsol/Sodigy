@@ -2,7 +2,8 @@ use crate::{Assert, Enum, Func, GlobalContext, Let, Struct, Type, TypeAssertion}
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{self as hir, FuncShape};
 use sodigy_inter_hir as inter_hir;
-use sodigy_span::Span;
+use sodigy_session::SodigySession;
+use sodigy_span::{Span, SpanId};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
@@ -81,13 +82,6 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
         }
     }
 
-    pub fn get_lang_item_span(&self, lang_item: &str) -> Span {
-        match self.global_context.lang_items.as_ref().unwrap().get(lang_item) {
-            Some(s) => s.clone(),
-            None => panic!("TODO: lang_item `{lang_item}`"),
-        }
-    }
-
     pub fn merge(&mut self, mut s: Session) {
         self.lets.extend(s.lets.drain(..));
         self.funcs.extend(s.funcs.drain(..));
@@ -138,5 +132,19 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
                 note.dispatch(generics, associated_funcs, func_shapes, generic_args);
             }
         }
+    }
+}
+
+impl SodigySession for Session<'_, '_> {
+    fn intermediate_dir(&self) -> &str {
+        &self.intermediate_dir
+    }
+
+    fn lang_items(&self) -> Option<&HashMap<String, Span>> {
+        self.global_context.lang_items
+    }
+
+    fn span_string_map(&self) -> Option<&HashMap<SpanId, InternedString>> {
+        self.global_context.span_string_map
     }
 }

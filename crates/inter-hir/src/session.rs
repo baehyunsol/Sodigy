@@ -3,6 +3,7 @@ use sodigy_hir::{
     Alias,
     AssociatedItem,
     EnumShape,
+    EnumVariant,
     Expr,
     Func,
     FuncShape,
@@ -134,22 +135,30 @@ impl Session {
         }
 
         for (def_span, enum_shape) in hir_session.enums.iter().map(
-            |r#enum| (
-                r#enum.name_span.clone(),
-                EnumShape {
-                    name: r#enum.name,
-                    variants: r#enum.variants.clone().into_iter().map(
-                        |mut variant| {
-                            variant.fields.erase_type_info();
-                            variant
-                        }
-                    ).collect(),
-                    generics: r#enum.generics.clone(),
-                    generic_group_span: r#enum.generic_group_span.clone(),
-                    associated_funcs: HashMap::new(),
-                    associated_lets: HashMap::new(),
-                },
-            )
+            |r#enum| {
+                let variants: Vec<EnumVariant> = r#enum.variants.clone().into_iter().map(
+                    |mut variant| {
+                        variant.fields.erase_type_info();
+                        variant
+                    }
+                ).collect();
+                let variant_index: HashMap<Span, usize> = variants.iter().enumerate().map(
+                    |(index, variant)| (variant.name_span.clone(), index)
+                ).collect();
+
+                (
+                    r#enum.name_span.clone(),
+                    EnumShape {
+                        name: r#enum.name,
+                        variants,
+                        variant_index,
+                        generics: r#enum.generics.clone(),
+                        generic_group_span: r#enum.generic_group_span.clone(),
+                        associated_funcs: HashMap::new(),
+                        associated_lets: HashMap::new(),
+                    },
+                )
+            }
         ) {
             self.enum_shapes.insert(def_span.clone(), enum_shape);
         }

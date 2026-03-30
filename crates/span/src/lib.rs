@@ -219,6 +219,13 @@ impl Span {
         use sodigy_endec::Endec;
         hash(&self.encode())
     }
+
+    pub fn or(&self, other: &Span) -> Span {
+        match (self, other) {
+            (Span::None, _) => other.clone(),
+            _ => self.clone(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

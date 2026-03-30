@@ -1,7 +1,8 @@
 use crate::{AssociatedFuncInstance, Expr, Session, Type, write_log};
 use crate::error::{ErrorContext, TypeError};
+use sodigy_error::{EnumFieldKind, Error, ErrorKind};
+use sodigy_hir::{self as hir, AssociatedFunc, FuncPurity};
 use sodigy_inter_hir::get_associated_func_name;
-use sodigy_hir::{AssociatedFunc, FuncPurity};
 use sodigy_mir::{Callable, Dotfish, ShortCircuitKind};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::{Field, merge_field_spans};
@@ -491,7 +492,7 @@ impl Session {
                 },
                 (None, _) => (None, true),
             },
-            Expr::Call { func, args, types: generic_args, given_keyword_args, .. } => {
+            Expr::Call { func, args, types: generic_args, given_keyword_args, arg_group_span } => {
                 let mut has_error = false;
                 let mut arg_types = Vec::with_capacity(args.len());
 
@@ -700,25 +701,25 @@ impl Session {
                         None => todo!(),
                     },
                     Callable::StructInit { def_span, span } => match self.struct_shapes.get(def_span) {
-                        Some(s) => {
+                        Some(struct_shape) => {
                             // The compiler checked it when lowering hir to mir.
-                            assert_eq!(s.fields.len(), arg_types.len());
-                            let s = s.clone();
+                            assert_eq!(struct_shape.fields.len(), arg_types.len());
+                            let struct_shape = struct_shape.clone();
                             let call_span = span.clone();
-                            let generic_params = s.generics.iter().map(
+                            let generic_params = struct_shape.generics.iter().map(
                                 |generic| generic.name_span.clone()
                             ).collect::<Vec<_>>();
 
                             for i in 0..arg_types.len() {
-                                let field_type = match self.types.get(&s.fields[i].name_span) {
+                                let field_type = match self.types.get(&struct_shape.fields[i].name_span) {
                                     Some(r#type) => {
                                         let mut r#type = r#type.clone();
                                         r#type.substitute_generic_param_for_arg(&call_span, &generic_params);
                                         r#type
                                     },
                                     None => {
-                                        let type_var = Type::Var { def_span: s.fields[i].name_span.clone(), is_return: false };
-                                        self.add_type_var(type_var.clone(), Some(s.fields[i].name));
+                                        let type_var = Type::Var { def_span: struct_shape.fields[i].name_span.clone(), is_return: false };
+                                        self.add_type_var(type_var.clone(), Some(struct_shape.fields[i].name));
                                         type_var
                                     },
                                 };
@@ -736,10 +737,10 @@ impl Session {
                                 }
                             }
 
-                            let (args, group_span) = if s.generics.is_empty() {
+                            let (args, group_span) = if struct_shape.generics.is_empty() {
                                 (None, None)
                             } else {
-                                (Some(s.generics.iter().map(
+                                (Some(struct_shape.generics.iter().map(
                                     |generic| {
                                         match self.generic_args.get(&(call_span.clone(), generic.name_span.clone())) {
                                             Some(r#type) => r#type.clone(),
@@ -769,7 +770,76 @@ impl Session {
                         None => unreachable!(),
                     },
                     Callable::EnumInit { parent_def_span, variant_def_span, kind, span } => match self.enum_shapes.get(parent_def_span) {
-                        Some(_) => todo!(),
+                        Some(enum_shape) => {
+                            let enum_shape = enum_shape.clone();
+                            let variant_shape: &hir::EnumVariant = enum_shape.variants.get(*enum_shape.variant_index.get(variant_def_span).unwrap()).unwrap();
+                            let generic_params: Vec<Span> = enum_shape.generics.iter().map(
+                                |generic| generic.name_span.clone()
+                            ).collect();
+                            let mut has_error = false;
+                            let expected_field_kind = EnumFieldKind::from(&variant_shape.fields);
+
+                            // If the variant is `Option.None`, the type would be `Option<T>`.
+                            // If the variant is `Option.Some`, the type would be `Fn(T) -> Option<T>`.
+                            let mut variant_type: Type = self.types.get(variant_def_span).unwrap().clone();
+
+                            if !generic_params.is_empty() {
+                                variant_type.substitute_generic_param_for_arg(span, &generic_params);
+
+                                for generic_param in generic_params.iter() {
+                                    self.add_type_var(Type::GenericArg { call: span.clone(), generic: generic_param.clone() }, None);
+                                }
+                            }
+
+                            if *kind != expected_field_kind {
+                                self.errors.push(Error {
+                                    kind: ErrorKind::MismatchedEnumFieldKind {
+                                        expected: expected_field_kind,
+                                        got: *kind,
+                                    },
+                                    spans: arg_group_span.or(span).simple_error(),
+                                    note: None,
+                                });
+                                has_error = true;
+                                return (None, has_error);
+                            }
+
+                            match (kind, variant_type) {
+                                (EnumFieldKind::None, variant_type) => (Some(variant_type), has_error),
+                                (_, Type::Func { params, r#return, .. }) => {
+                                    if arg_types.len() != params.len() {
+                                        has_error = true;
+                                        self.type_errors.push(TypeError::WrongNumberOfArgs {
+                                            expected: params,
+                                            got: arg_types,
+                                            given_keyword_args: given_keyword_args.to_vec(),
+                                            call: span.clone(),
+                                            def: Some(variant_def_span.clone()),
+                                            arg_spans: args.iter().map(|arg| arg.error_span_wide()).collect(),
+                                        });
+                                    }
+
+                                    else {
+                                        for (i, param) in params.iter().enumerate() {
+                                            if let Err(()) = self.solve_supertype(
+                                                param,
+                                                &arg_types[i],
+                                                false,
+                                                None,
+                                                Some(&args[i].error_span_wide()),
+                                                ErrorContext::FuncArgs,  // TODO: maybe another ErrorContext for this?
+                                                false,
+                                            ) {
+                                                has_error = true;
+                                            }
+                                        }
+                                    }
+
+                                    (Some(*r#return), has_error)
+                                },
+                                _ => unreachable!(),
+                            }
+                        },
 
                         // ICE
                         None => unreachable!(),

@@ -1,42 +1,43 @@
 use crate::{Pattern, PatternKind, Session};
 use sodigy_endec::IndentedLines;
+use sodigy_session::SodigySession;
 
-pub fn dump_pattern(pattern: &Pattern, lines: &mut IndentedLines, session: &Session) {
+pub fn dump_pattern<S: SodigySession>(pattern: &Pattern, lines: &mut IndentedLines, session: &S) {
     if let Some(name) = pattern.name {
-        lines.push(&name.unintern_or_default(&session.intermediate_dir));
+        lines.push(&name.unintern_or_default(session.intermediate_dir()));
         lines.push(" @ ");
     }
 
     dump_pattern_kind(&pattern.kind, lines, session, 0);
 }
 
-pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, session: &Session, max_len: usize) {
+pub fn dump_pattern_kind<S: SodigySession>(pattern_kind: &PatternKind, lines: &mut IndentedLines, session: &S, max_len: usize) {
     if max_len != 0 && lines.total_chars() > max_len {
         return;
     }
 
     match pattern_kind {
         PatternKind::Path(p) => {
-            lines.push(&p.unintern_or_default(&session.intermediate_dir));
+            lines.push(&p.unintern_or_default(session.intermediate_dir()));
         },
         PatternKind::NameBinding { id, .. } => {
             lines.push("$");
-            lines.push(&id.unintern_or_default(&session.intermediate_dir));
+            lines.push(&id.unintern_or_default(session.intermediate_dir()));
         },
         PatternKind::Constant(c) => {
-            lines.push(&c.dump(&session.intermediate_dir));
+            lines.push(&c.dump(session.intermediate_dir()));
         },
         PatternKind::Regex { .. } => {
             lines.push(&format!("/* TODO: dump regex pattern {pattern_kind:?} */"));
         },
         PatternKind::Struct { r#struct, fields, rest, .. } => {
-            lines.push(&r#struct.unintern_or_default(&session.intermediate_dir));
+            lines.push(&r#struct.unintern_or_default(session.intermediate_dir()));
             lines.push("{");
             lines.inc_indent();
             lines.break_line();
 
             for (i, field) in fields.iter().enumerate() {
-                lines.push(&field.name.unintern_or_default(&session.intermediate_dir));
+                lines.push(&field.name.unintern_or_default(session.intermediate_dir()));
 
                 if !field.is_shorthand {
                     lines.push(": ");
@@ -54,7 +55,7 @@ pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, 
         PatternKind::Tuple { elements, rest, .. } |
         PatternKind::List { elements, rest, .. } => {
             if let PatternKind::TupleStruct { r#struct, .. } = pattern_kind {
-                lines.push(&r#struct.unintern_or_default(&session.intermediate_dir));
+                lines.push(&r#struct.unintern_or_default(session.intermediate_dir()));
             }
 
             let is_tuple = matches!(pattern_kind, PatternKind::TupleStruct { .. } | PatternKind::Tuple { .. });
@@ -151,7 +152,7 @@ pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, 
     }
 }
 
-fn lookahead_elements(elements: &[Pattern], session: &Session) -> usize {
+fn lookahead_elements<S: SodigySession>(elements: &[Pattern], session: &S) -> usize {
     let mut count = 0;
 
     for element in elements.iter() {

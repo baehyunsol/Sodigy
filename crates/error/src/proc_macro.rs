@@ -44,12 +44,18 @@
     MissingFunctionParameter { expected: usize, got: usize },
     UnexpectedFunctionParameter { expected: usize, got: usize },
     StructFieldRepeated(InternedString), MissingStructFields
-    { struct_name: InternedString, missing_fields: Vec<InternedString> },
-    InvalidStructFields
-    { struct_name: InternedString, invalid_fields: Vec<InternedString> },
-    CannotAssociateItem, TooGeneralToAssociateItem, NotType
-    { id: InternedString, but: NotXBut }, NotCallable { r#type: String },
-    NotStruct { id: InternedString, but: NotXBut }, NotExpr
+    {
+        struct_name: InternedString, is_enum_variant: bool, missing_fields:
+        Vec<InternedString>
+    }, InvalidStructFields
+    {
+        struct_name: InternedString, is_enum_variant: bool, invalid_fields:
+        Vec<InternedString>
+    }, MismatchedEnumFieldKind
+    { expected: EnumFieldKind, got: EnumFieldKind }, CannotAssociateItem,
+    TooGeneralToAssociateItem, NotType { id: InternedString, but: NotXBut },
+    NotCallable { r#type: String }, NotStruct
+    { id: InternedString, but: NotXBut }, NotExpr
     { id: InternedString, but: NotXBut }, NotPolyGeneric
     { id: Option<IdentWithOrigin> }, CannotAliasLocalValue(InternedString),
     UnexpectedType { expected: String, got: String }, WrongNumberOfArgs
@@ -156,6 +162,7 @@
             StructFieldRepeated(_,) => 385u16, ErrorKind ::
             MissingStructFields { .. } => 390u16, ErrorKind ::
             InvalidStructFields { .. } => 395u16, ErrorKind ::
+            MismatchedEnumFieldKind { .. } => 396u16, ErrorKind ::
             CannotAssociateItem => 398u16, ErrorKind ::
             TooGeneralToAssociateItem => 399u16, ErrorKind :: NotType { .. }
             => 400u16, ErrorKind :: NotCallable { .. } => 404u16, ErrorKind ::
@@ -288,7 +295,8 @@
             ErrorLevel :: Error, ErrorKind :: StructFieldRepeated(_,) =>
             ErrorLevel :: Error, ErrorKind :: MissingStructFields { .. } =>
             ErrorLevel :: Error, ErrorKind :: InvalidStructFields { .. } =>
-            ErrorLevel :: Error, ErrorKind :: CannotAssociateItem =>
+            ErrorLevel :: Error, ErrorKind :: MismatchedEnumFieldKind { .. }
+            => ErrorLevel :: Error, ErrorKind :: CannotAssociateItem =>
             ErrorLevel :: Error, ErrorKind :: TooGeneralToAssociateItem =>
             ErrorLevel :: Error, ErrorKind :: NotType { .. } => ErrorLevel ::
             Error, ErrorKind :: NotCallable { .. } => ErrorLevel :: Error,
@@ -529,17 +537,23 @@
             }, ErrorKind :: StructFieldRepeated(t0,) =>
             { buffer.push(1u8); buffer.push(129u8); t0.encode_impl(buffer); },
             ErrorKind :: MissingStructFields
-            { r#struct_name, r#missing_fields, } =>
+            { r#struct_name, r#is_enum_variant, r#missing_fields, } =>
             {
                 buffer.push(1u8); buffer.push(134u8);
                 r#struct_name.encode_impl(buffer);
+                r#is_enum_variant.encode_impl(buffer);
                 r#missing_fields.encode_impl(buffer);
             }, ErrorKind :: InvalidStructFields
-            { r#struct_name, r#invalid_fields, } =>
+            { r#struct_name, r#is_enum_variant, r#invalid_fields, } =>
             {
                 buffer.push(1u8); buffer.push(139u8);
                 r#struct_name.encode_impl(buffer);
+                r#is_enum_variant.encode_impl(buffer);
                 r#invalid_fields.encode_impl(buffer);
+            }, ErrorKind :: MismatchedEnumFieldKind { r#expected, r#got, } =>
+            {
+                buffer.push(1u8); buffer.push(140u8);
+                r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
             }, ErrorKind :: CannotAssociateItem =>
             { buffer.push(1u8); buffer.push(142u8); }, ErrorKind ::
             TooGeneralToAssociateItem =>
@@ -922,17 +936,30 @@
             }, 390u16 =>
             {
                 let (r#struct_name, cursor) = InternedString ::
+                decode_impl(buffer, cursor) ? ; let
+                (r#is_enum_variant, cursor) = bool ::
                 decode_impl(buffer, cursor) ? ; let (r#missing_fields, cursor)
                 = Vec :: < InternedString > :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: MissingStructFields
-                { r#struct_name, r#missing_fields, }, cursor))
+                { r#struct_name, r#is_enum_variant, r#missing_fields, },
+                cursor))
             }, 395u16 =>
             {
                 let (r#struct_name, cursor) = InternedString ::
+                decode_impl(buffer, cursor) ? ; let
+                (r#is_enum_variant, cursor) = bool ::
                 decode_impl(buffer, cursor) ? ; let (r#invalid_fields, cursor)
                 = Vec :: < InternedString > :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: InvalidStructFields
-                { r#struct_name, r#invalid_fields, }, cursor))
+                { r#struct_name, r#is_enum_variant, r#invalid_fields, },
+                cursor))
+            }, 396u16 =>
+            {
+                let (r#expected, cursor) = EnumFieldKind ::
+                decode_impl(buffer, cursor) ? ; let (r#got, cursor) =
+                EnumFieldKind :: decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: MismatchedEnumFieldKind
+                { r#expected, r#got, }, cursor))
             }, 398u16 => Ok((ErrorKind :: CannotAssociateItem, cursor)),
             399u16 => Ok((ErrorKind :: TooGeneralToAssociateItem, cursor)),
             400u16 =>

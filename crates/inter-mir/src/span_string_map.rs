@@ -1,6 +1,5 @@
 use crate::Session;
-use sodigy_hir::EnumVariantFields;
-use sodigy_mir::{Assert, Callable, Enum, Expr, Func, Let, Struct};
+use sodigy_mir::{Assert, Callable, Enum, EnumVariantFields, Expr, Func, Let, Struct};
 use sodigy_span::{Span, SpanId};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
@@ -66,12 +65,14 @@ impl Session {
     pub fn init_span_string_map_enum(&self, r#enum: &Enum, result: &mut HashMap<SpanId, InternedString>) {
         update_span_string_map(r#enum.name, &r#enum.name_span, result);
 
-        for (name, name_span) in r#enum.variants.iter() {
-            update_span_string_map(*name, name_span, result);
-        }
+        for variant in r#enum.variants.iter() {
+            update_span_string_map(variant.name, &variant.name_span, result);
 
-        for (name, name_span) in r#enum.name_span_map.iter() {
-            update_span_string_map(*name, name_span, result);
+            if let EnumVariantFields::Struct(fields) = &variant.fields {
+                for field in fields.iter() {
+                    update_span_string_map(field.name, &field.name_span, result);
+                }
+            }
         }
 
         for generic in r#enum.generics.iter() {
@@ -82,8 +83,8 @@ impl Session {
     pub fn init_span_string_map_struct(&self, r#struct: &Struct, result: &mut HashMap<SpanId, InternedString>) {
         update_span_string_map(r#struct.name, &r#struct.name_span, result);
 
-        for (name, name_span) in r#struct.fields.iter() {
-            update_span_string_map(*name, name_span, result);
+        for field in r#struct.fields.iter() {
+            update_span_string_map(field.name, &field.name_span, result);
         }
 
         for generic in r#struct.generics.iter() {

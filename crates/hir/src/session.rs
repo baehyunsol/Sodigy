@@ -22,6 +22,7 @@ use crate::{
 use sodigy_error::{Error, Warning, WarningKind};
 use sodigy_name_analysis::{Counter, NameKind, Namespace, UseCount};
 use sodigy_parse::Session as ParseSession;
+use sodigy_session::SodigySession;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, intern_string};
 use std::collections::hash_map::{Entry, HashMap};
@@ -225,5 +226,11 @@ impl Session {
                 note,
             });
         }
+    }
+}
+
+impl SodigySession for Session {
+    fn intermediate_dir(&self) -> &str {
+        &self.intermediate_dir
     }
 }

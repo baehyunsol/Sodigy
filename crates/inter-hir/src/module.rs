@@ -6,6 +6,8 @@
 use crate::Session;
 use sodigy_hir::{
     Assert,
+    Enum,
+    EnumVariantFields,
     Func,
     Let,
     Session as HirSession,
@@ -34,7 +36,11 @@ impl Session {
             }
         }
 
-        // TODO: enums
+        for r#enum in hir_session.enums.iter_mut() {
+            if let Err(()) = self.resolve_enum(r#enum) {
+                has_error = true;
+            }
+        }
 
         for assert in hir_session.asserts.iter_mut() {
             if let Err(()) = self.resolve_assert(assert) {
@@ -145,6 +151,48 @@ impl Session {
                 else if let Err(()) = self.check_type_annot_path(type_annot) {
                     has_error = true;
                 }
+            }
+        }
+
+        if has_error {
+            Err(())
+        }
+
+        else {
+            Ok(())
+        }
+    }
+
+    pub fn resolve_enum(&mut self, r#enum: &mut Enum) -> Result<(), ()> {
+        let mut has_error = false;
+
+        for variant in r#enum.variants.iter_mut() {
+            match &mut variant.fields {
+                EnumVariantFields::None => {},
+                EnumVariantFields::Tuple(types) => {
+                    for r#type in types.iter_mut() {
+                        if let Err(()) = self.resolve_type(r#type, &mut vec![]) {
+                            has_error = true;
+                        }
+
+                        else if let Err(()) = self.check_type_annot_path(r#type) {
+                            has_error = true;
+                        }
+                    }
+                },
+                EnumVariantFields::Struct(fields) => {
+                    for field in fields.iter_mut() {
+                        if let Some(type_annot) = &mut field.type_annot {
+                            if let Err(()) = self.resolve_type(type_annot, &mut vec![]) {
+                                has_error = true;
+                            }
+
+                            else if let Err(()) = self.check_type_annot_path(type_annot) {
+                                has_error = true;
+                            }
+                        }
+                    }
+                },
             }
         }
 

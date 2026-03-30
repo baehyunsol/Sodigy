@@ -1,5 +1,6 @@
 use crate::{Session, Type};
 use sodigy_hir::{self as hir, Generic};
+use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
@@ -9,8 +10,15 @@ use sodigy_string::InternedString;
 pub struct Struct {
     pub name: InternedString,
     pub name_span: Span,
-    pub fields: Vec<(InternedString, Span)>,
+    pub fields: Vec<StructField>,
     pub generics: Vec<Generic>,
+}
+
+#[derive(Clone, Debug)]
+pub struct StructField {
+    pub name: InternedString,
+    pub name_span: Span,
+    pub default_value: Option<IdentWithOrigin>,
 }
 
 impl Struct {
@@ -38,7 +46,11 @@ impl Struct {
                 },
             }
 
-            fields.push((field.name, field.name_span.clone()));
+            fields.push(StructField {
+                name: field.name,
+                name_span: field.name_span.clone(),
+                default_value: field.default_value.clone(),
+            });
         }
 
         if has_error {

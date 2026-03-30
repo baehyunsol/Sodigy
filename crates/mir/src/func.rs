@@ -84,40 +84,26 @@ impl Func {
             },
         };
 
-        match hir_func.type_annot.as_ref().map(|type_annot| Type::from_hir(type_annot, session)) {
-            Some(Ok(type_annot)) => {
-                session.types.insert(
-                    hir_func.name_span.clone(),
-                    Type::Func {
-                        // These spans are for `Fn` in type annotations, but there's no such thing here!
-                        fn_span: Span::None,
-                        group_span: Span::None,
-                        params: param_types,
-                        r#return: Box::new(type_annot),
-                        purity: if hir_func.is_pure { FuncPurity::Pure } else { FuncPurity::Impure },
-                    },
-                );
-            },
-            None => {
-                session.types.insert(
-                    hir_func.name_span.clone(),
-                    Type::Func {
-                        // These spans are for `Fn` in type annotations, but there's no such thing here!
-                        fn_span: Span::None,
-                        group_span: Span::None,
-                        params: param_types,
-                        r#return: Box::new(Type::Var {
-                            def_span: hir_func.name_span.clone(),
-                            is_return: true,
-                        }),
-                        purity: if hir_func.is_pure { FuncPurity::Pure } else { FuncPurity::Impure },
-                    },
-                );
-            },
+        let return_type = match hir_func.type_annot.as_ref().map(|type_annot| Type::from_hir(type_annot, session)) {
+            Some(Ok(return_type)) => return_type,
+            None => Type::Var { def_span: hir_func.name_span.clone(), is_return: true },
             Some(Err(())) => {
                 has_error = true;
+                Type::Var { def_span: hir_func.name_span.clone(), is_return: true }
             },
-        }
+        };
+
+        session.types.insert(
+            hir_func.name_span.clone(),
+            Type::Func {
+                // These spans are for `Fn` in type annotations, but there's no such thing here!
+                fn_span: Span::None,
+                group_span: Span::None,
+                params: param_types,
+                r#return: Box::new(return_type),
+                purity: if hir_func.is_pure { FuncPurity::Pure } else { FuncPurity::Impure },
+            },
+        );
 
         if has_error {
             Err(())

@@ -1,17 +1,17 @@
 use crate::{
     Block,
     Dotfish,
-    EnumFieldKind,
     If,
     Match,
     Session,
     Type,
     lower_hir_if,
 };
-use sodigy_error::{Error, ErrorKind, comma_list_strs, to_ordinal};
-use sodigy_hir as hir;
+use sodigy_error::{EnumFieldKind, Error, ErrorKind, NotXBut, comma_list_strs, to_ordinal};
+use sodigy_hir::{self as hir, EnumVariantFields, Generic};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::{Field, merge_field_spans};
+use sodigy_session::SodigySession;
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
 use sodigy_token::{Constant, InfixOp};
@@ -98,32 +98,10 @@ impl Expr {
                 // inter-hir's `check_expr_path` should guarantee this
                 assert!(path.fields.is_empty());
                 assert!(path.dotfish.len() == 1);
-
-                match &path.id.origin {
-                    NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
-                        NameKind::EnumVariant { parent } => {
-                            return Ok(Expr::Call {
-                                func: Callable::EnumInit {
-                                    parent_def_span: parent.clone(),
-                                    variant_def_span: path.id.def_span.clone(),
-                                    kind: EnumFieldKind::None,
-                                    span: path.id.span.clone(),
-                                },
-                                args: vec![],
-                                arg_group_span: Span::None,
-                                types: Dotfish::from_hir(path.dotfish.last().unwrap(), session)?,
-                                given_keyword_args: vec![],
-                            });
-                        },
-                        _ => {},
-                    },
-                    _ => {},
-                }
-
-                Ok(Expr::Ident {
-                    id: path.id.clone(),
-                    dotfish: Dotfish::from_hir(path.dotfish.last().unwrap(), session)?,
-                })
+                Ok(Expr::from_ident_with_origin(
+                    &path.id,
+                    Dotfish::from_hir(path.dotfish.last().unwrap(), session)?,
+                ))
             },
             hir::Expr::Constant(c) => Ok(Expr::Constant(c.clone())),
 
@@ -187,7 +165,15 @@ impl Expr {
                         )
                     },
                     Ok(Expr::Call { func: Callable::EnumInit { parent_def_span, variant_def_span, kind, span }, arg_group_span, types, .. }) => match kind {
-                        EnumFieldKind::None => todo!(),
+                        EnumFieldKind::None => (
+                            span.clone(),
+                            Callable::EnumInit {
+                                parent_def_span,
+                                variant_def_span,
+                                kind: EnumFieldKind::Tuple,
+                                span,
+                            },
+                        ),
                         _ => {
                             session.errors.push(todo!());
                             return Err(());
@@ -206,19 +192,14 @@ impl Expr {
                     },
                 };
 
-                // If we know `def_span` and the `def_span` is in `func_shapes`,
-                // we know the exact definition of the function, and can process keyword arguments and default values.
+                let mut generics: Option<Vec<Generic>> = None;
+
+                // It processes the keyword arguments and default values, if it finds ones.
                 let mut mir_args: Option<Vec<Expr>> = match def_span {
                     Some(def_span) => {
                         if let Some(func_shape) = session.global_context.func_shapes.unwrap().get(&def_span) {
-                            for generic in func_shape.generics.iter() {
-                                session.generic_args.insert(
-                                    (call_span.clone(), generic.name_span.clone()),
-                                    Type::GenericArg {
-                                        call: call_span.clone(),
-                                        generic: generic.name_span.clone(),
-                                    },
-                                );
+                            if !func_shape.generics.is_empty() {
+                                generics = Some(func_shape.generics.clone());
                             }
 
                             let params = func_shape.params.to_vec();
@@ -369,10 +350,7 @@ impl Expr {
                             for i in 0..params.len() {
                                 match (&mir_args[i], &params[i].default_value) {
                                     (None, Some(default_value)) => {
-                                        mir_args[i] = Some(Expr::Ident {
-                                            id: default_value.clone(),
-                                            dotfish: None,
-                                        });
+                                        mir_args[i] = Some(Expr::from_ident_with_origin(default_value, None));
                                     },
                                     _ => {},
                                 }
@@ -399,7 +377,11 @@ impl Expr {
                         }
 
                         else if let Some(enum_shape) = session.global_context.enum_shapes.unwrap().get(&def_span) {
-                            todo!()
+                            if !enum_shape.generics.is_empty() {
+                                generics = Some(enum_shape.generics.clone());
+                            }
+
+                            None
                         }
 
                         else {
@@ -408,6 +390,18 @@ impl Expr {
                     },
                     None => None,
                 };
+
+                if let Some(generics) = &generics {
+                    for generic in generics.iter() {
+                        session.generic_args.insert(
+                            (call_span.clone(), generic.name_span.clone()),
+                            Type::GenericArg {
+                                call: call_span.clone(),
+                                generic: generic.name_span.clone(),
+                            },
+                        );
+                    }
+                }
 
                 // If we cannot access the exact definition of the func,
                 // we can only process positional arguments and cannot do anything with the default values.
@@ -574,255 +568,292 @@ impl Expr {
             hir::Expr::StructInit { constructor, fields: hir_fields, group_span } => {
                 let group_span = group_span.clone();
                 let mut has_error = false;
+                let enum_parent_def_span = match &constructor.id.origin {
+                    NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
+                        NameKind::EnumVariant { parent } => Some(parent.clone()),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+
                 let (def_span, call_span) = (constructor.id.def_span.clone(), constructor.id.span.clone());
 
-                // TODO: enum variants
                 // TODO: it has to lower dotfish operators
+
+                let (field_defs, generics, struct_name, is_enum_variant) = if let Some(struct_shape) = session.global_context.struct_shapes.unwrap().get(&def_span) {
+                    (&struct_shape.fields, &struct_shape.generics, struct_shape.name, false)
+                }
+
+                else if let Some(enum_parent_def_span) = &enum_parent_def_span && let Some(enum_shape) = session.global_context.enum_shapes.unwrap().get(&enum_parent_def_span) {
+                    let variant = &enum_shape.variants[*enum_shape.variant_index.get(&def_span).unwrap()];
+                    let fields = match &variant.fields {
+                        EnumVariantFields::Struct(fields) => fields,
+                        f => {
+                            session.errors.push(Error {
+                                kind: ErrorKind::MismatchedEnumFieldKind {
+                                    expected: f.into(),
+                                    got: EnumFieldKind::Struct,
+                                },
+                                spans: call_span.simple_error(),
+                                note: None,
+                            });
+                            return Err(());
+                        },
+                    };
+                    let name = {
+                        let enum_name = enum_shape.name.unintern_or_default(&session.intermediate_dir);
+                        let variant_name = variant.name.unintern_or_default(&session.intermediate_dir);
+                        intern_string(format!("{enum_name}.{variant_name}").as_bytes(), &session.intermediate_dir).unwrap()
+                    };
+
+                    (fields, &enum_shape.generics, name, true)
+                }
+
+                else {
+                    let but = match &constructor.id.origin {
+                        NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => kind.into(),
+                        _ => NotXBut::Expr,
+                    };
+                    session.errors.push(Error {
+                        kind: ErrorKind::NotStruct { id: constructor.id.id, but },
+                        spans: call_span.simple_error(),
+                        note: None,
+                    });
+
+                    return Err(());
+                };
 
                 // for better error messages
                 let mut repeated_fields: HashMap<InternedString, Vec<RenderableSpan>> = HashMap::new();
 
-                match session.global_context.struct_shapes.unwrap().get(&def_span) {
-                    Some(struct_shape) => {
-                        let struct_shape = struct_shape.clone();
-                        let field_defs = struct_shape.fields.clone();
-                        let mut missing_fields = vec![];
-                        let mut invalid_fields = vec![];
+                let mut missing_fields = vec![];
+                let mut invalid_fields = vec![];
 
-                        if !struct_shape.generics.is_empty() {
-                            for generic in struct_shape.generics.iter() {
-                                session.generic_args.insert(
-                                    (call_span.clone(), generic.name_span.clone()),
-                                    Type::GenericArg {
-                                        call: call_span.clone(),
-                                        generic: generic.name_span.clone(),
+                if !generics.is_empty() {
+                    for generic in generics.iter() {
+                        session.generic_args.insert(
+                            (call_span.clone(), generic.name_span.clone()),
+                            Type::GenericArg {
+                                call: call_span.clone(),
+                                generic: generic.name_span.clone(),
+                            },
+                        );
+                    }
+                }
+
+                let mut mir_fields = vec![None; field_defs.len()];
+                let mut name_spans = vec![None; field_defs.len()];
+                let mut mir_fields_final = Vec::with_capacity(mir_fields.len());
+
+                if hir_fields.len() > field_defs.len() {
+                    let field_names = field_defs.iter().map(|field| field.name).collect::<HashSet<_>>();
+
+                    for hir_field in hir_fields.iter() {
+                        match repeated_fields.entry(hir_field.name) {
+                            Entry::Occupied(mut e) => {
+                                e.get_mut().push(RenderableSpan {
+                                    span: hir_field.name_span.clone(),
+                                    auxiliary: false,
+                                    note: None,
+                                });
+                            },
+                            Entry::Vacant(e) => {
+                                e.insert(vec![
+                                    RenderableSpan {
+                                        span: hir_field.name_span.clone(),
+                                        auxiliary: false,
+                                        note: None,
                                     },
-                                );
+                                ]);
+                            },
+                        }
+
+                        if !field_names.contains(&hir_field.name) {
+                            invalid_fields.push((hir_field.name, hir_field.name_span.clone()));
+                        }
+                    }
+
+                    has_error = true;
+                }
+
+                else {
+                    for hir_field in hir_fields.iter() {
+                        let mut field_index = None;
+
+                        for (i, field_def) in field_defs.iter().enumerate() {
+                            if field_def.name == hir_field.name {
+                                field_index = Some(i);
+                                break;
                             }
                         }
 
-                        let mut mir_fields = vec![None; field_defs.len()];
-                        let mut name_spans = vec![None; field_defs.len()];
-                        let mut mir_fields_final = Vec::with_capacity(mir_fields.len());
-
-                        if hir_fields.len() > field_defs.len() {
-                            let field_names = field_defs.iter().map(|field| field.name).collect::<HashSet<_>>();
-
-                            for hir_field in hir_fields.iter() {
-                                match repeated_fields.entry(hir_field.name) {
-                                    Entry::Occupied(mut e) => {
-                                        e.get_mut().push(RenderableSpan {
-                                            span: hir_field.name_span.clone(),
-                                            auxiliary: false,
-                                            note: None,
-                                        });
-                                    },
-                                    Entry::Vacant(e) => {
-                                        e.insert(vec![
-                                            RenderableSpan {
+                        match field_index {
+                            Some(i) => {
+                                if mir_fields[i].is_some() {
+                                    match repeated_fields.entry(hir_field.name) {
+                                        Entry::Occupied(mut e) => {
+                                            e.get_mut().push(RenderableSpan {
                                                 span: hir_field.name_span.clone(),
                                                 auxiliary: false,
                                                 note: None,
-                                            },
-                                        ]);
-                                    },
-                                }
-
-                                if !field_names.contains(&hir_field.name) {
-                                    invalid_fields.push((hir_field.name, hir_field.name_span.clone()));
-                                }
-                            }
-
-                            has_error = true;
-                        }
-
-                        else {
-                            for hir_field in hir_fields.iter() {
-                                let mut field_index = None;
-
-                                for (i, field_def) in field_defs.iter().enumerate() {
-                                    if field_def.name == hir_field.name {
-                                        field_index = Some(i);
-                                        break;
+                                            });
+                                            e.get_mut().push(RenderableSpan {
+                                                span: name_spans[i].clone().unwrap(),
+                                                auxiliary: false,
+                                                note: None,
+                                            });
+                                        },
+                                        Entry::Vacant(e) => {
+                                            e.insert(vec![
+                                                RenderableSpan {
+                                                    span: hir_field.name_span.clone(),
+                                                    auxiliary: false,
+                                                    note: None,
+                                                },
+                                                RenderableSpan {
+                                                    span: name_spans[i].clone().unwrap(),
+                                                    auxiliary: false,
+                                                    note: None,
+                                                },
+                                            ]);
+                                        },
                                     }
                                 }
 
-                                match field_index {
-                                    Some(i) => {
-                                        if mir_fields[i].is_some() {
-                                            match repeated_fields.entry(hir_field.name) {
-                                                Entry::Occupied(mut e) => {
-                                                    e.get_mut().push(RenderableSpan {
-                                                        span: hir_field.name_span.clone(),
-                                                        auxiliary: false,
-                                                        note: None,
-                                                    });
-                                                    e.get_mut().push(RenderableSpan {
-                                                        span: name_spans[i].clone().unwrap(),
-                                                        auxiliary: false,
-                                                        note: None,
-                                                    });
-                                                },
-                                                Entry::Vacant(e) => {
-                                                    e.insert(vec![
-                                                        RenderableSpan {
-                                                            span: hir_field.name_span.clone(),
-                                                            auxiliary: false,
-                                                            note: None,
-                                                        },
-                                                        RenderableSpan {
-                                                            span: name_spans[i].clone().unwrap(),
-                                                            auxiliary: false,
-                                                            note: None,
-                                                        },
-                                                    ]);
-                                                },
-                                            }
-                                        }
-
-                                        match Expr::from_hir(&hir_field.value, session) {
-                                            Ok(field) => {
-                                                mir_fields[i] = Some(field);
-                                            },
-                                            Err(()) => {
-                                                has_error = true;
-                                            },
-                                        }
-
-                                        name_spans[i] = Some(hir_field.name_span.clone());
+                                match Expr::from_hir(&hir_field.value, session) {
+                                    Ok(field) => {
+                                        mir_fields[i] = Some(field);
                                     },
-                                    None => {
-                                        invalid_fields.push((hir_field.name, hir_field.name_span.clone()));
+                                    Err(()) => {
                                         has_error = true;
                                     },
                                 }
-                            }
 
-                            for (field_name, error_spans) in repeated_fields.into_iter() {
-                                // remove repeats and sort by span
-                                let mut error_spans = error_spans.into_iter().map(
-                                    |span| (span.span.clone(), span)
-                                ).collect::<HashMap<_, _>>().into_iter().map(
-                                    |(_, span)| span
-                                ).collect::<Vec<_>>();
-                                error_spans.sort_by_key(|span| span.span.clone());
-
-                                session.errors.push(Error {
-                                    kind: ErrorKind::StructFieldRepeated(field_name),
-                                    spans: error_spans,
-                                    note: None,
-                                });
+                                name_spans[i] = Some(hir_field.name_span.clone());
+                            },
+                            None => {
+                                invalid_fields.push((hir_field.name, hir_field.name_span.clone()));
                                 has_error = true;
-                            }
-
-                            for i in 0..field_defs.len() {
-                                match (&mir_fields[i], &field_defs[i].default_value) {
-                                    (None, Some(default_value)) => {
-                                        mir_fields[i] = Some(Expr::Ident {
-                                            id: default_value.clone(),
-                                            dotfish: None,
-                                        });
-                                    },
-                                    _ => {},
-                                }
-                            }
-
-                            for (i, mir_field) in mir_fields.into_iter().enumerate() {
-                                match mir_field {
-                                    Some(mir_field) => {
-                                        mir_fields_final.push(mir_field);
-                                    },
-                                    None => {
-                                        missing_fields.push(&field_defs[i]);
-                                        has_error = true;
-                                    },
-                                }
-                            }
+                            },
                         }
+                    }
 
-                        if has_error {
-                            let struct_name = struct_shape.name;
+                    for (field_name, error_spans) in repeated_fields.into_iter() {
+                        // remove repeats and sort by span
+                        let mut error_spans = error_spans.into_iter().map(
+                            |span| (span.span.clone(), span)
+                        ).collect::<HashMap<_, _>>().into_iter().map(
+                            |(_, span)| span
+                        ).collect::<Vec<_>>();
+                        error_spans.sort_by_key(|span| span.span.clone());
 
-                            if !missing_fields.is_empty() {
-                                let names = missing_fields.iter().map(|field| field.name).collect::<Vec<_>>();
-                                let mut spans = missing_fields.iter().map(
-                                    |field| RenderableSpan {
-                                        span: field.name_span.clone(),
-                                        auxiliary: true,
-                                        note: Some(format!(
-                                            "Field `{}` is defined here.",
-                                            field.name.unintern_or_default(&session.intermediate_dir),
-                                        )),
-                                    }
-                                ).collect::<Vec<_>>();
-                                spans.push(RenderableSpan {
-                                    span: group_span.clone(),
-                                    auxiliary: false,
-                                    note: Some(format!(
-                                        "Field{} {} {} missing here.",
-                                        if missing_fields.len() == 1 { "" } else { "s" },
-                                        comma_list_strs(
-                                            &names.iter().map(|name| name.unintern_or_default(&session.intermediate_dir)).collect::<Vec<_>>(),
-                                            "`",
-                                            "`",
-                                            "and",
-                                        ),
-                                        if missing_fields.len() == 1 { "is" } else { "are" },
-                                    )),
-                                });
+                        session.errors.push(Error {
+                            kind: ErrorKind::StructFieldRepeated(field_name),
+                            spans: error_spans,
+                            note: None,
+                        });
+                        has_error = true;
+                    }
 
-                                session.errors.push(Error {
-                                    kind: ErrorKind::MissingStructFields { struct_name, missing_fields: names },
-                                    spans,
-                                    note: None,
-                                });
-                            }
-
-                            if !invalid_fields.is_empty() {
-                                let names = invalid_fields.iter().map(|(name, _)| *name).collect();
-                                let spans = invalid_fields.iter().map(
-                                    |(_, name_span)| RenderableSpan {
-                                        span: name_span.clone(),
-                                        auxiliary: false,
-                                        note: None,
-                                    }
-                                ).collect::<Vec<_>>();
-
-                                session.errors.push(Error {
-                                    kind: ErrorKind::InvalidStructFields { struct_name, invalid_fields: names },
-                                    spans,
-                                    note: Some(format!(
-                                        "Available field{} {} {}.",
-                                        if field_defs.len() == 1 { "" } else { "s" },
-                                        if field_defs.len() == 1 { "is" } else { "are" },
-                                        comma_list_strs(
-                                            &field_defs.iter().map(|field| field.name.unintern_or_default(&session.intermediate_dir)).collect::<Vec<_>>(),
-                                            "`",
-                                            "`",
-                                            "and",
-                                        ),
-                                    )),
-                                });
-                            }
-
-                            Err(())
+                    for i in 0..field_defs.len() {
+                        match (&mir_fields[i], &field_defs[i].default_value) {
+                            (None, Some(default_value)) => {
+                                mir_fields[i] = Some(Expr::from_ident_with_origin(default_value, None));
+                            },
+                            _ => {},
                         }
+                    }
 
-                        else {
-                            Ok(Expr::Call {
-                                func: Callable::StructInit {
-                                    def_span,
-                                    span: call_span,
-                                },
-                                args: mir_fields_final,
-                                arg_group_span: group_span,
-                                types: None,
-                                given_keyword_args: vec![],
-                            })
+                    for (i, mir_field) in mir_fields.into_iter().enumerate() {
+                        match mir_field {
+                            Some(mir_field) => {
+                                mir_fields_final.push(mir_field);
+                            },
+                            None => {
+                                missing_fields.push(&field_defs[i]);
+                                has_error = true;
+                            },
                         }
-                    },
-                    // It already checked the def_span. If `struct_shapes` doesn't have this span, that's an ICE.
-                    None => unreachable!(),
+                    }
+                }
+
+                if has_error {
+                    if !missing_fields.is_empty() {
+                        let names = missing_fields.iter().map(|field| field.name).collect::<Vec<_>>();
+                        let mut spans = missing_fields.iter().map(
+                            |field| RenderableSpan {
+                                span: field.name_span.clone(),
+                                auxiliary: true,
+                                note: Some(format!(
+                                    "Field `{}` is defined here.",
+                                    field.name.unintern_or_default(&session.intermediate_dir),
+                                )),
+                            }
+                        ).collect::<Vec<_>>();
+                        spans.push(RenderableSpan {
+                            span: group_span.clone(),
+                            auxiliary: false,
+                            note: Some(format!(
+                                "Field{} {} {} missing here.",
+                                if missing_fields.len() == 1 { "" } else { "s" },
+                                comma_list_strs(
+                                    &names.iter().map(|name| name.unintern_or_default(&session.intermediate_dir)).collect::<Vec<_>>(),
+                                    "`",
+                                    "`",
+                                    "and",
+                                ),
+                                if missing_fields.len() == 1 { "is" } else { "are" },
+                            )),
+                        });
+
+                        session.errors.push(Error {
+                            kind: ErrorKind::MissingStructFields { struct_name, is_enum_variant, missing_fields: names },
+                            spans,
+                            note: None,
+                        });
+                    }
+
+                    if !invalid_fields.is_empty() {
+                        let names = invalid_fields.iter().map(|(name, _)| *name).collect();
+                        let spans = invalid_fields.iter().map(
+                            |(_, name_span)| RenderableSpan {
+                                span: name_span.clone(),
+                                auxiliary: false,
+                                note: None,
+                            }
+                        ).collect::<Vec<_>>();
+
+                        session.errors.push(Error {
+                            kind: ErrorKind::InvalidStructFields { struct_name, is_enum_variant, invalid_fields: names },
+                            spans,
+                            note: Some(format!(
+                                "Available field{} {} {}.",
+                                if field_defs.len() == 1 { "" } else { "s" },
+                                if field_defs.len() == 1 { "is" } else { "are" },
+                                comma_list_strs(
+                                    &field_defs.iter().map(|field| field.name.unintern_or_default(&session.intermediate_dir)).collect::<Vec<_>>(),
+                                    "`",
+                                    "`",
+                                    "and",
+                                ),
+                            )),
+                        });
+                    }
+
+                    Err(())
+                }
+
+                else {
+                    Ok(Expr::Call {
+                        func: Callable::StructInit {
+                            def_span,
+                            span: call_span,
+                        },
+                        args: mir_fields_final,
+                        arg_group_span: group_span,
+                        types: None,
+                        given_keyword_args: vec![],
+                    })
                 }
             },
             hir::Expr::Field { lhs, fields, dotfish: hir_dotfish } => match Expr::from_hir(lhs, session) {
@@ -897,19 +928,7 @@ impl Expr {
                                 else_span: Span::None,
                                 true_value: Box::new(rhs),
                                 true_group_span: expr_span.clone(),
-                                false_value: Box::new(Expr::Ident {
-                                    id: IdentWithOrigin {
-                                        id: intern_string(b"False", &session.intermediate_dir).unwrap(),
-                                        span: Span::None,
-                                        origin: NameOrigin::Foreign {
-                                            kind: NameKind::EnumVariant {
-                                                parent: session.get_lang_item_span("type.Bool"),
-                                            },
-                                        },
-                                        def_span: session.get_lang_item_span("variant.Bool.False"),
-                                    },
-                                    dotfish: None,
-                                }),
+                                false_value: Box::new(false_value(session)),
                                 false_group_span: expr_span.clone(),
                                 from_short_circuit: Some(ShortCircuitKind::And),
                             })),
@@ -918,19 +937,7 @@ impl Expr {
                                 if_span: op_span.clone(),
                                 cond: Box::new(lhs),
                                 else_span: Span::None,
-                                true_value: Box::new(Expr::Ident {
-                                    id: IdentWithOrigin {
-                                        id: intern_string(b"True", &session.intermediate_dir).unwrap(),
-                                        span: Span::None,
-                                        origin: NameOrigin::Foreign {
-                                            kind: NameKind::EnumVariant {
-                                                parent: session.get_lang_item_span("type.Bool"),
-                                            },
-                                        },
-                                        def_span: session.get_lang_item_span("variant.Bool.True"),
-                                    },
-                                    dotfish: None,
-                                }),
+                                true_value: Box::new(true_value(session)),
                                 true_group_span: expr_span.clone(),
                                 false_value: Box::new(rhs),
                                 false_group_span: expr_span.clone(),
@@ -1003,6 +1010,31 @@ impl Expr {
         }
     }
 
+    pub fn from_ident_with_origin(id: &IdentWithOrigin, dotfish: Option<Dotfish>) -> Expr {
+        match &id.origin {
+            NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
+                NameKind::EnumVariant { parent } => {
+                    return Expr::Call {
+                        func: Callable::EnumInit {
+                            parent_def_span: parent.clone(),
+                            variant_def_span: id.def_span.clone(),
+                            kind: EnumFieldKind::None,
+                            span: id.span.clone(),
+                        },
+                        args: vec![],
+                        arg_group_span: Span::None,
+                        types: dotfish,
+                        given_keyword_args: vec![],
+                    };
+                },
+                _ => {},
+            },
+            _ => {},
+        }
+
+        Expr::Ident { id: id.clone(), dotfish }
+    }
+
     /// If you see this value in bytecode, it's 99% likely that there's a bug in the compiler.
     pub fn dummy() -> Expr {
         Expr::Constant(Constant::dummy())
@@ -1039,6 +1071,34 @@ impl Expr {
             Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(arg_group_span),
         }
     }
+}
+
+pub fn true_value<S: SodigySession>(session: &S) -> Expr {
+    let id = IdentWithOrigin {
+        id: intern_string(b"True", session.intermediate_dir()).unwrap(),
+        span: Span::None,
+        origin: NameOrigin::Foreign {
+            kind: NameKind::EnumVariant {
+                parent: session.get_lang_item_span("type.Bool"),
+            },
+        },
+        def_span: session.get_lang_item_span("variant.Bool.True"),
+    };
+    Expr::from_ident_with_origin(&id, None)
+}
+
+pub fn false_value<S: SodigySession>(session: &S) -> Expr {
+    let id = IdentWithOrigin {
+        id: intern_string(b"False", session.intermediate_dir()).unwrap(),
+        span: Span::None,
+        origin: NameOrigin::Foreign {
+            kind: NameKind::EnumVariant {
+                parent: session.get_lang_item_span("type.Bool"),
+            },
+        },
+        def_span: session.get_lang_item_span("variant.Bool.False"),
+    };
+    Expr::from_ident_with_origin(&id, None)
 }
 
 impl Callable {

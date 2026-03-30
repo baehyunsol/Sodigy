@@ -1,9 +1,18 @@
 use super::{dump_expr, dump_type};
-use crate::{Let, Session};
+use crate::{Let, Session, Type};
 use sodigy_endec::IndentedLines;
+use sodigy_session::SodigySession;
+use sodigy_span::Span;
+use std::collections::HashMap;
 
 // TODO: respect `dump_expr`'s `single_line` option
-pub fn dump_let(r#let: &Let, lines: &mut IndentedLines, session: &Session, with_newline: bool) {
+pub fn dump_let<S: SodigySession>(
+    r#let: &Let,
+    lines: &mut IndentedLines,
+    types: &HashMap<Span, Type>,
+    session: &S,
+    with_newline: bool,
+) {
     if with_newline {
         lines.break_line();
     }
@@ -21,10 +30,10 @@ pub fn dump_let(r#let: &Let, lines: &mut IndentedLines, session: &Session, with_
         lines.break_line();
     }
 
-    lines.push(&format!("let {}", r#let.name.unintern_or_default(&session.intermediate_dir)));
+    lines.push(&format!("let {}", r#let.name.unintern_or_default(session.intermediate_dir())));
     lines.push(": ");
 
-    if let Some(r#type) = session.types.get(&r#let.name_span) {
+    if let Some(r#type) = types.get(&r#let.name_span) {
         dump_type(r#type, lines, session);
     }
 
@@ -33,7 +42,7 @@ pub fn dump_let(r#let: &Let, lines: &mut IndentedLines, session: &Session, with_
     }
 
     lines.push(" = ");
-    dump_expr(&r#let.value, lines, session, 0, false);
+    dump_expr(&r#let.value, lines, types, session, 0, false);
     lines.push(";");
     lines.break_line();
 }

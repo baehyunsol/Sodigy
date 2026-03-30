@@ -4,6 +4,7 @@ use sodigy_error::{Error, ErrorKind};
 use sodigy_hir::{self as hir, FuncPurity};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::Field;
+use sodigy_session::SodigySession;
 use sodigy_span::Span;
 use sodigy_string::hash;
 use sodigy_token::Constant;

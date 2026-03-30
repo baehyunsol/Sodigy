@@ -1,0 +1,24 @@
+enum Foo = {
+    V1,
+    V2(Int),
+    V3 { x1: Int, x2: String },
+};
+
+// let x10 = Foo.V1;  // not error
+let x11 = Foo.V1();  // error
+let x12 = Foo.V1(3);  // error
+// let x13 = Foo.V1 { x1: 3 };  // caught by mir
+// let x14 = Foo.V1 { x1: 3, x2: "" };  // caught by mir
+
+let x20 = Foo.V2;  // error
+let x21 = Foo.V2();  // error
+// let x22 = Foo.V2(3);  // not error
+// let x23 = Foo.V2 { x1: 3 };  // caught by mir
+// let x24 = Foo.V2 { x1: 3, x2: "" };  // caught by mir
+
+let x30 = Foo.V3;  // error
+let x31 = Foo.V3();  // error
+let x32 = Foo.V3(3);  // error
+// let x33 = Foo.V3 { x1: 3 };  // caught by mir
+// let x34 = Foo.V3 { x1: 3, x2: "" };  // not error
+// let x35 = Foo.V3 { x1: 3, x2: "", x3: "" };  // caught by mir

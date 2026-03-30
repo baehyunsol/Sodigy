@@ -270,8 +270,8 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
         },
     };
     let (scrutinee, needs_another_name_binding) = match match_expr.scrutinee.as_ref() {
-        Expr::Ident { id, .. } => (Expr::Ident { id: id.clone(), dotfish: None }, false),
-        _ => (Expr::Ident { id: another_name_binding.clone(), dotfish: None }, true),
+        Expr::Ident { id, .. } => (Expr::from_ident_with_origin(id, None), false),
+        _ => (Expr::from_ident_with_origin(&another_name_binding, None), true),
     };
 
     session.add_type_info(&another_name_binding.def_span, scrutinee_type);
@@ -298,9 +298,9 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
 
     if session.match_dumps.is_some() {
         let mut lines = IndentedLines::new();
-        let mir_session = session.tmp_mir_session();
-        let (span_helpers, decision_tree) = session.dump_decision_tree(&tree, &borrowed_arms, &mir_session);
-        dump_expr(&tree_expr, &mut lines, &mir_session, 0, false);
+        let (span_helpers, decision_tree) = session.dump_decision_tree(&tree, &borrowed_arms);
+        let types = session.global_context.types.as_ref().unwrap().as_ref().read().unwrap();
+        dump_expr(&tree_expr, &mut lines, &types, session, 0, false);
 
         let dump = MatchDump {
             keyword_span: match_expr.keyword_span.clone(),

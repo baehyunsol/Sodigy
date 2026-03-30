@@ -110,6 +110,7 @@ impl Endec for EnumShape {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         self.name.encode_impl(buffer);
         self.variants.encode_impl(buffer);
+        self.variant_index.encode_impl(buffer);
         self.generics.encode_impl(buffer);
         self.generic_group_span.encode_impl(buffer);
         self.associated_funcs.encode_impl(buffer);
@@ -119,6 +120,7 @@ impl Endec for EnumShape {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (variants, cursor) = Vec::<EnumVariant>::decode_impl(buffer, cursor)?;
+        let (variant_index, cursor) = HashMap::<Span, usize>::decode_impl(buffer, cursor)?;
         let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
         let (generic_group_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (associated_funcs, cursor) = HashMap::<InternedString, AssociatedFunc>::decode_impl(buffer, cursor)?;
@@ -126,6 +128,7 @@ impl Endec for EnumShape {
         Ok((EnumShape {
             name,
             variants,
+            variant_index,
             generics,
             generic_group_span,
             associated_funcs,

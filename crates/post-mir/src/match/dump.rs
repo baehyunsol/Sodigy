@@ -24,11 +24,10 @@ impl Session<'_, '_> {
         &self,
         tree: &DecisionTree,
         arms: &[(usize, &MatchArm)],
-        mir_session: &MirSession,
     ) -> (Vec<(Span, String)>, String) {
         let mut buffer = vec![];
         let mut span_helpers = HashMap::new();
-        self.dump_decision_tree_inner(tree, &mut buffer, &mut span_helpers, 0, mir_session);
+        self.dump_decision_tree_inner(tree, &mut buffer, &mut span_helpers, 0);
         let mut span_helpers = span_helpers.into_iter().collect::<Vec<_>>();
         span_helpers.extend(arms.iter().map(
             |(id, arm)| (
@@ -45,7 +44,6 @@ impl Session<'_, '_> {
         buffer: &mut Vec<String>,
         span_helpers: &mut HashMap<Span, String>,
         indent: usize,
-        mir_session: &MirSession,
     ) {
         let scrutinee = match &tree.field {
             Some(field) => format!(
@@ -87,7 +85,8 @@ impl Session<'_, '_> {
 
             if let Some(guard) = &branch.guard {
                 let mut lines = IndentedLines::new();
-                dump_expr(guard, &mut lines, mir_session, 0, true);
+                let types = self.global_context.types.as_ref().unwrap().as_ref().read().unwrap();
+                dump_expr(guard, &mut lines, &types, self, 0, true);
                 buffer.push(format!(" if {}", lines.dump()));
             }
 
@@ -95,7 +94,7 @@ impl Session<'_, '_> {
 
             match &branch.node {
                 DecisionTreeNode::Tree(tree) => {
-                    self.dump_decision_tree_inner(tree, buffer, span_helpers, indent + 1, mir_session);
+                    self.dump_decision_tree_inner(tree, buffer, span_helpers, indent + 1);
                 },
                 DecisionTreeNode::Leaf { matched, .. } => {
                     buffer.push(format!("arm_{matched}"));

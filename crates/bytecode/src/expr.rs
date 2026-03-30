@@ -31,41 +31,6 @@ pub fn lower_expr(
                 Some(src) => Memory::Stack(src.stack_offset),
                 None => match &id.origin {
                     NameOrigin::Foreign { kind } | NameOrigin::Local { kind } => match kind {
-                        NameKind::EnumVariant { .. } => {
-                            if session.get_lang_item_span("variant.Bool.True") == id.def_span {
-                                // TODO: How do I force that every `Bool.True` is represented like this?
-                                bytecodes.push(Bytecode::Const {
-                                    value: Value::Scalar(1),
-                                    dst,
-                                });
-
-                                if is_tail_call {
-                                    session.drop_all_locals(bytecodes);
-                                    bytecodes.push(Bytecode::Return);
-                                }
-
-                                return;
-                            }
-
-                            else if session.get_lang_item_span("variant.Bool.False") == id.def_span {
-                                // TODO: How do I force that every `Bool.False` is represented like this?
-                                bytecodes.push(Bytecode::Const {
-                                    value: Value::Scalar(0),
-                                    dst,
-                                });
-
-                                if is_tail_call {
-                                    session.drop_all_locals(bytecodes);
-                                    bytecodes.push(Bytecode::Return);
-                                }
-
-                                return;
-                            }
-
-                            else {
-                                todo!()
-                            }
-                        },
                         NameKind::Let { is_top_level: true } => {
                             let value_inited = session.get_local_label();
                             bytecodes.push(Bytecode::PushCallStack(value_inited.clone()));
@@ -330,7 +295,7 @@ pub fn lower_expr(
                         bytecodes.push(Bytecode::Return);
                     }
                 },
-                Callable::EnumInit { .. } => todo!(),
+                Callable::EnumInit { .. } => {},
                 Callable::Dynamic(f) => {
                     lower_expr(
                         f,

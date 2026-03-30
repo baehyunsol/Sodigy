@@ -14,6 +14,7 @@ use sodigy_mir::{
     Intrinsic,
     Session as MirSession,
 };
+use sodigy_session::SodigySession;
 use sodigy_span::Span;
 use std::collections::HashMap;
 

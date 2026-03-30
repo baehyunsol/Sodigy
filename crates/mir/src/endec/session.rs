@@ -89,15 +89,15 @@ impl DumpSession for Session<'_, '_> {
         let mut indented_lines = IndentedLines::new();
 
         for r#let in self.lets.iter() {
-            dump_let(r#let, &mut indented_lines, self, true);
+            dump_let(r#let, &mut indented_lines, &self.types, self, true);
         }
 
         for func in self.funcs.iter() {
-            dump_func(func, &mut indented_lines, self);
+            dump_func(func, &mut indented_lines, &self.types, self);
         }
 
         for assert in self.asserts.iter() {
-            dump_assert(assert, &mut indented_lines, self);
+            dump_assert(assert, &mut indented_lines, &self.types, self);
         }
 
         format!("{}\n\nlet session = {s};", indented_lines.dump()).into_bytes()

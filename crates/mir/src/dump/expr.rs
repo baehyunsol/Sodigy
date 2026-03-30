@@ -1,13 +1,18 @@
 use super::{dump_assert, dump_let, dump_type, span_to_string_or_verbose};
-use crate::{Callable, EnumFieldKind, Expr, Session};
+use crate::{Callable, Expr, Session, Type};
 use sodigy_endec::IndentedLines;
+use sodigy_error::EnumFieldKind;
 use sodigy_hir::dump::dump_pattern;
 use sodigy_parse::Field;
+use sodigy_session::SodigySession;
+use sodigy_span::Span;
+use std::collections::HashMap;
 
-pub fn dump_expr(
+pub fn dump_expr<S: SodigySession>(
     expr: &Expr,
     lines: &mut IndentedLines,
-    session: &Session,
+    types: &HashMap<Span, Type>,
+    session: &S,
     max_len: usize,
     single_line: bool,
 ) {
@@ -17,7 +22,7 @@ pub fn dump_expr(
 
     match expr {
         Expr::Ident { id, dotfish } => {
-            lines.push(&id.id.unintern_or_default(&session.intermediate_dir));
+            lines.push(&id.id.unintern_or_default(session.intermediate_dir()));
 
             if let Some(dotfish) = dotfish {
                 lines.push(".<");
@@ -30,7 +35,7 @@ pub fn dump_expr(
             }
         },
         Expr::Constant(c) => {
-            lines.push(&c.dump(&session.intermediate_dir));
+            lines.push(&c.dump(session.intermediate_dir()));
         },
         Expr::If(r#if) => {
             lines.push("if ");
@@ -41,51 +46,51 @@ pub fn dump_expr(
                 lines.push("(");
             }
 
-            dump_expr(&r#if.cond, lines, session, max_len, single_line);
+            dump_expr(&r#if.cond, lines, types, session, max_len, single_line);
 
             if if_cond {
                 lines.push(")");
             }
 
-            match get_if_value_dump_type(&r#if.true_value, session) {
+            match get_if_value_dump_type(&r#if.true_value, types, session) {
                 IfValueDumpType::LongExpr if !single_line => {
                     lines.push(" {");
                     lines.inc_indent();
                     lines.break_line();
-                    dump_expr(&r#if.true_value, lines, session, max_len, single_line);
+                    dump_expr(&r#if.true_value, lines, types, session, max_len, single_line);
                     lines.dec_indent();
                     lines.break_line();
                     lines.push("} else");
                 },
                 IfValueDumpType::Block => {
                     lines.push(" ");
-                    dump_expr(&r#if.true_value, lines, session, max_len, single_line);
+                    dump_expr(&r#if.true_value, lines, types, session, max_len, single_line);
                     lines.push(" else");
                 },
                 _ => {
                     lines.push(" { ");
-                    dump_expr(&r#if.true_value, lines, session, max_len, single_line);
+                    dump_expr(&r#if.true_value, lines, types, session, max_len, single_line);
                     lines.push(" } else");
                 },
             }
 
-            match get_if_value_dump_type(&r#if.false_value, session) {
+            match get_if_value_dump_type(&r#if.false_value, types, session) {
                 IfValueDumpType::LongExpr if !single_line => {
                     lines.push(" {");
                     lines.inc_indent();
                     lines.break_line();
-                    dump_expr(&r#if.false_value, lines, session, max_len, single_line);
+                    dump_expr(&r#if.false_value, lines, types, session, max_len, single_line);
                     lines.dec_indent();
                     lines.break_line();
                     lines.push("}");
                 },
                 IfValueDumpType::Block => {
                     lines.push(" ");
-                    dump_expr(&r#if.false_value, lines, session, max_len, single_line);
+                    dump_expr(&r#if.false_value, lines, types, session, max_len, single_line);
                 },
                 _ => {
                     lines.push(" { ");
-                    dump_expr(&r#if.false_value, lines, session, max_len, single_line);
+                    dump_expr(&r#if.false_value, lines, types, session, max_len, single_line);
                     lines.push(" }");
                 },
             }
@@ -96,7 +101,7 @@ pub fn dump_expr(
             }
 
             lines.push("match ");
-            dump_expr(&r#match.scrutinee, lines, session, max_len, single_line);
+            dump_expr(&r#match.scrutinee, lines, types, session, max_len, single_line);
             lines.push(" {");
 
             if single_line {
@@ -109,15 +114,15 @@ pub fn dump_expr(
             }
 
             for arm in r#match.arms.iter() {
-                dump_pattern(&arm.pattern, lines, &into_hir_session(session));
+                dump_pattern(&arm.pattern, lines, session);
 
                 if let Some(guard) = &arm.guard {
                     lines.push(" if ");
-                    dump_expr(guard, lines, session, max_len, single_line);
+                    dump_expr(guard, lines, types, session, max_len, single_line);
                 }
 
                 lines.push(" => ");
-                dump_expr(&arm.value, lines, session, max_len, single_line);
+                dump_expr(&arm.value, lines, types, session, max_len, single_line);
                 lines.push(",");
 
                 if single_line {
@@ -149,14 +154,14 @@ pub fn dump_expr(
             }
 
             for (i, r#let) in block.lets.iter().enumerate() {
-                dump_let(r#let, lines, session, i != 0);
+                dump_let(r#let, lines, types, session, i != 0);
             }
 
             for assert in block.asserts.iter() {
-                dump_assert(assert, lines, session);
+                dump_assert(assert, lines, types, session);
             }
 
-            dump_expr(&block.value, lines, session, max_len, single_line);
+            dump_expr(&block.value, lines, types, session, max_len, single_line);
 
             if single_line {
                 lines.push(" ");
@@ -170,7 +175,7 @@ pub fn dump_expr(
             lines.push("}");
         },
         Expr::Field { lhs, fields, dotfish } => {
-            dump_expr(lhs, lines, session, max_len, single_line);
+            dump_expr(lhs, lines, types, session, max_len, single_line);
 
             if let Some(dotfish) = &dotfish[0] {
                 lines.push(".<");
@@ -189,7 +194,7 @@ pub fn dump_expr(
 
                 match field {
                     Field::Name { name, .. } => {
-                        lines.push(&name.unintern_or_default(&session.intermediate_dir));
+                        lines.push(&name.unintern_or_default(session.intermediate_dir()));
                     },
                     Field::Index(i) => {
                         if *i < 0 { todo!() }
@@ -216,7 +221,7 @@ pub fn dump_expr(
             }
         },
         Expr::FieldUpdate { lhs, fields, rhs } => {
-            dump_expr(lhs, lines, session, max_len, single_line);
+            dump_expr(lhs, lines, types, session, max_len, single_line);
             lines.push(" `");
 
             for (i, field) in fields.iter().enumerate() {
@@ -226,7 +231,7 @@ pub fn dump_expr(
                             lines.push(".");
                         }
 
-                        lines.push(&name.unintern_or_default(&session.intermediate_dir));
+                        lines.push(&name.unintern_or_default(session.intermediate_dir()));
                     },
                     Field::Index(n) => {
                         lines.push(&format!("[{n}]"));
@@ -236,7 +241,7 @@ pub fn dump_expr(
             }
 
             lines.push(" ");
-            dump_expr(rhs, lines, session, max_len, single_line);
+            dump_expr(rhs, lines, types, session, max_len, single_line);
         },
         Expr::Call { func, args, .. } => {
             let mut is_tuple = false;
@@ -244,8 +249,8 @@ pub fn dump_expr(
                 Callable::Static { def_span, .. } => {
                     lines.push(&span_to_string_or_verbose(
                         def_span,
-                        &session.intermediate_dir,
-                        session.global_context.span_string_map.unwrap_or(&HashMap::new()),
+                        session.intermediate_dir(),
+                        session.span_string_map().unwrap_or(&HashMap::new()),
                     ));
                     ("(", ")")
                 },
@@ -253,8 +258,8 @@ pub fn dump_expr(
                 Callable::StructInit { def_span, .. } => {
                     lines.push(&span_to_string_or_verbose(
                         def_span,
-                        &session.intermediate_dir,
-                        session.global_context.span_string_map.unwrap_or(&HashMap::new()),
+                        session.intermediate_dir(),
+                        session.span_string_map().unwrap_or(&HashMap::new()),
                     ));
                     ("{", "}")
                 },
@@ -263,13 +268,13 @@ pub fn dump_expr(
                         "{}.{}",
                         span_to_string_or_verbose(
                             parent_def_span,
-                            &session.intermediate_dir,
-                            session.global_context.span_string_map.unwrap_or(&HashMap::new()),
+                            session.intermediate_dir(),
+                            session.span_string_map().unwrap_or(&HashMap::new()),
                         ),
                         span_to_string_or_verbose(
                             variant_def_span,
-                            &session.intermediate_dir,
-                            session.global_context.span_string_map.unwrap_or(&HashMap::new()),
+                            session.intermediate_dir(),
+                            session.span_string_map().unwrap_or(&HashMap::new()),
                         ),
                     ));
 
@@ -287,14 +292,14 @@ pub fn dump_expr(
                 Callable::ListInit { .. } => ("[", "]"),
                 Callable::Dynamic(f) => {
                     lines.push("(");
-                    dump_expr(f, lines, session, max_len, single_line);
+                    dump_expr(f, lines, types, session, max_len, single_line);
                     lines.push(")");
                     ("(", ")")
                 },
             };
 
             lines.push(open_delim);
-            let arg_per_line = !single_line && lookahead_args(args, session, 21) > 20;
+            let arg_per_line = !single_line && lookahead_args(args, types, session, 21) > 20;
             let has_trailing_comma = is_tuple && args.len() == 1 || arg_per_line;
 
             if args.len() > 1 {
@@ -304,7 +309,7 @@ pub fn dump_expr(
                 }
 
                 for (i, arg) in args.iter().enumerate() {
-                    dump_expr(arg, lines, session, max_len, single_line);
+                    dump_expr(arg, lines, types, session, max_len, single_line);
 
                     if has_trailing_comma || i < args.len() - 1 {
                         lines.push(",");
@@ -329,7 +334,7 @@ pub fn dump_expr(
 
             else {
                 for arg in args.iter() {
-                    dump_expr(arg, lines, session, max_len, single_line);
+                    dump_expr(arg, lines, types, session, max_len, single_line);
                 }
             }
 
@@ -338,12 +343,12 @@ pub fn dump_expr(
     }
 }
 
-fn lookahead_args(args: &[Expr], session: &Session, max_len: usize) -> usize {
+fn lookahead_args<S: SodigySession>(args: &[Expr], types: &HashMap<Span, Type>, session: &S, max_len: usize) -> usize {
     let mut count = 0;
 
     for arg in args.iter() {
         let mut indented_lines = IndentedLines::new();
-        dump_expr(arg, &mut indented_lines, session, max_len, false);
+        dump_expr(arg, &mut indented_lines, types, session, max_len, false);
         count += indented_lines.dump().len();
     }
 
@@ -356,12 +361,12 @@ enum IfValueDumpType {
     LongExpr,
 }
 
-fn get_if_value_dump_type(value: &Expr, session: &Session) -> IfValueDumpType {
+fn get_if_value_dump_type<S: SodigySession>(value: &Expr, types: &HashMap<Span, Type>, session: &S) -> IfValueDumpType {
     match value {
         Expr::Block(_) => IfValueDumpType::Block,
         _ => {
             let mut indented_lines = IndentedLines::new();
-            dump_expr(value, &mut indented_lines, session, 21, false);
+            dump_expr(value, &mut indented_lines, types, session, 21, false);
 
             if indented_lines.dump().len() > 20 {
                 IfValueDumpType::LongExpr
@@ -369,39 +374,5 @@ fn get_if_value_dump_type(value: &Expr, session: &Session) -> IfValueDumpType {
                 IfValueDumpType::ShortExpr
             }
         },
-    }
-}
-
-use std::collections::HashMap;
-
-// TODO: In order to `dump_type`, I need an HirSession, but I don't have one.
-//       This is just a quick hack. I don't like it and I have to find a better way.
-fn into_hir_session(session: &Session) -> sodigy_hir::Session {
-    sodigy_hir::Session {
-        intermediate_dir: session.intermediate_dir.to_string(),
-        name_stack: vec![],
-        block_stack: vec![],
-        attribute_rule_cache: HashMap::new(),
-        is_in_debug_context: false,
-        is_std: false,
-        nested_pipeline_depth: 0,
-        lets: vec![],
-        funcs: vec![],
-        structs: vec![],
-        enums: vec![],
-        asserts: vec![],
-        aliases: vec![],
-        uses: vec![],
-        modules: vec![],
-        type_assertions: vec![],
-        associated_items: vec![],
-        trivial_lets: HashMap::new(),
-        generic_def_span_rev: HashMap::new(),
-        closures: HashMap::new(),
-        lang_items: HashMap::new(),
-        polys: HashMap::new(),
-        poly_impls: vec![],
-        errors: vec![],
-        warnings: vec![],
     }
 }

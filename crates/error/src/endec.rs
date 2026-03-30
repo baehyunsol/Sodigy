@@ -1,4 +1,5 @@
 use crate::{
+    EnumFieldKind,
     Error,
     ErrorKind,
     ErrorToken,
@@ -282,6 +283,32 @@ impl Endec for ParamIndex {
             },
             Some(1) => Ok((ParamIndex::Return, cursor + 1)),
             Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+
+impl Endec for EnumFieldKind {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            EnumFieldKind::None => {
+                buffer.push(0);
+            },
+            EnumFieldKind::Tuple => {
+                buffer.push(1);
+            },
+            EnumFieldKind::Struct => {
+                buffer.push(2);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => Ok((EnumFieldKind::None, cursor + 1)),
+            Some(1) => Ok((EnumFieldKind::Tuple, cursor + 1)),
+            Some(2) => Ok((EnumFieldKind::Struct, cursor + 1)),
+            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

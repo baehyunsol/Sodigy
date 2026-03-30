@@ -3,7 +3,6 @@ use crate::{
     Block,
     Callable,
     Dotfish,
-    EnumFieldKind,
     Expr,
     If,
     Let,
@@ -12,6 +11,7 @@ use crate::{
     ShortCircuitKind,
 };
 use sodigy_endec::{DecodeError, Endec};
+use sodigy_error::EnumFieldKind;
 use sodigy_hir as hir;
 use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_parse::Field;

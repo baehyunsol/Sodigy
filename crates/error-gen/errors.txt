@@ -88,6 +88,7 @@ UnexpectedFunctionParameter/380/Error
 StructFieldRepeated/385/Error
 MissingStructFields/390/Error
 InvalidStructFields/395/Error
+MismatchedEnumFieldKind/396/Error
 CannotAssociateItem/398/Error
 TooGeneralToAssociateItem/399/Error
 NotType/400/Error
