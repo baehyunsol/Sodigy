@@ -5,7 +5,8 @@ use sodigy_name_analysis::{
     UseCount,
 };
 use sodigy_parse as ast;
-use sodigy_span::Span;
+use sodigy_span::{Span, SpanDeriveKind};
+use sodigy_token::InfixOp;
 
 #[derive(Clone, Debug)]
 pub struct Match {
@@ -51,7 +52,7 @@ impl Match {
 
             session.name_stack.push(Namespace::Pattern { names });
 
-            let guard = match ast_arm.guard.as_ref().map(|guard| Expr::from_ast(guard, session)) {
+            let mut guard = match ast_arm.guard.as_ref().map(|guard| Expr::from_ast(guard, session)) {
                 Some(Ok(guard)) => Some(guard),
                 Some(Err(())) => {
                     has_error = true;
@@ -61,8 +62,26 @@ impl Match {
             };
 
             if !extra_guards.is_empty() {
-                // merge this with `guard`
-                todo!()
+                let extra_guards: Vec<Expr> = extra_guards.into_iter().map(
+                    |guard| guard.condition
+                ).collect();
+                let tmp_span = extra_guards[0].error_span_wide().derive(SpanDeriveKind::ExprInPattern);
+                let mut extra_guard = fold_exprs(
+                    extra_guards,
+                    InfixOp::LogicAnd,
+                    tmp_span,
+                );
+
+                match guard.take() {
+                    Some(g) => {
+                        let tmp_span = g.error_span_wide().derive(SpanDeriveKind::ExprInPattern);
+                        extra_guard = fold_exprs(vec![extra_guard, g], InfixOp::LogicAnd, tmp_span);
+                        guard = Some(extra_guard);
+                    },
+                    None => {
+                        guard = Some(extra_guard);
+                    },
+                }
             }
 
             let value = match Expr::from_ast(&ast_arm.value, session) {
@@ -98,5 +117,22 @@ impl Match {
                 lowered_from_let: ast_match.lowered_from_let,
             })
         }
+    }
+}
+
+pub fn fold_exprs(
+    mut exprs: Vec<Expr>,
+    op: InfixOp,
+    op_span: Span,
+) -> Expr {
+    match (exprs.pop(), exprs.len()) {
+        (None, _) => unreachable!(),
+        (Some(e), 0) => e,
+        (Some(e), _) => Expr::InfixOp {
+            op,
+            op_span: op_span.clone(),
+            lhs: Box::new(e),
+            rhs: Box::new(fold_exprs(exprs, op, op_span)),
+        },
     }
 }

@@ -1,0 +1,7 @@
+struct Person = {
+    name: String,
+    age: Int,
+    is_sodigian: Bool,
+};
+
+let p = Person("Bae", 27, True);

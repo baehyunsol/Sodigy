@@ -13,6 +13,7 @@ use crate::{
     ubi_to_string,
 };
 use std::cmp::Ordering;
+use std::fmt;
 
 // First 2 bits: type
 //   - 00: SmallInt
@@ -26,7 +27,15 @@ use std::cmp::Ordering;
 //   - SmallRatio: { numer: i63, denom: u62 }
 //     - numer's range is -4611686018427387904..=4611686018427387903
 //     - denom's range is 0..=4611686018427387903
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+//     - numer and denom are coprimes.
+//
+// If a value can be represented in `SmallInt`, it has to be represented in `SmallInt`.
+// For example, `SmallInt { n: 1 }` and `SmallRatio { numer: 1, denom: 1 }` are the
+// same values, so `SmallRatio { numer: 1, denom: 1 }` should never exist.
+// Similarly, if a value can be represented in `SmallRatio`, but not in `SmallInt`,
+// it has to be represented in `SmallRatio`.
+// The precedence is SmallInt > SmallRatio > BigInt > BigRatio.
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct InternedNumber(pub u128);
 
 const SMALL_INT: u128 = 0;
@@ -145,6 +154,24 @@ impl InternedNumber {
                 let lhs = interpret_small_int(self.0);
                 let rhs = interpret_small_int(other.0);
                 lhs.cmp(&rhs)
+            },
+            _ => todo!(),
+        }
+    }
+}
+
+impl fmt::Debug for InternedNumber {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let is_integer = self.is_integer();
+
+        match self.0 >> 126 {
+            0 => {
+                let n = interpret_small_int(self.0);
+                write!(formatter, "SmallInt {{ n: {n}, is_integer: {is_integer} }}")
+            },
+            1 => {
+                let (numer, denom) = interpret_small_ratio(self.0);
+                write!(formatter, "SmallRatio {{ numer: {numer}, denom: {denom}, is_integer: {is_integer} }}")
             },
             _ => todo!(),
         }

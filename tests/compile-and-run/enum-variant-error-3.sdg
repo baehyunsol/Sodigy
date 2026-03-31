@@ -1,0 +1,25 @@
+//% compile-error == 10
+
+enum Foo = {
+    V1,
+    V2(Int),
+    V3 { x1: Int, x2: String },
+};
+
+fn foo(f: Foo) = match f {
+    Foo.V1 => 0,
+    Foo.V1() => 1,  // error
+    Foo.V1(3) => 2,  // error
+    Foo.V1 { x1: 3 } => 3,  // error
+    Foo.V1 { x1: 3, x2: "" } => 4,  // error
+    Foo.V2 => 5,  // error
+    // Foo.V2() => 6,  // error, but not in scope of this test
+    Foo.V2(3) => 7,
+    Foo.V2 { x1: 3 } => 8,  // error
+    Foo.V2 { x1: 3, x2: "" } => 9,  // error
+    Foo.V3 => 10,  // error
+    Foo.V3() => 11,  // error
+    Foo.V3(3) => 12,  // error
+    // Foo.V3 { x1: 3 } => 13,  // error, but not in scope of this test
+    Foo.V3 { x1: 3, x2: "" } => 14,
+};

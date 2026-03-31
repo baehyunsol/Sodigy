@@ -31,7 +31,9 @@ pub enum PatternKind {
     Struct {
         r#struct: Path,
         fields: Vec<StructFieldPattern>,
-        rest: Option<Box<RestPattern>>,
+
+        // If exists, it has the span of the `..`.
+        rest: Option<Span>,
         group_span: Span,
     },
     TupleStruct {
@@ -293,17 +295,7 @@ impl PatternKind {
             PatternKind::Wildcard(_) |
             PatternKind::PipelineData(_) => vec![],
             PatternKind::NameBinding { id, span } => vec![(*id, span.clone())],
-            PatternKind::Struct { fields, rest, .. } => {
-                let mut result = fields.iter().flat_map(|f| f.pattern.bound_names()).collect::<Vec<_>>();
-
-                if let Some(rest) = rest {
-                    if let (Some(name), Some(name_span)) = (rest.name, rest.name_span.clone()) {
-                        result.push((name, name_span));
-                    }
-                }
-
-                result
-            },
+            PatternKind::Struct { fields, .. } => fields.iter().flat_map(|f| f.pattern.bound_names()).collect::<Vec<_>>(),
             PatternKind::TupleStruct { elements, rest, .. } |
             PatternKind::Tuple { elements, rest, .. } |
             PatternKind::List { elements, rest, .. } => {
@@ -1084,7 +1076,23 @@ impl<'t, 's> Tokens<'t, 's> {
                                 },
                             };
                         },
-                        Delim::Brace => todo!(),
+                        Delim::Brace => {
+                            let group_span = span.clone();
+                            let mut tokens = Tokens::new(tokens, span.end(), false, self.intermediate_dir);
+                            let (fields, rest) = tokens.parse_struct_field_patterns()?;
+                            self.cursor += 1;
+
+                            lhs = Pattern {
+                                name: None,
+                                name_span: None,
+                                kind: PatternKind::Struct {
+                                    r#struct,
+                                    fields,
+                                    group_span,
+                                    rest,
+                                },
+                            };
+                        },
                         _ => {
                             return Err(vec![Error {
                                 kind: ErrorKind::UnexpectedToken {
@@ -1229,6 +1237,110 @@ impl<'t, 's> Tokens<'t, 's> {
         }
 
         Ok((patterns, rest))
+    }
+
+    pub fn parse_struct_field_patterns(&mut self) -> Result<(Vec<StructFieldPattern>, Option<Span>), Vec<Error>> {
+        let mut fields = vec![];
+        let mut rest = None;
+
+        loop {
+            match self.peek2() {
+                (None, _) => break,
+                (
+                    Some(Token { kind: TokenKind::Punct(Punct::Dollar), span: span1 }),
+                    Some(Token { kind: TokenKind::Ident(name), span: span2 }),
+                ) => {
+                    let name = *name;
+                    let dollar_span = span1.clone();
+                    let merged_span = span1.merge(span2);
+                    self.cursor += 2;
+                    fields.push(StructFieldPattern {
+                        name,
+                        span: merged_span.clone(),
+                        pattern: Pattern {
+                            name: None,
+                            name_span: None,
+                            kind: PatternKind::NameBinding { id: name, span: merged_span },
+                        },
+                        is_shorthand: true,
+                    });
+
+                    match self.peek() {
+                        Some(Token { kind: TokenKind::Punct(Punct::Colon), .. }) => {
+                            return Err(vec![Error {
+                                kind: ErrorKind::UnexpectedToken {
+                                    expected: ErrorToken::Ident,
+                                    got: ErrorToken::Punct(Punct::Dollar),
+                                },
+                                spans: dollar_span.simple_error(),
+                                note: Some(String::from("There should be no `$` before a name of a field, unless you're using the shorthand syntax.")),
+                            }]);
+                        },
+                        Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }) | None => {
+                            self.cursor += 1;
+                            continue;
+                        },
+                        Some(t) => {
+                            return Err(vec![Error {
+                                kind: ErrorKind::UnexpectedToken {
+                                    expected: ErrorToken::Punct(Punct::Comma),
+                                    got: (&t.kind).into(),
+                                },
+                                spans: t.span.simple_error(),
+                                note: None,
+                            }]);
+                        },
+                    }
+                },
+                (
+                    Some(Token { kind: TokenKind::Ident(name), span }),
+                    Some(Token { kind: TokenKind::Punct(Punct::Colon), .. }),
+                ) => {
+                    let name = *name;
+                    let span = span.clone();
+                    self.cursor += 2;
+                    let pattern = self.parse_pattern(ParsePatternContext::Group)?;
+
+                    fields.push(StructFieldPattern {
+                        name,
+                        span,
+                        pattern,
+                        is_shorthand: false,
+                    });
+
+                    if let Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }) = self.peek() {
+                        self.cursor += 1;
+                    }
+                },
+                (
+                    Some(Token { kind: TokenKind::Ident(_), span }),
+                    Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }) | None,
+                ) => {
+                    return Err(vec![Error {
+                        kind: ErrorKind::UnexpectedToken {
+                            expected: ErrorToken::Punct(Punct::Dollar),
+                            got: ErrorToken::Ident,
+                        },
+                        spans: span.simple_error(),
+                        note: Some(String::from("In order to use the shorthand syntax, put a `$` before the field name.")),
+                    }]);
+                },
+                (Some(Token { kind: TokenKind::Punct(Punct::DotDot), span }), _) => {
+                    if let Some(prev_span) = &rest {
+                        todo!()
+                    }
+
+                    rest = Some(span.clone());
+
+                    if let Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }) = self.peek() {
+                        self.cursor += 1;
+                    }
+                },
+                _ => todo!(),
+            }
+        }
+
+        Ok((fields, rest))
     }
 }
 

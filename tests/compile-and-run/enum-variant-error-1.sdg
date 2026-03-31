@@ -1,3 +1,5 @@
+//% compile-error == 6
+
 enum Foo = {
     V1,
     V2(Int),

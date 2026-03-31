@@ -35,7 +35,16 @@ impl Session {
 
     pub fn solve_pattern_kind(&mut self, pattern: &PatternKind) -> (Option<Type>, bool /* has_error */) {
         match pattern {
-            PatternKind::Path(Path { id: IdentWithOrigin { id, span, .. }, .. }) => todo!(),
+            // TODO
+            // 1. enum variant
+            // 2. struct
+            // 3. value
+            PatternKind::Path(Path { id: IdentWithOrigin { id, span, def_span, .. }, .. }) => match self.types.get(def_span) {
+                Some(r#type) => {
+                    (Some(r#type.clone()), false)
+                },
+                None => panic!("TODO: {def_span:?}"),
+            },
             PatternKind::NameBinding { id, span, .. } => match self.types.get(span) {
                 Some(r#type) => (Some(r#type.clone()), false),
                 None => {

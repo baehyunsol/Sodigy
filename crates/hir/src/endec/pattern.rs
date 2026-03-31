@@ -118,7 +118,7 @@ impl Endec for PatternKind {
             Some(4) => {
                 let (r#struct, cursor) = Path::decode_impl(buffer, cursor + 1)?;
                 let (fields, cursor) = Vec::<StructFieldPattern>::decode_impl(buffer, cursor)?;
-                let (rest, cursor) = Option::<Box<RestPattern>>::decode_impl(buffer, cursor)?;
+                let (rest, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((PatternKind::Struct { r#struct, fields, rest, group_span }, cursor))
             },

@@ -1,8 +1,9 @@
 use crate::Session;
-use sodigy_error::{Error, ErrorKind, NotXBut};
-use sodigy_hir::{CallArg, Expr, ExprOrString, Path, StructInitField};
+use sodigy_error::{EnumFieldKind, Error, ErrorKind, NotXBut};
+use sodigy_hir::{CallArg, Expr, ExprOrString, Path, StructInitField, fold_exprs};
 use sodigy_name_analysis::{NameKind, NameOrigin};
-use sodigy_span::RenderableSpan;
+use sodigy_span::{RenderableSpan, SpanDeriveKind};
+use sodigy_token::InfixOp;
 
 impl Session {
     pub fn resolve_expr(&mut self, expr: &mut Expr) -> Result<(), ()> {
@@ -35,12 +36,16 @@ impl Session {
             ) {
                 (Ok(()), Ok(()), Ok(())) => {
                     if let Some(pattern) = &mut r#if.pattern {
-                        self.resolve_pattern(pattern)
+                        self.resolve_pattern(pattern)?;
+                        let mut extra_guards = vec![];
+                        self.check_pattern_path(pattern, &mut extra_guards)?;
+
+                        if !extra_guards.is_empty() {
+                            todo!()
+                        }
                     }
 
-                    else {
-                        Ok(())
-                    }
+                    Ok(())
                 },
                 _ => Err(()),
             },
@@ -52,7 +57,13 @@ impl Session {
                 }
 
                 for arm in r#match.arms.iter_mut() {
+                    let mut extra_guards = vec![];
+
                     if let Err(()) = self.resolve_pattern(&mut arm.pattern) {
+                        has_error = true;
+                    }
+
+                    else if let Err(()) = self.check_pattern_path(&mut arm.pattern, &mut extra_guards) {
                         has_error = true;
                     }
 
@@ -60,6 +71,18 @@ impl Session {
                         if let Err(()) = self.resolve_expr(guard) {
                             has_error = true;
                         }
+
+                        if !extra_guards.is_empty() {
+                            todo!()
+                        }
+                    }
+
+                    else if !extra_guards.is_empty() {
+                        let extra_guards: Vec<Expr> = extra_guards.into_iter().map(
+                            |extra_guards| extra_guards.condition
+                        ).collect();
+                        let op_span = extra_guards[0].error_span_wide().derive(SpanDeriveKind::ExprInPattern);
+                        arm.guard = Some(fold_exprs(extra_guards, InfixOp::LogicAnd, op_span));
                     }
 
                     if let Err(()) = self.resolve_expr(&mut arm.value) {
@@ -225,7 +248,7 @@ impl Session {
                 NameOrigin::GenericParam { .. } => Err(not_x_but_y(path, TypeStructExpr::Struct, NotXBut::GenericParam, intermediate_dir)),
                 NameOrigin::Local { kind } |
                 NameOrigin::Foreign { kind } => match kind {
-                    // TODO: `EnumVariant` can be a struct or not, but how do we know that?
+                    // inter-hir will check whether an enum is struct-like or not
                     NameKind::Struct |
                     NameKind::EnumVariant { .. } => Ok(()),
                     k => Err(not_x_but_y(path, TypeStructExpr::Struct, k.into(), intermediate_dir)),
@@ -418,6 +441,7 @@ impl Session {
 #[derive(Clone, Copy)]
 pub(crate) enum TypeStructExpr {
     Type,
+    TupleStruct,
     Struct,
     Expr,
 }
@@ -430,7 +454,8 @@ pub(crate) fn not_x_but_y(
 ) -> Error {
     let (error_kind, kind_str) = match x {
         TypeStructExpr::Type => (ErrorKind::NotType { id: path.id.id, but: y }, "a type"),
-        TypeStructExpr::Struct => (ErrorKind::NotStruct { id: path.id.id, but: y }, "a struct"),
+        TypeStructExpr::TupleStruct => (ErrorKind::NotStruct { id: path.id.id, tuple_struct: true, but: y }, "a tuple-struct"),
+        TypeStructExpr::Struct => (ErrorKind::NotStruct { id: path.id.id, tuple_struct: false, but: y }, "a struct"),
         TypeStructExpr::Expr => (ErrorKind::NotExpr { id: path.id.id, but: y }, "an expression"),
     };
 
@@ -455,5 +480,15 @@ pub(crate) fn not_x_but_y(
             },
         ],
         note: None,
+    }
+}
+
+impl From<EnumFieldKind> for TypeStructExpr {
+    fn from(e: EnumFieldKind) -> TypeStructExpr {
+        match e {
+            EnumFieldKind::None => TypeStructExpr::Expr,
+            EnumFieldKind::Tuple => TypeStructExpr::TupleStruct,
+            EnumFieldKind::Struct => TypeStructExpr::Struct,
+        }
     }
 }

@@ -55,7 +55,7 @@
     { expected: EnumFieldKind, got: EnumFieldKind }, CannotAssociateItem,
     TooGeneralToAssociateItem, NotType { id: InternedString, but: NotXBut },
     NotCallable { r#type: String }, NotStruct
-    { id: InternedString, but: NotXBut }, NotExpr
+    { id: InternedString, tuple_struct: bool, but: NotXBut }, NotExpr
     { id: InternedString, but: NotXBut }, NotPolyGeneric
     { id: Option<IdentWithOrigin> }, CannotAliasLocalValue(InternedString),
     UnexpectedType { expected: String, got: String }, WrongNumberOfArgs
@@ -566,10 +566,11 @@
             {
                 buffer.push(1u8); buffer.push(148u8);
                 r#type.encode_impl(buffer);
-            }, ErrorKind :: NotStruct { r#id, r#but, } =>
+            }, ErrorKind :: NotStruct { r#id, r#tuple_struct, r#but, } =>
             {
                 buffer.push(1u8); buffer.push(149u8);
-                r#id.encode_impl(buffer); r#but.encode_impl(buffer);
+                r#id.encode_impl(buffer); r#tuple_struct.encode_impl(buffer);
+                r#but.encode_impl(buffer);
             }, ErrorKind :: NotExpr { r#id, r#but, } =>
             {
                 buffer.push(1u8); buffer.push(150u8);
@@ -975,9 +976,11 @@
             }, 405u16 =>
             {
                 let (r#id, cursor) = InternedString ::
-                decode_impl(buffer, cursor) ? ; let (r#but, cursor) = NotXBut
-                :: decode_impl(buffer, cursor) ? ;
-                Ok((ErrorKind :: NotStruct { r#id, r#but, }, cursor))
+                decode_impl(buffer, cursor) ? ; let (r#tuple_struct, cursor) =
+                bool :: decode_impl(buffer, cursor) ? ; let (r#but, cursor) =
+                NotXBut :: decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: NotStruct { r#id, r#tuple_struct, r#but, },
+                cursor))
             }, 406u16 =>
             {
                 let (r#id, cursor) = InternedString ::

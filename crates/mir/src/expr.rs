@@ -615,7 +615,7 @@ impl Expr {
                         _ => NotXBut::Expr,
                     };
                     session.errors.push(Error {
-                        kind: ErrorKind::NotStruct { id: constructor.id.id, but },
+                        kind: ErrorKind::NotStruct { id: constructor.id.id, tuple_struct: false, but },
                         spans: call_span.simple_error(),
                         note: None,
                     });

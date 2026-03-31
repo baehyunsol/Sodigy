@@ -1,0 +1,6 @@
+fn foo(n: Int) -> Option<Int> = Some(n);
+
+fn bar(m: Option<Int>) = match m {
+    foo($n) => n,
+    _ => None,
+};

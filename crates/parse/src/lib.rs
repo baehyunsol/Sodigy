@@ -46,7 +46,7 @@ pub use r#let::Let;
 pub use r#match::{Match, MatchArm};
 pub use module::Module;
 pub use path::{Field, Path, merge_field_spans};
-pub use pattern::{Pattern, PatternKind, PatternValueKind, RestPattern};
+pub use pattern::{Pattern, PatternKind, PatternValueKind, RestPattern, StructFieldPattern};
 pub(crate) use pattern::ParsePatternContext;
 pub use session::Session;
 pub use r#struct::{Struct, StructField, StructInitField};

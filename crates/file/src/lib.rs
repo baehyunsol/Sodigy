@@ -1,6 +1,7 @@
-use crate::std_file::STD_FILES;
+use crate::std_file::{STD_FILES, STD_FILE_INDEXES};
 use sodigy_fs_api::{FileError, join3, read_bytes};
 use sodigy_string::{InternedString, hash, intern_string, unintern_string};
+use std::fmt;
 use std::fs::File as StdFile;
 use std::io::{Read, Write};
 
@@ -26,8 +27,23 @@ use file_map::{
 //
 // Its `Ord` is for deterministic output of the error messages (it sorts the errors by file).
 // It doesn't sort the files by name.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct File(pub u32);
+
+impl fmt::Debug for File {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let is_std = self.0 >= 0x8000_0000;
+
+        if is_std {
+            let s = STD_FILES[*STD_FILE_INDEXES.get(&self.0).unwrap()].file_path_str.to_string();
+            write!(formatter, "File({s:?})")
+        }
+
+        else {
+            write!(formatter, "File({})", self.0)
+        }
+    }
+}
 
 impl File {
     pub fn std(id: u32) -> Self {
@@ -104,9 +120,9 @@ impl File {
         match search_file_map_by_module_path(&file_map, module_path, &file_map_path)? {
             Some((file_id, _)) => Ok(Some(File(file_id))),
             None => {
-                for (i, (p, _, _, _)) in STD_FILES.iter().enumerate() {
-                    if *p == module_path {
-                        return Ok(Some(File(0x8000_0000 | i as u32)));
+                for std_file in STD_FILES.iter() {
+                    if std_file.module_path_str == module_path {
+                        return Ok(Some(File(std_file.file_hash())));
                     }
                 }
 
@@ -123,8 +139,8 @@ impl File {
 
         if is_std {
             Ok(Some((
-                STD_FILES[id as usize].0.to_string(),
-                STD_FILES[id as usize].1.to_string(),
+                STD_FILES[*STD_FILE_INDEXES.get(&self.0).unwrap()].module_path_str.to_string(),
+                STD_FILES[*STD_FILE_INDEXES.get(&self.0).unwrap()].file_path_str.to_string(),
             )))
         } else {
             let file_map_path = join3(
@@ -146,7 +162,7 @@ impl File {
         let id = self.0 & 0x7fff_ffff;
 
         if is_std {
-            Ok(STD_FILES[id as usize].3)
+            Ok(STD_FILES[*STD_FILE_INDEXES.get(&self.0).unwrap()].file_hash() as u128)
         } else {
             let file_map_path = join3(
                 intermediate_dir,
@@ -167,10 +183,9 @@ impl File {
     // This is very very expensive.
     pub fn read_bytes(&self, intermediate_dir: &str) -> Result<Option<Vec<u8>>, FileError> {
         let is_std = self.0 >= 0x8000_0000;
-        let id = self.0 & 0x7fff_ffff;
 
         if is_std {
-            Ok(Some(STD_FILES[id as usize].2.to_vec()))
+            Ok(Some(STD_FILES[*STD_FILE_INDEXES.get(&self.0).unwrap()].contents.to_vec()))
         } else {
             let content_hash = self.get_content_hash(intermediate_dir)?;
             Ok(unintern_string(InternedString(content_hash), intermediate_dir)?)
@@ -178,8 +193,20 @@ impl File {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum FileOrStd {
     File(String),
     Std(u32),
+}
+
+impl fmt::Debug for FileOrStd {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match self {
+            FileOrStd::File(s) => write!(formatter, "File({s:?})"),
+            FileOrStd::Std(n) => {
+                let s = STD_FILES[*STD_FILE_INDEXES.get(n).unwrap()].file_path_str.to_string();
+                write!(formatter, "Std({s:?})")
+            },
+        }
+    }
 }

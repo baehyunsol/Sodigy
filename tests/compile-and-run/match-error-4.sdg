@@ -1,0 +1,4 @@
+fn foo(n: Option<Int>) = match n {
+    Some => 1,
+    None => 2,
+};

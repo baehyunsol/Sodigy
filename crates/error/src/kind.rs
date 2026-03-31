@@ -143,7 +143,7 @@ error_kinds!(
     (TooGeneralToAssociateItem,                                      399,    Error),
     (NotType { id: InternedString, but: NotXBut },                   400,    Error),
     (NotCallable { r#type: String },                                 404,    Error),
-    (NotStruct { id: InternedString, but: NotXBut },                 405,    Error),
+    (NotStruct { id: InternedString, tuple_struct: bool, but: NotXBut },     405,    Error),
     (NotExpr { id: InternedString, but: NotXBut },                   406,    Error),
     (NotPolyGeneric { id: Option<IdentWithOrigin> },                 410,    Error),
     (CannotAliasLocalValue(InternedString),                          411,    Error),

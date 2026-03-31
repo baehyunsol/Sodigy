@@ -26,15 +26,13 @@ pub struct SpanId(pub u128);
 
 impl fmt::Debug for SpanId {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let file_id = (self.0 >> 64) & 0xffff_ffff;
-        let file_type = if file_id >= 0x8000_0000 { "Std" } else { "File" };
-        let file_id = file_id & 0x7fff_ffff;
+        let file = File(((self.0 >> 64) & 0xffff_ffff) as u32);
         let start = (self.0 >> 32) & 0xffff_ffff;
         let end = self.0 & 0xffff_ffff;
 
         write!(
             fmt,
-            "{{ file: {file_type}({file_id}), start: {start}, end: {end} }}",
+            "{{ file: {file:?}, start: {start}, end: {end} }}",
         )
     }
 }

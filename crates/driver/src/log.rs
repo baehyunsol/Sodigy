@@ -263,6 +263,10 @@ pub fn log_inter_mir(session: &inter_mir::Session) -> Result<(), FileError> {
         create_dir(&parent(&save_at)?)?;
     }
 
+    if !exists(&save_at) {
+        write_bytes(&save_at, b"", WriteMode::AlwaysCreate)?;
+    }
+
     write_bytes(
         &save_at,
         &buffer.concat(),

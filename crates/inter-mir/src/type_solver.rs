@@ -273,8 +273,8 @@ impl Session {
         write_log!(self, LogEntry::SolveSupertype {
             lhs: lhs.clone(),
             rhs: rhs.clone(),
-            lhs_span: lhs_span.clone(),
-            rhs_span: rhs_span.clone(),
+            lhs_span: lhs_span.cloned(),
+            rhs_span: rhs_span.cloned(),
             context: context.clone(),
         });
 

@@ -17,6 +17,13 @@ impl ModulePath {
         self.path.is_empty() && !self.is_std
     }
 
+    pub fn init_std(segments: &[&str]) -> ModulePath {
+        ModulePath {
+            path: segments.iter().map(|s| s.to_string()).collect(),
+            is_std: true,
+        }
+    }
+
     #[must_use = "method returns a new value and does not mutate the original value"]
     pub fn join(&self, module: String) -> ModulePath {
         let mut path = self.path.clone();
@@ -45,9 +52,9 @@ impl ModulePath {
         else if self.is_std {
             let module_path = self.to_string();
 
-            for (i, (module_path_, _, _, _)) in STD_FILES.iter().enumerate() {
-                if module_path == *module_path_ {
-                    return Ok(FileOrStd::Std(i as u32));
+            for (i, std_file) in STD_FILES.iter().enumerate() {
+                if module_path == std_file.module_path_str {
+                    return Ok(std_file.file_path.clone());
                 }
             }
 

@@ -33,7 +33,7 @@ pub enum PatternKind {
     Struct {
         r#struct: Path,
         fields: Vec<StructFieldPattern>,
-        rest: Option<Box<RestPattern>>,
+        rest: Option<Span>,
         group_span: Span,
     },
     TupleStruct {
@@ -74,11 +74,18 @@ pub struct StructFieldPattern {
     pub is_shorthand: bool,
 }
 
+#[derive(Clone, Debug)]
+pub struct ExtraGuard {
+    pub name: InternedString,
+    pub span: Span,
+    pub condition: Expr,
+}
+
 impl Pattern {
     pub fn from_ast(
         ast_pattern: &ast::Pattern,
         session: &mut Session,
-        extra_guards: &mut Vec<(InternedString, Span, Expr)>,
+        extra_guards: &mut Vec<ExtraGuard>,
     ) -> Result<Pattern, ()> {
         let mut has_error = false;
         let kind = match PatternKind::from_ast(&ast_pattern.kind, session, extra_guards) {
@@ -132,7 +139,7 @@ impl PatternKind {
     pub fn from_ast(
         ast_pattern: &ast::PatternKind,
         session: &mut Session,
-        extra_guards: &mut Vec<(InternedString, Span, Expr)>,
+        extra_guards: &mut Vec<ExtraGuard>,
     ) -> Result<PatternKind, ()> {
         match ast_pattern {
             // If `x` is an expression, `Some(x)` is lowered to `Some($tmp) if tmp == x`.
@@ -178,6 +185,41 @@ impl PatternKind {
                     span.clone(),
                 ));
                 Err(())
+            },
+            ast::PatternKind::Struct { r#struct, fields: ast_fields, rest, group_span } => {
+                let mut has_error = false;
+                let mut fields = Vec::with_capacity(ast_fields.len());
+                let r#struct = match Path::from_ast(r#struct, session) {
+                    Ok(path) => Some(path),
+                    Err(()) => {
+                        has_error = true;
+                        None
+                    },
+                };
+
+                for ast_field in ast_fields.iter() {
+                    match StructFieldPattern::from_ast(ast_field, session, extra_guards) {
+                        Ok(field) => {
+                            fields.push(field);
+                        },
+                        Err(()) => {
+                            has_error = true;
+                        },
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(PatternKind::Struct {
+                        r#struct: r#struct.unwrap(),
+                        fields,
+                        rest: rest.clone(),
+                        group_span: group_span.clone(),
+                    })
+                }
             },
             ast::PatternKind::TupleStruct { r#struct, elements: ast_elements, rest, group_span } => {
                 let mut has_error = false;
@@ -293,7 +335,11 @@ impl PatternKind {
                                     rhs: Box::new(expr),
                                     op_span: derived_span.clone(),
                                 };
-                                extra_guards.push((tmp_value_name, derived_span.clone(), extra_guard));
+                                extra_guards.push(ExtraGuard {
+                                    name: tmp_value_name,
+                                    span: derived_span.clone(),
+                                    condition: extra_guard,
+                                });
                                 Ok(PatternKind::NameBinding { id: tmp_value_name, span: derived_span.clone() })
                             },
                             _ => unreachable!(),
@@ -398,5 +444,20 @@ impl PatternKind {
                 .merge(&rhs.error_span_wide()),
             _ => panic!("TODO: {self:?}"),
         }
+    }
+}
+
+impl StructFieldPattern {
+    pub fn from_ast(
+        ast_field: &ast::StructFieldPattern,
+        session: &mut Session,
+        extra_guards: &mut Vec<ExtraGuard>,
+    ) -> Result<StructFieldPattern, ()> {
+        Ok(StructFieldPattern {
+            name: ast_field.name.clone(),
+            span: ast_field.span.clone(),
+            pattern: Pattern::from_ast(&ast_field.pattern, session, extra_guards)?,
+            is_shorthand: ast_field.is_shorthand,
+        })
     }
 }
