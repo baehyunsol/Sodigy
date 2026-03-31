@@ -1,0 +1,7 @@
+fn sum_iter(n: Int, acc: Int) = match n {
+    0 => acc,
+    _ => sum_iter(n - 1, acc + n),
+};
+
+assert sum_iter(100, 0) == 5050;
+assert sum_iter(100000, 0) == 5000050000;

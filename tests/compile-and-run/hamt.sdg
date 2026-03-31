@@ -1,0 +1,84 @@
+// TODO: It has to be in std when it's stable
+
+struct Hamt<K, V> = {
+    len: Int,
+    root: Node<K, V>,
+};
+
+struct Node<K, V> = {
+    bitmap: Byte,
+    entries: [Entry<K, V>],
+};
+
+enum Entry<K, V> = {
+    Node(Node<K, V>),
+    Value(K, V),
+    Collision([(K, V)]),
+};
+
+let MAX_LEVEL: Int = 5;
+
+// TODO: I need a type-level (not instance-level) associated functions.
+fn new_hamt<K, V>() -> Hamt<K, V> = Hamt {
+    len: 0,
+    root: Node {
+        bitmap: #0,
+        entries: [],
+    },
+};
+
+#[associate(Hamt<K, V>)]
+fn get<K, V>(self, key: K) -> Option<V> = get_inner(self.root, key, key.hash(), 0);
+
+fn get_inner<K, V>(
+    node: Node<K, V>,
+    key: K,
+    hash: Int,
+    level: Int,
+) -> Option<V> = {
+    let bit_chunk = (hash >> (3 * level)) & 0b111;
+    let index = (node.bitmap & ((1 << bit_chunk) - 1)).pop_count();
+
+    match node.entries[index] {
+        Entry.Node($n) => get_inner(n, key, hash, level + 1),
+        Entry.Value(key, $value) => Some(value),
+        Entry.Value(_, _) => None,
+
+        // TODO: pattern matchings in func params
+        // Entry.Collision($pairs) => pairs.find(\($k, _) => k == key).map(\((_, $v)) => v),
+    }
+};
+
+#[associate(Hamt<K, V>)]
+fn insert<K, V>(self, key: K, value: V) -> Hamt<K, V> = insert_inner(self.root, key, value, key.hash(), 0);
+
+fn insert_inner<K, V>(
+    node: Node<K, V>,
+    key: K,
+    value: V,
+    hash: Int,
+    level: Int,
+) -> (Node<K, V>, Bool) = {  // the boolean is a flag whether the key already exists or not
+    let bit_chunk = (hash >> (3 * level)) & 0b111;
+    let index = (node.bitmap & ((1 << bit_chunk) - 1)).pop_count();
+
+    let ($new_entry, $already) = match node.entries[index] {
+        Entry.Node($n) => {
+            let ($new_node, $already) = insert_inner(n, key, value);
+            (Entry.Node(new_node), already)
+        },
+        Entry.Value(key, _) => (Entry.Value(key, value), True),
+        Entry.Value($k1, $v1) => {
+            if level == MAX_LEVEL {
+                (Entry.Collision([(k1, v1), (key, value)]), False)
+            }
+
+            else {
+                std.panic("TODO")
+            }
+        },
+        Entry.Collision($pairs) => std.panic("TODO"),
+    };
+
+    (node `entries node.entries.update(index, new_entry), already)
+};
