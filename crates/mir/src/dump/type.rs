@@ -1,4 +1,4 @@
-use crate::{Session, Type};
+use crate::Type;
 use sodigy_endec::IndentedLines;
 use sodigy_hir::FuncPurity;
 use sodigy_session::SodigySession;

@@ -1,5 +1,5 @@
 use super::{dump_expr, dump_type};
-use crate::{Let, Session, Type};
+use crate::{Let, Type};
 use sodigy_endec::IndentedLines;
 use sodigy_session::SodigySession;
 use sodigy_span::Span;

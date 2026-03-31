@@ -1,5 +1,5 @@
 use super::{dump_assert, dump_let, dump_type, span_to_string_or_verbose};
-use crate::{Callable, Expr, Session, Type};
+use crate::{Callable, Expr, Type};
 use sodigy_endec::IndentedLines;
 use sodigy_error::EnumFieldKind;
 use sodigy_hir::dump::dump_pattern;

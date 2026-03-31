@@ -454,7 +454,7 @@ impl StructFieldPattern {
         extra_guards: &mut Vec<ExtraGuard>,
     ) -> Result<StructFieldPattern, ()> {
         Ok(StructFieldPattern {
-            name: ast_field.name.clone(),
+            name: ast_field.name,
             span: ast_field.span.clone(),
             pattern: Pattern::from_ast(&ast_field.pattern, session, extra_guards)?,
             is_shorthand: ast_field.is_shorthand,

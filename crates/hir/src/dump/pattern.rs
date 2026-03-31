@@ -1,4 +1,4 @@
-use crate::{Pattern, PatternKind, Session};
+use crate::{Pattern, PatternKind};
 use sodigy_endec::IndentedLines;
 use sodigy_session::SodigySession;
 

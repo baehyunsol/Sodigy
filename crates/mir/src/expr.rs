@@ -584,7 +584,7 @@ impl Expr {
                     (&struct_shape.fields, &struct_shape.generics, struct_shape.name, false)
                 }
 
-                else if let Some(enum_parent_def_span) = &enum_parent_def_span && let Some(enum_shape) = session.global_context.enum_shapes.unwrap().get(&enum_parent_def_span) {
+                else if let Some(enum_parent_def_span) = &enum_parent_def_span && let Some(enum_shape) = session.global_context.enum_shapes.unwrap().get(enum_parent_def_span) {
                     let variant = &enum_shape.variants[*enum_shape.variant_index.get(&def_span).unwrap()];
                     let fields = match &variant.fields {
                         EnumVariantFields::Struct(fields) => fields,

@@ -7,7 +7,7 @@ use super::{
 };
 use crate::Session;
 use sodigy_endec::IndentedLines;
-use sodigy_mir::{MatchArm, Session as MirSession, dump_expr};
+use sodigy_mir::{MatchArm, dump_expr};
 use sodigy_span::Span;
 use std::collections::hash_map::{Entry, HashMap};
 
