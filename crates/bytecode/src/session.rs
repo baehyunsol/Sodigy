@@ -5,11 +5,10 @@ use crate::{
     Func,
     Label,
     Let,
+    Memory,
 };
 use sodigy_error::{Error, Warning};
 use sodigy_mir::{
-    Callable,
-    Expr,
     GlobalContext,
     Intrinsic,
     Session as MirSession,
@@ -21,20 +20,14 @@ use std::collections::HashMap;
 pub struct Session<'hir, 'mir> {
     pub intermediate_dir: String,
     pub label_counter: u32,
+    pub ssa_counter: u32,
+    pub ssa_map: HashMap<Span, u32>,
 
     pub funcs: Vec<Func>,
 
     // only top-level ones
     pub asserts: Vec<Assert>,
     pub lets: Vec<Let>,
-
-    // `Span` is the name span of func param or local value (`let`).
-    pub local_values: HashMap<Span, LocalValue>,
-
-    // When you call another function, you push the args to
-    // `stack[stack_offset + i]` and increment the stack pointer
-    // by `stack_offset`.
-    pub stack_offset: usize,
 
     // key: def_span of the built-in function (in sodigy std)
     pub intrinsics: HashMap<Span, Intrinsic>,
@@ -59,11 +52,11 @@ impl Session<'_, '_> {
         Session {
             intermediate_dir: mir_session.intermediate_dir.to_string(),
             label_counter: 0,
+            ssa_counter: 0,
+            ssa_map: HashMap::new(),
             funcs: vec![],
             asserts: vec![],
             lets: vec![],
-            local_values: HashMap::new(),
-            stack_offset: 0,
             intrinsics: Intrinsic::ALL_WITH_LANG_ITEM.iter().map(
                 |(intrinsic, lang_item)| (mir_session.get_lang_item_span(lang_item), *intrinsic)
             ).collect(),
@@ -85,109 +78,23 @@ impl Session<'_, '_> {
         Label::Local(self.label_counter - 1)
     }
 
-    pub fn drop_block(&mut self, names: &[Span]) {
-        for name in names.iter() {
-            match self.local_values.get_mut(name) {
-                Some(LocalValue { dropped: false, drop_type, stack_offset }) => {
-                    match drop_type {
-                        DropType::Scalar => {},  // no drop
-                        _ => todo!(),
-                    }
-                },
-                _ => unreachable!(),
-            }
-        }
+    pub fn get_ssa(&mut self) -> u32 {
+        self.ssa_counter += 1;
+        self.ssa_counter - 1
     }
 
-    pub fn drop_all_locals(&mut self, bytecodes: &mut Vec<Bytecode>) {
-        for local_value in self.local_values.values_mut() {
-            let LocalValue { dropped, drop_type, stack_offset } = local_value;
-
-            if !*dropped {
-                match drop_type {
-                    DropType::Scalar => {},  // no drop
-                    _ => todo!(),
-                }
-            }
-
-            *dropped = true;
-        }
-    }
-
-    pub fn collect_local_names(&mut self, expr: &Expr, offset: usize) {
-        match expr {
-            Expr::Ident { .. } |
-            Expr::Constant(_) => {},
-            Expr::If(r#if) => {
-                self.collect_local_names(&r#if.cond, offset);
-                self.collect_local_names(&r#if.true_value, offset);
-                self.collect_local_names(&r#if.false_value, offset);
-            },
-            Expr::Match(r#match) => {
-                self.collect_local_names(&r#match.scrutinee, offset);
-
-                for arm in r#match.arms.iter() {
-                    let pattern_name_bindings = arm.pattern.bound_names();
-
-                    for (i, (_, def_span)) in pattern_name_bindings.iter().enumerate() {
-                        self.local_values.insert(
-                            def_span.clone(),
-                            LocalValue {
-                                stack_offset: offset + i,
-                                dropped: false,
-
-                                // TODO: drop value!!!
-                                drop_type: DropType::Scalar,
-                            },
-                        );
-                    }
-
-                    if let Some(guard) = &arm.guard {
-                        self.collect_local_names(guard, offset + pattern_name_bindings.len());
-                    }
-
-                    self.collect_local_names(&arm.value, offset + pattern_name_bindings.len());
-                }
-            },
-            Expr::Block(block) => {
-                for (i, r#let) in block.lets.iter().enumerate() {
-                    self.local_values.insert(
-                        r#let.name_span.clone(),
-                        LocalValue {
-                            stack_offset: offset + i,
-                            dropped: false,
-
-                            // TODO: drop value!!!
-                            drop_type: DropType::Scalar,
-                        });
-                    self.collect_local_names(&r#let.value, offset + block.lets.len());
-                }
-
-                for assert in block.asserts.iter() {
-                    if let Some(note) = &assert.note {
-                        self.collect_local_names(note, offset + block.lets.len());
-                    }
-
-                    self.collect_local_names(&assert.value, offset + block.lets.len());
-                }
-
-                self.collect_local_names(&block.value, offset + block.lets.len());
-            },
-            Expr::Field { lhs, .. } => {
-                self.collect_local_names(lhs, offset);
-            },
-            Expr::FieldUpdate { lhs, rhs, .. } => {
-                self.collect_local_names(lhs, offset);
-                self.collect_local_names(rhs, offset);
-            },
-            Expr::Call { func, args, .. } => {
-                if let Callable::Dynamic(func) = func {
-                    self.collect_local_names(func, offset);
-                }
-
-                for arg in args.iter() {
-                    self.collect_local_names(arg, offset);
-                }
+    // If `src` is already an ssa register, it returns the ssa index of `src`.
+    // Otherwise, it moves `src` to an ssa register and returns the ssa index of the new register.
+    pub fn move_to_ssa(&mut self, src: &Memory, bytecodes: &mut Vec<Bytecode>) -> u32 {
+        match src {
+            Memory::SSA(n) => *n,
+            _ => {
+                let ssa_reg = self.get_ssa();
+                bytecodes.push(Bytecode::Move {
+                    src: src.clone(),
+                    dst: Memory::SSA(ssa_reg),
+                });
+                ssa_reg
             },
         }
     }

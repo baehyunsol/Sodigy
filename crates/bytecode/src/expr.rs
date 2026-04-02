@@ -27,22 +27,22 @@ pub fn lower_expr(
     match expr {
         Expr::Ident { id, dotfish } => {
             assert!(dotfish.is_none());
-            let src = match session.local_values.get(&id.def_span) {
-                Some(src) => Memory::Stack(src.stack_offset),
+            let src = match session.ssa_map.get(&id.def_span) {
+                Some(src) => Memory::SSA(*src),
                 None => match &id.origin {
                     NameOrigin::Foreign { kind } | NameOrigin::Local { kind } => match kind {
                         NameKind::Let { is_top_level: true } => {
                             let value_inited = session.get_local_label();
-                            bytecodes.push(Bytecode::PushCallStack(value_inited.clone()));
-                            bytecodes.push(Bytecode::IncStackPointer(session.stack_offset));
-                            bytecodes.push(Bytecode::JumpIfUninit {
+                            bytecodes.push(Bytecode::InitOrJump {
                                 def_span: id.def_span.clone(),
-                                label: Label::Global(id.def_span.clone()),
+                                func: Label::Global(id.def_span.clone()),
+                                label: value_inited.clone(),
+                            });
+                            bytecodes.push(Bytecode::Move {
+                                src: Memory::Return,
+                                dst: Memory::Global(id.def_span.clone()),
                             });
                             bytecodes.push(Bytecode::Label(value_inited.clone()));
-                            bytecodes.push(Bytecode::DecStackPointer(session.stack_offset));
-                            bytecodes.push(Bytecode::PopCallStack);
-                            // TODO: inc_ref_count if it has to
                             Memory::Global(id.def_span.clone())
                         },
                         NameKind::Func => {
@@ -53,12 +53,12 @@ pub fn lower_expr(
                                     // `Session::link()` will fill this
                                     program_counter: None,
                                 },
-                                dst,
+                                dst: dst.clone(),
                             });
 
                             if is_tail_call {
-                                session.drop_all_locals(bytecodes);
-                                bytecodes.push(Bytecode::Return);
+                                let return_ssa = session.move_to_ssa(&dst, bytecodes);
+                                bytecodes.push(Bytecode::Return(return_ssa));
                             }
 
                             return;
@@ -74,66 +74,60 @@ pub fn lower_expr(
                     src: src.clone(),
                     dst: dst.clone(),
                 })
-
-                // TODO: inc_ref_count if it has to
             }
 
             if is_tail_call {
-                session.drop_all_locals(bytecodes);
-                bytecodes.push(Bytecode::Return);
+                let return_ssa = session.move_to_ssa(&dst, bytecodes);
+                bytecodes.push(Bytecode::Return(return_ssa));
             }
         },
         Expr::Constant(c) => {
             let value = session.lower_constant(c);
-            bytecodes.push(Bytecode::Const { value, dst });
-
-            // TODO: inc_ref_count if it has to
+            bytecodes.push(Bytecode::Const { value, dst: dst.clone() });
 
             if is_tail_call {
-                session.drop_all_locals(bytecodes);
-                bytecodes.push(Bytecode::Return);
+                let return_ssa = session.move_to_ssa(&dst, bytecodes);
+                bytecodes.push(Bytecode::Return(return_ssa));
             }
         },
         Expr::If(If { cond, true_value, false_value, .. }) => {
             let eval_true_value = session.get_local_label();
             let return_expr = session.get_local_label();
+            let cond_ssa = session.get_ssa();
+            let true_ssa = session.get_ssa();
+            let false_ssa = session.get_ssa();
             lower_expr(
                 cond,
                 session,
                 bytecodes,
-                Memory::Return,
+                Memory::SSA(cond_ssa),
                 /* is_tail_call: */ false,
             );
             bytecodes.push(Bytecode::JumpIf {
-                value: Memory::Return,
+                value: Memory::SSA(cond_ssa),
                 label: eval_true_value.clone(),
             });
-
-            // We don't drop `cond` because it's a boolean!!
-
-            // If it `is_tail_call`, it'll exit after evaluating `false_value`,
-            // so we don't have to care about it.
-            // Otherwise, we have to skip evaluating `true_value`.
-            lower_expr(false_value, session, bytecodes, dst.clone(), is_tail_call);
+            lower_expr(false_value, session, bytecodes, Memory::SSA(false_ssa), is_tail_call);
 
             if !is_tail_call {
                 bytecodes.push(Bytecode::Jump(return_expr.clone()));
             }
 
             bytecodes.push(Bytecode::Label(eval_true_value.clone()));
-            lower_expr(true_value, session, bytecodes, dst.clone(), is_tail_call);
+            lower_expr(true_value, session, bytecodes, Memory::SSA(true_ssa), is_tail_call);
 
             if !is_tail_call {
-                bytecodes.push(Bytecode::Label(return_expr.clone()));
+                bytecodes.push(Bytecode::Phi { pair: (true_ssa, false_ssa), dst });
             }
+
+            bytecodes.push(Bytecode::Label(return_expr.clone()));
         },
         Expr::Match(Match { .. }) => unreachable!(),
         Expr::Block(Block { lets, asserts, value, .. }) => {
-            let mut local_names = vec![];
-
             for r#let in lets.iter() {
-                let dst = Memory::Stack(session.local_values.get(&r#let.name_span).unwrap().stack_offset);
-                local_names.push(r#let.name_span.clone());
+                let ssa_reg = session.get_ssa();
+                session.ssa_map.insert(r#let.name_span.clone(), ssa_reg);
+                let dst = Memory::SSA(ssa_reg);
                 lower_expr(
                     &r#let.value,
                     session,
@@ -148,193 +142,173 @@ pub fn lower_expr(
             }
 
             lower_expr(value, session, bytecodes, dst, is_tail_call);
-
-            if !is_tail_call {
-                session.drop_block(&local_names);
-            }
         },
         Expr::Field { lhs, fields, dotfish } => {
             assert!(dotfish.last().unwrap().is_none());
+            let ssa_reg = session.get_ssa();
             lower_expr(
                 lhs,
                 session,
                 bytecodes,
-                Memory::Return,
+                Memory::SSA(ssa_reg),
                 /* is_tail_call: */ false,
             );
+            let mut curr_ssa_reg = ssa_reg;
 
             for field in fields.iter() {
+                let ssa_reg = session.get_ssa();
+
                 match field {
                     Field::Index(i) => {
-                        // TODO: drop `Memory::Return` if it has to
-
-                        bytecodes.push(Bytecode::Read {
-                            src: Memory::Return,
-                            // NOTE: There are no negative index because post-mir already lowered them
-                            offset: Offset::Static(*i as u32),
-                            dst: Memory::Return,
+                        bytecodes.push(Bytecode::Move {
+                            src: Memory::Heap {
+                                ptr: Box::new(Memory::SSA(curr_ssa_reg)),
+                                // NOTE: There are no negative index because post-mir already lowered them
+                                offset: Offset::Static(*i as u32),
+                            },
+                            dst: Memory::SSA(ssa_reg),
                         });
-
-                        // TODO: inc_ref_count if it has to
                     },
                     _ => panic!("TODO: {field:?}"),
                 }
+
+                curr_ssa_reg = ssa_reg;
             }
 
-            if dst != Memory::Return {
-                bytecodes.push(Bytecode::Move {
-                    src: Memory::Return,
-                    dst,
-                });
-            }
+            bytecodes.push(Bytecode::Move {
+                src: Memory::SSA(curr_ssa_reg),
+                dst: dst.clone(),
+            });
 
             if is_tail_call {
-                session.drop_all_locals(bytecodes);
-                bytecodes.push(Bytecode::Return);
+                let return_ssa = session.move_to_ssa(&dst, bytecodes);
+                bytecodes.push(Bytecode::Return(return_ssa));
             }
         },
         Expr::Call { func, args, .. } => {
-            let stack_offset = session.stack_offset;
-            session.stack_offset += args.len();
-
-            for (i, arg) in args.iter().enumerate() {
-                lower_expr(
-                    arg,
-                    session,
-                    bytecodes,
-                    Memory::Stack(i + stack_offset),
-                    /* is_tail_call: */ false,
-                );
-            }
-
-            session.stack_offset -= args.len();
-
             match func {
-                Callable::Static { def_span, .. } => match session.intrinsics.get(def_span) {
-                    Some(intrinsic) => {
-                        bytecodes.push(Bytecode::Intrinsic {
-                            intrinsic: *intrinsic,
-                            stack_offset,
-                            dst,
-                        });
+                Callable::Static { .. } | Callable::Dynamic(_) => {
+                    let mut arg_ssa_regs = Vec::with_capacity(args.len());
 
-                        // TODO: inc_ref_count(dst) if it has to
+                    for arg in args.iter() {
+                        let ssa_reg = session.get_ssa();
+                        arg_ssa_regs.push(ssa_reg);
+                        lower_expr(
+                            arg,
+                            session,
+                            bytecodes,
+                            Memory::SSA(ssa_reg),
+                            /* is_tail_call: */ false,
+                        );
+                    }
 
-                        // TODO: how do we know whether we should drop the args?
-                        for (i, arg) in args.iter().enumerate() {
-                            // if has_to_drop(arg) {
-                            //     drop Memory::Stack(i + stack_offset)
-                            // }
-                        }
-
-                        if is_tail_call {
-                            session.drop_all_locals(bytecodes);
-                            bytecodes.push(Bytecode::Return);
-                        }
-                    },
-                    None => {
-                        let func = Label::Global(def_span.clone());
-
-                        if is_tail_call {
-                            session.drop_all_locals(bytecodes);
-
-                            for i in 0..args.len() {
-                                bytecodes.push(Bytecode::Move {
-                                    src: Memory::Stack(i + stack_offset),
-                                    dst: Memory::Stack(i),
+                    match func {
+                        Callable::Static { def_span, .. } => match session.intrinsics.get(def_span) {
+                            Some(intrinsic) => {
+                                bytecodes.push(Bytecode::Intrinsic {
+                                    intrinsic: *intrinsic,
+                                    args: arg_ssa_regs,
+                                    dst: dst.clone(),
                                 });
-                            }
 
-                            bytecodes.push(Bytecode::Jump(func));
-                        }
+                                if is_tail_call {
+                                    let return_ssa = session.move_to_ssa(&dst, bytecodes);
+                                    bytecodes.push(Bytecode::Return(return_ssa));
+                                }
+                            },
+                            None => {
+                                let func = Label::Global(def_span.clone());
+                                bytecodes.push(Bytecode::Call {
+                                    func,
+                                    args: arg_ssa_regs,
+                                    tail: is_tail_call,
+                                });
 
-                        else {
-                            let return_label = session.get_local_label();
-                            bytecodes.push(Bytecode::PushCallStack(return_label.clone()));
-                            bytecodes.push(Bytecode::IncStackPointer(stack_offset));
-                            bytecodes.push(Bytecode::Jump(func));
-                            bytecodes.push(Bytecode::Label(return_label.clone()));
-                            bytecodes.push(Bytecode::DecStackPointer(stack_offset));
-                            bytecodes.push(Bytecode::PopCallStack);
+                                if !is_tail_call {
+                                    bytecodes.push(Bytecode::Move {
+                                        src: Memory::Return,
+                                        dst,
+                                    });
+                                }
+                            },
+                        },
+                        Callable::Dynamic(f) => {
+                            let func_ssa = session.get_ssa();
+                            lower_expr(
+                                f,
+                                session,
+                                bytecodes,
+                                Memory::SSA(func_ssa),
+                                /* is_tail_call: */ false,
+                            );
 
-                            if dst != Memory::Return {
+                            bytecodes.push(Bytecode::CallDynamic {
+                                func: Memory::SSA(func_ssa),
+                                args: arg_ssa_regs,
+                                tail: is_tail_call,
+                            });
+
+                            if !is_tail_call {
                                 bytecodes.push(Bytecode::Move {
-                                    src: Memory::Return,
+                                    src: Memory::SSA(func_ssa),
                                     dst,
                                 });
                             }
-                        }
-                    },
-                },
-                Callable::StructInit { .. } | Callable::TupleInit { .. } | Callable::ListInit { .. } => {
-                    let bytecode = match func {
-                        Callable::StructInit { .. } | Callable::TupleInit { .. } => Bytecode::InitTuple {
-                            stack_offset,
-                            elements: args.len(),
-                            dst: dst.clone(),
-                        },
-                        Callable::ListInit { .. } => Bytecode::InitList {
-                            stack_offset,
-                            elements: args.len(),
-                            dst: dst.clone(),
                         },
                         _ => unreachable!(),
-                    };
-                    bytecodes.push(bytecode);
-                    bytecodes.push(Bytecode::IncRefCount(dst.clone()));
-
-                    // TODO: how do we know whether we should drop the args?
-                    for (i, arg) in args.iter().enumerate() {
-                        // if has_to_drop(arg) {
-                        //     drop Memory::Stack(i + stack_offset)
-                        // }
-                    }
-
-                    if is_tail_call {
-                        session.drop_all_locals(bytecodes);
-                        bytecodes.push(Bytecode::Return);
                     }
                 },
-                Callable::EnumInit { .. } => {},
-                Callable::Dynamic(f) => {
-                    lower_expr(
-                        f,
-                        session,
-                        bytecodes,
-                        Memory::Return,
-                        /* is_tail_call: */ false,
-                    );
+                Callable::StructInit { .. } |
+                Callable::TupleInit { .. } => {
+                    bytecodes.push(Bytecode::InitTuple {
+                        elements: args.len(),
+                        dst: dst.clone(),
+                    });
 
-                    if is_tail_call {
-                        session.drop_all_locals(bytecodes);
-
-                        for i in 0..args.len() {
-                            bytecodes.push(Bytecode::Move {
-                                src: Memory::Stack(i + stack_offset),
-                                dst: Memory::Stack(i),
-                            });
-                        }
-
-                        // `.drop_all_locals` doesn't drop the function pointer because a
-                        // function pointer is scalar.
-                        bytecodes.push(Bytecode::JumpDynamic(Memory::Return));
+                    for (i, arg) in args.iter().enumerate() {
+                        lower_expr(
+                            arg,
+                            session,
+                            bytecodes,
+                            Memory::Heap {
+                                ptr: Box::new(dst.clone()),
+                                offset: Offset::Static(i as u32),
+                            },
+                            /* is_tail_call: */ false,
+                        );
                     }
 
-                    else {
-                        let return_label = session.get_local_label();
-                        bytecodes.push(Bytecode::PushCallStack(return_label.clone()));
-                        bytecodes.push(Bytecode::IncStackPointer(stack_offset));
-                        bytecodes.push(Bytecode::JumpDynamic(Memory::Return));
-                        bytecodes.push(Bytecode::Label(return_label.clone()));
-                        bytecodes.push(Bytecode::DecStackPointer(stack_offset));
-                        bytecodes.push(Bytecode::PopCallStack);
+                    if is_tail_call {
+                        let return_ssa = session.move_to_ssa(&dst, bytecodes);
+                        bytecodes.push(Bytecode::Return(return_ssa));
+                    }
+                },
+                Callable::EnumInit { parent_def_span, variant_def_span, .. } => {
+                    // TODO
+                    todo!()
+                },
+                Callable::ListInit { .. } => {
+                    bytecodes.push(Bytecode::InitList {
+                        elements: args.len(),
+                        dst: dst.clone(),
+                    });
 
-                        if dst != Memory::Return {
-                            bytecodes.push(Bytecode::Move {
-                                src: Memory::Return,
-                                dst,
-                            });
-                        }
+                    for (i, arg) in args.iter().enumerate() {
+                        lower_expr(
+                            arg,
+                            session,
+                            bytecodes,
+                            Memory::List {
+                                ptr: Box::new(dst.clone()),
+                                offset: Offset::Static(i as u32),
+                            },
+                            /* is_tail_call: */ false,
+                        );
+                    }
+
+                    if is_tail_call {
+                        let return_ssa = session.move_to_ssa(&dst, bytecodes);
+                        bytecodes.push(Bytecode::Return(return_ssa));
                     }
                 },
             }

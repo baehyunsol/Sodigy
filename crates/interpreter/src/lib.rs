@@ -3,7 +3,6 @@ use sodigy_bytecode::{
     Executable,
     Label,
     Memory,
-    Offset,
     Value,
 };
 use sodigy_mir::Intrinsic;
@@ -33,29 +32,27 @@ pub use heap::Heap;
 pub use stack::Stack;
 
 pub fn interpret(executable: &Executable, label: usize) -> Result<(), ()> {
-    let mut stack = Stack::with_capacity(65536);  // TODO: make the stack size configurable
     let mut heap = Heap::new();
-
-    let result = execute(&mut stack, &mut heap, executable, label);
+    let result = call(Stack::new(), &mut heap, executable, label);
 
     #[cfg(feature="debug-heap")] {
         heap.check_integrity();
     }
 
     match result {
-        Ok(()) => Ok(()),
+        Ok(_) => Ok(()),
 
         // TODO: dump debug info!
         Err(()) => Err(()),
     }
 }
 
-fn execute(
-    stack: &mut Stack,
+fn call(
+    mut stack: Stack,
     heap: &mut Heap,
     executable: &Executable,
     label: usize,
-) -> Result<(), ()> {
+) -> Result<u32, ()> {
     let mut cursor = label;
 
     loop {
@@ -66,37 +63,19 @@ fn execute(
         match &executable.bytecodes[cursor] {
             Bytecode::Const { value, dst } => {
                 let value = heap.alloc_value(value);
-                update(dst, value, stack, heap);
+                update(dst, value, &mut stack, heap);
             },
             Bytecode::Move { src, dst } => {
-                let value = read(src, stack, heap);
-                update(dst, value, stack, heap);
+                let value = read(src, &stack, heap);
+                update(dst, value, &mut stack, heap);
             },
-            Bytecode::Read { src, offset, dst } => {
-                let src = read(src, stack, heap) as usize;
-                let offset = match offset {
-                    Offset::Static(n) => *n,
-                    Offset::Dynamic(src) => {
-                        let offset_ptr = read(src, stack, heap);
-                        todo!()
-                    },
-                } as usize;
-                let result = heap.data[src + offset];
-                update(dst, result, stack, heap);
-            },
-            Bytecode::IncStackPointer(n) => {
-                stack.stack_pointer += n;
-            },
-            Bytecode::DecStackPointer(n) => {
-                stack.stack_pointer -= n;
-            },
-            Bytecode::IncRefCount(dst) => {
-                let dst = read(dst, stack, heap);
-                heap.inc_rc(dst as usize);
-            },
-            Bytecode::DecRefCount { dst, drop } => {
-                let dst = read(dst, stack, heap);
-                heap.dec_rc(dst as usize, drop);
+            Bytecode::Phi { pair, dst } => {
+                let value = match (stack.ssa.get(&pair.0), stack.ssa.get(&pair.1)) {
+                    (Some(x), _) => *x,
+                    (_, Some(y)) => *y,
+                    _ => unreachable!(),
+                };
+                update(dst, value, &mut stack, heap);
             },
             Bytecode::Jump(label) => match label {
                 Label::Flatten(i) => {
@@ -105,15 +84,41 @@ fn execute(
                 },
                 _ => unreachable!(),
             },
-            Bytecode::JumpDynamic(dst) => {
-                let dst = read(dst, stack, heap);
-                cursor = dst as usize;
-                continue;
+            Bytecode::Call { func, args, tail } => {
+                let new_stack = Stack::from_args(args, &stack);
+                let pc = match func {
+                    Label::Flatten(i) => *i,
+                    _ => unreachable!(),
+                };
+
+                if *tail {
+                    stack = new_stack;
+                    cursor = pc as usize;
+                    continue;
+                }
+
+                else {
+                    stack.r#return = call(new_stack, heap, executable, pc as usize)?;
+                }
+            },
+            Bytecode::CallDynamic { func, args, tail } => {
+                let new_stack = Stack::from_args(args, &stack);
+                let pc = read(func, &stack, heap);
+
+                if *tail {
+                    stack = new_stack;
+                    cursor = pc as usize;
+                    continue;
+                }
+
+                else {
+                    stack.r#return = call(new_stack, heap, executable, pc as usize)?;
+                }
             },
             Bytecode::JumpIf { value, label } => {
-                let value = read(value, stack, heap);
+                let value = read(value, &stack, heap);
 
-                if value == 1 {
+                if value != 0 {
                     match label {
                         Label::Flatten(i) => {
                             cursor = *i;
@@ -123,8 +128,8 @@ fn execute(
                     }
                 }
             },
-            Bytecode::JumpIfUninit { def_span, label } => {
-                if !heap.global_values.contains_key(def_span) {
+            Bytecode::InitOrJump { def_span, func, label } => {
+                if heap.global_values.contains_key(def_span) {
                     match label {
                         Label::Flatten(i) => {
                             cursor = *i;
@@ -132,23 +137,21 @@ fn execute(
                         },
                         _ => unreachable!(),
                     }
+                } else {
+                    match func {
+                        Label::Flatten(i) => {
+                            stack.r#return = call(Stack::new(), heap, executable, *i)?;
+                        },
+                        _ => unreachable!(),
+                    }
                 }
             },
-            Bytecode::PushCallStack(label) => {
-                let Label::Flatten(n) = label else { unreachable!() };
-                stack.call_stack.push(*n);
+            Bytecode::Return(i) => {
+                return Ok(*stack.ssa.get(i).unwrap());
             },
-            Bytecode::PopCallStack => {
-                stack.call_stack.pop().unwrap();
-            },
-            Bytecode::Return => {
-                let dst = *stack.call_stack.last().unwrap();
-                cursor = dst;
-                continue;
-            },
-            Bytecode::Intrinsic { intrinsic, stack_offset, dst } => match intrinsic {
+            Bytecode::Intrinsic { intrinsic, args, dst } => match intrinsic {
                 Intrinsic::NegInt => {
-                    let rhs_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let rhs_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;
                     let (rhs_neg, rhs) = inspect_int(&heap.data, rhs_ptr);
                     let (is_neg, nums) = neg_bi(rhs_neg, rhs);
 
@@ -157,7 +160,7 @@ fn execute(
                         nums,
                     });
                     let ptr = heap.alloc_value(&v);
-                    update(dst, ptr, stack, heap);
+                    update(dst, ptr, &mut stack, heap);
                 },
                 Intrinsic::AddInt |
                 Intrinsic::SubInt |
@@ -167,10 +170,10 @@ fn execute(
                 Intrinsic::LtInt |
                 Intrinsic::EqInt |
                 Intrinsic::GtInt => {
-                    let lhs_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let lhs_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;
                     let (lhs_neg, lhs) = inspect_int(&heap.data, lhs_ptr);
 
-                    let rhs_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset + 1).expect("stack overflow") as usize;
+                    let rhs_ptr = *stack.ssa.get(&args[1]).unwrap() as usize;
                     let (rhs_neg, rhs) = inspect_int(&heap.data, rhs_ptr);
 
                     let result = match intrinsic {
@@ -200,12 +203,12 @@ fn execute(
                         _ => unreachable!(),
                     };
 
-                    update(dst, result, stack, heap);
+                    update(dst, result, &mut stack, heap);
                 },
                 Intrinsic::ShrInt | Intrinsic::ShlInt => {
-                    let lhs_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let lhs_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;
                     let (is_neg, lhs) = inspect_int(&heap.data, lhs_ptr);
-                    let rhs = *stack.stack.get(stack.stack_pointer + *stack_offset + 1).expect("stack overflow");
+                    let rhs = *stack.ssa.get(&args[1]).unwrap();
 
                     let nums = match intrinsic {
                         Intrinsic::ShrInt => shr_ubi(lhs, rhs),
@@ -217,54 +220,54 @@ fn execute(
                         nums,
                     });
                     let result = heap.alloc_value(&v);
-                    update(dst, result, stack, heap);
+                    update(dst, result, &mut stack, heap);
                 },
                 Intrinsic::Ilog2Int => {
-                    let lhs = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let lhs = *stack.ssa.get(&args[0]).unwrap() as usize;
                     let (_, rhs) = inspect_int(&heap.data, lhs);
                     let result = ilog2_ubi(rhs);
-                    update(dst, result, stack, heap);
+                    update(dst, result, &mut stack, heap);
                 },
                 Intrinsic::LtScalar |
                 Intrinsic::EqScalar |
                 Intrinsic::GtScalar => {
-                    let lhs = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow");
-                    let rhs = *stack.stack.get(stack.stack_pointer + *stack_offset + 1).expect("stack overflow");
+                    let lhs = *stack.ssa.get(&args[0]).unwrap();
+                    let rhs = *stack.ssa.get(&args[1]).unwrap();
                     let result = match intrinsic {
                         Intrinsic::LtScalar => lhs < rhs,
                         Intrinsic::EqScalar => lhs == rhs,
                         Intrinsic::GtScalar => lhs > rhs,
                         _ => unreachable!(),
                     };
-                    update(dst, result as u32, stack, heap);
+                    update(dst, result as u32, &mut stack, heap);
                 },
                 Intrinsic::ScalarToInt => {
-                    let lhs = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow");
+                    let lhs = *stack.ssa.get(&args[0]).unwrap();
                     let result = heap.alloc_int_from_u32(lhs);
-                    update(dst, result, stack, heap);
+                    update(dst, result, &mut stack, heap);
                 },
                 Intrinsic::IntToScalar => {
-                    let lhs = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let lhs = *stack.ssa.get(&args[0]).unwrap() as usize;
                     let (_, n) = inspect_int(&heap.data, lhs);
-                    update(dst, n[0], stack, heap);
+                    update(dst, n[0], &mut stack, heap);
                 },
                 Intrinsic::IndexList => {
-                    let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
-                    let index = *stack.stack.get(stack.stack_pointer + *stack_offset + 1).expect("stack overflow") as usize;
+                    let slice_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;
+                    let index = *stack.ssa.get(&args[1]).unwrap() as usize;
                     let buffer_ptr = heap.data[slice_ptr] as usize;
                     let start = heap.data[slice_ptr + 1] as usize;
                     let result = heap.data[buffer_ptr + start + index + 1];
-                    update(dst, result, stack, heap);
+                    update(dst, result, &mut stack, heap);
                 },
                 Intrinsic::LenList => {
-                    let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let slice_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;
                     let result = heap.data[slice_ptr + 2];
-                    update(dst, result, stack, heap);
+                    update(dst, result, &mut stack, heap);
                 },
                 Intrinsic::SliceList => {
-                    let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
-                    let slice_start = *stack.stack.get(stack.stack_pointer + *stack_offset + 1).expect("stack overflow");
-                    let slice_end = *stack.stack.get(stack.stack_pointer + *stack_offset + 2).expect("stack overflow");
+                    let slice_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;
+                    let slice_start = *stack.ssa.get(&args[1]).unwrap();
+                    let slice_end = *stack.ssa.get(&args[2]).unwrap();
                     let buffer_ptr = heap.data[slice_ptr];
                     let start = heap.data[slice_ptr + 1];
                     let length = heap.data[slice_ptr + 2];
@@ -273,11 +276,11 @@ fn execute(
                     heap.data[new_slice_ptr] = buffer_ptr as u32;
                     heap.data[new_slice_ptr + 1] = start + slice_start;
                     heap.data[new_slice_ptr + 2] = slice_end - slice_start;
-                    update(dst, new_slice_ptr as u32, stack, heap);
+                    update(dst, new_slice_ptr as u32, &mut stack, heap);
                 },
                 Intrinsic::SliceRightList => {
-                    let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
-                    let slice_start = *stack.stack.get(stack.stack_pointer + *stack_offset + 1).expect("stack overflow");
+                    let slice_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;
+                    let slice_start = *stack.ssa.get(&args[1]).unwrap();
                     let buffer_ptr = heap.data[slice_ptr];
                     let start = heap.data[slice_ptr + 1];
                     let length = heap.data[slice_ptr + 2];
@@ -286,11 +289,11 @@ fn execute(
                     heap.data[new_slice_ptr] = buffer_ptr as u32;
                     heap.data[new_slice_ptr + 1] = start + slice_start;
                     heap.data[new_slice_ptr + 2] = length - slice_start;
-                    update(dst, new_slice_ptr as u32, stack, heap);
+                    update(dst, new_slice_ptr as u32, &mut stack, heap);
                 },
                 Intrinsic::AppendList => {
-                    let slice_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
-                    let value = *stack.stack.get(stack.stack_pointer + *stack_offset + 1).expect("stack overflow");
+                    let slice_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;
+                    let value = *stack.ssa.get(&args[1]).unwrap();
 
                     // TODO: I don't want to call `.to_vec()`, but the borrow checker forces me to do so.
                     let curr_list = inspect_list(&heap.data, slice_ptr).to_vec();
@@ -308,19 +311,19 @@ fn execute(
                     heap.data[new_slice_ptr + 1] = 0;
                     heap.data[new_slice_ptr + 2] = curr_list.len() as u32 + 1;
 
-                    update(dst, new_slice_ptr as u32, stack, heap);
+                    update(dst, new_slice_ptr as u32, &mut stack, heap);
                 },
                 Intrinsic::PrependList => todo!(),
                 Intrinsic::Exit => {
                     // TODO: clean up stack and heap
-                    return Ok(());
+                    return Ok(0);
                 },
                 Intrinsic::Panic => {
                     // TODO: clean up stack and heap
                     return Err(());
                 },
                 Intrinsic::Print | Intrinsic::EPrint => {
-                    let chars_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let chars_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;
                     let chars = inspect_list(&heap.data, chars_ptr);
                     let chars = chars.iter().map(
                         |ch| char::from_u32(*ch).expect("invalid char point")
@@ -338,36 +341,17 @@ fn execute(
                 },
                 Intrinsic::RandomInt => todo!(),
                 Intrinsic::Nop => {
-                    let v = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow");
-                    update(dst, v, stack, heap);
+                    let v = *stack.ssa.get(&args[0]).unwrap();
+                    update(dst, v, &mut stack, heap);
                 },
             },
-            Bytecode::InitTuple { stack_offset, elements, dst } => {
-                let result = heap.alloc(*elements);
-
-                for i in 0..*elements {
-                    heap.data[result + i] = stack.stack[stack.stack_pointer + *stack_offset + i];
-                }
-
-                let result = result as u32;
-                update(dst, result, stack, heap);
+            Bytecode::InitTuple { elements, dst } => {
+                let ptr = heap.alloc(*elements);
+                update(dst, ptr as u32, &mut stack, heap);
             },
-            Bytecode::InitList { stack_offset, elements, dst } => {
-                let data_ptr = heap.alloc(*elements + 1);
-                heap.data[data_ptr] = *elements as u32;
-
-                for i in 0..*elements {
-                    heap.data[data_ptr + i + 1] = stack.stack[stack.stack_pointer + *stack_offset + i];
-                }
-
-                let slice_ptr = heap.alloc(3);
-                heap.data[slice_ptr] = data_ptr as u32;
-                heap.data[slice_ptr + 1] = 0;
-                heap.data[slice_ptr + 2] = *elements as u32;
-                update(dst, slice_ptr as u32, stack, heap);
-            },
+            Bytecode::InitList { elements, dst } => todo!(),
             Bytecode::PushDebugInfo { kind, src } => {
-                let src = read(src, stack, heap);
+                let src = read(src, &stack, heap);
                 heap.debug_info.push((*kind, src));
             },
             Bytecode::PopDebugInfo => {
@@ -380,10 +364,12 @@ fn execute(
     }
 }
 
-fn read(src: &Memory, stack: &mut Stack, heap: &mut Heap) -> u32 {
+fn read(src: &Memory, stack: &Stack, heap: &Heap) -> u32 {
     match src {
         Memory::Return => stack.r#return,
-        Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + *i).expect("stack overflow"),
+        Memory::SSA(i) => *stack.ssa.get(i).unwrap(),
+        Memory::Heap { ptr, offset } => todo!(),
+        Memory::List { ptr, offset } => todo!(),
         Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
     }
 }
@@ -393,9 +379,11 @@ fn update(dst: &Memory, value: u32, stack: &mut Stack, heap: &mut Heap) {
         Memory::Return => {
             stack.r#return = value;
         },
-        Memory::Stack(i) => {
-            *stack.stack.get_mut(stack.stack_pointer + *i).expect("stack overflow") = value;
+        Memory::SSA(i) => {
+            stack.ssa.insert(*i, value);
         },
+        Memory::Heap { ptr, offset } => todo!(),
+        Memory::List { ptr, offset } => todo!(),
         Memory::Global(s) => {
             heap.global_values.insert(s.clone(), value);
         },

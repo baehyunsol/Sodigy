@@ -36,93 +36,61 @@ pub enum Bytecode {
         src: Memory,
         dst: Memory,
     },
-
-    Update {
-        // a compound value
-        src: Memory,
-
-        // an integer (it updates the nth element of the compound value)
-        offset: Offset,
-
-        // it'll be a new member of the compound value
-        value: Memory,
-
-        // where to store the updated compound value
-        dst: InPlaceOrMemory,
-    },
-    Read {
-        // the compound value
-        src: Memory,
-
-        // an integer (it reads the nth element of the compound value)
-        offset: Offset,
-
-        // where to store the read value
+    Phi {
+        pair: (u32, u32),
         dst: Memory,
-    },
-
-    IncStackPointer(usize),
-    DecStackPointer(usize),
-
-    IncRefCount(Memory),
-    DecRefCount {
-        dst: Memory,
-        drop: DropType,
     },
 
     Jump(Label),
 
-    // There's a function pointer in `Memory`. It'll jump to the function.
-    JumpDynamic(Memory),
+    Call {
+        func: Label,
+        args: Vec<u32>,  // list of SSA indexes
+        tail: bool,
+    },
 
+    CallDynamic {
+        func: Memory,    // function pointer
+        args: Vec<u32>,  // list of SSA indexes
+        tail: bool,
+    },
+
+    // Jumps if the `value` is 1.
     JumpIf {
         value: Memory,
         label: Label,
     },
 
-    // It'll jump to `Label::Global(def_span)` if `Memory::Global(def_span)` is not init.
-    // Otherwise, it does nothing.
-    JumpIfUninit {
+    // If the global value `def_span` is not initialized, it calls the function `func`.
+    // Otherwise, it jumps to `label`.
+    InitOrJump {
         def_span: Span,
-
-        // If you jump here, it'll evaluate the value and push the result to
-        // `Memory::Global(def_span)`, then return.
+        func: Label,
         label: Label,
     },
 
     // Definition of a label.
     Label(Label),
 
-    PushCallStack(Label),
-    PopCallStack,
-
-    // Jumps to `call_stack.peek()`.
-    // It doesn't pop call_stack.
-    Return,
+    Return(u32 /* ssa reg */),
 
     Intrinsic {
         intrinsic: Intrinsic,
-
-        // stack[stack_pointer + stack_offset] is the first arg of the intrinsic
-        stack_offset: usize,
+        args: Vec<u32>,  // list of SSA indexes
 
         // The result of the intrinsic, if exists, will be stored here.
         dst: Memory,
     },
 
     // `InitTuple` and `InitList` are very similar.
-    // It allocates a heap memory, copies the elements on stack,
-    // and saves the pointer to `dst`.
-    // The elements are at stack[(stack_pointer + stack_offset)..(stack_pointer + stack_offset + elements)].
-    // In runtime's point of view, tuples and structs are the same. So
-    // the compiler emits `InitTuple` to initialize a struct.
+    // It allocates a heap memory and saves the pointer to `dst`.
+    // In runtime's point of view, tuples and structs are the same.
+    // So the compiler emits `InitTuple` to initialize a struct.
     InitTuple {
-        stack_offset: usize,
         elements: usize,
         dst: Memory,
     },
     InitList {
-        stack_offset: usize,
         elements: usize,
         dst: Memory,
     },
@@ -154,15 +122,24 @@ pub enum Bytecode {
     PopDebugInfo,
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Memory {
-    // A register that can hold single value.
-    // But some instructions use this register for tmp values.
+    // When a function is called and returned, the function's return value is stored here.
     Return,
+    SSA(u32),
 
-    // The runtime has a stack pointer.
-    // Use Bytecode::IncStackPointer or Bytecode::DecStackPointer.
-    Stack(usize /* offset */),
+    Heap {
+        ptr: Box<Memory>,
+        offset: Offset,
+    },
+
+    // `Memory::Heap` and `Memory::List` may or may not be identical.
+    // It just gives more hints to the runtime so that the runtime can
+    // do optimizations for lists.
+    List {
+        ptr: Box<Memory>,
+        offset: Offset,
+    },
 
     // Top-level `let` statements.
     Global(Span),
@@ -178,16 +155,10 @@ pub enum Label {
     Flatten(usize),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Offset {
     Static(u32),
-    Dynamic(Memory),
-}
-
-#[derive(Clone, Debug)]
-pub enum InPlaceOrMemory {
-    InPlace,
-    Memory(Memory),
+    Dynamic(Box<Memory>),
 }
 
 // TODO: it should be in mir... right?

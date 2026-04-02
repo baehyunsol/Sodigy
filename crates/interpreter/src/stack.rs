@@ -1,17 +1,25 @@
+use std::collections::HashMap;
+
 pub struct Stack {
-    pub stack: Vec<u32>,
-    pub stack_pointer: usize,
+    // TODO: It's toooooo inefficient to implement ssa registers this way.
+    pub ssa: HashMap<u32, u32>,
     pub r#return: u32,
-    pub call_stack: Vec<usize>,
 }
 
 impl Stack {
-    pub fn with_capacity(n: usize) -> Stack {
+    pub fn new() -> Stack {
         Stack {
-            stack: vec![0; n],
-            stack_pointer: 0,
+            ssa: HashMap::new(),
             r#return: 0,
-            call_stack: vec![],
+        }
+    }
+
+    pub fn from_args(args: &[u32], old_stack: &Stack) -> Stack {
+        Stack {
+            ssa: args.iter().enumerate().map(
+                |(i, arg)| (i as u32, *old_stack.ssa.get(arg).unwrap())
+            ).collect(),
+            r#return: 0,
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::{Assert, Func, Let, Session};
+use crate::{Assert, Bytecode, Func, Let, Session};
 use sodigy_endec::{DecodeError, DumpSession, Endec};
 use sodigy_error::{Error, Warning};
 use sodigy_mir::{GlobalContext, Intrinsic};
@@ -12,15 +12,12 @@ impl Endec for Session<'_, '_> {
 
         // tmp data
         // self.label_counter.encode_impl(buffer);
+        // self.ssa_counter.encode_impl(buffer);
+        // self.ssa_map.encode_impl(buffer);
 
         self.funcs.encode_impl(buffer);
         self.asserts.encode_impl(buffer);
         self.lets.encode_impl(buffer);
-
-        // tmp data
-        // self.local_values.encode_impl(buffer);
-        // self.stack_offset.encode_impl(buffer);
-
         self.intrinsics.encode_impl(buffer);
         self.errors.encode_impl(buffer);
         self.warnings.encode_impl(buffer);
@@ -41,15 +38,12 @@ impl Endec for Session<'_, '_> {
 
                 // tmp data
                 label_counter: 0,
+                ssa_counter: 0,
+                ssa_map: HashMap::new(),
 
                 funcs,
                 asserts,
                 lets,
-
-                // tmp data
-                local_values: HashMap::new(),
-                stack_offset: 0,
-
                 intrinsics,
                 errors,
                 warnings,
@@ -69,10 +63,22 @@ impl DumpSession for Session<'_, '_> {
         for func in self.funcs.iter() {
             lines.push(format!("// name: {}", func.name.unintern_or_default(&self.intermediate_dir)));
             lines.push(format!("// name_span: {:?}", func.name_span));
-            lines.push(format!("func {:09x}:", func.name_span.hash() & 0xfff_fff_fff));
+            lines.push(format!(
+                "func @G{:09x}({}):",
+                func.name_span.hash() & 0xfff_fff_fff,
+                (0..func.params).map(|i| format!("_{i}")).collect::<Vec<_>>().join(", "),
+            ));
+            lines.push(format!("    label @start:"));
 
             for bytecode in func.bytecodes.iter() {
-                lines.push(format!("    {bytecode}"));
+                match bytecode {
+                    Bytecode::Label(_) => {
+                        lines.push(format!("    {bytecode}"));
+                    },
+                    _ => {
+                        lines.push(format!("        {bytecode}"));
+                    },
+                }
             }
 
             lines.push(String::new());
@@ -81,10 +87,18 @@ impl DumpSession for Session<'_, '_> {
         for r#let in self.lets.iter() {
             lines.push(format!("// name: {}", r#let.name.unintern_or_default(&self.intermediate_dir)));
             lines.push(format!("// name_span: {:?}", r#let.name_span));
-            lines.push(format!("data {:09x}:", r#let.name_span.hash() & 0xfff_fff_fff));
+            lines.push(format!("data @G{:09x}():", r#let.name_span.hash() & 0xfff_fff_fff));
+            lines.push(format!("    label @start:"));
 
             for bytecode in r#let.bytecodes.iter() {
-                lines.push(format!("    {bytecode}"));
+                match bytecode {
+                    Bytecode::Label(_) => {
+                        lines.push(format!("    {bytecode}"));
+                    },
+                    _ => {
+                        lines.push(format!("        {bytecode}"));
+                    },
+                }
             }
 
             lines.push(String::new());
@@ -93,10 +107,18 @@ impl DumpSession for Session<'_, '_> {
         for assert in self.asserts.iter() {
             lines.push(format!("// name: {}", assert.name.unintern_or_default(&self.intermediate_dir)));
             lines.push(format!("// keyword_span: {:?}", assert.keyword_span));
-            lines.push(format!("assert {:09x}:", assert.keyword_span.hash() & 0xfff_fff_fff));
+            lines.push(format!("assert @G{:09x}():", assert.keyword_span.hash() & 0xfff_fff_fff));
+            lines.push(format!("    label @start:"));
 
             for bytecode in assert.bytecodes.iter() {
-                lines.push(format!("    {bytecode}"));
+                match bytecode {
+                    Bytecode::Label(_) => {
+                        lines.push(format!("    {bytecode}"));
+                    },
+                    _ => {
+                        lines.push(format!("        {bytecode}"));
+                    },
+                }
             }
 
             lines.push(String::new());

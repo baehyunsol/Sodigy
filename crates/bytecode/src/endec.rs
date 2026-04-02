@@ -1,4 +1,4 @@
-use crate::{DebugInfoKind, InPlaceOrMemory, Label, Memory, Offset};
+use crate::{DebugInfoKind, Label, Memory, Offset};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::Span;
 
@@ -16,12 +16,22 @@ impl Endec for Memory {
             Memory::Return => {
                 buffer.push(0);
             },
-            Memory::Stack(i) => {
+            Memory::SSA(i) => {
                 buffer.push(1);
                 i.encode_impl(buffer);
             },
-            Memory::Global(span) => {
+            Memory::Heap { ptr, offset } => {
                 buffer.push(2);
+                ptr.encode_impl(buffer);
+                offset.encode_impl(buffer);
+            },
+            Memory::List { ptr, offset } => {
+                buffer.push(3);
+                ptr.encode_impl(buffer);
+                offset.encode_impl(buffer);
+            },
+            Memory::Global(span) => {
+                buffer.push(4);
                 span.encode_impl(buffer);
             },
         }
@@ -31,14 +41,24 @@ impl Endec for Memory {
         match buffer.get(cursor) {
             Some(0) => Ok((Memory::Return, cursor + 1)),
             Some(1) => {
-                let (i, cursor) = usize::decode_impl(buffer, cursor + 1)?;
-                Ok((Memory::Stack(i), cursor))
+                let (i, cursor) = u32::decode_impl(buffer, cursor + 1)?;
+                Ok((Memory::SSA(i), cursor))
             },
             Some(2) => {
+                let (ptr, cursor) = Box::<Memory>::decode_impl(buffer, cursor + 1)?;
+                let (offset, cursor) = Offset::decode_impl(buffer, cursor)?;
+                Ok((Memory::Heap { ptr, offset }, cursor))
+            },
+            Some(3) => {
+                let (ptr, cursor) = Box::<Memory>::decode_impl(buffer, cursor + 1)?;
+                let (offset, cursor) = Offset::decode_impl(buffer, cursor)?;
+                Ok((Memory::List { ptr, offset }, cursor))
+            },
+            Some(4) => {
                 let (span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 Ok((Memory::Global(span), cursor))
             },
-            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }
@@ -103,30 +123,12 @@ impl Endec for Offset {
                 Ok((Offset::Static(n), cursor))
             },
             Some(1) => {
-                let (src, cursor) = Memory::decode_impl(buffer, cursor + 1)?;
+                let (src, cursor) = Box::<Memory>::decode_impl(buffer, cursor + 1)?;
                 Ok((Offset::Dynamic(src), cursor))
             },
             Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
-    }
-}
-
-impl Endec for InPlaceOrMemory {
-    fn encode_impl(&self, buffer: &mut Vec<u8>) {
-        match self {
-            InPlaceOrMemory::InPlace => {
-                buffer.push(0);
-            },
-            InPlaceOrMemory::Memory(src) => {
-                buffer.push(1);
-                src.encode_impl(buffer);
-            },
-        }
-    }
-
-    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        todo!()
     }
 }
 
