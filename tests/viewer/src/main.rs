@@ -79,7 +79,14 @@ fn main() {
     for recent_test_result in recent_test_results.into_iter() {
         let path = join(&test_results_at, &recent_test_result).unwrap();
         let s = read_string(&path).unwrap();
-        let j: TestHarness = serde_json::from_str(&s).unwrap();
+        let j: TestHarness = match serde_json::from_str(&s) {
+            Ok(j) => j,
+            Err(_) => {
+                eprintln!("{path:?} is incompatible with the current test schema!");
+                continue;
+            },
+        };
+
         let summ = summary(&j);
         let transition2 = diff_files.get(recent_test_result).map(
             |diff_file| Transition {
