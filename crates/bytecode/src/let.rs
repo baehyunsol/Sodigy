@@ -3,13 +3,10 @@ use sodigy_mir as mir;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
-/// It's for top-level let statements.
-/// When you evaluate its bytecodes, it'll evaluate itself and
-/// push the result to `Memory::Global(self.def_span)`, and return.
-/// 1. It doesn't check whether it's already initialized or not.
-///    That's caller's responsibility.
-/// 2. It returns after the evaluation. So the caller must push something
-///    to the call stack.
+/// It's for top-level let statements. It's like a function with no parameters.
+/// It returns the evaluated value.
+///
+/// It doesn't check whether it's already initialized or not. That's caller's responsibility.
 #[derive(Clone, Debug)]
 pub struct Let {
     pub name: InternedString,

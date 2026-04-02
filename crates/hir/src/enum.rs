@@ -23,6 +23,7 @@ pub struct Enum {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
+    pub representation: EnumRepr,
     pub generics: Vec<Generic>,
     pub generic_group_span: Option<Span>,
     pub variants: Vec<EnumVariant>,
@@ -53,10 +54,24 @@ pub struct EnumShape {
     pub variants: Vec<EnumVariant>,
     pub variant_index: HashMap<Span, usize>,
 
+    pub representation: EnumRepr,
     pub generics: Vec<Generic>,
     pub generic_group_span: Option<Span>,
     pub associated_funcs: HashMap<InternedString, AssociatedFunc>,
     pub associated_lets: HashMap<InternedString, Span>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EnumRepr {
+    // nth variant is just scalar n
+    Scalar,
+
+    // it's a compound value on heap
+    // the first element is the variant index, and the remaining elements are for the enum payload
+    Compound,
+
+    // I'll implement niche optimization someday...
+    Niche,
 }
 
 impl Enum {
@@ -101,10 +116,16 @@ impl Enum {
             has_error = true;
         }
 
+        let mut has_payload = false;
+
         if let Some(ast_variants) = &ast_enum.variants {
             for ast_variant in ast_variants.iter() {
                 match EnumVariant::from_ast(ast_variant, session) {
                     Ok(variant) => {
+                        if !matches!(&variant.fields, EnumVariantFields::None) {
+                            has_payload = true;
+                        }
+
                         variants.push(variant);
                     },
                     Err(()) => {
@@ -136,6 +157,7 @@ impl Enum {
                 keyword_span: ast_enum.keyword_span.clone(),
                 name: ast_enum.name,
                 name_span: ast_enum.name_span.clone(),
+                representation: if has_payload { EnumRepr::Compound } else { EnumRepr::Scalar },
                 generics: ast_enum.generics.clone(),
                 generic_group_span: ast_enum.generic_group_span.clone(),
                 variants,

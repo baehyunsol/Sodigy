@@ -1,6 +1,7 @@
 use crate::{
     AssociatedFunc,
     Enum,
+    EnumRepr,
     EnumShape,
     EnumVariant,
     EnumVariantFields,
@@ -20,6 +21,7 @@ impl Endec for Enum {
         self.keyword_span.encode_impl(buffer);
         self.name.encode_impl(buffer);
         self.name_span.encode_impl(buffer);
+        self.representation.encode_impl(buffer);
         self.generics.encode_impl(buffer);
         self.generic_group_span.encode_impl(buffer);
         self.variants.encode_impl(buffer);
@@ -30,6 +32,7 @@ impl Endec for Enum {
         let (keyword_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
+        let (representation, cursor) = EnumRepr::decode_impl(buffer, cursor)?;
         let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
         let (generic_group_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (variants, cursor) = Vec::<EnumVariant>::decode_impl(buffer, cursor)?;
@@ -40,6 +43,7 @@ impl Endec for Enum {
                 keyword_span,
                 name,
                 name_span,
+                representation,
                 generics,
                 generic_group_span,
                 variants,
@@ -111,6 +115,7 @@ impl Endec for EnumShape {
         self.name.encode_impl(buffer);
         self.variants.encode_impl(buffer);
         self.variant_index.encode_impl(buffer);
+        self.representation.encode_impl(buffer);
         self.generics.encode_impl(buffer);
         self.generic_group_span.encode_impl(buffer);
         self.associated_funcs.encode_impl(buffer);
@@ -121,6 +126,7 @@ impl Endec for EnumShape {
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (variants, cursor) = Vec::<EnumVariant>::decode_impl(buffer, cursor)?;
         let (variant_index, cursor) = HashMap::<Span, usize>::decode_impl(buffer, cursor)?;
+        let (representation, cursor) = EnumRepr::decode_impl(buffer, cursor)?;
         let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
         let (generic_group_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (associated_funcs, cursor) = HashMap::<InternedString, AssociatedFunc>::decode_impl(buffer, cursor)?;
@@ -129,10 +135,37 @@ impl Endec for EnumShape {
             name,
             variants,
             variant_index,
+            representation,
             generics,
             generic_group_span,
             associated_funcs,
             associated_lets,
         }, cursor))
+    }
+}
+
+impl Endec for EnumRepr {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            EnumRepr::Scalar => {
+                buffer.push(0);
+            },
+            EnumRepr::Compound => {
+                buffer.push(1);
+            },
+            EnumRepr::Niche => {
+                buffer.push(2);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => Ok((EnumRepr::Scalar, cursor + 1)),
+            Some(1) => Ok((EnumRepr::Compound, cursor + 1)),
+            Some(2) => Ok((EnumRepr::Niche, cursor + 1)),
+            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
     }
 }

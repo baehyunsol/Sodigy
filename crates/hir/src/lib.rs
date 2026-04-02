@@ -82,7 +82,7 @@ pub(crate) use attribute::get_decorator_error_notes;
 pub use block::Block;
 pub(crate) use block::BlockSession;
 pub use closure::CapturedNames;
-pub use r#enum::{Enum, EnumShape, EnumVariant, EnumVariantFields};
+pub use r#enum::{Enum, EnumRepr, EnumShape, EnumVariant, EnumVariantFields};
 pub use eval::eval_const;
 pub use expr::{Expr, ExprOrString};
 pub use func::{CallArg, Func, FuncOrigin, FuncParam, FuncPurity, FuncShape};

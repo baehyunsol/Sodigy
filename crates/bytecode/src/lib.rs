@@ -23,9 +23,6 @@ pub use r#let::Let;
 pub use session::{LocalValue, Session};
 pub use value::Value;
 
-/// It assumes that the runtime doesn't increment the ref_count after creating a new object.
-/// For example, `Bytecode::Const` must create an object with ref_count = 0, so it'll append
-/// `Bytecode::IncRefCount` after `Bytecode::Const` depending on the type of the object.
 #[derive(Clone, Debug)]
 pub enum Bytecode {
     Const {

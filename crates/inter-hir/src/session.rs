@@ -152,6 +152,7 @@ impl Session {
                         name: r#enum.name,
                         variants,
                         variant_index,
+                        representation: r#enum.representation,
                         generics: r#enum.generics.clone(),
                         generic_group_span: r#enum.generic_group_span.clone(),
                         associated_funcs: HashMap::new(),

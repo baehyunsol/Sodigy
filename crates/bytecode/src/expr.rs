@@ -7,16 +7,14 @@ use crate::{
     Session,
     Value,
 };
+use sodigy_hir::EnumRepr;
 use sodigy_mir::{Block, Callable, Expr, If, Match};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::Field;
 
-// caller is responsible for inc/decrementing the stack pointer
-// callee is responsible for dropping the local values
-
 // It generates bytecodes that
 //    1) evaluates the expr
-//    2) pushes the value to `dst`
+//    2) moves the value to `dst`
 pub fn lower_expr(
     expr: &Expr,
     session: &mut Session,
@@ -284,8 +282,50 @@ pub fn lower_expr(
                     }
                 },
                 Callable::EnumInit { parent_def_span, variant_def_span, .. } => {
-                    // TODO
-                    todo!()
+                    let enum_shape = session.global_context.enum_shapes.unwrap().get(parent_def_span).unwrap();
+                    let variant_index = *enum_shape.variant_index.get(variant_def_span).unwrap();
+
+                    match enum_shape.representation {
+                        EnumRepr::Scalar => {
+                            assert!(args.is_empty());
+                            bytecodes.push(Bytecode::Const {
+                                value: Value::Scalar(variant_index as u32),
+                                dst: dst.clone(),
+                            });
+                        },
+                        EnumRepr::Compound => {
+                            bytecodes.push(Bytecode::InitTuple {
+                                elements: args.len() + 1,
+                                dst: dst.clone(),
+                            });
+                            bytecodes.push(Bytecode::Const {
+                                value: Value::Scalar(variant_index as u32),
+                                dst: Memory::Heap {
+                                    ptr: Box::new(dst.clone()),
+                                    offset: Offset::Static(variant_index as u32),
+                                },
+                            });
+
+                            for (i, arg) in args.iter().enumerate() {
+                                lower_expr(
+                                    arg,
+                                    session,
+                                    bytecodes,
+                                    Memory::Heap {
+                                        ptr: Box::new(dst.clone()),
+                                        offset: Offset::Static(i as u32 + 1),
+                                    },
+                                    /* is_tail_call: */ false,
+                                );
+                            }
+                        },
+                        EnumRepr::Niche => todo!(),
+                    }
+
+                    if is_tail_call {
+                        let return_ssa = session.move_to_ssa(&dst, bytecodes);
+                        bytecodes.push(Bytecode::Return(return_ssa));
+                    }
                 },
                 Callable::ListInit { .. } => {
                     bytecodes.push(Bytecode::InitList {
