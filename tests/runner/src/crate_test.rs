@@ -82,6 +82,7 @@ fn run_case(name: &str, path: &str, verbose: bool) -> CrateTest {
     for (name, level) in [
         ("mismatched_lifetime_syntaxes", "-D"),
         ("unknown_lints", "-D"),
+        ("unreachable_patterns", "-D"),
         ("unused_crate_dependencies", "-D"),
         ("unused_imports", "-D"),
         ("unused_mut", "-D"),

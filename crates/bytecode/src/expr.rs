@@ -71,7 +71,7 @@ pub fn lower_expr(
                 bytecodes.push(Bytecode::Move {
                     src: src.clone(),
                     dst: dst.clone(),
-                })
+                });
             }
 
             if is_tail_call {
