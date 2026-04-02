@@ -17,13 +17,11 @@ sodigy-inter-mir = { version = "0.1.0", path = "../inter-mir" }
 sodigy-interpreter = { version = "0.1.0", path = "../interpreter" }
 sodigy-lex = { version = "0.1.0", path = "../lex" }
 sodigy-mir = { version = "0.1.0", path = "../mir" }
-sodigy-name-analysis = { version = "0.1.0", path = "../name-analysis" }
 sodigy-optimize = { version = "0.1.0", path = "../optimize" }
 sodigy-parse = { version = "0.1.0", path = "../parse" }
 sodigy-post-mir = { version = "0.1.0", path = "../post-mir" }
 sodigy-prettify = { version = "0.1.0", path = "../prettify" }
 sodigy-span = { version = "0.1.0", path = "../span" }
-sodigy-string = { version = "0.1.0", path = "../string" }
 
 [features]
 debug-bytecode = ["sodigy-interpreter/debug-bytecode"]
