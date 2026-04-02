@@ -3,6 +3,7 @@ use sodigy_bytecode::{
     Executable,
     Label,
     Memory,
+    Offset,
     Value,
 };
 use sodigy_mir::Intrinsic;
@@ -57,7 +58,7 @@ fn call(
 
     loop {
         #[cfg(feature="debug-bytecode")] {
-            debug::debug(stack, heap, &executable.bytecodes, cursor);
+            debug::debug(&stack, heap, &executable.bytecodes, cursor);
         }
 
         match &executable.bytecodes[cursor] {
@@ -368,7 +369,14 @@ fn read(src: &Memory, stack: &Stack, heap: &Heap) -> u32 {
     match src {
         Memory::Return => stack.r#return,
         Memory::SSA(i) => *stack.ssa.get(i).unwrap(),
-        Memory::Heap { ptr, offset } => todo!(),
+        Memory::Heap { ptr, offset } => {
+            let ptr = read(ptr, stack, heap);
+            let offset = match offset {
+                Offset::Static(i) => *i,
+                Offset::Dynamic(p) => read(p, stack, heap),
+            };
+            heap.data[(ptr + offset) as usize]
+        },
         Memory::List { ptr, offset } => todo!(),
         Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
     }
@@ -382,7 +390,15 @@ fn update(dst: &Memory, value: u32, stack: &mut Stack, heap: &mut Heap) {
         Memory::SSA(i) => {
             stack.ssa.insert(*i, value);
         },
-        Memory::Heap { ptr, offset } => todo!(),
+        Memory::Heap { ptr, offset } => {
+            let ptr = read(ptr, stack, heap);
+            let offset = match offset {
+                Offset::Static(i) => *i,
+                Offset::Dynamic(p) => read(p, stack, heap),
+            };
+
+            heap.data[(ptr + offset) as usize] = value;
+        },
         Memory::List { ptr, offset } => todo!(),
         Memory::Global(s) => {
             heap.global_values.insert(s.clone(), value);

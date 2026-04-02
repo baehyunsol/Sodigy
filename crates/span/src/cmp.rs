@@ -9,7 +9,20 @@ impl Ord for Span {
                     Ordering::Equal => match e1.cmp(&e2) {
                         Ordering::Equal => match (self, other) {
                             (Span::Range(_), Span::Range(_)) => Ordering::Equal,
-                            _ => todo!(),
+
+                            // In these branches, the orders don't have much meaning.
+                            // It's sufficient if it's deterministic.
+                            (Span::Monomorphize { id: id1, span: span1 }, Span::Monomorphize { id: id2, span: span2 }) => match id1.cmp(id2) {
+                                Ordering::Equal => span1.cmp(span2),
+                                o => o,
+                            },
+                            (Span::Monomorphize { .. }, _) => Ordering::Greater,
+                            (Span::Derived { kind: kind1, span: span1 }, Span::Derived { kind: kind2, span: span2 }) => match kind1.cmp(kind2) {
+                                Ordering::Equal => span1.cmp(span2),
+                                o => o,
+                            },
+                            (Span::Derived { .. }, _) => Ordering::Greater,
+                            _ => unreachable!(),
                         },
                         o => o,
                     },

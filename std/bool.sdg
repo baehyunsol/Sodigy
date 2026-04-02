@@ -1,8 +1,13 @@
+// TODO: How do I guarantee that `False` is lowered to 0 and `True` is lowered to 1?
 #[lang_item("type.Bool")]
 pub enum Bool = {
-    #[lang_item("variant.Bool.True")]
-    True,
-
     #[lang_item("variant.Bool.False")]
     False,
+
+    #[lang_item("variant.Bool.True")]
+    True,
 };
+
+// TODO: Again, I have to assure that `transmute(Bool) -> Scalar` is always safe...
+#[impl(std.op.eq)]
+fn eq_bool(a: Bool, b: Bool) -> Bool = std.scalar.eq_scalar(std.transmute(a), std.transmute(b));

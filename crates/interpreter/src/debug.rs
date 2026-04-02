@@ -8,7 +8,8 @@ pub fn debug(
     bytecodes: &[Bytecode],
     cursor: usize,
 ) {
-    let mut interesting_stack = (0..10).collect::<Vec<_>>();
+    let mut interesting_stack: Vec<&u32> = stack.ssa.keys().take(16).collect();
+    interesting_stack.sort();
 
     // for used_stack in bytecodes[cursor].used_stacks() {
     //     if !interesting_stack.contains(&used_stack) {
@@ -16,28 +17,13 @@ pub fn debug(
     //     }
     // }
 
-    let (call_stack, truncated) = if stack.call_stack.len() <= 10 {
-        (
-            stack.call_stack.iter().map(
-                |s| s.to_string()
-            ).collect::<Vec<_>>().join(", "),
-            "",
-        )
-    } else {
-        (
-            stack.call_stack[..10].iter().map(
-                |s| s.to_string()
-            ).collect::<Vec<_>>().join(", "),
-            "...",
-        )
-    };
-
     println!("-------");
-    println!("call_stack: [{call_stack}{truncated}]");
-    println!("$ret: {}", debug_stack(stack.r#return, stack, heap));
+    println!("_ret: {}", debug_stack(stack.r#return, stack, heap));
 
     for s in interesting_stack {
-        println!("${s}: {}", debug_stack(stack.stack[stack.stack_pointer + s], stack, heap));
+        if let Some(ss) = stack.ssa.get(s) {
+            println!("_{s}: {}", debug_stack(*ss, stack, heap));
+        }
     }
 
     println!();
@@ -48,9 +34,10 @@ pub fn debug(
         }
 
         println!(
-            "{}{} | {}",
+            "{}{} | {}{}",
             if c == cursor { "->" } else { "  " },
             if cursor + 2 > 1000 { format!("{c:>5}") } else { format!("{c:>3}") },
+            if let Bytecode::Label(_) = &bytecodes[c] { "" } else { "    " },
             &bytecodes[c],
         );
 

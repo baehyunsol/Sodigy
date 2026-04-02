@@ -1,7 +1,7 @@
 use crate::{RenderSpanSession, Span};
 
 // It's used for more helpful error messages.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum SpanDeriveKind {
     // `a |> f($, b)` -> `{ let $0 = a; f(_, b) }`
     Pipeline,

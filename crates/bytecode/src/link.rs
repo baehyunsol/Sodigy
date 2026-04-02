@@ -49,8 +49,7 @@ impl Session<'_, '_> {
             match bytecode {
                 Bytecode::Jump(label) |
                 Bytecode::Call { func: label, .. } |
-                Bytecode::JumpIf { label, .. } |
-                Bytecode::InitOrJump { func: label, .. }  => {
+                Bytecode::JumpIf { label, .. } => {
                     let flattened_index = match label {
                         Label::Local(_) => label_map.get(&(curr_item_span.clone(), label.clone())).unwrap(),
                         Label::Global(s) => match label_map.get(&(s.clone(), Label::Global(s.clone()))) {
@@ -61,6 +60,20 @@ impl Session<'_, '_> {
                     };
 
                     *label = Label::Flatten(*flattened_index);
+                },
+                Bytecode::InitOrJump { func, label, .. } => {
+                    for label in [func, label] {
+                        let flattened_index = match label {
+                            Label::Local(_) => label_map.get(&(curr_item_span.clone(), label.clone())).unwrap(),
+                            Label::Global(s) => match label_map.get(&(s.clone(), Label::Global(s.clone()))) {
+                                Some(i) => i,
+                                None => panic!("Internal Compiler Error: Cannot find bytecode of {s:?}. Perhaps it's defined as a built-in in Sodigy, but not implemented in the compiler?"),
+                            },
+                            Label::Flatten(_) => unreachable!(),
+                        };
+
+                        *label = Label::Flatten(*flattened_index);
+                    }
                 },
                 Bytecode::Label(Label::Global(def_span)) => {
                     curr_item_span = def_span.clone();
