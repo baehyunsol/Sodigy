@@ -1,5 +1,5 @@
 use crate::Session;
-use sodigy_number::{BigInt, InternedNumber};
+use sodigy_number::{BigInt, InternedNumber, Ratio, unintern_number};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, unintern_string};
 use sodigy_token::Constant;
@@ -29,7 +29,7 @@ pub enum Value {
 impl Session<'_, '_> {
     pub fn lower_constant(&self, constant: &Constant) -> Value {
         match constant {
-            Constant::Number { n, .. } => (*n).into(),
+            Constant::Number { n, .. } => self.number_to_value(*n),
             Constant::String { s, binary, .. } => self.string_to_value(*s, *binary),
             Constant::Char { ch, .. } => Value::Scalar(*ch),
             Constant::Byte { b, .. } => Value::Scalar(*b as u32),
@@ -53,71 +53,19 @@ impl Session<'_, '_> {
 
         Value::List(elems)
     }
-}
 
-impl From<InternedNumber> for Value {
-    fn from(n: InternedNumber) -> Value {
-        match n.0 >> 126 {
-            0 => match i64::try_from(n) {
-                Ok(n64) => {
-                    if n.is_integer() {
-                        let is_neg = n64 < 0;
-                        let abs = n64.abs() as u64;
-                        let nums = match abs {
-                            0..=0xffff_ffff => vec![abs as u32],
-                            _ => vec![(abs & 0xffff_ffff) as u32, (abs >> 32) as u32],
-                        };
-                        Value::Int(BigInt { is_neg, nums })
-                    } else {
-                        Value::Compound(vec![
-                            // TODO: we have to make sure that always `numer` comes before `denom`, everywhere.
-                            Value::Int(BigInt::from(n64)),
-                            Value::Int(BigInt::from(1i64)),
-                        ])
-                    }
-                },
-                Err(()) => todo!(),
-            },
-            _ => todo!(),
+    pub fn number_to_value(&self, n: InternedNumber) -> Value {
+        let is_integer = n.is_integer();
+        let n = unintern_number(n, &self.intermediate_dir).unwrap();
+
+        if is_integer {
+            Value::Int(n.numer)
         }
-    //     match n {
-    //         InternedNumber {
-    //             value: InternedNumberValue::SmallInt(n),
-    //             is_integer: true,
-    //         } => {
-    //             let is_neg = *n < 0;
-    //             let abs = n.abs() as u64;
-    //             let nums = match abs {
-    //                 0..=0xffff_ffff => vec![abs as u32],
-    //                 _ => vec![(abs & 0xffff_ffff) as u32, (abs >> 32) as u32],
-    //             };
 
-    //             Value::Int(BigInt { is_neg, nums })
-    //         },
-    //         InternedNumber {
-    //             value: InternedNumberValue::SmallInt(n),
-    //             is_integer: false,
-    //         } => {
-    //             Value::Compound(vec![
-    //                 // TODO: we have to make sure that always `numer` comes before `denom`, everywhere.
-    //                 Value::Int(BigInt::from(*n as i64)),
-    //                 Value::Int(BigInt::from(1i64)),
-    //             ])
-    //         },
-    //         InternedNumber {
-    //             value: n @ InternedNumberValue::SmallRatio { numer, denom },
-    //             is_integer: false,
-    //         } => {
-    //             Value::Compound(vec![
-    //                 Value::Int(BigInt::from(*numer as i64)),
-    //                 Value::Int(BigInt::from(*denom as i64)),
-    //             ])
-    //         },
-    //         InternedNumber {
-    //             value: InternedNumberValue::BigInt(n),
-    //             is_integer: true,
-    //         } => Value::Int(n.clone()),
-    //         _ => panic!("TODO: {n:?}"),
-    //     }
+        else {
+            let Ratio { numer, denom } = n;
+            // TODO: we have to make sure that always `numer` comes before `denom`, everywhere.
+            Value::Compound(vec![Value::Int(numer), Value::Int(denom)])
+        }
     }
 }

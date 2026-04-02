@@ -3,7 +3,7 @@ use sodigy_number::{
     InternedNumber,
     add_ratio,
     div_ratio,
-    intern_number,
+    intern_ratio,
     mul_ratio,
     sub_ratio,
     unintern_number,
@@ -34,6 +34,7 @@ pub fn eval_number_prefix_op(
     }
 }
 
+// FIXME: So many unwraps...
 pub fn eval_number_infix_op(
     op: InfixOp,
     op_span: Span,
@@ -54,15 +55,15 @@ pub fn eval_number_infix_op(
     }
 
     let is_integer = lhs.is_integer();
-    let lhs_ratio = unintern_number(*lhs, intermediate_dir);
-    let rhs_ratio = unintern_number(*rhs, intermediate_dir);
+    let lhs_ratio = unintern_number(*lhs, intermediate_dir).unwrap();
+    let rhs_ratio = unintern_number(*rhs, intermediate_dir).unwrap();
 
     match op {
-        InfixOp::Add => Ok(intern_number(add_ratio(&lhs_ratio, &rhs_ratio), is_integer, intermediate_dir)),
-        InfixOp::Sub => Ok(intern_number(sub_ratio(&lhs_ratio, &rhs_ratio), is_integer, intermediate_dir)),
-        InfixOp::Mul => Ok(intern_number(mul_ratio(&lhs_ratio, &rhs_ratio), is_integer, intermediate_dir)),
+        InfixOp::Add => Ok(intern_ratio(&add_ratio(&lhs_ratio, &rhs_ratio), is_integer, intermediate_dir).unwrap()),
+        InfixOp::Sub => Ok(intern_ratio(&sub_ratio(&lhs_ratio, &rhs_ratio), is_integer, intermediate_dir).unwrap()),
+        InfixOp::Mul => Ok(intern_ratio(&mul_ratio(&lhs_ratio, &rhs_ratio), is_integer, intermediate_dir).unwrap()),
         InfixOp::Div => {
-            let value = intern_number(div_ratio(&lhs_ratio, &rhs_ratio), is_integer, intermediate_dir);
+            let value = intern_ratio(&div_ratio(&lhs_ratio, &rhs_ratio), is_integer, intermediate_dir).unwrap();
 
             if lhs.is_integer() {
                 // We have to truncate the result!

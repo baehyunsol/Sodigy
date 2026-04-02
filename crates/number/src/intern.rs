@@ -12,6 +12,16 @@ use crate::{
     rem_ubi,
     ubi_to_string,
 };
+use sodigy_endec::Endec;
+use sodigy_fs_api::{
+    FileError,
+    FileErrorKind,
+    WriteMode,
+    join3,
+    read_bytes,
+    write_bytes,
+};
+use sodigy_string::hash;
 use std::cmp::Ordering;
 use std::fmt;
 
@@ -28,6 +38,8 @@ use std::fmt;
 //     - numer's range is -4611686018427387904..=4611686018427387903
 //     - denom's range is 0..=4611686018427387903
 //     - numer and denom are coprimes.
+//   - BigInt/BigRatio: the least significant 96 bits are the hash id of the value
+//     - The actual value is stored on disk.
 //
 // If a value can be represented in `SmallInt`, it has to be represented in `SmallInt`.
 // For example, `SmallInt { n: 1 }` and `SmallRatio { numer: 1, denom: 1 }` are the
@@ -56,7 +68,7 @@ impl InternedNumber {
 
     /// This is for debugging.
     pub fn dump(&self, intermediate_dir: &str) -> String {
-        let n = unintern_number(*self, intermediate_dir);
+        let n = unintern_number(*self, intermediate_dir).unwrap();
 
         if self.is_integer() {
             let (is_neg, nums) = div_bi(n.numer.is_neg, &n.numer.nums, n.denom.is_neg, &n.denom.nums);
@@ -173,44 +185,64 @@ impl fmt::Debug for InternedNumber {
                 let (numer, denom) = interpret_small_ratio(self.0);
                 write!(formatter, "SmallRatio {{ numer: {numer}, denom: {denom}, is_integer: {is_integer} }}")
             },
-            _ => todo!(),
+            2 => write!(formatter, "BigInt {{ hash: {:024x} }}", self.0 & 0xffff_ffff_ffff_ffff_ffff_ffff),
+            3 => write!(formatter, "BigRatio {{ hash: {:024x} }}", self.0 & 0xffff_ffff_ffff_ffff_ffff_ffff),
+            _ => unreachable!(),
         }
     }
 }
 
-pub fn unintern_number(n: InternedNumber, intermediate_dir: &str) -> Ratio {
+pub fn unintern_number(n: InternedNumber, intermediate_dir: &str) -> Result<Ratio, FileError> {
     match n.0 >> 126 {
-        0 => Ratio {
+        0 => Ok(Ratio {
             numer: BigInt::from(interpret_small_int(n.0)),
             denom: BigInt::one(),
-        },
+        }),
         1 => {
             let (numer, denom) = interpret_small_ratio(n.0);
-            Ratio {
+            Ok(Ratio {
                 numer: BigInt::from(numer),
                 denom: BigInt::from(denom),
-            }
+            })
         },
-        2 => todo!(),
-        3 => todo!(),
+        2 => {
+            let numer: BigInt = unintern_bytes(n.0, intermediate_dir)?;
+            Ok(Ratio { numer, denom: BigInt::one() })
+        },
+        3 => unintern_bytes(n.0, intermediate_dir),
         _ => unreachable!(),
     }
 }
 
-pub fn intern_number(n: Ratio, is_integer: bool, intermediate_dir: &str) -> InternedNumber {
+pub fn intern_ratio(n: &Ratio, is_integer: bool, intermediate_dir: &str) -> Result<InternedNumber, FileError> {
     match (i128::try_from(&n.numer), i128::try_from(&n.denom)) {
         // SmallInt
-        (Ok(n @ -21267647932558653966460912964485513216..=21267647932558653966460912964485513215), Ok(1)) => InternedNumber(
+        (Ok(n @ -21267647932558653966460912964485513216..=21267647932558653966460912964485513215), Ok(1)) => Ok(InternedNumber(
             ((is_integer as u128) << 125) | (n as u128) & SMALL_INT_PAYLOAD_MASK,
-        ),
+        )),
         // SmallRatio
-        (Ok(numer @ -4611686018427387904..=4611686018427387903), Ok(denom @ 0..=4611686018427387903)) => InternedNumber(
+        (Ok(numer @ -4611686018427387904..=4611686018427387903), Ok(denom @ 0..=4611686018427387903)) => Ok(InternedNumber(
             ((is_integer as u128) << 125) | SMALL_RATIO | (((numer as u128) & SMALL_RATIO_NUMER_PAYLOAD_MASK) << 62) | denom as u128,
-        ),
+        )),
         // BigInt
-        (_, Ok(1)) => todo!(),
+        (_, Ok(1)) => intern_big_int(&n.numer, is_integer, intermediate_dir),
         // BigRatio
-        _ => todo!(),
+        _ => {
+            let id = intern_bytes(&n.encode(), intermediate_dir)? & 0xffff_ffff_ffff_ffff_ffff_ffff;
+            Ok(InternedNumber(((is_integer as u128) << 125) | BIG_RATIO | id))
+        },
+    }
+}
+
+pub fn intern_big_int(n: &BigInt, is_integer: bool, intermediate_dir: &str) -> Result<InternedNumber, FileError> {
+    match i128::try_from(n) {
+        Ok(n @ -21267647932558653966460912964485513216..=21267647932558653966460912964485513215) => Ok(InternedNumber(
+            ((is_integer as u128) << 125) | (n as u128) & SMALL_INT_PAYLOAD_MASK,
+        )),
+        _ => {
+            let id = intern_bytes(&n.encode(), intermediate_dir)? & 0xffff_ffff_ffff_ffff_ffff_ffff;
+            Ok(InternedNumber(((is_integer as u128) << 125) | BIG_INT | id))
+        },
     }
 }
 
@@ -227,27 +259,27 @@ pub fn intern_number_raw(
     is_integer: bool,
 
     intermediate_dir: &str,
-) -> InternedNumber {
+) -> Result<InternedNumber, FileError> {
     match (base, frac.len(), exp) {
         (Base::Hexadecimal, 0, 0) => match u128::from_str_radix(&String::from_utf8_lossy(integer), 16) {
-            Ok(n @ 0..=21267647932558653966460912964485513215) => InternedNumber(
+            Ok(n @ 0..=21267647932558653966460912964485513215) => Ok(InternedNumber(
                 ((is_integer as u128) << 125) | n,
-            ),
-            Ok(_) => todo!(),
+            )),
+            Ok(n) => intern_big_int(&BigInt::from(n), is_integer, intermediate_dir),
             Err(_) => {
                 let n = BigInt::parse_positive_hex(integer).unwrap();
-                todo!()
+                intern_big_int(&n, is_integer, intermediate_dir)
             },
         },
         (Base::Hexadecimal, _, _) => unreachable!(),
         (Base::Decimal, 0, 0) => match String::from_utf8_lossy(integer).parse::<u128>() {
-            Ok(n @ 0..=21267647932558653966460912964485513215) => InternedNumber(
+            Ok(n @ 0..=21267647932558653966460912964485513215) => Ok(InternedNumber(
                 ((is_integer as u128) << 125) | n,
-            ),
-            Ok(_) => todo!(),
+            )),
+            Ok(n) => intern_big_int(&BigInt::from(n), is_integer, intermediate_dir),
             Err(_) => {
                 let n = BigInt::parse_positive_decimal(integer).unwrap();
-                todo!()
+                intern_big_int(&n, is_integer, intermediate_dir)
             },
         },
         (Base::Decimal, _, _) => {
@@ -289,8 +321,8 @@ pub fn intern_number_raw(
             numer = div_ubi(&numer, &r);
             denom = div_ubi(&denom, &r);
 
-            intern_number(
-                Ratio {
+            intern_ratio(
+                &Ratio {
                     numer: BigInt { is_neg: false, nums: numer },
                     denom: BigInt { is_neg: false, nums: denom },
                 },
@@ -299,18 +331,18 @@ pub fn intern_number_raw(
             )
         },
         (Base::Octal, 0, 0) => match u128::from_str_radix(&String::from_utf8_lossy(integer), 8) {
-            Ok(n @ 0..=21267647932558653966460912964485513215) => InternedNumber(
+            Ok(n @ 0..=21267647932558653966460912964485513215) => Ok(InternedNumber(
                 ((is_integer as u128) << 125) | n,
-            ),
-            Ok(_) => todo!(),
+            )),
+            Ok(n) => intern_big_int(&BigInt::from(n), is_integer, intermediate_dir),
             Err(_) => todo!(),
         },
         (Base::Octal, _, _) => unreachable!(),
         (Base::Binary, 0, 0) => match u128::from_str_radix(&String::from_utf8_lossy(integer), 2) {
-            Ok(n @ 0..=21267647932558653966460912964485513215) => InternedNumber(
+            Ok(n @ 0..=21267647932558653966460912964485513215) => Ok(InternedNumber(
                 ((is_integer as u128) << 125) | n,
-            ),
-            Ok(_) => todo!(),
+            )),
+            Ok(n) => intern_big_int(&BigInt::from(n), is_integer, intermediate_dir),
             Err(_) => todo!(),
         },
         (Base::Binary, _, _) => unreachable!(),
@@ -347,6 +379,29 @@ fn interpret_small_ratio(n: u128) -> (i64, u64) {
 
     let numer = numer as i64;
     (numer, denom)
+}
+
+fn intern_bytes(bytes: &[u8], intermediate_dir: &str) -> Result<u128, FileError> {
+    let id = hash(bytes) & 0xffff_ffff_ffff_ffff_ffff_ffff;
+    let id_str = format!("{id:024x}");
+    let path = join3(intermediate_dir, "num", &id_str)?;
+    write_bytes(
+        &path,
+        bytes,
+        WriteMode::CreateOrTruncate,
+    )?;
+    Ok(id)
+}
+
+fn unintern_bytes<T: Endec>(id: u128, intermediate_dir: &str) -> Result<T, FileError> {
+    let id = id & 0xffff_ffff_ffff_ffff_ffff_ffff;
+    let id_str = format!("{id:024x}");
+    let path = join3(intermediate_dir, "num", &id_str)?;
+    let bytes = read_bytes(&path)?;
+    T::decode(&bytes).map_err(|_| FileError {
+        kind: FileErrorKind::CannotDecodeFile,
+        given_path: Some(path.to_string()),
+    })
 }
 
 // It doesn't need intermediate_dir because `u8` fits in the small_int range!

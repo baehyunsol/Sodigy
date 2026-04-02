@@ -319,7 +319,7 @@ impl Session {
                         0,
                         true, /* is_integer */
                         &self.intermediate_dir,
-                    );
+                    ).unwrap();
 
                     match u8::try_from(n) {
                         Ok(b) => {
@@ -1754,7 +1754,7 @@ impl Session {
                         0,
                         true, /* is_integer */
                         &self.intermediate_dir,
-                    );
+                    ).unwrap();
 
                     self.tokens.push(Token {
                         kind: TokenKind::Number(interned),
@@ -1792,7 +1792,7 @@ impl Session {
                         0,
                         true, /* is_integer */
                         &self.intermediate_dir,
-                    );
+                    ).unwrap();
 
                     self.tokens.push(Token {
                         kind: TokenKind::Number(interned),
@@ -1826,7 +1826,7 @@ impl Session {
                         0,
                         false /* is_integer */,
                         &self.intermediate_dir,
-                    );
+                    ).unwrap();
 
                     self.tokens.push(Token {
                         kind: TokenKind::Number(interned),
@@ -1888,7 +1888,7 @@ impl Session {
                     exp,
                     false, /* is_integer */
                     &self.intermediate_dir,
-                );
+                ).unwrap();
 
                 self.tokens.push(Token {
                     kind: TokenKind::Number(interned),

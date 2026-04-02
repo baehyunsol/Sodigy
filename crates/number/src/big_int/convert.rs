@@ -1,6 +1,41 @@
 use super::BigInt;
 use crate::{div_ubi, gt_ubi, rem_ubi};
 
+impl From<u128> for BigInt {
+    fn from(n: u128) -> BigInt {
+        match n {
+            0..=4294967295 => BigInt {
+                is_neg: false,
+                nums: vec![n as u32],
+            },
+            4294967296..=18446744073709551615 => BigInt {
+                is_neg: false,
+                nums: vec![
+                    (n & 0xffff_ffff) as u32,
+                    (n >> 32) as u32,
+                ],
+            },
+            18446744073709551616..=79228162514264337593543950335 => BigInt {
+                is_neg: false,
+                nums: vec![
+                    (n & 0xffff_ffff) as u32,
+                    ((n >> 32) & 0xffff_ffff) as u32,
+                    (n >> 64) as u32,
+                ],
+            },
+            _ => BigInt {
+                is_neg: false,
+                nums: vec![
+                    (n & 0xffff_ffff) as u32,
+                    ((n >> 32) & 0xffff_ffff) as u32,
+                    ((n >> 64) & 0xffff_ffff) as u32,
+                    (n >> 96) as u32,
+                ],
+            },
+        }
+    }
+}
+
 impl From<i128> for BigInt {
     fn from(n: i128) -> BigInt {
         match n {
@@ -23,7 +58,13 @@ impl From<i128> for BigInt {
                     ((n.abs() as u128) >> 64) as u32,
                 ],
             },
-            _ => todo!(),
+            _ => {
+                let is_neg = n < 0;
+                let n = n.abs() as u128;
+                let mut n = BigInt::from(n);
+                n.is_neg = is_neg;
+                n
+            },
         }
     }
 }
@@ -63,7 +104,16 @@ impl TryFrom<&BigInt> for i128 {
             [a, b, c] => {
                 Ok((*a as u128 + ((*b as u128) << 32) + ((*c as u128) << 64)) as i128 * (!n.is_neg as i128 * 2 - 1))
             },
-            _ => todo!(),
+            [a, b, c, d] => {
+                let nu128 = (*a as u128 + ((*b as u128) << 32) + ((*c as u128) << 64) + ((*d as u128) << 96)) as u128;
+
+                match (nu128, n.is_neg) {
+                    (0..=170141183460469231731687303715884105727, _) => Ok(nu128 as i128 * (!n.is_neg as i128 * 2 - 1)),
+                    (170141183460469231731687303715884105728, true) => Ok(-170141183460469231731687303715884105728),
+                    _ => Err(()),
+                }
+            },
+            _ => Err(()),
         }
     }
 }

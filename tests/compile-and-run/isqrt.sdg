@@ -52,23 +52,14 @@ fn isqrt_iter(n: Int, s: Int) -> Int = {
     }
 };
 
-fn assert_isqrt(n: Int) = {
+fn check_isqrt(n: Int) -> Bool = {
     let s = isqrt(n);
-
-    if s * s <= n && n < (s + 1) * (s + 1) {
-        True
-    } else {
-        std.panic(f"n: {n}, isqrt(n): {s}")
-    }
+    s * s <= n && n < (s + 1) * (s + 1)
 };
 
-fn assert_isqrt_multi(ns: [Int]) = match ns {
-    [] => True,
-    [$n] ++ $ns => {
-        #[always]
-        assert assert_isqrt(n);
-        assert_isqrt_multi(ns)
-    },
+fn assert_isqrt_multi(ns: [Int]) = match ns.find(\(n) => !check_isqrt(n)) {
+    Some($w) => std.panic(f"isqrt({w}) is wrong!! (got {isqrt(w)})"),
+    None => True,
 };
 
 #[name("isqrt power of 1000s")]
