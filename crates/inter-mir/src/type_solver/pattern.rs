@@ -1,11 +1,11 @@
-use crate::{ErrorContext, Session, Type};
+use crate::{ErrorContext, Session, Type, TypeError};
 use sodigy_hir::{Path, Pattern, PatternKind};
-use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_span::Span;
 use sodigy_token::Constant;
 use std::collections::HashMap;
 
 impl Session {
+    // TODO: I don't want to raise errors if the compiler fails to infer type of name bindings in patterns.
     pub fn solve_pattern(&mut self, pattern: &Pattern) -> (Option<Type>, bool /* has_error */) {
         let (pattern_type, mut has_error) = self.solve_pattern_kind(&pattern.kind);
 
@@ -35,42 +35,7 @@ impl Session {
 
     pub fn solve_pattern_kind(&mut self, pattern: &PatternKind) -> (Option<Type>, bool /* has_error */) {
         match pattern {
-            // TODO
-            // 1. enum variant
-            // 2. struct
-            // 3. value
-            PatternKind::Path(Path { id: IdentWithOrigin { id, span, def_span, .. }, .. }) => match self.types.get(def_span) {
-                Some(r#type) => {
-                    (Some(r#type.clone()), false)
-                },
-                None => panic!("TODO: {def_span:?}"),
-            },
-            PatternKind::NameBinding { id, span, .. } => match self.types.get(span) {
-                Some(r#type) => (Some(r#type.clone()), false),
-                None => {
-                    self.add_type_var(Type::Var { def_span: span.clone(), is_return: false }, Some(*id));
-                    (
-                        Some(Type::Var {
-                            def_span: span.clone(),
-                            is_return: false,
-                        }),
-                        false,
-                    )
-                },
-            },
-            PatternKind::Wildcard(span) => match self.types.get(span) {
-                Some(r#type) => (Some(r#type.clone()), false),
-                None => {
-                    self.add_type_var(Type::Var { def_span: span.clone(), is_return: false }, None);
-                    (
-                        Some(Type::Var {
-                            def_span: span.clone(),
-                            is_return: false,
-                        }),
-                        false,
-                    )
-                },
-            },
+            PatternKind::Path(Path { id, .. }) => self.solve_path(id, &None),
             PatternKind::Constant(Constant::Number { n, .. }) => match n.is_integer() {
                 true => (
                     Some(Type::Data {
@@ -139,6 +104,79 @@ impl Session {
                 }),
                 false,
             ),
+            PatternKind::NameBinding { id, span, .. } => match self.types.get(span) {
+                Some(r#type) => (Some(r#type.clone()), false),
+                None => {
+                    self.add_type_var(Type::Var { def_span: span.clone(), is_return: false }, Some(*id));
+                    (
+                        Some(Type::Var {
+                            def_span: span.clone(),
+                            is_return: false,
+                        }),
+                        false,
+                    )
+                },
+            },
+            // `Option.Some` has type `Fn(T) -> Option<T>` and must be registered.
+            PatternKind::TupleStruct { r#struct, elements, rest, .. } => match self.solve_path(&r#struct.id, &None) {
+                (Some(Type::Func { params, r#return, .. }), mut has_error) => {
+                    let mut elem_types = Vec::with_capacity(elements.len());
+
+                    for element in elements.iter() {
+                        let (elem_type, e) = self.solve_pattern(element);
+                        has_error |= e;
+
+                        match elem_type {
+                            Some(elem_type) => {
+                                elem_types.push(elem_type);
+                            },
+                            None => {},
+                        }
+                    }
+
+                    if has_error {
+                        return (None, true);
+                    }
+
+                    match (rest, elements.len() == params.len()) {
+                        (None, false) => {
+                            self.type_errors.push(TypeError::WrongNumberOfArgs {
+                                expected: params.to_vec(),
+                                got: elem_types.to_vec(),
+                                given_keyword_args: vec![],
+                                call: r#struct.id.span.clone(),
+                                def: Some(r#struct.id.def_span.clone()),
+                                arg_spans: elements.iter().map(|element| element.error_span_wide()).collect(),
+                            });
+                            return (None, true);
+                        },
+                        (None, true) => {},
+
+                        // TODO: insert type vars to `elem_types`
+                        (Some(_), false) => todo!(),
+
+                        // `Some(3, ..)` -> is this a type error?
+                        (Some(_), true) => todo!(),  // type-error?
+                    }
+
+                    for (i, (param_type, elem_type)) in params.iter().zip(elem_types.iter()).enumerate() {
+                        if let Err(()) = self.solve_supertype(
+                            elem_type,
+                            param_type,
+                            false,
+                            Some(&elements[i].error_span_wide()),
+                            None,
+                            ErrorContext::None,
+                            false,
+                        ) {
+                            has_error = true;
+                        }
+                    }
+
+                    (Some(*r#return.clone()), has_error)
+                },
+                _ => unreachable!(),
+            },
             PatternKind::Tuple { elements, rest, .. } => {
                 if rest.is_some() {
                     // What can we do?
@@ -345,6 +383,19 @@ impl Session {
                 }
 
                 (pattern_type, has_error)
+            },
+            PatternKind::Wildcard(span) => match self.types.get(span) {
+                Some(r#type) => (Some(r#type.clone()), false),
+                None => {
+                    self.add_type_var(Type::Var { def_span: span.clone(), is_return: false }, None);
+                    (
+                        Some(Type::Var {
+                            def_span: span.clone(),
+                            is_return: false,
+                        }),
+                        false,
+                    )
+                },
             },
             _ => panic!("TODO: {pattern:?}"),
         }

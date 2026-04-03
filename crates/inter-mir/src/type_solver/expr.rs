@@ -4,12 +4,11 @@ use sodigy_error::{EnumFieldKind, Error, ErrorKind};
 use sodigy_hir::{self as hir, AssociatedFunc, FuncPurity};
 use sodigy_inter_hir::get_associated_func_name;
 use sodigy_mir::{Callable, Dotfish, ShortCircuitKind};
-use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::{Field, merge_field_spans};
 use sodigy_span::{PolySpanKind, Span};
 use sodigy_string::intern_string;
 use sodigy_token::Constant;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "log")]
 use crate::LogEntry;
@@ -25,123 +24,7 @@ impl Session {
     // can find more type errors (only obvious ones).
     pub fn solve_expr(&mut self, expr: &Expr, impure_calls: &mut Vec<Span>) -> (Option<Type>, bool /* has_error */) {
         match expr {
-            Expr::Ident { id, dotfish } => match self.types.get(&id.def_span) {
-                Some(r#type) => (Some(r#type.clone()), false),
-                None => {
-                    match &id.origin {
-                        NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
-                            NameKind::EnumVariant { .. } | NameKind::Struct => {
-                                let def_span = match kind {
-                                    // `False` in `Bool.False` has type `Bool`.
-                                    NameKind::EnumVariant { parent } => parent,
-                                    NameKind::Struct => &id.def_span,
-                                    _ => unreachable!(),
-                                };
-                                let item_shape = match self.get_item_shape(def_span) {
-                                    Some(item_shape) => {
-                                        if item_shape.generics().is_empty() {
-                                            let has_error = if let Some(dotfish) = dotfish {
-                                                self.type_errors.push(TypeError::WrongNumberOfGenericArgs {
-                                                    expected: 0,
-                                                    got: dotfish.types.len(),
-                                                    param_group_span: Span::None,
-                                                    arg_group_span: dotfish.group_span.clone(),
-                                                });
-                                                true
-                                            } else {
-                                                false
-                                            };
-
-                                            return (
-                                                Some(Type::Data {
-                                                    constructor_def_span: def_span.clone(),
-                                                    constructor_span: Span::None,
-                                                    args: None,
-                                                    group_span: None,
-                                                }),
-                                                has_error,
-                                            );
-                                        }
-
-                                        else {
-                                            let mut dotfish_group_span = Span::None;
-                                            let mut has_error = false;
-                                            let type_args: Vec<Type> = item_shape.generics().iter().map(
-                                                |generic| Type::GenericArg {
-                                                    call: id.span.clone(),
-                                                    generic: generic.name_span.clone(),
-                                                }
-                                            ).collect();
-
-                                            if let Some(dotfish) = dotfish {
-                                                dotfish_group_span = dotfish.group_span.clone();
-
-                                                if dotfish.types.len() != item_shape.generics().len() {
-                                                    self.type_errors.push(TypeError::WrongNumberOfGenericArgs {
-                                                        expected: item_shape.generics().len(),
-                                                        got: dotfish.types.len(),
-                                                        param_group_span: item_shape.generic_group_span().clone().unwrap_or(Span::None),
-                                                        arg_group_span: dotfish.group_span.clone(),
-                                                    });
-                                                    return (None, true);
-                                                }
-
-                                                for (type_arg_var, type_arg) in type_args.iter().zip(dotfish.types.iter()) {
-                                                    if let Err(()) = self.solve_supertype(
-                                                        type_arg_var,
-                                                        type_arg,
-                                                        false,
-                                                        None,
-                                                        Some(&type_arg.error_span_wide()),
-                                                        ErrorContext::None,
-                                                        true,
-                                                    ) {
-                                                        has_error = true;
-                                                    }
-                                                }
-                                            }
-
-                                            for type_arg in type_args.iter() {
-                                                self.add_type_var(type_arg.clone(), None);
-                                            }
-
-                                            return (
-                                                Some(Type::Data {
-                                                    constructor_def_span: def_span.clone(),
-                                                    constructor_span: Span::None,
-                                                    args: Some(type_args),
-                                                    group_span: Some(dotfish_group_span),
-                                                }),
-                                                has_error,
-                                            );
-                                        }
-                                    },
-                                    None => todo!(),  // unreachable?
-                                };
-                            },
-                            NameKind::Func => {
-                                // If it has generic parameters, do something
-                                let func_shape = match self.func_shapes.get(&id.def_span) {
-                                    _ => todo!(),
-                                };
-
-                                todo!()
-                            },
-                            NameKind::PatternNameBind => {
-                                self.pattern_name_bindings.insert(id.def_span.clone());
-                            },
-                            _ => {},
-                        },
-                        _ => {},
-                    }
-
-                    // NOTE: inter-hir must have checked that `id` is a valid expression
-
-                    let type_var = Type::Var { def_span: id.def_span.clone(), is_return: false };
-                    self.add_type_var(type_var.clone(), Some(id.id));
-                    (Some(type_var), false)
-                },
-            },
+            Expr::Ident { id, dotfish } => self.solve_path(id, dotfish),
             Expr::Constant(Constant::Number { n, .. }) => match n.is_integer() {
                 true => (
                     Some(Type::Data {
@@ -316,8 +199,6 @@ impl Session {
                 let (scrutinee_type, mut has_error) = self.solve_expr(r#match.scrutinee.as_ref(), impure_calls);
                 let mut arm_types = Vec::with_capacity(r#match.arms.len());
 
-                // TODO: it's okay to fail to infer the types of name bindings
-                //       we need some kinda skip list
                 for arm in r#match.arms.iter() {
                     if let Some(scrutinee_type) = &scrutinee_type {
                         match self.solve_pattern(&arm.pattern) {
@@ -596,14 +477,16 @@ impl Session {
                             }
 
                             else if !generic_params.is_empty() {
+                                let mut substituted_generics = HashSet::new();
+
                                 for param in params.iter_mut() {
-                                    param.substitute_generic_param_for_arg(&span, &generic_params);
+                                    param.substitute_generic_param_for_arg(&span, &mut substituted_generics);
                                 }
 
-                                return_type.substitute_generic_param_for_arg(&span, &generic_params);
+                                return_type.substitute_generic_param_for_arg(&span, &mut substituted_generics);
 
-                                for generic_param in generic_params.iter() {
-                                    self.add_type_var(Type::GenericArg { call: span.clone(), generic: generic_param.clone() }, None);
+                                for def_span in substituted_generics.iter() {
+                                    self.add_type_var(Type::GenericArg { call: span.clone(), generic: def_span.clone() }, None);
                                 }
                             }
 
@@ -706,15 +589,13 @@ impl Session {
                             assert_eq!(struct_shape.fields.len(), arg_types.len());
                             let struct_shape = struct_shape.clone();
                             let call_span = span.clone();
-                            let generic_params = struct_shape.generics.iter().map(
-                                |generic| generic.name_span.clone()
-                            ).collect::<Vec<_>>();
+                            let mut substituted_generics = HashSet::new();
 
                             for i in 0..arg_types.len() {
                                 let field_type = match self.types.get(&struct_shape.fields[i].name_span) {
                                     Some(r#type) => {
                                         let mut r#type = r#type.clone();
-                                        r#type.substitute_generic_param_for_arg(&call_span, &generic_params);
+                                        r#type.substitute_generic_param_for_arg(&call_span, &mut substituted_generics);
                                         r#type
                                     },
                                     None => {
@@ -735,6 +616,10 @@ impl Session {
                                 ) {
                                     has_error = true;
                                 }
+                            }
+
+                            for def_span in substituted_generics.iter() {
+                                self.add_type_var(Type::GenericArg { call: span.clone(), generic: def_span.clone() }, None);
                             }
 
                             let (args, group_span) = if struct_shape.generics.is_empty() {
@@ -784,10 +669,11 @@ impl Session {
                             let mut variant_type: Type = self.types.get(variant_def_span).unwrap().clone();
 
                             if !generic_params.is_empty() {
-                                variant_type.substitute_generic_param_for_arg(span, &generic_params);
+                                let mut substituted_generics = HashSet::new();
+                                variant_type.substitute_generic_param_for_arg(span, &mut substituted_generics);
 
-                                for generic_param in generic_params.iter() {
-                                    self.add_type_var(Type::GenericArg { call: span.clone(), generic: generic_param.clone() }, None);
+                                for def_span in substituted_generics.iter() {
+                                    self.add_type_var(Type::GenericArg { call: span.clone(), generic: def_span.clone() }, None);
                                 }
                             }
 

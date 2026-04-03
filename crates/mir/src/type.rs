@@ -8,6 +8,7 @@ use sodigy_session::SodigySession;
 use sodigy_span::Span;
 use sodigy_string::hash;
 use sodigy_token::Constant;
+use std::collections::HashSet;
 
 // This enum is originally meant for type annotations, but
 // type-checker and type-inferer are also using this enum...
@@ -340,12 +341,11 @@ impl Type {
         }
     }
 
-    pub fn substitute_generic_param_for_arg(&mut self, call: &Span, generics: &[Span]) {
+    pub fn substitute_generic_param_for_arg(&mut self, call: &Span, substituted_spans: &mut HashSet<Span>) {
         match self {
             Type::GenericParam { def_span, .. } => {
-                if generics.contains(def_span) {
-                    *self = Type::GenericArg { call: call.clone(), generic: def_span.clone() };
-                }
+                substituted_spans.insert(def_span.clone());
+                *self = Type::GenericArg { call: call.clone(), generic: def_span.clone() };
             },
             Type::Never(_) |
             Type::Var { .. } |
@@ -354,16 +354,16 @@ impl Type {
             Type::Data { args, .. } => {
                 if let Some(args) = args {
                     for arg in args.iter_mut() {
-                        arg.substitute_generic_param_for_arg(call, generics);
+                        arg.substitute_generic_param_for_arg(call, substituted_spans);
                     }
                 }
             },
             Type::Func { r#return, params, .. } => {
                 for param in params.iter_mut() {
-                    param.substitute_generic_param_for_arg(call, generics);
+                    param.substitute_generic_param_for_arg(call, substituted_spans);
                 }
 
-                r#return.substitute_generic_param_for_arg(call, generics);
+                r#return.substitute_generic_param_for_arg(call, substituted_spans);
             },
         }
     }
@@ -480,7 +480,7 @@ impl Type {
                 buffer.push(3);
                 def_span.encode_impl(&mut buffer);
             },
-            _ => todo!(),
+            t => panic!("TODO: {t:?}"),
         }
 
         hash(&buffer)

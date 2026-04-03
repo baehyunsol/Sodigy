@@ -3,7 +3,6 @@ use sodigy_hir::{
     Alias,
     AssociatedItem,
     EnumShape,
-    EnumVariant,
     Expr,
     Func,
     FuncShape,
@@ -134,34 +133,8 @@ impl Session {
             self.struct_shapes.insert(def_span.clone(), struct_shape);
         }
 
-        for (def_span, enum_shape) in hir_session.enums.iter().map(
-            |r#enum| {
-                let variants: Vec<EnumVariant> = r#enum.variants.clone().into_iter().map(
-                    |mut variant| {
-                        variant.fields.erase_type_info();
-                        variant
-                    }
-                ).collect();
-                let variant_index: HashMap<Span, usize> = variants.iter().enumerate().map(
-                    |(index, variant)| (variant.name_span.clone(), index)
-                ).collect();
-
-                (
-                    r#enum.name_span.clone(),
-                    EnumShape {
-                        name: r#enum.name,
-                        variants,
-                        variant_index,
-                        representation: r#enum.representation,
-                        generics: r#enum.generics.clone(),
-                        generic_group_span: r#enum.generic_group_span.clone(),
-                        associated_funcs: HashMap::new(),
-                        associated_lets: HashMap::new(),
-                    },
-                )
-            }
-        ) {
-            self.enum_shapes.insert(def_span.clone(), enum_shape);
+        for r#enum in hir_session.enums.iter() {
+            self.enum_shapes.insert(r#enum.name_span.clone(), r#enum.shape());
         }
 
         let mut children = HashMap::new();

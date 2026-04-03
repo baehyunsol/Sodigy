@@ -3,6 +3,7 @@ use crate::Session;
 use sodigy_mir::Type;
 use sodigy_number::InternedNumber;
 use sodigy_span::Span;
+use std::collections::HashSet;
 
 /// matrix for `Int`
 /// ```ignore
@@ -51,7 +52,7 @@ use sodigy_span::Span;
 ///         MatrixRow { field: [index(0), constructor], constructor: Range { Int, -inf..inf } },
 ///         MatrixRow { field: [index(1), constructor], constructor: Range { Int, -inf..inf } },
 ///         MatrixRow { field: [index(2), constructor], constructor: DefSpan(Option) },
-///         MatrixRow { field: [index(2), variant], constructor: Or(DefSpan(Some), DefSpan(None)) },
+///         MatrixRow { field: [index(2), variant], constructor: EnumVariants([Some, None]) },
 ///         MatrixRow { field: [index(2), payload], constructor: EnumPayload(Option) },
 ///     ],
 /// }
@@ -68,6 +69,8 @@ pub enum MatrixConstructor {
     DefSpan(Span),
     Range(Range),
     ListSubMatrix(Type),
+    EnumVariants { parent: Span, variants: HashSet<Span> },
+    EnumPayload(Span),
 }
 
 pub fn get_matrix(
@@ -148,8 +151,26 @@ pub fn get_matrix(
                 ]
             }
 
+            else if let Some(enum_shape) = session.global_context.enum_shapes.unwrap().get(constructor_def_span) {
+                vec![
+                    MatrixRow {
+                        field: vec![PatternField::Constructor],
+                        constructor: MatrixConstructor::EnumVariants {
+                            parent: constructor_def_span.clone(),
+                            variants: enum_shape.variants.iter().map(
+                                |variant| variant.name_span.clone()
+                            ).collect(),
+                        },
+                    },
+                    MatrixRow {
+                        field: vec![PatternField::EnumPayload],
+                        constructor: MatrixConstructor::EnumPayload(constructor_def_span.clone()),
+                    },
+                ]
+            }
+
             else {
-                todo!()
+                panic!("TODO: {constructor_def_span:?}")
             }
         },
         Type::Never(_) => todo!(),

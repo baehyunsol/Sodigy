@@ -15,8 +15,10 @@ use sodigy_string::hash;
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
+mod r#enum;
 mod expr;
 mod func;
+mod path;
 mod pattern;
 
 pub struct MonomorphizePlan {
@@ -93,7 +95,9 @@ impl Session {
 
         for (_, generic_call) in generic_calls.iter() {
             match self.try_solve_poly(poly_solver, generic_call) {
-                SolvePolyResult::NotPoly => {
+                // If it's not poly-generic, it's just a normal generic (TODO: better naming), so we monomorphize.
+                // If default-impl is chosen, ... it's still a generic function, so we monomorphize.
+                SolvePolyResult::NotPoly | SolvePolyResult::DefaultImpl(_) => {
                     // We can do monomorphization only if every generic arguments are known.
                     if incomplete_generics.contains(&generic_call.call) {
                         continue;
@@ -126,27 +130,6 @@ impl Session {
                         generics: generic_call.generics.clone(),
                         num_candidates: 0,
                     });
-                },
-                // It's still a generic function, so we have to monomorphize this.
-                SolvePolyResult::DefaultImpl(_) => {
-                    for generic in generic_call.generics.keys() {
-                        self.solved_generic_args.insert((generic_call.call.clone(), generic.clone()));
-                    }
-
-                    // We don't monomorphize built_in functions.
-                    if self.built_in_funcs.contains(&generic_call.def) {
-                        continue;
-                    }
-
-                    let monomorphization_id = get_monomorphization_id(&generic_call.def, &generic_call.generics);
-                    let monomorphized_span = generic_call.def.monomorphize(monomorphization_id);
-                    monomorphizations.push(Monomorphization {
-                        def_span: generic_call.def.clone(),
-                        call_span: generic_call.call.clone(),
-                        generics: generic_call.generics.clone(),
-                        id: monomorphization_id,
-                    });
-                    dispatch_map.insert(generic_call.call.clone(), monomorphized_span);
                 },
                 SolvePolyResult::OneCandidate(p) => {
                     dispatch_map.insert(generic_call.call.clone(), p);

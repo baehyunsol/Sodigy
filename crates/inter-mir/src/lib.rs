@@ -131,15 +131,31 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                     if let Some(index) = session.funcs_rev.get(&monomorphization.def_span) {
                         let func = &mir_session.funcs[*index];
                         let new_func = session.monomorphize_func(func, &monomorphization);
+
                         session.monomorphizations.insert(monomorphization.id, monomorphization);
                         session.func_shapes.insert(new_func.name_span.clone(), new_func.shape());
                         session.funcs_rev.insert(new_func.name_span.clone(), mir_session.funcs.len());
                         mir_session.funcs.push(new_func);
                     }
 
-                    else {
-                        // maybe a struct or an enum?
+                    else if let Some(index) = session.structs_rev.get(&monomorphization.def_span) {
                         todo!()
+                    }
+
+                    else if let Some(index) = session.enums_rev.get(&monomorphization.def_span) {
+                        let r#enum = &mir_session.enums[*index];
+                        let new_enum = session.monomorphize_enum(r#enum, &monomorphization);
+                        let enum_shape = session.enum_shapes.get(&monomorphization.def_span).unwrap().clone();
+                        let new_enum_shape = session.monomorphize_enum_shape(&enum_shape, &monomorphization);
+
+                        session.monomorphizations.insert(monomorphization.id, monomorphization);
+                        session.enum_shapes.insert(new_enum.name_span.clone(), new_enum_shape);
+                        session.enums_rev.insert(new_enum.name_span.clone(), mir_session.enums.len());
+                        mir_session.enums.push(new_enum);
+                    }
+
+                    else {
+                        unreachable!()
                     }
                 }
 

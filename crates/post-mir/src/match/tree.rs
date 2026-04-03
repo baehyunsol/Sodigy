@@ -28,11 +28,13 @@ use sodigy_mir::{
     type_of,
 };
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
+use sodigy_number::InternedNumber;
 use sodigy_span::{Span, SpanDeriveKind};
 use sodigy_string::intern_string;
 use sodigy_token::Constant;
 use std::cmp::Ordering;
 use std::collections::HashSet;
+use std::collections::hash_map::{Entry, HashMap};
 use std::fmt;
 
 // In this tree, it reads `scrutinee.field` and branches to the next tree (or leaf).
@@ -653,7 +655,7 @@ pub(crate) fn build_tree(
             destructured_patterns = split_or_patterns(destructured_patterns);
 
             // default: wildcard
-            branches_with_overlap.push((r.clone(), (vec![], vec![])));
+            branches_with_overlap.push((*r, (vec![], vec![])));
 
             for (id, arm, pattern, name_bindings_) in destructured_patterns.into_iter() {
                 match &pattern {
@@ -675,7 +677,7 @@ pub(crate) fn build_tree(
                             }
 
                             if is_new {
-                                branches_with_overlap.push((r.clone(), (vec![(id, arm)], name_bindings_)));
+                                branches_with_overlap.push((*r, (vec![(id, arm)], name_bindings_)));
                             }
                         }
                     },
@@ -857,6 +859,79 @@ pub(crate) fn build_tree(
                 }],
             })
         },
+        MatrixConstructor::EnumVariants { parent, variants } => {
+            let mut arms_by_variant: HashMap<Span, Vec<(usize, &MatchArm)>> = HashMap::new();
+            let mut wildcard_arms = vec![];
+            let mut name_bindings = vec![];
+
+            for (id, arm, pattern, name_bindings_) in destructured_patterns.into_iter() {
+                name_bindings.extend(name_bindings_);
+
+                match &pattern {
+                    PatternConstructor::DefSpan(d) => match arms_by_variant.entry(d.clone()) {
+                        Entry::Occupied(mut e) => {
+                            e.get_mut().push((id, arm));
+                        },
+                        Entry::Vacant(e) => {
+                            e.insert(vec![(id, arm)]);
+                        },
+                    },
+                    PatternConstructor::Wildcard => {
+                        wildcard_arms.push((id, arm));
+                    },
+                    _ => todo!(),
+                }
+            }
+
+            for arms in arms_by_variant.values_mut() {
+                arms.extend(wildcard_arms.clone());
+            }
+
+            let mut branches = Vec::with_capacity(arms_by_variant.len() + 1);
+
+            for (variant_def_span, arms) in arms_by_variant.iter() {
+                let variant_index = InternedNumber::from_u32(session.get_variant_index(parent, variant_def_span).unwrap(), true);
+                branches.push(DecisionTreeBranch {
+                    condition: ExprConstructor::Range(Range {
+                        r#type: LiteralType::Scalar,
+                        lhs: Some(variant_index),
+                        lhs_inclusive: true,
+                        rhs: Some(variant_index),
+                        rhs_inclusive: true,
+                    }),
+                    guard: None,
+                    node: build_tree(
+                        tree_id,
+                        &matrix[1..],
+                        arms,
+                        session,
+                    ),
+                    name_bindings: name_bindings.clone(),
+                });
+            }
+
+            if !wildcard_arms.is_empty() && variants.len() > arms_by_variant.len() {
+                branches.push(DecisionTreeBranch {
+                    condition: ExprConstructor::Wildcard,
+                    guard: None,
+                    node: build_tree(
+                        tree_id,
+                        &matrix[1..],
+                        &wildcard_arms,
+                        session,
+                    ),
+                    name_bindings: name_bindings.clone(),
+                });
+            }
+
+            *tree_id += 1;
+            DecisionTreeNode::Tree(DecisionTree {
+                id: *tree_id,
+                field: Some(matrix[0].field.clone()),
+                branches,
+            })
+        },
+        MatrixConstructor::EnumPayload(_) => todo!(),
     }
 }
 

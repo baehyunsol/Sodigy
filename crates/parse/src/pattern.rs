@@ -1241,7 +1241,7 @@ impl<'t, 's> Tokens<'t, 's> {
 
     pub fn parse_struct_field_patterns(&mut self) -> Result<(Vec<StructFieldPattern>, Option<Span>), Vec<Error>> {
         let mut fields = vec![];
-        let mut rest = None;
+        let mut rest: Option<Span> = None;
 
         loop {
             match self.peek2() {
@@ -1327,10 +1327,26 @@ impl<'t, 's> Tokens<'t, 's> {
                 },
                 (Some(Token { kind: TokenKind::Punct(Punct::DotDot), span }), _) => {
                     if let Some(prev_span) = &rest {
-                        todo!()
+                        return Err(vec![Error {
+                            kind: ErrorKind::MultipleRestPatterns,
+                            spans: vec![
+                                RenderableSpan {
+                                    span: span.clone(),
+                                    auxiliary: false,
+                                    note: None,
+                                },
+                                RenderableSpan {
+                                    span: prev_span.clone(),
+                                    auxiliary: true,
+                                    note: None,
+                                },
+                            ],
+                            note: None,
+                        }]);
                     }
 
                     rest = Some(span.clone());
+                    self.cursor += 1;
 
                     if let Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }) = self.peek() {
                         self.cursor += 1;

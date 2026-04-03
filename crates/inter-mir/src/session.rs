@@ -63,6 +63,8 @@ pub struct Session {
     // This is the map from def_span to index. So, it's safe to push functions to `mir_session.funcs`,
     // but you shouldn't change the order of `.funcs` or remove an element.
     pub funcs_rev: HashMap<Span, usize>,
+    pub structs_rev: HashMap<Span, usize>,
+    pub enums_rev: HashMap<Span, usize>,
 
     // `u64` is an id of a monomorphization.
     // 1. It prevents the compiler from doing the same monomorphization multiple times.
@@ -113,6 +115,8 @@ impl Session {
             pattern_name_bindings: HashSet::new(),
             solved_generic_args: HashSet::new(),
             funcs_rev: HashMap::new(),
+            structs_rev: HashMap::new(),
+            enums_rev: HashMap::new(),
             monomorphizations: HashMap::new(),
             associated_funcs: vec![],
             types: HashMap::new(),
@@ -147,6 +151,8 @@ impl Session {
             pattern_name_bindings: HashSet::new(),
             solved_generic_args: HashSet::new(),
             funcs_rev: mir_session.funcs.iter().enumerate().map(|(i, func)| (func.name_span.clone(), i)).collect(),
+            structs_rev: mir_session.structs.iter().enumerate().map(|(i, r#struct)| (r#struct.name_span.clone(), i)).collect(),
+            enums_rev: mir_session.enums.iter().enumerate().map(|(i, r#enum)| (r#enum.name_span.clone(), i)).collect(),
             monomorphizations: HashMap::new(),
             associated_funcs: vec![],
             types: mir_session.types.drain().collect(),

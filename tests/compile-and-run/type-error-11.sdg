@@ -1,0 +1,6 @@
+//% compile-error == 1
+
+fn unwrap(n: Option<Int>) -> Int = match n {
+    Some($a, _) => a,
+    None => std.panic("oh, no!"),
+};

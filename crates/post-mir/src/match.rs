@@ -426,6 +426,7 @@ fn read_field_of_pattern(
 
     let constructor = match field.last().unwrap() {
         PatternField::Constructor => match &curr_pattern.kind {
+            PatternKind::Path(p) => PatternConstructor::DefSpan(p.id.def_span.clone()),
             PatternKind::Constant(Constant::Number { n, .. }) => PatternConstructor::Range(Range {
                 r#type: if n.is_integer() { LiteralType::Int } else { LiteralType::Number },
                 lhs: Some(*n),
@@ -441,6 +442,7 @@ fn read_field_of_pattern(
                 rhs_inclusive: true,
             }),
             PatternKind::Constant(Constant::String { .. }) => PatternConstructor::DefSpan(session.get_lang_item_span("type.List")),
+            PatternKind::Struct { r#struct, .. } | PatternKind::TupleStruct { r#struct, .. } => PatternConstructor::DefSpan(r#struct.id.def_span.clone()),
             PatternKind::Tuple { elements, rest, .. } => {
                 if let Some(_) = rest {
                     // `(a, .. , b)` is just a syntax sugar for `(a, _, _, b)`.
@@ -452,6 +454,7 @@ fn read_field_of_pattern(
                     PatternConstructor::Tuple(elements.len())
                 }
             },
+            // TODO: Lists are monomorphized...
             PatternKind::List { .. } => PatternConstructor::DefSpan(session.get_lang_item_span("type.List")),
             PatternKind::Range { lhs, rhs, is_inclusive, .. } => {
                 let mut literal_type = None;
@@ -555,6 +558,13 @@ fn read_field_of_pattern(
             },
             PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => PatternConstructor::Wildcard,
             _ => todo!(),
+        },
+        PatternField::EnumPayload => {
+            // TODO
+            // I need `PatternConstructor::EnumPayload { elements: Vec<Pattern> }`.
+            // Unlike `ListSubMatrix`, every pattern has the same number of elements.
+            // If there's a rest pattern, the missing elements are filled with `Pattern::Wildcard`.
+            todo!()
         },
         f => panic!("TODO: {f:?}"),
     };

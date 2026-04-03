@@ -13,6 +13,7 @@ mod assert;
 mod expr;
 mod func;
 mod r#let;
+mod path;
 mod pattern;
 
 impl Session {

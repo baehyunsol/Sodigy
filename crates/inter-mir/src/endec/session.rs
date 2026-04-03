@@ -51,6 +51,8 @@ impl Endec for Session {
                 pattern_name_bindings: HashSet::new(),
                 solved_generic_args: HashSet::new(),
                 funcs_rev: HashMap::new(),
+                structs_rev: HashMap::new(),
+                enums_rev: HashMap::new(),
                 monomorphizations,
                 associated_funcs: vec![],
                 types,

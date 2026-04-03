@@ -10,12 +10,17 @@ impl Session {
         }
 
         match &mut pattern.kind {
+            PatternKind::Path(p) => {
+                assert!(p.fields.is_empty());
+                assert!(matches!(&p.dotfish[..], [None]));
+                self.monomorphize_id(&mut p.id, monomorphization);
+            },
             PatternKind::NameBinding { span, .. } => {
                 *span = span.monomorphize(monomorphization.id);
             },
-            PatternKind::Tuple { elements, rest, group_span } |
-            PatternKind::List { elements, rest, group_span } => {
-                *group_span = group_span.monomorphize(monomorphization.id);
+            PatternKind::TupleStruct { r#struct, elements, rest, group_span } => {
+                assert!(r#struct.fields.is_empty());
+                self.monomorphize_id(&mut r#struct.id, monomorphization);
 
                 for element in elements.iter_mut() {
                     self.monomorphize_pattern(element, monomorphization);
@@ -28,6 +33,24 @@ impl Session {
                         *name_span = name_span.monomorphize(monomorphization.id);
                     }
                 }
+
+                *group_span = group_span.monomorphize(monomorphization.id);
+            },
+            PatternKind::Tuple { elements, rest, group_span } |
+            PatternKind::List { elements, rest, group_span } => {
+                for element in elements.iter_mut() {
+                    self.monomorphize_pattern(element, monomorphization);
+                }
+
+                if let Some(rest) = rest {
+                    rest.span = rest.span.monomorphize(monomorphization.id);
+
+                    if let Some(name_span) = &mut rest.name_span {
+                        *name_span = name_span.monomorphize(monomorphization.id);
+                    }
+                }
+
+                *group_span = group_span.monomorphize(monomorphization.id);
             },
             PatternKind::Or { lhs, rhs, op_span } => {
                 self.monomorphize_pattern(lhs, monomorphization);
@@ -37,7 +60,7 @@ impl Session {
             PatternKind::Wildcard(span) => {
                 *span = span.monomorphize(monomorphization.id);
             },
-            _ => panic!("TODO: {pattern:?}"),
+            _ => panic!("TODO: {pattern:?}\n{monomorphization:?}"),
         }
     }
 }

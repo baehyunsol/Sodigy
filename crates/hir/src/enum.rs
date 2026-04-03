@@ -181,6 +181,29 @@ impl Enum {
 
         attribute_rule
     }
+
+    pub fn shape(&self) -> EnumShape {
+        let variants: Vec<EnumVariant> = self.variants.clone().into_iter().map(
+            |mut variant| {
+                variant.fields.erase_type_info();
+                variant
+            }
+        ).collect();
+        let variant_index: HashMap<Span, usize> = variants.iter().enumerate().map(
+            |(index, variant)| (variant.name_span.clone(), index)
+        ).collect();
+
+        EnumShape {
+            name: self.name,
+            variants,
+            variant_index,
+            representation: self.representation,
+            generics: self.generics.clone(),
+            generic_group_span: self.generic_group_span.clone(),
+            associated_funcs: HashMap::new(),
+            associated_lets: HashMap::new(),
+        }
+    }
 }
 
 impl EnumVariant {
@@ -295,6 +318,16 @@ impl EnumVariantFields {
                 }
             },
         }
+    }
+}
+
+impl EnumShape {
+    // Every enum variant has a scalar index, and that has nothing to do with niche optimization.
+    // For example, variant-index of `Option.Some(_)` is always 1, regardless of niche optimization.
+    // If `EnumRepr::Scalar`, the runtime representation of the enum is the same as variant-index.
+    // If `EnumRepr::Compound`, the first element of the compound value is the same as variant-index.
+    pub fn get_variant_index(&self, variant: &Span) -> Option<u32> {
+        self.variant_index.get(variant).map(|i| *i as u32)
     }
 }
 

@@ -414,7 +414,8 @@ impl PatternKind {
             PatternKind::List { group_span: span, .. } |
             PatternKind::Range { op_span: span, .. } |
             PatternKind::Or { op_span: span, .. } => span.clone(),
-            _ => panic!("TODO: {self:?}"),
+            PatternKind::Struct { r#struct, .. } |
+            PatternKind::TupleStruct { r#struct, .. } => r#struct.id.span.clone(),
         }
     }
 
@@ -442,7 +443,8 @@ impl PatternKind {
             PatternKind::Or { lhs, rhs, op_span } => lhs.error_span_wide()
                 .merge(op_span)
                 .merge(&rhs.error_span_wide()),
-            _ => panic!("TODO: {self:?}"),
+            PatternKind::Struct { r#struct, group_span, .. } |
+            PatternKind::TupleStruct { r#struct, group_span, .. } => r#struct.id.span.merge(group_span),
         }
     }
 }

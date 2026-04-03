@@ -29,7 +29,7 @@ impl LiteralType {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Range {
     pub r#type: LiteralType,
     pub lhs: Option<InternedNumber>,
@@ -294,9 +294,9 @@ fn split_to_non_overlapping_ranges<T: Clone + Merge>(
     else {
         Splits {
             overlap: None,
-            a_left: Some((a_range.clone(), a_val.clone())),
+            a_left: Some((*a_range, a_val.clone())),
             a_right: None,
-            b_left: Some((b_range.clone(), b_val.clone())),
+            b_left: Some((*b_range, b_val.clone())),
             b_right: None,
         }
     }
@@ -493,8 +493,8 @@ pub fn filter_out_invalid_ranges<T: Clone + Merge>(branches: Vec<(Range, T)>, in
     for (range, value) in branches.into_iter() {
         for valid_range in valid_ranges.iter() {
             if let Some((range, value)) = split_to_non_overlapping_ranges(
-                &(range.clone(), value.clone()),
-                &(valid_range.clone(), T::identity_element()),
+                &(range, value.clone()),
+                &(*valid_range, T::identity_element()),
                 intermediate_dir,
             ).overlap {
                 result.push((range, value));

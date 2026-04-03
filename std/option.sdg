@@ -2,3 +2,9 @@ pub enum Option<T> = {
     Some(T),
     None,
 };
+
+#[associate(Option<T>)]
+fn unwrap<T>(self) -> T = match self {
+    Option.Some($v) => v,
+    Option.None => std.panic("attempt to unwrap None"),
+};

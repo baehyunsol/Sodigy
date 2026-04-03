@@ -43,6 +43,10 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
             .expect("global context poisoned")
             .insert(def_span.clone(), r#type);
     }
+
+    pub fn get_variant_index(&self, parent: &Span, variant: &Span) -> Option<u32> {
+        self.global_context.enum_shapes.unwrap().get(parent).map(|enum_shape| enum_shape.get_variant_index(variant))?
+    }
 }
 
 impl SodigySession for Session<'_, '_> {
