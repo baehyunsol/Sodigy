@@ -327,6 +327,9 @@ pub enum PatternConstructor {
         rest: Option<RestPattern>,
         elements: Vec<Pattern>,
     },
+
+    // You can get this with `PatternField::EnumPayload`.
+    EnumPayload { elements: Vec<Pattern> },
 }
 
 // pattern: `($a @ 0..20, ())`, field: `._0.constructor`
@@ -559,12 +562,19 @@ fn read_field_of_pattern(
             PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => PatternConstructor::Wildcard,
             _ => todo!(),
         },
-        PatternField::EnumPayload => {
-            // TODO
-            // I need `PatternConstructor::EnumPayload { elements: Vec<Pattern> }`.
-            // Unlike `ListSubMatrix`, every pattern has the same number of elements.
-            // If there's a rest pattern, the missing elements are filled with `Pattern::Wildcard`.
-            todo!()
+        PatternField::EnumPayload => match &curr_pattern.kind {
+            PatternKind::Path(_) |  // `Option.None` has no payload
+            PatternKind::NameBinding { .. } |
+            PatternKind::Wildcard(_) => PatternConstructor::Wildcard,
+            PatternKind::TupleStruct { elements, rest, .. } => {
+                if let Some(rest) = rest {
+                    // If the rest pattern is hiding patterns, fill there with `PatternConstructor::Wildcard`
+                    todo!();
+                }
+
+                PatternConstructor::EnumPayload { elements: elements.clone() }
+            },
+            _ => panic!("TODO: {curr_pattern:?}"),
         },
         f => panic!("TODO: {f:?}"),
     };

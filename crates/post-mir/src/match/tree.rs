@@ -931,7 +931,25 @@ pub(crate) fn build_tree(
                 branches,
             })
         },
-        MatrixConstructor::EnumPayload(_) => todo!(),
+        MatrixConstructor::EnumPayload(_) => {
+            // TODO
+            // 1. Every pattern_constructor in `destructured_patterns` must be either
+            //    `PatternConstructor::EnumPayload` or `PatternConstructor::Wildcard`.
+            //    - Every `PatternConstructor::EnumPayload` must have the same number
+            //      of elements.
+            // 2. Every pattern in `destructured_patterns` must be of the same enum variant,
+            //    and we have to know which variant that is in order to build the submatrix.
+            for (_, _, constructor, name_bindings_) in destructured_patterns.into_iter() {
+                // println!("{constructor:?}");
+                match &constructor {
+                    PatternConstructor::EnumPayload { .. } => todo!(),
+                    PatternConstructor::Wildcard => todo!(),
+                    _ => unreachable!(),
+                }
+            }
+
+            todo!()
+        },
     }
 }
 
