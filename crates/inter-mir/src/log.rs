@@ -5,9 +5,12 @@ use crate::{
     PolySolver,
     Session,
     SolvePolyResult,
+    TypeError,
 };
+use sodigy_error::Error;
 use sodigy_hir::Poly;
-use sodigy_mir::{Func, Let, Type};
+use sodigy_mir::{Expr, Func, Let, Type};
+use sodigy_parse::Field;
 use sodigy_span::Span;
 
 macro_rules! write_log {
@@ -19,7 +22,20 @@ macro_rules! write_log {
 }
 
 #[derive(Clone, Debug)]
+pub enum BlockedTypeVarKind {
+    CallingTypeVar {
+        expr: Expr,
+        type_var: Type,
+    },
+    FieldOfTypeVar {
+        field: Vec<Field>,
+        type_var: Type,
+    },
+}
+
+#[derive(Clone, Debug)]
 pub enum LogEntry {
+    TypeSolveLoopStart(u32),
     SolveSupertype {
         lhs: Type,
         rhs: Type,
@@ -50,6 +66,14 @@ pub enum LogEntry {
     AssociatedFunc {
         def_span: Span,
         call_span: Span,
+    },
+    BlockedTypeVar {
+        kind: BlockedTypeVarKind,
+        span: Span,
+    },
+    TypeError {
+        type_error: TypeError,
+        general_error: Error,
     },
 }
 

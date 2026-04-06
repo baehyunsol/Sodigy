@@ -11,7 +11,7 @@ use sodigy_token::Constant;
 use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "log")]
-use crate::LogEntry;
+use crate::log::{BlockedTypeVarKind, LogEntry};
 
 impl Session {
     // FIXME: there are A LOT OF heap allocations
@@ -801,7 +801,7 @@ impl Session {
                             },
                         };
 
-                        match func_type {
+                        match &func_type {
                             // TODO: What if there's a callable `Type::Data`?
                             Type::Data { .. } => {
                                 self.type_errors.push(TypeError::NotCallable {
@@ -824,7 +824,7 @@ impl Session {
                                 if arg_types.len() != params.len() {
                                     has_error = true;
                                     self.type_errors.push(TypeError::WrongNumberOfArgs {
-                                        expected: params,
+                                        expected: params.to_vec(),
                                         got: arg_types,
                                         given_keyword_args: given_keyword_args.to_vec(),
                                         call: func.error_span_wide(),
@@ -860,11 +860,18 @@ impl Session {
                             // TypeVar(x) and TypeVar(y). TypeVar(x)'s return type is equal to TypeVar(y), but there's
                             // no way to represent "TypeVar(x)'s return type".
                             Type::Var { def_span: span, .. } | Type::GenericArg { call: span, .. } => {
+                                write_log!(self, LogEntry::BlockedTypeVar {
+                                    kind: BlockedTypeVarKind::CallingTypeVar {
+                                        expr: expr.clone(),
+                                        type_var: func_type.clone(),
+                                    },
+                                    span: span.clone(),
+                                });
                                 self.blocked_type_vars.insert(span.clone());
                                 (Some(Type::Blocked { origin: span.clone() }), has_error)
                             },
 
-                            t @ Type::Blocked { .. } => (Some(t), has_error),
+                            t @ Type::Blocked { .. } => (Some(t.clone()), has_error),
                             _ => panic!("TODO: {func:?}, {func_type:?}"),
                         }
                     },
@@ -1011,6 +1018,13 @@ impl Session {
             Type::Var { def_span: span, .. } |
             Type::GenericArg { call: span, .. } |
             Type::Blocked { origin: span } => {
+                write_log!(self, LogEntry::BlockedTypeVar {
+                    kind: BlockedTypeVarKind::FieldOfTypeVar {
+                        field: field.to_vec(),
+                        type_var: r#type.clone(),
+                    },
+                    span: span.clone(),
+                });
                 self.blocked_type_vars.insert(span.clone());
                 return (associated_func_instance, Ok(Type::Blocked { origin: span.clone() }));
             },

@@ -105,8 +105,11 @@ pub fn log_inter_mir(session: &inter_mir::Session) -> Result<(), FileError> {
 
     for entry in session.log.iter() {
         match entry {
+            LogEntry::TypeSolveLoopStart(i) => {
+                buffer.push(format!("\n-------- TypeSolveLoopStart({i}) --------").into_bytes());
+            },
             LogEntry::SolveSupertype { lhs, rhs, lhs_span, rhs_span, context } => {
-                buffer.push(b"\n---\n".to_vec());
+                buffer.push(b"\n-------- SolveSupertype --------\n".to_vec());
                 buffer.push(prettify(format!("{entry:?}\n").into_bytes()));
                 buffer.push(format!("lhs: {}\n", session.render_type(lhs)).into_bytes());
                 buffer.push(format!("rhs: {}\n", session.render_type(rhs)).into_bytes());
@@ -245,6 +248,24 @@ pub fn log_inter_mir(session: &inter_mir::Session) -> Result<(), FileError> {
                 //       it's always `Span::Poly { .. }`, which cannot be rendered...
                 buffer.push(format!("def_span:\n{}\n", render_spans(
                     &def_span.simple_error(),
+                    &render_span_option,
+                    &mut render_span_session,
+                )).into_bytes());
+            },
+            LogEntry::BlockedTypeVar { kind: _, span } => {
+                buffer.push(b"\n-------- BlockedTypeVar --------\n".to_vec());
+                buffer.push(prettify(format!("{entry:?}\n").into_bytes()));
+                buffer.push(format!("span:\n{}\n", render_spans(
+                    &span.simple_error(),
+                    &render_span_option,
+                    &mut render_span_session,
+                )).into_bytes());
+            },
+            LogEntry::TypeError { type_error, general_error } => {
+                buffer.push(b"\n-------- TypeError --------\n".to_vec());
+                buffer.push(prettify(format!("{entry:?}\n").into_bytes()));
+                buffer.push(format!("error span:\n{}\n", render_spans(
+                    &general_error.spans,
                     &render_span_option,
                     &mut render_span_session,
                 )).into_bytes());

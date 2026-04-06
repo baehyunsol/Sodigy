@@ -3,7 +3,7 @@ mod log;
 
 use crate::log::write_log;
 use crate::mono::GenericCall;
-use sodigy_error::Error;
+use sodigy_error::{Error, Warning};
 use sodigy_mir::{Expr, Session as MirSession, Type};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -17,7 +17,7 @@ mod session;
 mod span_string_map;
 mod type_solver;
 
-pub use error::{ErrorContext, ExprContext, TypeError};
+pub use error::{ErrorContext, ExprContext, TypeError, TypeWarning};
 pub use log::LogEntry;
 pub use mono::Monomorphization;
 pub(crate) use poly::{PolySolver, SolvePolyResult};
@@ -40,6 +40,8 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
     // Their type information is collected by `Struct::from_hir` and `Enum::from_hir`.
 
     for i in 0..32 {
+        write_log!(session, LogEntry::TypeSolveLoopStart(i));
+
         if i == 31 {
             has_error = true;
 
@@ -248,13 +250,17 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
         &mir_session.aliases,
     );
 
-    for warning in session.type_warnings.iter() {
-        session.warnings.push(session.type_error_to_general_error(warning));
-    }
+    let type_warnings: Vec<TypeWarning> = session.type_warnings.drain(..).collect();
+    let type_warnings: Vec<Warning> = type_warnings.into_iter().map(
+        |w| session.type_error_to_general_error(w)
+    ).collect();
+    session.warnings.extend(type_warnings);
 
-    for error in session.type_errors.iter() {
-        session.errors.push(session.type_error_to_general_error(error));
-    }
+    let type_errors: Vec<TypeError> = session.type_errors.drain(..).collect();
+    let type_errors: Vec<Error> = type_errors.into_iter().map(
+        |e| session.type_error_to_general_error(e)
+    ).collect();
+    session.errors.extend(type_errors);
 
     session
 }
