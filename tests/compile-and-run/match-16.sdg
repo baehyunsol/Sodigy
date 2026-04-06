@@ -1,0 +1,148 @@
+type Quaternary = Option<Option<Option<Int>>>;
+
+fn foo(x: (Quaternary, Quaternary, Quaternary)) -> Int = match x {
+    (None, None, None) => 0,
+    (None, None, Some(None)) => 0,
+    (None, None, Some(Some(None))) => 0,
+    (None, None, Some(Some(Some($x)))) => x,
+    (None, Some(None), None) => 0,
+    (None, Some(None), Some(None)) => 0,
+    (None, Some(None), Some(Some(None))) => 0,
+    (None, Some(None), Some(Some(Some($x)))) => x,
+    (None, Some(Some(None)), None) => 0,
+    (None, Some(Some(None)), Some(None)) => 0,
+    (None, Some(Some(None)), Some(Some(None))) => 0,
+    (None, Some(Some(None)), Some(Some(Some($x)))) => x,
+    (None, Some(Some(Some($x))), None) => x,
+    (None, Some(Some(Some($x))), Some(None)) => x,
+    (None, Some(Some(Some($x))), Some(Some(None))) => x,
+    (None, Some(Some(Some(_))), Some(Some(Some($x)))) => x,
+    (Some(None), None, None) => 0,
+    (Some(None), None, Some(None)) => 0,
+    (Some(None), None, Some(Some(None))) => 0,
+    (Some(None), None, Some(Some(Some($x)))) => x,
+    (Some(None), Some(None), None) => 0,
+    (Some(None), Some(None), Some(None)) => 0,
+    (Some(None), Some(None), Some(Some(None))) => 0,
+    (Some(None), Some(None), Some(Some(Some($x)))) => x,
+    (Some(None), Some(Some(None)), None) => 0,
+    (Some(None), Some(Some(None)), Some(None)) => 0,
+    (Some(None), Some(Some(None)), Some(Some(None))) => 0,
+    (Some(None), Some(Some(None)), Some(Some(Some($x)))) => x,
+    (Some(None), Some(Some(Some($x))), None) => x,
+    (Some(None), Some(Some(Some($x))), Some(None)) => x,
+    (Some(None), Some(Some(Some($x))), Some(Some(None))) => x,
+    (Some(None), Some(Some(Some(_))), Some(Some(Some($x)))) => x,
+    (Some(Some(None)), None, None) => 0,
+    (Some(Some(None)), None, Some(None)) => 0,
+    (Some(Some(None)), None, Some(Some(None))) => 0,
+    (Some(Some(None)), None, Some(Some(Some($x)))) => x,
+    (Some(Some(None)), Some(None), None) => 0,
+    (Some(Some(None)), Some(None), Some(None)) => 0,
+    (Some(Some(None)), Some(None), Some(Some(None))) => 0,
+    (Some(Some(None)), Some(None), Some(Some(Some($x)))) => x,
+    (Some(Some(None)), Some(Some(None)), None) => 0,
+    (Some(Some(None)), Some(Some(None)), Some(None)) => 0,
+    (Some(Some(None)), Some(Some(None)), Some(Some(None))) => 0,
+    (Some(Some(None)), Some(Some(None)), Some(Some(Some($x)))) => x,
+    (Some(Some(None)), Some(Some(Some($x))), None) => x,
+    (Some(Some(None)), Some(Some(Some($x))), Some(None)) => x,
+    (Some(Some(None)), Some(Some(Some($x))), Some(Some(None))) => x,
+    (Some(Some(None)), Some(Some(Some(_))), Some(Some(Some($x)))) => x,
+    (Some(Some(Some($x))), None, None) => x,
+    (Some(Some(Some($x))), None, Some(None)) => x,
+    (Some(Some(Some($x))), None, Some(Some(None))) => x,
+    (Some(Some(Some(_))), None, Some(Some(Some($x)))) => x,
+    (Some(Some(Some($x))), Some(None), None) => x,
+    (Some(Some(Some($x))), Some(None), Some(None)) => x,
+    (Some(Some(Some($x))), Some(None), Some(Some(None))) => x,
+    (Some(Some(Some(_))), Some(None), Some(Some(Some($x)))) => x,
+    (Some(Some(Some($x))), Some(Some(None)), None) => x,
+    (Some(Some(Some($x))), Some(Some(None)), Some(None)) => x,
+    (Some(Some(Some($x))), Some(Some(None)), Some(Some(None))) => x,
+    (Some(Some(Some(_))), Some(Some(None)), Some(Some(Some($x)))) => x,
+    (Some(Some(Some(_))), Some(Some(Some($x))), None) => x,
+    (Some(Some(Some(_))), Some(Some(Some($x))), Some(None)) => x,
+    (Some(Some(Some(_))), Some(Some(Some($x))), Some(Some(None))) => x,
+    (Some(Some(Some(_))), Some(Some(Some(_))), Some(Some(Some($x)))) => x,
+};
+
+fn destruct(n: Int) -> (Quaternary, Quaternary, Quaternary) = {
+    let vs = [
+        \(_) => None,
+        \(_) => Some(None),
+        \(_) => Some(Some(None)),
+        \(i) => Some(Some(Some(i))),
+    ];
+
+    (
+        vs[n / 16](10),
+        vs[n / 4 % 4](20),
+        vs[n % 4](30),
+    )
+};
+
+assert foo(destruct(0)) == 0;
+assert foo(destruct(1)) == 0;
+assert foo(destruct(2)) == 0;
+assert foo(destruct(3)) == 30;
+assert foo(destruct(4)) == 0;
+assert foo(destruct(5)) == 0;
+assert foo(destruct(6)) == 0;
+assert foo(destruct(7)) == 30;
+assert foo(destruct(8)) == 0;
+assert foo(destruct(9)) == 0;
+assert foo(destruct(10)) == 0;
+assert foo(destruct(11)) == 30;
+assert foo(destruct(12)) == 20;
+assert foo(destruct(13)) == 20;
+assert foo(destruct(14)) == 20;
+assert foo(destruct(15)) == 30;
+assert foo(destruct(16)) == 0;
+assert foo(destruct(17)) == 0;
+assert foo(destruct(18)) == 0;
+assert foo(destruct(19)) == 30;
+assert foo(destruct(20)) == 0;
+assert foo(destruct(21)) == 0;
+assert foo(destruct(22)) == 0;
+assert foo(destruct(23)) == 30;
+assert foo(destruct(24)) == 0;
+assert foo(destruct(25)) == 0;
+assert foo(destruct(26)) == 0;
+assert foo(destruct(27)) == 30;
+assert foo(destruct(28)) == 20;
+assert foo(destruct(29)) == 20;
+assert foo(destruct(30)) == 20;
+assert foo(destruct(31)) == 30;
+assert foo(destruct(32)) == 0;
+assert foo(destruct(33)) == 0;
+assert foo(destruct(34)) == 0;
+assert foo(destruct(35)) == 30;
+assert foo(destruct(36)) == 0;
+assert foo(destruct(37)) == 0;
+assert foo(destruct(38)) == 0;
+assert foo(destruct(39)) == 30;
+assert foo(destruct(40)) == 0;
+assert foo(destruct(41)) == 0;
+assert foo(destruct(42)) == 0;
+assert foo(destruct(43)) == 30;
+assert foo(destruct(44)) == 20;
+assert foo(destruct(45)) == 20;
+assert foo(destruct(46)) == 20;
+assert foo(destruct(47)) == 30;
+assert foo(destruct(48)) == 10;
+assert foo(destruct(49)) == 10;
+assert foo(destruct(50)) == 10;
+assert foo(destruct(51)) == 30;
+assert foo(destruct(52)) == 10;
+assert foo(destruct(53)) == 10;
+assert foo(destruct(54)) == 10;
+assert foo(destruct(55)) == 30;
+assert foo(destruct(56)) == 10;
+assert foo(destruct(57)) == 10;
+assert foo(destruct(58)) == 10;
+assert foo(destruct(59)) == 30;
+assert foo(destruct(60)) == 20;
+assert foo(destruct(61)) == 20;
+assert foo(destruct(62)) == 20;
+assert foo(destruct(63)) == 30;

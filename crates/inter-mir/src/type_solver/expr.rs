@@ -856,21 +856,91 @@ impl Session {
                             // `let x = { ... }; let y = x();`
                             // Let's say we don't know the type of `x` and we want to infer the type of `y`.
                             // When we look at `x()`, we'll reach this branch (with `func_type = Type::Var(x)`).
-                            // We can't create a type equation here because there's no direct relationship between
-                            // TypeVar(x) and TypeVar(y). TypeVar(x)'s return type is equal to TypeVar(y), but there's
-                            // no way to represent "TypeVar(x)'s return type".
-                            Type::Var { def_span: span, .. } | Type::GenericArg { call: span, .. } => {
-                                write_log!(self, LogEntry::BlockedTypeVar {
-                                    kind: BlockedTypeVarKind::CallingTypeVar {
-                                        expr: expr.clone(),
-                                        type_var: func_type.clone(),
-                                    },
-                                    span: span.clone(),
-                                });
-                                self.blocked_type_vars.insert(span.clone());
-                                (Some(Type::Blocked { origin: span.clone() }), has_error)
-                            },
+                            // Since we can't create a direct relationship between the two, we introduce an
+                            // intermediate type var here.
+                            type_var @ (Type::Var { .. } | Type::GenericArg { .. }) => {
+                                let prev_infered = match type_var {
+                                    // This is sooooo complicated...
+                                    Type::Var { is_return: true, .. } => todo!(),
+                                    Type::Var { def_span, .. } => self.types.get(def_span),
+                                    Type::GenericArg { call, generic } => self.generic_args.get(&(call.clone(), generic.clone())),
+                                    _ => unreachable!(),
+                                };
 
+                                match prev_infered {
+                                    Some(Type::Var { .. } | Type::GenericArg { .. }) | None => {
+                                        let intermediate_type_var_id: Span = todo!();  // I need some kinda Span::uuid()
+                                        let intermediate_type_var = Type::Var {
+                                            def_span: intermediate_type_var_id.clone(),
+                                            is_return: true,
+                                        };
+                                        let intermediate_func_type = Type::Func {
+                                            fn_span: Span::None,
+                                            group_span: Span::None,
+                                            params: arg_types,
+                                            r#return: Box::new(intermediate_type_var.clone()),
+
+                                            // TODO
+                                            // It's impossible to infer its purity.
+                                            // We need some kinda purity-variable...
+                                            // It'd be difficult to unify purity-variables because of `Purity::Both`.
+                                            purity: todo!(),
+                                        };
+                                        self.types.insert(intermediate_type_var_id, intermediate_func_type.clone());
+                                        self.add_type_var(intermediate_type_var.clone(), None);
+                                        self.add_type_var_ref(intermediate_type_var.clone(), type_var.clone());
+                                        self.add_type_var_ref(type_var.clone(), intermediate_type_var.clone());
+
+                                        for ref_type_var in intermediate_func_type.get_type_vars() {
+                                            self.add_type_var_ref(ref_type_var, intermediate_type_var.clone());
+                                        }
+
+                                        (Some(intermediate_type_var.clone()), has_error)
+                                    },
+                                    Some(Type::Func { r#return, params, .. }) => {
+                                        let r#return: Type = *r#return.clone();
+                                        let params = params.clone();
+
+                                        if arg_types.len() != params.len() {
+                                            has_error = true;
+                                            self.type_errors.push(TypeError::WrongNumberOfArgs {
+                                                expected: params.to_vec(),
+                                                got: arg_types,
+                                                given_keyword_args: given_keyword_args.to_vec(),
+                                                call: func.error_span_wide(),
+                                                def: None,
+                                                arg_spans: args.iter().map(|arg| arg.error_span_wide()).collect(),
+                                            });
+                                        }
+
+                                        else {
+                                            for i in 0..params.len() {
+                                                if let Err(()) = self.solve_supertype(
+                                                    &params[i],
+                                                    &arg_types[i],
+                                                    false,
+                                                    None,
+                                                    Some(&args[i].error_span_wide()),
+                                                    ErrorContext::FuncArgs,
+                                                    false,
+                                                ) {
+                                                    has_error = true;
+                                                }
+                                            }
+                                        }
+
+                                        (Some(r#return), has_error)
+                                    },
+                                    // We found `let y = x();`, but the type of `x` is not `Fn(..) -> _;`.
+                                    Some(prev_infered) => {
+                                        self.type_errors.push(TypeError::NotCallable {
+                                            r#type: prev_infered.clone(),
+                                            func_span: func.error_span_wide(),
+                                        });
+                                        (None, true)
+                                    },
+                                }
+                            },
                             t @ Type::Blocked { .. } => (Some(t.clone()), has_error),
                             _ => panic!("TODO: {func:?}, {func_type:?}"),
                         }
