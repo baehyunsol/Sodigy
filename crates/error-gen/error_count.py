@@ -25,21 +25,30 @@ def count_errors(map, errors, path):
                 code = f.read()
 
             for name, _, _ in errors:
-                c = code.count(f"ErrorKind::{name}")
+                c = code.count(f"ErrorKind::{name}") + code.count(f"WarningKind::{name}") + code.count(f"LintKind::{name}")
 
                 if c > 0:
                     map[name] = map.get(name, []) + [(path + d, c)]
 
 errors = []
+index_by_name = {}
 
 with open("errors.txt", "r") as f:
     for line in f.read().split("\n"):
         name, index, level = line.split("/")
         index = int(index)
         errors.append((name, index, level))
+        index_by_name[name] = index
 
 map = { name: [] for name, _, _ in errors }
 
 os.chdir("../..")
 count_errors(map, errors, "")
-print(map)
+map = [(name, count, index_by_name[name]) for name, count in map.items()]
+map.sort(key=lambda t: t[2])
+
+for name, count, index in map:
+    print(f"{name} ({index})")
+
+    for path, c in count:
+        print(f"    {path}: {c}")
