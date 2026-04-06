@@ -8,20 +8,14 @@ use std::collections::HashMap;
 impl Expr {
     pub fn dispatch(
         &mut self,
-        generics: &HashMap<Span, Span>,
+        dispatch_map: &HashMap<Span, Span>,  // call_span -> new_def_span
         associated_funcs: &HashMap<Span, Span>,
         func_shapes: &HashMap<Span, FuncShape>,
         generic_args: &mut HashMap<(Span, Span), Type>,
     ) {
         match self {
-            // TODO: I guess we have to dispatch identifiers, too?
-            //       e.g. let's say `add` is a generic function
-            //       `let x: [Fn(Int, Int) -> Int] = [add, sub, mul, div];`
-            //       Then we have to dispatch the identifiers in the list.
-            Expr::Ident { id, dotfish } => match generics.get(&id.span) {
+            Expr::Ident { id, dotfish } => match dispatch_map.get(&id.span) {
                 Some(new_def_span) => {
-                    // TODO: I guess I have to update the name_kind?
-                    //       -> I have to update `parent` in `EnumVariant { parent }`
                     id.def_span = new_def_span.clone();
                     *dotfish = None;
                 },
@@ -29,38 +23,39 @@ impl Expr {
             },
             Expr::Constant(_) => {},
             Expr::If(r#if) => {
-                r#if.cond.dispatch(generics, associated_funcs, func_shapes, generic_args);
-                r#if.true_value.dispatch(generics, associated_funcs, func_shapes, generic_args);
-                r#if.false_value.dispatch(generics, associated_funcs, func_shapes, generic_args);
+                r#if.cond.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+                r#if.true_value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+                r#if.false_value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
             },
             Expr::Match(r#match) => {
-                r#match.scrutinee.dispatch(generics, associated_funcs, func_shapes, generic_args);
+                r#match.scrutinee.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
 
                 for arm in r#match.arms.iter_mut() {
                     if let Some(guard) = &mut arm.guard {
-                        guard.dispatch(generics, associated_funcs, func_shapes, generic_args);
+                        guard.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
                     }
 
-                    arm.value.dispatch(generics, associated_funcs, func_shapes, generic_args);
+                    arm.pattern.dispatch(dispatch_map);  // TODO
+                    arm.value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
                 }
             },
             Expr::Block(block) => {
                 for r#let in block.lets.iter_mut() {
-                    r#let.value.dispatch(generics, associated_funcs, func_shapes, generic_args);
+                    r#let.value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
                 }
 
                 for assert in block.asserts.iter_mut() {
-                    assert.value.dispatch(generics, associated_funcs, func_shapes, generic_args);
+                    assert.value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
 
                     if let Some(note) = &mut assert.note {
-                        note.dispatch(generics, associated_funcs, func_shapes, generic_args);
+                        note.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
                     }
                 }
 
-                block.value.dispatch(generics, associated_funcs, func_shapes, generic_args);
+                block.value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
             },
             Expr::Field { lhs, fields, dotfish } => {
-                lhs.dispatch(generics, associated_funcs, func_shapes, generic_args);
+                lhs.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
 
                 // `x.y.push` -> `\(z) => associated_func::push(x.y, z)`
                 if let Some(Field::Name { name_span, .. }) = fields.last() && let Some(poly_def_span) = associated_funcs.get(name_span) {
@@ -69,12 +64,12 @@ impl Expr {
                 }
             },
             Expr::FieldUpdate { lhs, rhs, .. } => {
-                lhs.dispatch(generics, associated_funcs, func_shapes, generic_args);
-                rhs.dispatch(generics, associated_funcs, func_shapes, generic_args);
+                lhs.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+                rhs.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
             },
             Expr::Call { func, args, arg_group_span, types, given_keyword_args } => {
                 let dispatch = match func {
-                    Callable::Static { span, .. } => match generics.get(span) {
+                    Callable::Static { span, .. } => match dispatch_map.get(span) {
                         Some(new_def_span) => Some((new_def_span.clone(), span.clone())),
                         None => None,
                     },
@@ -97,7 +92,7 @@ impl Expr {
                                 new_args.extend(args.to_vec());
 
                                 for arg in args.iter_mut() {
-                                    arg.dispatch(generics, associated_funcs, func_shapes, generic_args);
+                                    arg.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
                                 }
 
                                 *self = Expr::Call {
@@ -114,7 +109,7 @@ impl Expr {
                             }
                         }
 
-                        f.dispatch(generics, associated_funcs, func_shapes, generic_args);
+                        f.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
                         None
                     },
                     _ => None,
@@ -142,7 +137,7 @@ impl Expr {
                 }
 
                 for arg in args.iter_mut() {
-                    arg.dispatch(generics, associated_funcs, func_shapes, generic_args);
+                    arg.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
                 }
             },
         }

@@ -7,6 +7,10 @@ use std::collections::HashSet;
 
 impl Session {
     pub fn solve_path(&mut self, id: &IdentWithOrigin, dotfish: &Option<Dotfish>) -> (Option<Type>, bool /* has_error */) {
+        if let NameOrigin::Local { kind: NameKind::EnumVariant } | NameOrigin::Foreign { kind: NameKind::EnumVariant } = &id.origin {
+            self.call_to_variant_span.insert(id.span.clone(), id.def_span.clone());
+        }
+
         match self.types.get(&id.def_span) {
             Some(r#type) => {
                 let mut r#type = r#type.clone();
@@ -25,11 +29,11 @@ impl Session {
                         NameKind::EnumVariant { .. } | NameKind::Struct => {
                             let def_span = match kind {
                                 // `False` in `Bool.False` has type `Bool`.
-                                NameKind::EnumVariant { parent } => parent,
-                                NameKind::Struct => &id.def_span,
+                                NameKind::EnumVariant => self.variant_to_enum_span.get(&id.def_span).unwrap().clone(),
+                                NameKind::Struct => id.def_span.clone(),
                                 _ => unreachable!(),
                             };
-                            let item_shape = match self.get_item_shape(def_span) {
+                            let item_shape = match self.get_item_shape(&def_span) {
                                 Some(item_shape) => {
                                     if item_shape.generics().is_empty() {
                                         let has_error = if let Some(dotfish) = dotfish {

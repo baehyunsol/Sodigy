@@ -8,6 +8,7 @@ use super::{
     PatternField,
     Range,
     filter_out_invalid_ranges,
+    get_enum_variant_sub_matrix,
     get_list_sub_matrix,
     merge_conditions,
     read_field_of_pattern,
@@ -108,7 +109,11 @@ impl DecisionTree {
                 kind: NameKind::Let { is_top_level: false },
             },
         };
-        let curr_field = Expr::from_ident_with_origin(&curr_field, None);
+        let curr_field = Expr::from_ident_with_origin(
+            &curr_field,
+            None,
+            session.global_context.variant_to_enum_span.unwrap(),
+        );
 
         let mut lets = match &self.field {
             Some(field) => {
@@ -146,7 +151,11 @@ impl DecisionTree {
                         kind: NameKind::Let { is_top_level: false },
                     },
                 };
-                let mut new_value = Expr::from_ident_with_origin(&new_value, None);
+                let mut new_value = Expr::from_ident_with_origin(
+                    &new_value,
+                    None,
+                    session.global_context.variant_to_enum_span.unwrap(),
+                );
 
                 match &name_binding.offset {
                     NameBindingOffset::None => {},
@@ -859,7 +868,7 @@ pub(crate) fn build_tree(
                 }],
             })
         },
-        MatrixConstructor::EnumVariants { parent, variants } => {
+        MatrixConstructor::EnumVariants { enum_def_span, variants } => {
             let mut arms_by_variant: HashMap<Span, Vec<(usize, &MatchArm)>> = HashMap::new();
             let mut wildcard_arms = vec![];
             let mut name_bindings = vec![];
@@ -890,7 +899,7 @@ pub(crate) fn build_tree(
             let mut branches = Vec::with_capacity(arms_by_variant.len() + 1);
 
             for (variant_def_span, arms) in arms_by_variant.iter() {
-                let variant_index = InternedNumber::from_u32(session.get_variant_index(parent, variant_def_span).unwrap(), true);
+                let variant_index = InternedNumber::from_u32(session.get_variant_index(enum_def_span, variant_def_span).unwrap(), true);
                 branches.push(DecisionTreeBranch {
                     condition: ExprConstructor::Range(Range {
                         r#type: LiteralType::Scalar,
@@ -931,24 +940,59 @@ pub(crate) fn build_tree(
                 branches,
             })
         },
-        MatrixConstructor::EnumPayload(_) => {
-            // TODO
-            // 1. Every pattern_constructor in `destructured_patterns` must be either
-            //    `PatternConstructor::EnumPayload` or `PatternConstructor::Wildcard`.
-            //    - Every `PatternConstructor::EnumPayload` must have the same number
-            //      of elements.
-            // 2. Every pattern in `destructured_patterns` must be of the same enum variant,
-            //    and we have to know which variant that is in order to build the submatrix.
+        MatrixConstructor::EnumPayload => {
+            // Every pattern_constructor in `destructured_patterns` must be either
+            // `PatternConstructor::EnumPayload` or `PatternConstructor::Wildcard`.
+            // If there are multiple `PatternConstructor::EnumPayload`, every
+            // `PatternConstructor::EnumPayload` must be of the same variant.
+            let mut curr_variant_def_span = None;
+            let mut name_bindings = vec![];
+
             for (_, _, constructor, name_bindings_) in destructured_patterns.into_iter() {
-                // println!("{constructor:?}");
+                name_bindings.extend(name_bindings_);
+
                 match &constructor {
-                    PatternConstructor::EnumPayload { .. } => todo!(),
-                    PatternConstructor::Wildcard => todo!(),
+                    PatternConstructor::EnumPayload { variant_def_span } => match (
+                        variant_def_span,
+                        &curr_variant_def_span,
+                    ) {
+                        (v, Some(c)) if v != c => {
+                            panic!("ICE: different variants in a node: {v:?} vs {c:?}");
+                        },
+                        (_, Some(_)) => {},
+                        (v, None) => {
+                            curr_variant_def_span = Some(variant_def_span.clone());
+                        },
+                    },
+                    PatternConstructor::Wildcard => {},
                     _ => unreachable!(),
                 }
             }
 
-            todo!()
+            let sub_matrix = get_enum_variant_sub_matrix(&curr_variant_def_span, &matrix[0].field, session);
+            let new_matrix = vec![
+                sub_matrix,
+                matrix[1..].to_vec(),
+            ].concat();
+
+            *tree_id += 1;
+            DecisionTreeNode::Tree(DecisionTree {
+                id: *tree_id,
+                field: Some(matrix[0].field.clone()),
+
+                // no branches
+                branches: vec![DecisionTreeBranch {
+                    condition: ExprConstructor::Wildcard,
+                    guard: None,
+                    node: build_tree(
+                        tree_id,
+                        &new_matrix,
+                        arms,
+                        session,
+                    ),
+                    name_bindings,
+                }],
+            })
         },
     }
 }

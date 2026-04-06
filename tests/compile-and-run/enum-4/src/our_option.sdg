@@ -1,0 +1,17 @@
+pub enum OurOption<T> = {
+    Some(T),
+    None,
+};
+
+#[associate(OurOption<T>)]
+fn unwrap<T>(self) -> T = match self {
+    OurOption.Some($v) => v,
+    OurOption.None => std.panic("attempt to unwrap None"),
+};
+
+#[impl(std.op.eq)]
+fn eq<T>(a: OurOption<T>, b: OurOption<T>) -> Bool = match (a, b) {
+    (OurOption.Some($a), OurOption.Some($b)) => a == b,
+    (OurOption.None, OurOption.None) => True,
+    _ => False,
+};

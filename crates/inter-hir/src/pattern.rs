@@ -140,8 +140,9 @@ impl Session {
             PatternKind::Path(p) => {
                 match &p.id.origin {
                     NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
-                        NameKind::EnumVariant { parent } => {
-                            let enum_shape = self.enum_shapes.get(parent).unwrap();
+                        NameKind::EnumVariant => {
+                            let enum_def_span = self.variant_to_enum_span.get(&p.id.def_span).unwrap();
+                            let enum_shape = self.enum_shapes.get(enum_def_span).unwrap();
                             let variant: &EnumVariant = &enum_shape.variants[*enum_shape.variant_index.get(&p.id.def_span).unwrap()];
 
                             match EnumFieldKind::from(&variant.fields) {
@@ -306,8 +307,9 @@ impl Session {
     fn check_struct_path(&mut self, path: &Path, field_kind: EnumFieldKind) -> Result<(), ()> {
         match &path.id.origin {
             NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
-                NameKind::EnumVariant { parent } => {
-                    let enum_shape = self.enum_shapes.get(parent).unwrap();
+                NameKind::EnumVariant => {
+                    let enum_def_span = self.variant_to_enum_span.get(&path.id.def_span).unwrap();
+                    let enum_shape = self.enum_shapes.get(enum_def_span).unwrap();
                     let variant: &EnumVariant = &enum_shape.variants[*enum_shape.variant_index.get(&path.id.def_span).unwrap()];
 
                     match (EnumFieldKind::from(&variant.fields), field_kind) {

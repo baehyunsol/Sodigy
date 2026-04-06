@@ -78,7 +78,8 @@ impl Session {
                         Entry::Vacant(e) => {
                             e.insert(GenericCall {
                                 call: call.clone(),
-                                def: self.generic_def_span_rev.get(generic).unwrap().clone(),
+                                def: self.generic_to_def_span.get(generic).unwrap().clone(),
+                                variant: self.call_to_variant_span.get(call).cloned(),
                                 generics: [(generic.clone(), r#type)].into_iter().collect(),
                             });
                         },
@@ -112,14 +113,22 @@ impl Session {
                         continue;
                     }
 
-                    let monomorphization_id = get_monomorphization_id(&generic_call.def, &generic_call.generics);
-                    let monomorphized_span = generic_call.def.monomorphize(monomorphization_id);
+                    let mut sorted_generics: Vec<(&Span, &Type)> = generic_call.generics.iter().collect();
+                    sorted_generics.sort_by_key(|&(span, _)| span);
+                    let sorted_generics: Vec<&Type> = sorted_generics.into_iter().map(|(_, r#type)| r#type).collect();
+
+                    let monomorphization_id = get_monomorphization_id(&generic_call.def, &sorted_generics);
                     monomorphizations.push(Monomorphization {
                         def_span: generic_call.def.clone(),
                         call_span: generic_call.call.clone(),
                         generics: generic_call.generics.clone(),
                         id: monomorphization_id,
                     });
+
+                    let monomorphized_span = match &generic_call.variant {
+                        Some(v) => v.monomorphize(monomorphization_id),
+                        None => generic_call.def.monomorphize(monomorphization_id),
+                    };
                     dispatch_map.insert(generic_call.call.clone(), monomorphized_span);
                 },
                 SolvePolyResult::NoCandidates => {
@@ -214,22 +223,38 @@ impl Session {
 // `let x = add(3, 4);`
 //
 // This would be
-// `GenericCall { call: span_of_add_in_expr, def: span_of_add_in_definition, generics: { T: Int, U: Int, V: TypeVar(V) } }`
+// ```
+// GenericCall {
+//     call: span of add in expr,
+//     def: span of add in definition,
+//     variant: None,
+//     generics: { T: Int, U: Int, V: TypeVar(V) },
+// }
+// ```
+//
+// If it's an enum, it has to remember both the enum def span and the variant def span.
+// So `Ok(3)` would be
+// ```
+// GenericCall {
+//     call: call span of Ok,
+//     def: def span of Result,
+//     variant: Some(def span of Ok),
+//     generics: { T: Int, E: _ },  // `E` must be known at this point
+// }
+// ```
 #[derive(Clone, Debug)]
 pub struct GenericCall {
     pub call: Span,
     pub def: Span,
+    pub variant: Option<Span>,
     pub generics: HashMap<Span, Type>,
 }
 
-fn get_monomorphization_id(def_span: &Span, generics: &HashMap<Span, Type>) -> u64 {
+fn get_monomorphization_id(def_span: &Span, generics: &[&Type]) -> u64 {
     let mut bytes = vec![];
     bytes.extend(def_span.hash().to_le_bytes());
 
-    let mut generics: Vec<(Span, &Type)> = generics.iter().map(|(s, t)| (s.clone(), t)).collect();
-    generics.sort_by_key(|(s, _)| s.clone());
-
-    for (_, r#type) in generics.iter() {
+    for r#type in generics.iter() {
         bytes.extend(r#type.hash().to_le_bytes());
     }
 

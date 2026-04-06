@@ -143,7 +143,7 @@ impl Session {
                             self.type_errors.push(TypeError::CannotInferGenericType {
                                 call: call.clone(),
                                 generic: generic.clone(),
-                                func_def: self.generic_def_span_rev.get(generic).cloned(),
+                                func_def: self.generic_to_def_span.get(generic).cloned(),
                             });
                         },
                         Some(t) => {
@@ -154,7 +154,7 @@ impl Session {
                                 self.type_errors.push(TypeError::PartiallyInferedGenericType {
                                     call: call.clone(),
                                     generic: generic.clone(),
-                                    func_def: self.generic_def_span_rev.get(generic).cloned(),
+                                    func_def: self.generic_to_def_span.get(generic).cloned(),
                                     r#type: t.clone(),
                                 });
                             }

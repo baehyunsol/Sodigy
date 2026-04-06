@@ -46,7 +46,7 @@ impl Endec for Session {
         self.type_assertions.encode_impl(buffer);
         self.associated_items.encode_impl(buffer);
         self.trivial_lets.encode_impl(buffer);
-        self.generic_def_span_rev.encode_impl(buffer);
+        self.generic_to_def_span.encode_impl(buffer);
         self.lang_items.encode_impl(buffer);
         self.polys.encode_impl(buffer);
         self.poly_impls.encode_impl(buffer);
@@ -67,7 +67,7 @@ impl Endec for Session {
         let (type_assertions, cursor) = Vec::<TypeAssertion>::decode_impl(buffer, cursor)?;
         let (associated_items, cursor) = Vec::<AssociatedItem>::decode_impl(buffer, cursor)?;
         let (trivial_lets, cursor) = HashMap::<Span, TrivialLet>::decode_impl(buffer, cursor)?;
-        let (generic_def_span_rev, cursor) = HashMap::<Span, Span>::decode_impl(buffer, cursor)?;
+        let (generic_to_def_span, cursor) = HashMap::<Span, Span>::decode_impl(buffer, cursor)?;
         let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
         let (polys, cursor) = HashMap::<Span, Poly>::decode_impl(buffer, cursor)?;
         let (poly_impls, cursor) = Vec::<(Expr, Span)>::decode_impl(buffer, cursor)?;
@@ -99,7 +99,7 @@ impl Endec for Session {
                 type_assertions,
                 associated_items,
                 trivial_lets,
-                generic_def_span_rev,
+                generic_to_def_span,
                 lang_items,
                 polys,
                 poly_impls,

@@ -52,7 +52,7 @@ use std::collections::HashSet;
 ///         MatrixRow { field: [index(0), constructor], constructor: Range { Int, -inf..inf } },
 ///         MatrixRow { field: [index(1), constructor], constructor: Range { Int, -inf..inf } },
 ///         MatrixRow { field: [index(2), constructor], constructor: DefSpan(Option) },
-///         MatrixRow { field: [index(2), variant], constructor: EnumVariants([Some, None]) },
+///         MatrixRow { field: [index(2), variant], constructor: EnumVariants(Option, [Some, None]) },
 ///         MatrixRow { field: [index(2), payload], constructor: EnumPayload(Option) },
 ///     ],
 /// }
@@ -69,8 +69,8 @@ pub enum MatrixConstructor {
     DefSpan(Span),
     Range(Range),
     ListSubMatrix(Type),
-    EnumVariants { parent: Span, variants: HashSet<Span> },
-    EnumPayload(Span),
+    EnumVariants { enum_def_span: Span, variants: HashSet<Span> },
+    EnumPayload,
 }
 
 pub fn get_matrix(
@@ -156,7 +156,7 @@ pub fn get_matrix(
                     MatrixRow {
                         field: vec![PatternField::Constructor],
                         constructor: MatrixConstructor::EnumVariants {
-                            parent: constructor_def_span.clone(),
+                            enum_def_span: constructor_def_span.clone(),
                             variants: enum_shape.variants.iter().map(
                                 |variant| variant.name_span.clone()
                             ).collect(),
@@ -164,7 +164,7 @@ pub fn get_matrix(
                     },
                     MatrixRow {
                         field: vec![PatternField::EnumPayload],
-                        constructor: MatrixConstructor::EnumPayload(constructor_def_span.clone()),
+                        constructor: MatrixConstructor::EnumPayload,
                     },
                 ]
             }
@@ -215,4 +215,20 @@ pub fn get_list_sub_matrix(
     }
 
     result
+}
+
+pub fn get_enum_variant_sub_matrix(
+    variant_def_span: &Option<Span>,
+    field_prefix: &[PatternField],
+    session: &Session,
+) -> Vec<MatrixRow> {
+    match variant_def_span {
+        Some(s) => {
+            println!("{:?}", session.global_context.types.as_ref().unwrap().as_ref().read().unwrap().get(s));
+            todo!()
+        },
+
+        // nothing to check
+        None => vec![],
+    }
 }

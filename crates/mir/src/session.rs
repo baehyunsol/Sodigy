@@ -109,7 +109,9 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
         // TODO: structs/enums
     }
 
-    // It only dispatches `Callable::Static`. It only replaces `def_span`, not `span`.
+    // TODO: We can make it more fine-grained...
+    //
+    // It only replaces `def_span`, not `span`.
     pub fn dispatch(
         &mut self,
         generics: &HashMap<Span, Span>,
@@ -146,5 +148,9 @@ impl SodigySession for Session<'_, '_> {
 
     fn span_string_map(&self) -> Option<&HashMap<SpanId, InternedString>> {
         self.global_context.span_string_map
+    }
+
+    fn variant_to_enum_span(&self) -> Option<&HashMap<Span, Span>> {
+        self.global_context.variant_to_enum_span
     }
 }

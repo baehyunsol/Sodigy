@@ -263,11 +263,11 @@ pub fn dump_expr<S: SodigySession>(
                     ));
                     ("{", "}")
                 },
-                Callable::EnumInit { parent_def_span, variant_def_span, kind, .. } => {
+                Callable::EnumInit { enum_def_span, variant_def_span, kind, .. } => {
                     lines.push(&format!(
                         "{}.{}",
                         span_to_string_or_verbose(
-                            parent_def_span,
+                            enum_def_span,
                             session.intermediate_dir(),
                             session.span_string_map().unwrap_or(&HashMap::new()),
                         ),

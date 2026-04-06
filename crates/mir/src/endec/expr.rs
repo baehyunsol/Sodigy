@@ -250,9 +250,9 @@ impl Endec for Callable {
                 def_span.encode_impl(buffer);
                 span.encode_impl(buffer);
             },
-            Callable::EnumInit { parent_def_span, variant_def_span, kind, span } => {
+            Callable::EnumInit { enum_def_span, variant_def_span, kind, span } => {
                 buffer.push(2);
-                parent_def_span.encode_impl(buffer);
+                enum_def_span.encode_impl(buffer);
                 variant_def_span.encode_impl(buffer);
                 kind.encode_impl(buffer);
                 span.encode_impl(buffer);
@@ -285,11 +285,11 @@ impl Endec for Callable {
                 Ok((Callable::StructInit { def_span, span }, cursor))
             },
             Some(2) => {
-                let (parent_def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                let (enum_def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 let (variant_def_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (kind, cursor) = EnumFieldKind::decode_impl(buffer, cursor)?;
                 let (span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((Callable::EnumInit { parent_def_span, variant_def_span, kind, span }, cursor))
+                Ok((Callable::EnumInit { enum_def_span, variant_def_span, kind, span }, cursor))
             },
             Some(3) => {
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;

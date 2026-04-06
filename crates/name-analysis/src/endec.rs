@@ -97,9 +97,8 @@ impl Endec for NameKind {
             NameKind::Enum => {
                 buffer.push(4);
             },
-            NameKind::EnumVariant { parent } => {
+            NameKind::EnumVariant => {
                 buffer.push(5);
-                parent.encode_impl(buffer);
             },
             NameKind::Alias => {
                 buffer.push(6);
@@ -132,10 +131,7 @@ impl Endec for NameKind {
             Some(2) => Ok((NameKind::Func, cursor + 1)),
             Some(3) => Ok((NameKind::Struct, cursor + 1)),
             Some(4) => Ok((NameKind::Enum, cursor + 1)),
-            Some(5) => {
-                let (parent, cursor) = Span::decode_impl(buffer, cursor + 1)?;
-                Ok((NameKind::EnumVariant { parent }, cursor))
-            },
+            Some(5) => Ok((NameKind::EnumVariant, cursor + 1)),
             Some(6) => Ok((NameKind::Alias, cursor + 1)),
             Some(7) => Ok((NameKind::Module, cursor + 1)),
             Some(8) => Ok((NameKind::Use, cursor + 1)),

@@ -14,7 +14,10 @@ pub struct GlobalContext<'hir, 'mir> {
     pub polys: Option<&'hir HashMap<Span, Poly>>,
 
     // generic def span to func def span (or struct def span) map
-    pub generic_def_span_rev: Option<&'hir HashMap<Span, Span>>,
+    pub generic_to_def_span: Option<&'hir HashMap<Span, Span>>,
+
+    // variant def span to enum def span map
+    pub variant_to_enum_span: Option<&'hir HashMap<Span, Span>>,
 
     pub lang_items: Option<&'hir HashMap<String, Span>>,
     pub built_in_funcs: Option<&'hir HashSet<Span>>,
@@ -31,7 +34,8 @@ impl<'hir> GlobalContext<'hir, '_> {
             struct_shapes: None,
             enum_shapes: None,
             polys: None,
-            generic_def_span_rev: None,
+            generic_to_def_span: None,
+            variant_to_enum_span: None,
             lang_items: None,
             built_in_funcs: None,
             types: None,
@@ -46,7 +50,8 @@ impl<'hir> GlobalContext<'hir, '_> {
             struct_shapes: Some(&session.struct_shapes),
             enum_shapes: Some(&session.enum_shapes),
             polys: Some(&session.polys),
-            generic_def_span_rev: Some(&session.generic_def_span_rev),
+            generic_to_def_span: Some(&session.generic_to_def_span),
+            variant_to_enum_span: Some(&session.variant_to_enum_span),
             lang_items: Some(&session.lang_items),
             built_in_funcs: Some(&session.built_in_funcs),
             types: None,

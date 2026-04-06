@@ -33,7 +33,8 @@ impl Endec for Session {
         self.poly_impls.encode_impl(buffer);
         self.new_funcs.encode_impl(buffer);
         self.associated_items.encode_impl(buffer);
-        self.generic_def_span_rev.encode_impl(buffer);
+        self.generic_to_def_span.encode_impl(buffer);
+        self.variant_to_enum_span.encode_impl(buffer);
         self.errors.encode_impl(buffer);
         self.warnings.encode_impl(buffer);
     }
@@ -51,7 +52,8 @@ impl Endec for Session {
         let (poly_impls, cursor) = Vec::<(Expr, Span)>::decode_impl(buffer, cursor)?;
         let (new_funcs, cursor) = Vec::<Func>::decode_impl(buffer, cursor)?;
         let (associated_items, cursor) = Vec::<AssociatedItem>::decode_impl(buffer, cursor)?;
-        let (generic_def_span_rev, cursor) = HashMap::<Span, Span>::decode_impl(buffer, cursor)?;
+        let (generic_to_def_span, cursor) = HashMap::<Span, Span>::decode_impl(buffer, cursor)?;
+        let (variant_to_enum_span, cursor) = HashMap::<Span, Span>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
         let (warnings, cursor) = Vec::<Warning>::decode_impl(buffer, cursor)?;
 
@@ -71,7 +73,8 @@ impl Endec for Session {
                 poly_impls,
                 new_funcs,
                 associated_items,
-                generic_def_span_rev,
+                generic_to_def_span,
+                variant_to_enum_span,
                 errors,
                 warnings,
             },

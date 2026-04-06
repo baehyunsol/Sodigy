@@ -151,10 +151,16 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                         session.monomorphizations.insert(monomorphization.id, monomorphization);
                         session.enum_shapes.insert(new_enum.name_span.clone(), new_enum_shape);
                         session.enums_rev.insert(new_enum.name_span.clone(), mir_session.enums.len());
+
+                        for variant in new_enum.variants.iter() {
+                            session.variant_to_enum_span.insert(variant.name_span.clone(), new_enum.name_span.clone());
+                        }
+
                         mir_session.enums.push(new_enum);
                     }
 
                     else {
+                        println!("{monomorphization:?}");
                         unreachable!()
                     }
                 }

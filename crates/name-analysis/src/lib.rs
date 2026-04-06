@@ -46,7 +46,7 @@ pub struct IdentWithOrigin {
     pub def_span: Span,
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum NameOrigin {
     // If funcs are nested, only the inner-most function counts.
     FuncParam {
@@ -70,13 +70,13 @@ pub enum NameOrigin {
     External,
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum NameKind {
     Let { is_top_level: bool },
     Func,
     Struct,
     Enum,
-    EnumVariant { parent: Span },
+    EnumVariant,
     Alias,
     Module,
     Use,

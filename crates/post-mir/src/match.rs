@@ -184,8 +184,20 @@ mod range;
 mod tree;
 
 pub use dump::MatchDump;
-use matrix::{MatrixConstructor, MatrixRow, get_list_sub_matrix, get_matrix};
-pub(crate) use range::{LiteralType, Range, filter_out_invalid_ranges, merge_conditions, remove_overlaps};
+use matrix::{
+    MatrixConstructor,
+    MatrixRow,
+    get_enum_variant_sub_matrix,
+    get_list_sub_matrix,
+    get_matrix,
+};
+pub(crate) use range::{
+    LiteralType,
+    Range,
+    filter_out_invalid_ranges,
+    merge_conditions,
+    remove_overlaps,
+};
 use tree::{
     DecisionTree,
     DecisionTreeNode,
@@ -270,8 +282,22 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
         },
     };
     let (scrutinee, needs_another_name_binding) = match match_expr.scrutinee.as_ref() {
-        Expr::Ident { id, .. } => (Expr::from_ident_with_origin(id, None), false),
-        _ => (Expr::from_ident_with_origin(&another_name_binding, None), true),
+        Expr::Ident { id, .. } => (
+            Expr::from_ident_with_origin(
+                id,
+                None,
+                session.global_context.variant_to_enum_span.unwrap(),
+            ),
+            false,
+        ),
+        _ => (
+            Expr::from_ident_with_origin(
+                &another_name_binding,
+                None,
+                session.global_context.variant_to_enum_span.unwrap(),
+            ),
+            true,
+        ),
     };
 
     session.add_type_info(&another_name_binding.def_span, scrutinee_type);
@@ -329,7 +355,7 @@ pub enum PatternConstructor {
     },
 
     // You can get this with `PatternField::EnumPayload`.
-    EnumPayload { elements: Vec<Pattern> },
+    EnumPayload { variant_def_span: Span },
 }
 
 // pattern: `($a @ 0..20, ())`, field: `._0.constructor`
@@ -566,13 +592,9 @@ fn read_field_of_pattern(
             PatternKind::Path(_) |  // `Option.None` has no payload
             PatternKind::NameBinding { .. } |
             PatternKind::Wildcard(_) => PatternConstructor::Wildcard,
-            PatternKind::TupleStruct { elements, rest, .. } => {
-                if let Some(rest) = rest {
-                    // If the rest pattern is hiding patterns, fill there with `PatternConstructor::Wildcard`
-                    todo!();
-                }
-
-                PatternConstructor::EnumPayload { elements: elements.clone() }
+            PatternKind::Struct { r#struct, .. } |
+            PatternKind::TupleStruct { r#struct, .. } => PatternConstructor::EnumPayload {
+                variant_def_span: r#struct.id.def_span.clone(),
             },
             _ => panic!("TODO: {curr_pattern:?}"),
         },

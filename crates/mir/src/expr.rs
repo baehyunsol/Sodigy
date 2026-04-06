@@ -70,7 +70,7 @@ pub enum Callable {
         span: Span,
     },
     EnumInit {
-        parent_def_span: Span,
+        enum_def_span: Span,
         variant_def_span: Span,
         kind: EnumFieldKind,
         span: Span,
@@ -101,6 +101,7 @@ impl Expr {
                 Ok(Expr::from_ident_with_origin(
                     &path.id,
                     Dotfish::from_hir(path.dotfish.last().unwrap(), session)?,
+                    session.global_context.variant_to_enum_span.unwrap(),
                 ))
             },
             hir::Expr::Constant(c) => Ok(Expr::Constant(c.clone())),
@@ -164,11 +165,11 @@ impl Expr {
                             Callable::Dynamic(Box::new(Expr::Field { lhs, dotfish: vec![None; fields.len() + 1], fields })),
                         )
                     },
-                    Ok(Expr::Call { func: Callable::EnumInit { parent_def_span, variant_def_span, kind, span }, arg_group_span, types, .. }) => match kind {
+                    Ok(Expr::Call { func: Callable::EnumInit { enum_def_span, variant_def_span, kind, span }, arg_group_span, types, .. }) => match kind {
                         EnumFieldKind::None => (
                             span.clone(),
                             Callable::EnumInit {
-                                parent_def_span,
+                                enum_def_span,
                                 variant_def_span,
                                 kind: EnumFieldKind::Tuple,
                                 span,
@@ -350,7 +351,11 @@ impl Expr {
                             for i in 0..params.len() {
                                 match (&mir_args[i], &params[i].default_value) {
                                     (None, Some(default_value)) => {
-                                        mir_args[i] = Some(Expr::from_ident_with_origin(default_value, None));
+                                        mir_args[i] = Some(Expr::from_ident_with_origin(
+                                            default_value,
+                                            None,
+                                            session.global_context.variant_to_enum_span.unwrap(),
+                                        ));
                                     },
                                     _ => {},
                                 }
@@ -568,14 +573,7 @@ impl Expr {
             hir::Expr::StructInit { constructor, fields: hir_fields, group_span } => {
                 let group_span = group_span.clone();
                 let mut has_error = false;
-                let enum_parent_def_span = match &constructor.id.origin {
-                    NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
-                        NameKind::EnumVariant { parent } => Some(parent.clone()),
-                        _ => None,
-                    },
-                    _ => None,
-                };
-
+                let enum_def_span = session.global_context.variant_to_enum_span.unwrap().get(&constructor.id.def_span);
                 let (def_span, call_span) = (constructor.id.def_span.clone(), constructor.id.span.clone());
 
                 // TODO: it has to lower dotfish operators
@@ -584,7 +582,7 @@ impl Expr {
                     (&struct_shape.fields, &struct_shape.generics, struct_shape.name, false)
                 }
 
-                else if let Some(enum_parent_def_span) = &enum_parent_def_span && let Some(enum_shape) = session.global_context.enum_shapes.unwrap().get(enum_parent_def_span) {
+                else if let Some(enum_def_span) = &enum_def_span && let Some(enum_shape) = session.global_context.enum_shapes.unwrap().get(enum_def_span) {
                     let variant = &enum_shape.variants[*enum_shape.variant_index.get(&def_span).unwrap()];
                     let fields = match &variant.fields {
                         EnumVariantFields::Struct(fields) => fields,
@@ -758,7 +756,11 @@ impl Expr {
                     for i in 0..field_defs.len() {
                         match (&mir_fields[i], &field_defs[i].default_value) {
                             (None, Some(default_value)) => {
-                                mir_fields[i] = Some(Expr::from_ident_with_origin(default_value, None));
+                                mir_fields[i] = Some(Expr::from_ident_with_origin(
+                                    default_value,
+                                    None,
+                                    session.global_context.variant_to_enum_span.unwrap(),
+                                ));
                             },
                             _ => {},
                         }
@@ -1010,13 +1012,18 @@ impl Expr {
         }
     }
 
-    pub fn from_ident_with_origin(id: &IdentWithOrigin, dotfish: Option<Dotfish>) -> Expr {
+    pub fn from_ident_with_origin(
+        id: &IdentWithOrigin,
+        dotfish: Option<Dotfish>,
+        variant_to_enum_span: &HashMap<Span, Span>,
+    ) -> Expr {
         match &id.origin {
             NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
-                NameKind::EnumVariant { parent } => {
+                NameKind::EnumVariant => {
+                    let enum_def_span = variant_to_enum_span.get(&id.def_span).unwrap();
                     return Expr::Call {
                         func: Callable::EnumInit {
-                            parent_def_span: parent.clone(),
+                            enum_def_span: enum_def_span.clone(),
                             variant_def_span: id.def_span.clone(),
                             kind: EnumFieldKind::None,
                             span: id.span.clone(),
@@ -1077,28 +1084,20 @@ pub fn true_value<S: SodigySession>(session: &S) -> Expr {
     let id = IdentWithOrigin {
         id: intern_string(b"True", session.intermediate_dir()).unwrap(),
         span: Span::None,
-        origin: NameOrigin::Foreign {
-            kind: NameKind::EnumVariant {
-                parent: session.get_lang_item_span("type.Bool"),
-            },
-        },
+        origin: NameOrigin::Foreign { kind: NameKind::EnumVariant },
         def_span: session.get_lang_item_span("variant.Bool.True"),
     };
-    Expr::from_ident_with_origin(&id, None)
+    Expr::from_ident_with_origin(&id, None, session.variant_to_enum_span().unwrap())
 }
 
 pub fn false_value<S: SodigySession>(session: &S) -> Expr {
     let id = IdentWithOrigin {
         id: intern_string(b"False", session.intermediate_dir()).unwrap(),
         span: Span::None,
-        origin: NameOrigin::Foreign {
-            kind: NameKind::EnumVariant {
-                parent: session.get_lang_item_span("type.Bool"),
-            },
-        },
+        origin: NameOrigin::Foreign { kind: NameKind::EnumVariant },
         def_span: session.get_lang_item_span("variant.Bool.False"),
     };
-    Expr::from_ident_with_origin(&id, None)
+    Expr::from_ident_with_origin(&id, None, session.variant_to_enum_span().unwrap())
 }
 
 impl Callable {

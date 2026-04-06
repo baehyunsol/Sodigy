@@ -654,8 +654,9 @@ impl Session {
                         // inter-hir must check whether a struct constructor is from `NameKind::Struct`.
                         None => unreachable!(),
                     },
-                    Callable::EnumInit { parent_def_span, variant_def_span, kind, span } => match self.enum_shapes.get(parent_def_span) {
+                    Callable::EnumInit { enum_def_span, variant_def_span, kind, span } => match self.enum_shapes.get(enum_def_span) {
                         Some(enum_shape) => {
+                            self.call_to_variant_span.insert(span.clone(), variant_def_span.clone());
                             let enum_shape = enum_shape.clone();
                             let variant_shape: &hir::EnumVariant = enum_shape.variants.get(*enum_shape.variant_index.get(variant_def_span).unwrap()).unwrap();
                             let generic_params: Vec<Span> = enum_shape.generics.iter().map(

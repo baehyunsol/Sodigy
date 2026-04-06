@@ -55,7 +55,10 @@ pub struct Session {
     pub associated_items: Vec<AssociatedItem>,
 
     // generic def span to func/struct/enum def span
-    pub generic_def_span_rev: HashMap<Span, Span>,
+    pub generic_to_def_span: HashMap<Span, Span>,
+
+    // variant_def_span -> enum_def_span
+    pub variant_to_enum_span: HashMap<Span, Span>,
 
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
@@ -87,7 +90,8 @@ impl Session {
             poly_impls: vec![],
             new_funcs: vec![],
             associated_items: vec![],
-            generic_def_span_rev: HashMap::new(),
+            generic_to_def_span: HashMap::new(),
+            variant_to_enum_span: HashMap::new(),
             errors: vec![],
             warnings: vec![],
         }
@@ -145,31 +149,23 @@ impl Session {
 
         self.item_name_map.insert(
             module_span,
-            (
-                NameKind::Module,
-                children,
-            ),
+            (NameKind::Module, children),
         );
 
         for r#enum in hir_session.enums.into_iter() {
             let mut variants = HashMap::new();
 
             for variant in r#enum.variants.iter() {
+                self.variant_to_enum_span.insert(variant.name_span.clone(), r#enum.name_span.clone());
                 variants.insert(
                     variant.name,
-                    (
-                        variant.name_span.clone(),
-                        NameKind::EnumVariant { parent: r#enum.name_span.clone() },
-                    ),
+                    (variant.name_span.clone(), NameKind::EnumVariant),
                 );
             }
 
             self.item_name_map.insert(
                 r#enum.name_span,
-                (
-                    NameKind::Enum,
-                    variants,
-                ),
+                (NameKind::Enum, variants),
             );
         }
 
@@ -188,7 +184,7 @@ impl Session {
         self.polys.extend(hir_session.polys.drain());
         self.poly_impls.extend(hir_session.poly_impls.drain(..));
         self.associated_items.extend(hir_session.associated_items.drain(..));
-        self.generic_def_span_rev.extend(hir_session.generic_def_span_rev.drain());
+        self.generic_to_def_span.extend(hir_session.generic_to_def_span.drain());
     }
 
     pub fn get_item_shape<'s>(&'s mut self, def_span: &Span) -> Option<ItemShapeMut<'s>> {

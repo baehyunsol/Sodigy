@@ -22,4 +22,8 @@ pub trait SodigySession {
     fn span_string_map(&self) -> Option<&HashMap<SpanId, InternedString>> {
         None
     }
+
+    fn variant_to_enum_span(&self) -> Option<&HashMap<Span, Span>> {
+        None
+    }
 }

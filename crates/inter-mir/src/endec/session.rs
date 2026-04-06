@@ -16,7 +16,8 @@ impl Endec for Session {
         self.func_shapes.encode_impl(buffer);
         self.struct_shapes.encode_impl(buffer);
         self.enum_shapes.encode_impl(buffer);
-        self.generic_def_span_rev.encode_impl(buffer);
+        self.generic_to_def_span.encode_impl(buffer);
+        self.variant_to_enum_span.encode_impl(buffer);
         self.equal_generic_params.encode_impl(buffer);
         self.polys.encode_impl(buffer);
         self.span_string_map.encode_impl(buffer);
@@ -33,7 +34,8 @@ impl Endec for Session {
         let (func_shapes, cursor) = HashMap::<Span, FuncShape>::decode_impl(buffer, cursor)?;
         let (struct_shapes, cursor) = HashMap::<Span, StructShape>::decode_impl(buffer, cursor)?;
         let (enum_shapes, cursor) = HashMap::<Span, EnumShape>::decode_impl(buffer, cursor)?;
-        let (generic_def_span_rev, cursor) = HashMap::<Span, Span>::decode_impl(buffer, cursor)?;
+        let (generic_to_def_span, cursor) = HashMap::<Span, Span>::decode_impl(buffer, cursor)?;
+        let (variant_to_enum_span, cursor) = HashMap::<Span, Span>::decode_impl(buffer, cursor)?;
         let (equal_generic_params, cursor) = HashMap::<Span, Vec<(usize, usize)>>::decode_impl(buffer, cursor)?;
         let (polys, cursor) = HashMap::<Span, Poly>::decode_impl(buffer, cursor)?;
         let (span_string_map, cursor) = HashMap::<SpanId, InternedString>::decode_impl(buffer, cursor)?;
@@ -55,12 +57,14 @@ impl Endec for Session {
                 enums_rev: HashMap::new(),
                 monomorphizations,
                 associated_funcs: vec![],
+                call_to_variant_span: HashMap::new(),
                 types,
                 generic_args,
                 func_shapes,
                 struct_shapes,
                 enum_shapes,
-                generic_def_span_rev,
+                generic_to_def_span,
+                variant_to_enum_span,
                 equal_generic_params,
                 polys,
                 span_string_map,

@@ -1,5 +1,6 @@
 use crate::{ErrorContext, Session, Type, TypeError};
 use sodigy_hir::{Path, Pattern, PatternKind};
+use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::Span;
 use sodigy_token::Constant;
 use std::collections::HashMap;
@@ -117,9 +118,13 @@ impl Session {
                     )
                 },
             },
-            // `Option.Some` has type `Fn(T) -> Option<T>` and must be registered.
+            // `Option.Some` has type `Fn(T) -> Option<T>` and the type must already be registered.
             PatternKind::TupleStruct { r#struct, elements, rest, .. } => match self.solve_path(&r#struct.id, &None) {
                 (Some(Type::Func { params, r#return, .. }), mut has_error) => {
+                    if let NameOrigin::Local { kind: NameKind::EnumVariant } | NameOrigin::Foreign { kind: NameKind::EnumVariant } = &r#struct.id.origin {
+                        self.call_to_variant_span.insert(r#struct.id.span.clone(), r#struct.id.def_span.clone());
+                    }
+
                     let mut elem_types = Vec::with_capacity(elements.len());
 
                     for element in elements.iter() {

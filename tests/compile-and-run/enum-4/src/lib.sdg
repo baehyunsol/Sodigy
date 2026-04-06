@@ -1,0 +1,23 @@
+mod my_option;
+mod your_option;
+mod our_option;
+
+use my_option.MyOption;
+use your_option.YourOption;
+use our_option.OurOption;
+
+type MaybeInt = MyOption<YourOption<OurOption<Int>>>;
+type MaybeChar = OurOption<YourOption<MyOption<Char>>>;
+
+fn some_int(n: Int) -> MaybeInt = MyOption.Some(YourOption.Some(OurOption.Some(n)));
+fn not_int() -> MaybeInt = MyOption.Some(YourOption.None);
+
+// I'm not calling these functions intentionally.
+// I want to see if the compiler can monomorphize complex types even if there're no instances.
+fn some_char(c: Char) -> MaybeChar = OurOption.Some(YourOption.Some(MyOption.Some(c)));
+fn not_char() -> MaybeChar = OurOption.Some(YourOption.None);
+
+assert some_int(3) != not_int();
+assert some_int(3) != some_int(4);
+assert some_int(3) == MyOption.Some(YourOption.Some(OurOption.Some(3)));
+// assert some_int(10).unwrap().unwrap().unwrap() == 10;

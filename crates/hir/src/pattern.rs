@@ -6,6 +6,7 @@ use sodigy_span::{Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string, unintern_string};
 use sodigy_token::{Constant, InfixOp};
 
+mod dispatch;
 mod from_expr;
 mod or;
 

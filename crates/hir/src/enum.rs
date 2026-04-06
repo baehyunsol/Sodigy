@@ -85,7 +85,7 @@ impl Enum {
         for (index, generic) in ast_enum.generics.iter().enumerate() {
             generic_params.insert(generic.name, (generic.name_span.clone(), NameKind::GenericParam, UseCount::new()));
             generic_index.insert(generic.name, index);
-            session.generic_def_span_rev.insert(generic.name_span.clone(), ast_enum.name_span.clone());
+            session.generic_to_def_span.insert(generic.name_span.clone(), ast_enum.name_span.clone());
         }
 
         session.name_stack.push(Namespace::GenericParam {

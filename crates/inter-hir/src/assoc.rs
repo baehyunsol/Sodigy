@@ -166,7 +166,7 @@ impl Session {
                                         PolySpanKind::Param(i)
                                     };
 
-                                    self.generic_def_span_rev.insert(
+                                    self.generic_to_def_span.insert(
                                         Span::Poly { name: poly_name_interned, kind: poly_span_kind },
                                         Span::Poly { name: poly_name_interned, kind: PolySpanKind::Name },
                                     );

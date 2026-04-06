@@ -77,16 +77,21 @@ pub struct Session {
     // This is just a tmp storage. This storage is emptied after dispatch.
     pub associated_funcs: Vec<AssociatedFuncInstance>,
 
+    // `Option.Some(3)` -> when the compiler sees this expression,
+    // it remembers the call_span of `Some` and def_span of `Some` (not def_span of `Option`).
+    pub call_to_variant_span: HashMap<Span, Span>,
+
     // These 2 fields are the result of the type-solver.
     pub types: HashMap<Span, Type>,
     pub generic_args: HashMap<(Span /* call */, Span /* generic */), Type>,
 
-    // These 5 fields are in inter-hir session, but we cloned these
+    // These 7 fields are in inter-hir session, but we cloned these
     // in order to update these.
     pub func_shapes: HashMap<Span, FuncShape>,
     pub struct_shapes: HashMap<Span, StructShape>,
     pub enum_shapes: HashMap<Span, EnumShape>,
-    pub generic_def_span_rev: HashMap<Span, Span>,
+    pub generic_to_def_span: HashMap<Span, Span>,
+    pub variant_to_enum_span: HashMap<Span, Span>,
     pub equal_generic_params: HashMap<Span, Vec<(usize, usize)>>,
     pub polys: HashMap<Span, Poly>,
 
@@ -119,12 +124,14 @@ impl Session {
             enums_rev: HashMap::new(),
             monomorphizations: HashMap::new(),
             associated_funcs: vec![],
+            call_to_variant_span: HashMap::new(),
             types: HashMap::new(),
             generic_args: HashMap::new(),
             func_shapes: HashMap::new(),
             struct_shapes: HashMap::new(),
             enum_shapes: HashMap::new(),
-            generic_def_span_rev: HashMap::new(),
+            generic_to_def_span: HashMap::new(),
+            variant_to_enum_span: HashMap::new(),
             equal_generic_params: HashMap::new(),
             polys: HashMap::new(),
             span_string_map: HashMap::new(),
@@ -155,12 +162,14 @@ impl Session {
             enums_rev: mir_session.enums.iter().enumerate().map(|(i, r#enum)| (r#enum.name_span.clone(), i)).collect(),
             monomorphizations: HashMap::new(),
             associated_funcs: vec![],
+            call_to_variant_span: HashMap::new(),
             types: mir_session.types.drain().collect(),
             generic_args: mir_session.generic_args.drain().collect(),
             func_shapes: mir_session.global_context.func_shapes.take().unwrap().clone(),
             struct_shapes: mir_session.global_context.struct_shapes.take().unwrap().clone(),
             enum_shapes: mir_session.global_context.enum_shapes.take().unwrap().clone(),
-            generic_def_span_rev: mir_session.global_context.generic_def_span_rev.take().unwrap().clone(),
+            generic_to_def_span: mir_session.global_context.generic_to_def_span.take().unwrap().clone(),
+            variant_to_enum_span: mir_session.global_context.variant_to_enum_span.take().unwrap().clone(),
             equal_generic_params: mir_session.equal_generic_params.drain().collect(),
             polys: mir_session.global_context.polys.take().unwrap().clone(),
             span_string_map: HashMap::new(),
