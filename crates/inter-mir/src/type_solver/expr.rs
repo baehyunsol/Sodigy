@@ -851,7 +851,7 @@ impl Session {
 
                                 (Some(*r#return.clone()), has_error)
                             },
-
+                            Type::Never(_) => (Some(func_type.clone()), has_error),
                             // This is difficult...
                             // `let x = { ... }; let y = x();`
                             // Let's say we don't know the type of `x` and we want to infer the type of `y`.
@@ -867,12 +867,14 @@ impl Session {
                                     _ => unreachable!(),
                                 };
 
+                                // TODO: If `prev_infered` is `Type::Var` or `Type::GenericArg` (I'll call it prev_type_var),
+                                //       it has to unify the prev_type_var and the type_var.
                                 match prev_infered {
                                     Some(Type::Var { .. } | Type::GenericArg { .. }) | None => {
-                                        let intermediate_type_var_id: Span = todo!();  // I need some kinda Span::uuid()
+                                        let intermediate_type_var_id: Span = todo!();
                                         let intermediate_type_var = Type::Var {
                                             def_span: intermediate_type_var_id.clone(),
-                                            is_return: true,
+                                            is_return: false,
                                         };
                                         let intermediate_func_type = Type::Func {
                                             fn_span: Span::None,
@@ -886,13 +888,23 @@ impl Session {
                                             // It'd be difficult to unify purity-variables because of `Purity::Both`.
                                             purity: todo!(),
                                         };
-                                        self.types.insert(intermediate_type_var_id, intermediate_func_type.clone());
+
+                                        match type_var {
+                                            Type::Var { def_span, .. } => {
+                                                self.types.insert(def_span.clone(), intermediate_func_type.clone());
+                                            },
+                                            Type::GenericArg { call, generic } => {
+                                                self.generic_args.insert((call.clone(), generic.clone()), intermediate_func_type.clone());
+                                            },
+                                            _ => unreachable!(),
+                                        }
+
                                         self.add_type_var(intermediate_type_var.clone(), None);
                                         self.add_type_var_ref(intermediate_type_var.clone(), type_var.clone());
                                         self.add_type_var_ref(type_var.clone(), intermediate_type_var.clone());
 
                                         for ref_type_var in intermediate_func_type.get_type_vars() {
-                                            self.add_type_var_ref(ref_type_var, intermediate_type_var.clone());
+                                            self.add_type_var_ref(ref_type_var, type_var.clone());
                                         }
 
                                         (Some(intermediate_type_var.clone()), has_error)
@@ -942,7 +954,6 @@ impl Session {
                                 }
                             },
                             t @ Type::Blocked { .. } => (Some(t.clone()), has_error),
-                            _ => panic!("TODO: {func:?}, {func_type:?}"),
                         }
                     },
                 }
