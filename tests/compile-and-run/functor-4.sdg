@@ -1,0 +1,32 @@
+fn adder1(x) = match x {
+    0 => \y => 0 + y,
+    1 => \y => 1 + y,
+    2 => \y => 2 + y,
+    3 => \y => 3 + y,
+    4 => \y => 4 + y,
+    5 => \y => 5 + y,
+    6 => \y => 6 + y,
+    7 => \y => 7 + y,
+    _ => \y => adder1(x - 8)(y) + 8,
+};
+
+fn adder2(x) => {
+    if x < 8 {
+        [
+            \y => y,
+            \y => 1 + y,
+            \y => 2 + y,
+            \y => 3 + y,
+            \y => 4 + y,
+            \y => 5 + y,
+            \y => 6 + y,
+            \y => 7 + y,
+        ][x]
+    } else {
+        \y => adder2(x - 8)(y) + y
+    }
+};
+
+assert adder1(3)(5) == adder2(5)(3);
+assert adder1(12)(12) == 24;
+assert adder2(16)(16) == 32;
