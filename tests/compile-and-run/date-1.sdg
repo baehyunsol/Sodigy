@@ -1,0 +1,37 @@
+fn prev_day(year, month, day) = match (month, day) {
+    (1, 1) => (year - 1, 12, 31),
+    (2 | 4 | 6 | 8 | 9 | 11, 1) => (year, month - 1, 31),
+    (3, 1) if is_leap_year(year) => (year, 2, 29),
+    (3, 1) => (year, 2, 28),
+    (5 | 7 | 10 | 12, 1) => (year, month - 1, 30),
+    _ => (year, month, day - 1),
+};
+
+fn next_day(year, month, day) = match (month, day) {
+    (1 | 3 | 5 | 7 | 8 | 10, 31) => (year, month + 1, 1),
+    (2, 28) if is_leap_year(year) => (year, 2, 29),
+    (2, 28) => (year, 3, 1),
+    (2, 29) => (year, 3, 1),
+    (4 | 6 | 9 | 11, 30) => (year, month + 1, 1),
+    (12, 31) => (year + 1, 1, 1),
+    _ => (year, month, day + 1),
+};
+
+fn is_leap_year(year) = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+
+fn add_day(year, month, day, offset) = match offset {
+    ..=-2 => {
+        let ($new_year, $new_month, $new_day) = prev_day(year, month, day);
+        add_day(new_year, new_month, new_day, offset + 1)
+    },
+    -1 => prev_day(year, month, day),
+    0 => (year, month, day),
+    1 => next_day(year, month, day),
+    2.. => {
+        let ($new_year, $new_month, $new_day) = next_day(year, month, day);
+        add_day(new_year, new_month, new_day, offset - 1)
+    },
+};
+
+assert add_day(1999, 1, 20, 10000) == (2026, 6, 7);
+assert add_day(2026, 6, 7, -10000) == (1999, 1, 20);

@@ -400,6 +400,7 @@ impl PatternKind {
 
                 result
             },
+            PatternKind::Or { lhs, .. } => lhs.bound_names(),
             _ => todo!(),
         }
     }

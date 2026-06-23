@@ -203,6 +203,7 @@ fn main() {
         shev::Config::default(),
         entries_map,
         String::from("index"),
+        None,
     );
 }
 

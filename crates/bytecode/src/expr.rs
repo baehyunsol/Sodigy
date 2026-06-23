@@ -115,10 +115,9 @@ pub fn lower_expr(
             lower_expr(true_value, session, bytecodes, Memory::SSA(true_ssa), is_tail_call);
 
             if !is_tail_call {
+                bytecodes.push(Bytecode::Label(return_expr.clone()));
                 bytecodes.push(Bytecode::Phi { pair: (true_ssa, false_ssa), dst });
             }
-
-            bytecodes.push(Bytecode::Label(return_expr.clone()));
         },
         Expr::Match(Match { .. }) => unreachable!(),
         Expr::Block(Block { lets, asserts, value, .. }) => {

@@ -448,12 +448,12 @@ fn constructor_to_expr(
                     },
                 },
                 (Some(lhs), None) => match (range.r#type, range.lhs_inclusive) {
-                    (LiteralType::Int, true) => ("built_in.geq_int", Expr::Constant(Constant::Number { n: lhs, span: Span::None })),
+                    (LiteralType::Int, true) => ("fn.geq_int", Expr::Constant(Constant::Number { n: lhs, span: Span::None })),
                     (LiteralType::Int, false) => ("built_in.gt_int", Expr::Constant(Constant::Number { n: lhs, span: Span::None })),
                     _ => todo!(),
                 },
                 (None, Some(rhs)) => match (range.r#type, range.rhs_inclusive) {
-                    (LiteralType::Int, true) => ("built_in.leq_int", Expr::Constant(Constant::Number { n: rhs, span: Span::None })),
+                    (LiteralType::Int, true) => ("fn.leq_int", Expr::Constant(Constant::Number { n: rhs, span: Span::None })),
                     (LiteralType::Int, false) => ("built_in.lt_int", Expr::Constant(Constant::Number { n: rhs, span: Span::None })),
                     _ => todo!(),
                 },
@@ -1005,7 +1005,7 @@ fn split_or_patterns(
     for (id, arm, pattern, name_bindings) in destructured_patterns.into_iter() {
         match pattern {
             PatternConstructor::Or(patterns) => {
-                for pattern in patterns.into_iter() {
+                for (_, _, pattern, _) in split_or_patterns(patterns.into_iter().map(|pattern| (id, arm, pattern, name_bindings.clone())).collect()) {
                     result.push((id, arm, pattern, name_bindings.clone()));
                 }
             },
