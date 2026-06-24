@@ -1,0 +1,12 @@
+enum MyOption<T> = {
+    Some(T),
+    None,
+};
+
+fn foo<T>(x: MyOption<T>) -> T = match x {
+    MyOption.Some($x) => x,
+    _ => std.panic("TODO"),
+};
+
+let x = foo(MyOption.Some(20));
+assert x == 20;

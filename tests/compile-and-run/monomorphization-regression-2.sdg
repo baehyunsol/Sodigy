@@ -1,0 +1,28 @@
+enum ABC<T, U> = {
+    A(T),
+    B(U),
+    C,
+};
+
+#[impl(std.op.eq)]
+fn eq<T, U>(a: ABC<T, U>, b: ABC<T, U>) -> Bool = match (a, b) {
+    (ABC.A($a), ABC.A($b)) => a == b,
+    (ABC.B($a), ABC.B($b)) => a == b,
+    (ABC.C, ABC.C) => True,
+    _ => False,
+};
+
+// 1. The compiler has to successfully infer the types of `a` and `b`.
+// 2. The compiler has to successfully type-check `c1 == c2` and `c1 == c3`.
+let a = ABC.A.<_, Int>("");
+let b = ABC.B.<Int, _>("");
+let c1 = ABC.C.<_, _>;
+let c2 = ABC.C.<Int, String>;
+let c3 = [
+    ABC.A(3),
+    ABC.B(""),
+    ABC.C,
+][2];
+
+assert c1 == c2;
+assert c1 == c3;
