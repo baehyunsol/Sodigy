@@ -23,11 +23,14 @@ pub use r#let::Let;
 pub use session::{LocalValue, Session};
 pub use value::Value;
 
+// `debug_info` fields are set only if the session's `debug_info` field is set.
+
 #[derive(Clone, Debug)]
 pub enum Bytecode {
     Const {
         value: Value,
         dst: Memory,
+        debug_info: Option<Box<Span>>,
     },
     Move {
         src: Memory,
@@ -44,18 +47,21 @@ pub enum Bytecode {
         func: Label,
         args: Vec<u32>,  // list of SSA indexes
         tail: bool,
+        debug_info: Option<Box<Span>>,
     },
 
     CallDynamic {
         func: Memory,    // function pointer
         args: Vec<u32>,  // list of SSA indexes
         tail: bool,
+        debug_info: Option<Box<Span>>,
     },
 
     // Jumps if the `value` is 1.
     JumpIf {
         value: Memory,
         label: Label,
+        debug_info: Option<Box<Span>>,
     },
 
     // If the global value `def_span` is not initialized, it calls the function `func`.
@@ -77,6 +83,7 @@ pub enum Bytecode {
 
         // The result of the intrinsic, if exists, will be stored here.
         dst: Memory,
+        debug_info: Option<Box<Span>>,
     },
 
     // `InitTuple` and `InitList` are very similar.

@@ -5,6 +5,7 @@ use sodigy_string::InternedString;
 
 impl Endec for Func {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.is_pure.encode_impl(buffer);
         self.name.encode_impl(buffer);
         self.name_span.encode_impl(buffer);
         self.params.encode_impl(buffer);
@@ -12,11 +13,12 @@ impl Endec for Func {
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (is_pure, cursor) = bool::decode_impl(buffer, cursor)?;
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (params, cursor) = usize::decode_impl(buffer, cursor)?;
         let (bytecodes, cursor) = Vec::<Bytecode>::decode_impl(buffer, cursor)?;
 
-        Ok((Func { name, name_span, params, bytecodes }, cursor))
+        Ok((Func { is_pure, name, name_span, params, bytecodes }, cursor))
     }
 }

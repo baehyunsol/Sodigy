@@ -35,6 +35,7 @@ pub struct Session<'hir, 'mir> {
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
     pub global_context: GlobalContext<'hir, 'mir>,
+    pub debug_info: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -63,6 +64,7 @@ impl Session<'_, '_> {
             errors: mir_session.errors.drain(..).collect(),
             warnings: mir_session.warnings.drain(..).collect(),
             global_context: mir_session.global_context,
+            debug_info: true,  // TODO: make it configurable
         }
     }
 

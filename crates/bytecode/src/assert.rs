@@ -34,6 +34,7 @@ impl Assert {
         bytecodes.push(Bytecode::Const {
             value: Value::Span(mir_assert.keyword_span.clone()),
             dst: Memory::SSA(span_ssa),
+            debug_info: None,
         });
         bytecodes.push(Bytecode::PushDebugInfo {
             kind: DebugInfoKind::AssertionKeywordSpan,
@@ -49,6 +50,7 @@ impl Assert {
         bytecodes.push(Bytecode::Const {
             value: session.string_to_value(name, /* binary: */ false),
             dst: Memory::SSA(name_ssa),
+            debug_info: None,
         });
         bytecodes.push(Bytecode::PushDebugInfo {
             kind: DebugInfoKind::AssertionName,
@@ -69,6 +71,9 @@ impl Assert {
         bytecodes.push(Bytecode::JumpIf {
             value: Memory::SSA(value_ssa),
             label: no_panic.clone(),
+
+            // I don't think we need debug_info for this because we already have the span of the `assert` keyword.
+            debug_info: None,
         });
 
         // We don't pop_debug_info for error notes because notes are evaluated only if the assertion has failed.
@@ -79,6 +84,7 @@ impl Assert {
             bytecodes.push(Bytecode::Const {
                 value: Value::Span(note_decorator_span.clone()),
                 dst: Memory::SSA(span_ssa),
+                debug_info: None,
             });
             bytecodes.push(Bytecode::PushDebugInfo {
                 kind: DebugInfoKind::AssertionNoteDecoratorSpan,
@@ -105,6 +111,7 @@ impl Assert {
             intrinsic: Intrinsic::Panic,
             args: vec![],
             dst: Memory::Return,  // don't care
+            debug_info: None,
         });
         bytecodes.push(Bytecode::Label(no_panic.clone()));
 
@@ -117,6 +124,7 @@ impl Assert {
                 intrinsic: Intrinsic::Exit,
                 args: vec![],
                 dst: Memory::Return,  // don't care
+                debug_info: None,
             });
         }
 

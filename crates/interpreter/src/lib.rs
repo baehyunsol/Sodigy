@@ -62,7 +62,7 @@ fn call(
         }
 
         match &executable.bytecodes[cursor] {
-            Bytecode::Const { value, dst } => {
+            Bytecode::Const { value, dst, debug_info: _ } => {
                 let value = heap.alloc_value(value);
                 update(dst, value, &mut stack, heap);
             },
@@ -85,7 +85,7 @@ fn call(
                 },
                 _ => unreachable!(),
             },
-            Bytecode::Call { func, args, tail } => {
+            Bytecode::Call { func, args, tail, debug_info: _ } => {
                 let new_stack = Stack::from_args(args, &stack);
                 let pc = match func {
                     Label::Flatten(i) => *i,
@@ -102,7 +102,7 @@ fn call(
                     stack.r#return = call(new_stack, heap, executable, pc as usize)?;
                 }
             },
-            Bytecode::CallDynamic { func, args, tail } => {
+            Bytecode::CallDynamic { func, args, tail, debug_info: _ } => {
                 let new_stack = Stack::from_args(args, &stack);
                 let pc = read(func, &stack, heap);
 
@@ -116,7 +116,7 @@ fn call(
                     stack.r#return = call(new_stack, heap, executable, pc as usize)?;
                 }
             },
-            Bytecode::JumpIf { value, label } => {
+            Bytecode::JumpIf { value, label, debug_info: _ } => {
                 let value = read(value, &stack, heap);
 
                 if value != 0 {
@@ -150,7 +150,7 @@ fn call(
             Bytecode::Return(i) => {
                 return Ok(*stack.ssa.get(i).unwrap());
             },
-            Bytecode::Intrinsic { intrinsic, args, dst } => match intrinsic {
+            Bytecode::Intrinsic { intrinsic, args, dst, debug_info: _ } => match intrinsic {
                 Intrinsic::NegInt => {
                     let rhs_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;
                     let (rhs_neg, rhs) = inspect_int(&heap.data, rhs_ptr);

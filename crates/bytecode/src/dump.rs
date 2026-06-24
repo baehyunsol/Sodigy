@@ -1,31 +1,50 @@
 use crate::{Bytecode, Label, Memory, Offset, Value};
 use sodigy_number::bi_to_string;
+use sodigy_span::Span;
 use std::fmt::{Display, Error, Formatter};
 
 impl Display for Bytecode {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        fn dump_debug_info(debug_info: &Option<Box<Span>>) -> String {
+            match debug_info {
+                Some(span) if **span == Span::None => String::new(),
+                Some(span) => format!("  // {span:?}"),
+                None => String::new(),
+            }
+        }
+
         match self {
-            Bytecode::Const { dst, value } => write!(fmt, "{dst} = {value};"),
+            Bytecode::Const { dst, value, debug_info } => write!(
+                fmt,
+                "{dst} = {value};{}",
+                dump_debug_info(debug_info),
+            ),
             Bytecode::Move { dst, src } => write!(fmt, "{dst} = {src};"),
             Bytecode::Phi { pair: (x, y), dst } => write!(fmt, "{dst} = phi(_{x}, _{y});"),
             Bytecode::Jump(label) => write!(fmt, "jump {label};"),
-            Bytecode::Call { func, args, tail } => write!(
+            Bytecode::Call { func, args, tail, debug_info } => write!(
                 fmt,
-                "{}call {func}({});",
+                "{}call {func}({});{}",
                 if *tail { "tail " } else { "" },
                 args.iter().map(
                     |i| format!("_{i}")
                 ).collect::<Vec<_>>().join(", "),
+                dump_debug_info(debug_info),
             ),
-            Bytecode::CallDynamic { func, args, tail } => write!(
+            Bytecode::CallDynamic { func, args, tail, debug_info } => write!(
                 fmt,
-                "{}dyn_call ({func})({});",
+                "{}dyn_call ({func})({});{}",
                 if *tail { "tail " } else { "" },
                 args.iter().map(
                     |i| format!("_{i}")
                 ).collect::<Vec<_>>().join(", "),
+                dump_debug_info(debug_info),
             ),
-            Bytecode::JumpIf { value, label } => write!(fmt, "if {value} {{ jump {label}; }}"),
+            Bytecode::JumpIf { value, label, debug_info } => write!(
+                fmt,
+                "if {value} {{ jump {label}; }}{}",
+                dump_debug_info(debug_info),
+            ),
             Bytecode::InitOrJump { def_span, func, label } => write!(
                 fmt,
                 "if is_init(_g{:09x}) {{ jump {label}; }} else {{ call {func}(); }}",
@@ -33,12 +52,13 @@ impl Display for Bytecode {
             ),
             Bytecode::Label(label) => write!(fmt, "label {label}:"),
             Bytecode::Return(ssa) => write!(fmt, "return _{ssa};"),
-            Bytecode::Intrinsic { intrinsic, args, dst } => write!(
+            Bytecode::Intrinsic { intrinsic, args, dst, debug_info } => write!(
                 fmt,
-                "{dst} = intrinsic {intrinsic:?}({});",
+                "{dst} = intrinsic {intrinsic:?}({});{}",
                 args.iter().map(
                     |i| format!("_{i}")
                 ).collect::<Vec<_>>().join(", "),
+                dump_debug_info(debug_info),
             ),
             Bytecode::InitTuple { elements, dst } => write!(fmt, "{dst} = intrinsic InitTuple({elements});"),
             Bytecode::InitList { elements, dst } => write!(fmt, "{dst} = intrinsic InitList({elements});"),

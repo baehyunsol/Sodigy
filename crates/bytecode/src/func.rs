@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Func {
+    pub is_pure: bool,
     pub name: InternedString,
     pub name_span: Span,
     pub params: usize,
@@ -35,6 +36,7 @@ impl Func {
         );
 
         Func {
+            is_pure: mir_func.is_pure,
             name: mir_func.name,
             name_span: mir_func.name_span.clone(),
             params: mir_func.params.len(),

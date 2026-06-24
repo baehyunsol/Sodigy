@@ -13,10 +13,11 @@ use sodigy_span::Span;
 impl Endec for Bytecode {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            Bytecode::Const { value, dst } => {
+            Bytecode::Const { value, dst, debug_info } => {
                 buffer.push(0);
                 value.encode_impl(buffer);
                 dst.encode_impl(buffer);
+                debug_info.encode_impl(buffer);
             },
             Bytecode::Move { src, dst } => {
                 buffer.push(1);
@@ -32,22 +33,25 @@ impl Endec for Bytecode {
                 buffer.push(3);
                 dst.encode_impl(buffer);
             },
-            Bytecode::Call { func, args, tail } => {
+            Bytecode::Call { func, args, tail, debug_info } => {
                 buffer.push(4);
                 func.encode_impl(buffer);
                 args.encode_impl(buffer);
                 tail.encode_impl(buffer);
+                debug_info.encode_impl(buffer);
             },
-            Bytecode::CallDynamic { func, args, tail } => {
+            Bytecode::CallDynamic { func, args, tail, debug_info } => {
                 buffer.push(5);
                 func.encode_impl(buffer);
                 args.encode_impl(buffer);
                 tail.encode_impl(buffer);
+                debug_info.encode_impl(buffer);
             },
-            Bytecode::JumpIf { value, label } => {
+            Bytecode::JumpIf { value, label, debug_info } => {
                 buffer.push(6);
                 value.encode_impl(buffer);
                 label.encode_impl(buffer);
+                debug_info.encode_impl(buffer);
             },
             Bytecode::InitOrJump { def_span, func, label } => {
                 buffer.push(7);
@@ -63,11 +67,12 @@ impl Endec for Bytecode {
                 buffer.push(9);
                 ssa.encode_impl(buffer);
             },
-            Bytecode::Intrinsic { intrinsic, args, dst } => {
+            Bytecode::Intrinsic { intrinsic, args, dst, debug_info } => {
                 buffer.push(10);
                 intrinsic.encode_impl(buffer);
                 args.encode_impl(buffer);
                 dst.encode_impl(buffer);
+                debug_info.encode_impl(buffer);
             },
             Bytecode::InitTuple { elements, dst } => {
                 buffer.push(11);
@@ -95,7 +100,8 @@ impl Endec for Bytecode {
             Some(0) => {
                 let (value, cursor) = Value::decode_impl(buffer, cursor + 1)?;
                 let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
-                Ok((Bytecode::Const { value, dst }, cursor))
+                let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
+                Ok((Bytecode::Const { value, dst, debug_info }, cursor))
             },
             Some(1) => {
                 let (src, cursor) = Memory::decode_impl(buffer, cursor + 1)?;
@@ -115,18 +121,21 @@ impl Endec for Bytecode {
                 let (func, cursor) = Label::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<u32>::decode_impl(buffer, cursor)?;
                 let (tail, cursor) = bool::decode_impl(buffer, cursor)?;
-                Ok((Bytecode::Call { func, args, tail }, cursor))
+                let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
+                Ok((Bytecode::Call { func, args, tail, debug_info }, cursor))
             },
             Some(5) => {
                 let (func, cursor) = Memory::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<u32>::decode_impl(buffer, cursor)?;
                 let (tail, cursor) = bool::decode_impl(buffer, cursor)?;
-                Ok((Bytecode::CallDynamic { func, args, tail }, cursor))
+                let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
+                Ok((Bytecode::CallDynamic { func, args, tail, debug_info }, cursor))
             },
             Some(6) => {
                 let (value, cursor) = Memory::decode_impl(buffer, cursor + 1)?;
                 let (label, cursor) = Label::decode_impl(buffer, cursor)?;
-                Ok((Bytecode::JumpIf { value, label }, cursor))
+                let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
+                Ok((Bytecode::JumpIf { value, label, debug_info }, cursor))
             },
             Some(7) => {
                 let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
@@ -146,7 +155,8 @@ impl Endec for Bytecode {
                 let (intrinsic, cursor) = Intrinsic::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<u32>::decode_impl(buffer, cursor)?;
                 let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
-                Ok((Bytecode::Intrinsic { intrinsic, args, dst }, cursor))
+                let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
+                Ok((Bytecode::Intrinsic { intrinsic, args, dst, debug_info }, cursor))
             },
             Some(11) => {
                 let (elements, cursor) = usize::decode_impl(buffer, cursor + 1)?;

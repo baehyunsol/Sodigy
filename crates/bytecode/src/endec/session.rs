@@ -21,6 +21,7 @@ impl Endec for Session<'_, '_> {
         self.intrinsics.encode_impl(buffer);
         self.errors.encode_impl(buffer);
         self.warnings.encode_impl(buffer);
+        self.debug_info.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
@@ -30,6 +31,7 @@ impl Endec for Session<'_, '_> {
         let (intrinsics, cursor) = HashMap::<Span, Intrinsic>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
         let (warnings, cursor) = Vec::<Warning>::decode_impl(buffer, cursor)?;
+        let (debug_info, cursor) = bool::decode_impl(buffer, cursor)?;
 
         Ok((
             Session {
@@ -50,6 +52,7 @@ impl Endec for Session<'_, '_> {
 
                 // worker will load this
                 global_context: GlobalContext::new(),
+                debug_info,
             },
             cursor,
         ))
@@ -64,7 +67,8 @@ impl DumpSession for Session<'_, '_> {
             lines.push(format!("// name: {}", func.name.unintern_or_default(&self.intermediate_dir)));
             lines.push(format!("// name_span: {:?}", func.name_span));
             lines.push(format!(
-                "func @G{:09x}({}):",
+                "{}fn @G{:09x}({}):",
+                if func.is_pure { "" } else { "impure " },
                 func.name_span.hash() & 0xfff_fff_fff,
                 (0..func.params).map(|i| format!("_{i}")).collect::<Vec<_>>().join(", "),
             ));

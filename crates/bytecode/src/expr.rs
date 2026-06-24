@@ -52,6 +52,7 @@ pub fn lower_expr(
                                     program_counter: None,
                                 },
                                 dst: dst.clone(),
+                                debug_info: if session.debug_info { Some(Box::new(id.span.clone())) } else { None },
                             });
 
                             if is_tail_call {
@@ -81,14 +82,18 @@ pub fn lower_expr(
         },
         Expr::Constant(c) => {
             let value = session.lower_constant(c);
-            bytecodes.push(Bytecode::Const { value, dst: dst.clone() });
+            bytecodes.push(Bytecode::Const {
+                value,
+                dst: dst.clone(),
+                debug_info: if session.debug_info { Some(Box::new(c.span())) } else { None },
+            });
 
             if is_tail_call {
                 let return_ssa = session.move_to_ssa(&dst, bytecodes);
                 bytecodes.push(Bytecode::Return(return_ssa));
             }
         },
-        Expr::If(If { cond, true_value, false_value, .. }) => {
+        Expr::If(If { if_span, cond, true_value, false_value, .. }) => {
             let eval_true_value = session.get_local_label();
             let return_expr = session.get_local_label();
             let cond_ssa = session.get_ssa();
@@ -104,6 +109,7 @@ pub fn lower_expr(
             bytecodes.push(Bytecode::JumpIf {
                 value: Memory::SSA(cond_ssa),
                 label: eval_true_value.clone(),
+                debug_info: if session.debug_info { Some(Box::new(if_span.clone())) } else { None },
             });
             lower_expr(false_value, session, bytecodes, Memory::SSA(false_ssa), is_tail_call);
 
@@ -200,12 +206,13 @@ pub fn lower_expr(
                     }
 
                     match func {
-                        Callable::Static { def_span, .. } => match session.intrinsics.get(def_span) {
+                        Callable::Static { def_span, span } => match session.intrinsics.get(def_span) {
                             Some(intrinsic) => {
                                 bytecodes.push(Bytecode::Intrinsic {
                                     intrinsic: *intrinsic,
                                     args: arg_ssa_regs,
                                     dst: dst.clone(),
+                                    debug_info: if session.debug_info { Some(Box::new(span.clone())) } else { None },
                                 });
 
                                 if is_tail_call {
@@ -219,6 +226,7 @@ pub fn lower_expr(
                                     func,
                                     args: arg_ssa_regs,
                                     tail: is_tail_call,
+                                    debug_info: if session.debug_info { Some(Box::new(span.clone())) } else { None },
                                 });
 
                                 if !is_tail_call {
@@ -243,6 +251,7 @@ pub fn lower_expr(
                                 func: Memory::SSA(func_ssa),
                                 args: arg_ssa_regs,
                                 tail: is_tail_call,
+                                debug_info: if session.debug_info { Some(Box::new(f.error_span_wide())) } else { None },
                             });
 
                             if !is_tail_call {
@@ -290,6 +299,7 @@ pub fn lower_expr(
                             bytecodes.push(Bytecode::Const {
                                 value: Value::Scalar(variant_index as u32),
                                 dst: dst.clone(),
+                                debug_info: None,
                             });
                         },
                         EnumRepr::Compound => {
@@ -303,6 +313,7 @@ pub fn lower_expr(
                                     ptr: Box::new(dst.clone()),
                                     offset: Offset::Static(variant_index as u32),
                                 },
+                                debug_info: None,
                             });
 
                             for (i, arg) in args.iter().enumerate() {
