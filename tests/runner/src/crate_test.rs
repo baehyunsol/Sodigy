@@ -100,6 +100,7 @@ fn run_case(name: &str, path: &str, verbose: bool) -> CrateTest {
         ("clippy::replace_box", "-D"),
         ("clippy::unnecessary_get_then_check", "-D"),
         ("clippy::unnecessary_unwrap", "-D"),
+        ("clippy::unneeded_struct_pattern", "-D"),
         ("clippy::useless_conversion", "-D"),
 
         // I'll deny this eventually, but not now.

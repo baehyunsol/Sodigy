@@ -230,7 +230,7 @@ impl Session {
                 NameOrigin::Foreign { kind } => match kind {
                     NameKind::Let { .. } |
                     NameKind::Func |
-                    NameKind::EnumVariant { .. } |
+                    NameKind::EnumVariant |
                     NameKind::FuncParam |
                     NameKind::PatternNameBind |
                     NameKind::Pipeline => Ok(()),
@@ -250,7 +250,7 @@ impl Session {
                 NameOrigin::Foreign { kind } => match kind {
                     // inter-hir will check whether an enum is struct-like or not
                     NameKind::Struct |
-                    NameKind::EnumVariant { .. } => Ok(()),
+                    NameKind::EnumVariant => Ok(()),
                     k => Err(not_x_but_y(path, TypeStructExpr::Struct, k.into(), intermediate_dir)),
                 },
                 NameOrigin::External => unreachable!(),

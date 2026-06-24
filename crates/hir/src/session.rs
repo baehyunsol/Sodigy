@@ -188,7 +188,7 @@ impl Session {
         for (name, (span, kind, count)) in names.iter() {
             if ((!self.is_in_debug_context && count.always == Counter::Never) || (self.is_in_debug_context && count.debug_only == Counter::Never)) && !name.eq(b"_") {
                 let debug_only = count.debug_only != Counter::Never;
-                match names_by_kind.entry((kind.clone(), debug_only)) {
+                match names_by_kind.entry((*kind, debug_only)) {
                     Entry::Occupied(mut e) => {
                         e.get_mut().push((*name, span.clone()));
                     },

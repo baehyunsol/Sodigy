@@ -53,7 +53,7 @@ impl Session {
                 log.push(path.id.def_span.clone());
                 path.id = IdentWithOrigin {
                     def_span: alias.path.id.def_span.clone(),
-                    origin: alias.path.id.origin.clone(),
+                    origin: alias.path.id.origin,
                     ..path.id.clone()
                 };
                 let alias_fields = alias.path.fields.iter().map(
@@ -114,7 +114,7 @@ impl Session {
 
                     path.id = IdentWithOrigin {
                         def_span: alias_path.id.def_span.clone(),
-                        origin: alias_path.id.origin.clone(),
+                        origin: alias_path.id.origin,
                         ..path.id.clone()
                     };
                     path.fields = alias_path.fields.iter().map(
@@ -187,7 +187,7 @@ impl Session {
                             let new_id = IdentWithOrigin {
                                 id: field_name,
                                 span: field_span.clone(),
-                                origin: NameOrigin::Foreign { kind: item_kind.clone() },
+                                origin: NameOrigin::Foreign { kind: *item_kind },
                                 def_span: item.clone(),
                             };
 

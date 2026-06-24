@@ -234,7 +234,7 @@ impl Session {
                 NameKind::Func |
                 NameKind::Struct |
                 NameKind::Enum |
-                NameKind::EnumVariant { .. } |
+                NameKind::EnumVariant |
                 NameKind::Module |
                 NameKind::GenericParam => Some(false),
 

@@ -307,8 +307,8 @@ impl Session {
                                 auxiliary: false,
                                 note: Some(format!(
                                     "This is a generic function, so I tried to infer its type arguments, but there's a problem with `{}`. Some information says `{}`'s type is `{}`, while other says it's `{}`.",
-                                    self.span_to_string(&generic).unwrap_or_else(|| String::from("???")),
-                                    self.span_to_string(&generic).unwrap_or_else(|| String::from("???")),
+                                    self.span_to_string(generic).unwrap_or_else(|| String::from("???")),
+                                    self.span_to_string(generic).unwrap_or_else(|| String::from("???")),
                                     expected_type,
                                     got_type,
                                 )),
@@ -318,7 +318,7 @@ impl Session {
                                 auxiliary: true,
                                 note: Some(format!(
                                     "Type parameter `{}` is defined here.",
-                                    self.span_to_string(&generic).unwrap_or_else(|| String::from("???")),
+                                    self.span_to_string(generic).unwrap_or_else(|| String::from("???")),
                                 )),
                             });
                         },
@@ -500,7 +500,7 @@ impl Session {
             },
             TypeError::CannotInferGenericType { ref call, ref generic, ref func_def } |
             TypeError::PartiallyInferedGenericType { ref call, ref generic, ref func_def, .. } => {
-                let generic_id = self.span_to_string(&generic);
+                let generic_id = self.span_to_string(generic);
                 let spans = match (func_def.as_ref().map(|def_span| self.func_shapes.get(def_span)), &generic_id) {
                     (Some(Some(func_shape)), Some(generic_id)) => vec![
                         RenderableSpan {
@@ -603,7 +603,7 @@ impl Session {
                         |(span, r#type)| RenderableSpan {
                             span: span.clone(),
                             auxiliary: true,
-                            note: Some(format!("Type parameter `{}` is infered to be `{}`.", self.span_to_string(&span).unwrap_or_else(|| String::from("????")), self.render_type(r#type))),
+                            note: Some(format!("Type parameter `{}` is infered to be `{}`.", self.span_to_string(span).unwrap_or_else(|| String::from("????")), self.render_type(r#type))),
                         }
                     ).collect(),
                 ].concat(),
@@ -717,7 +717,7 @@ impl Session {
                 kind: ErrorKind::CannotImplPoly {
                     poly_type: self.render_type(&poly_type),
                     impl_type: self.render_type(&impl_type),
-                    param_index: param_index,
+                    param_index,
                 },
                 spans: vec![
                     RenderableSpan {

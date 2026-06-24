@@ -34,7 +34,7 @@ impl Session {
             let mut constants = vec![];
 
             for (name, (origin, def_span)) in lambda.foreign_names.iter() {
-                let (origin, def_span) = (origin.clone(), def_span.clone());
+                let (origin, def_span) = (*origin, def_span.clone());
 
                 match origin {
                     NameOrigin::FuncParam { .. } => {
@@ -48,7 +48,7 @@ impl Session {
                         // If it were a closure, the captured variables must be in `lambda.foreign_names`.
                         NameKind::Let { is_top_level: true } |
                         NameKind::Func |
-                        NameKind::EnumVariant { .. } => {
+                        NameKind::EnumVariant => {
                             global_values.push(def_span);
                         },
                         // we need further check

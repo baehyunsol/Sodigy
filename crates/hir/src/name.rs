@@ -46,11 +46,11 @@ impl Session {
                 Namespace::Pattern { names } => match names.get_mut(&id) {
                     Some((def_span, name_kind, count)) => {
                         if is_local {
-                            result = Some((NameOrigin::Local { kind: name_kind.clone() }, def_span.clone()));
+                            result = Some((NameOrigin::Local { kind: *name_kind }, def_span.clone()));
                         }
 
                         else {
-                            result = Some((NameOrigin::Foreign { kind: name_kind.clone() }, def_span.clone()));
+                            result = Some((NameOrigin::Foreign { kind: *name_kind }, def_span.clone()));
                         }
 
                         stack_index = Some(i);

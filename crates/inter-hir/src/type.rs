@@ -119,7 +119,7 @@ impl Session {
                 NameOrigin::Foreign { kind } => match kind {
                     NameKind::Let { .. } |
                     NameKind::Func |
-                    NameKind::EnumVariant { .. } |
+                    NameKind::EnumVariant |
                     NameKind::Module |
                     NameKind::FuncParam |
                     NameKind::PatternNameBind |

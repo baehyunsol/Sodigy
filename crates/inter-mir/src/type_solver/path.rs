@@ -26,7 +26,7 @@ impl Session {
             None => {
                 match &id.origin {
                     NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
-                        NameKind::EnumVariant { .. } | NameKind::Struct => {
+                        NameKind::EnumVariant | NameKind::Struct => {
                             let def_span = match kind {
                                 // `False` in `Bool.False` has type `Bool`.
                                 NameKind::EnumVariant => self.variant_to_enum_span.get(&id.def_span).unwrap().clone(),
