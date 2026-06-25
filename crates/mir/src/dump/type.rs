@@ -32,28 +32,28 @@ pub fn render_type(
                     |arg| render_type(arg, verbose, lang_items, intermediate_dir, span_string_map)
                 ).collect::<Vec<_>>().join(", ");
 
-                if let Some(list_def_span) = lang_items.get("type.List") && list_def_span == constructor_def_span {
+                if let Some(list_def_span) = lang_items.get("type.List") && list_def_span.id_equals(*constructor_def_span) {
                     format!("[{args}]")
                 }
 
-                else if let Some(tuple_def_span) = lang_items.get("type.Tuple") && tuple_def_span == constructor_def_span {
+                else if let Some(tuple_def_span) = lang_items.get("type.Tuple") && tuple_def_span.id_equals(*constructor_def_span) {
                     format!("({args})")
                 }
 
                 else {
                     format!("{}<{args}>", if verbose {
-                        span_to_string_or_verbose(constructor_def_span, intermediate_dir, span_string_map)
+                        span_to_string_or_verbose(&Span::Range(*constructor_def_span), intermediate_dir, span_string_map)
                     } else {
-                        span_to_string(constructor_def_span, intermediate_dir, span_string_map).unwrap_or_else(|| String::from("???"))
+                        span_to_string(&Span::Range(*constructor_def_span), intermediate_dir, span_string_map).unwrap_or_else(|| String::from("???"))
                     })
                 }
             }
 
             else {
                 if verbose {
-                    span_to_string_or_verbose(constructor_def_span, intermediate_dir, span_string_map)
+                    span_to_string_or_verbose(&Span::Range(*constructor_def_span), intermediate_dir, span_string_map)
                 } else {
-                    span_to_string(constructor_def_span, intermediate_dir, span_string_map).unwrap_or_else(|| String::from("???"))
+                    span_to_string(&Span::Range(*constructor_def_span), intermediate_dir, span_string_map).unwrap_or_else(|| String::from("???"))
                 }
             }
         },

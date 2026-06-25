@@ -8,7 +8,7 @@ impl Session {
     pub fn monomorphize_enum(&mut self, r#enum: &Enum, monomorphization: &Monomorphization) -> Enum {
         let new_enum_span = r#enum.name_span.monomorphize(monomorphization.id);
         let new_enum_type = Type::Data {
-            constructor_def_span: new_enum_span.clone(),
+            constructor_def_span: new_enum_span.id().unwrap(),
             constructor_span: Span::None,
             args: None,
             group_span: None,
@@ -18,13 +18,9 @@ impl Session {
         for variant in r#enum.variants.iter() {
             let new_variant_span = variant.name_span.monomorphize(monomorphization.id);
             let old_variant_type = self.types.get(&variant.name_span).unwrap();
-            let mut new_variant_type: Type = old_variant_type.clone();
-
-            for (generic_param, generic_arg) in monomorphization.generics.iter() {
-                new_variant_type.substitute_generic_param(generic_param, generic_arg);
-            }
-
+            let new_variant_type = self.monomorphize_type(&old_variant_type.clone(), monomorphization);
             self.types.insert(new_variant_span.clone(), new_variant_type);
+
             let new_fields = match &variant.fields {
                 EnumVariantFields::None | EnumVariantFields::Tuple(_) => variant.fields.clone(),
                 EnumVariantFields::Struct(fields) => todo!(),  // monomorphize name_spans

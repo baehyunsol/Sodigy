@@ -545,7 +545,6 @@ pub enum StateMachineOrLeaves {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum SimpleType {
     Data {
-        // base of def_span
         constructor: SpanId,
         arity: usize,
     },
@@ -746,7 +745,7 @@ impl SimpleType {
     fn from_type_param(r#type: &Type) -> SimpleType {
         match r#type {
             Type::Data { constructor_def_span, args, .. } => SimpleType::Data {
-                constructor: constructor_def_span.id().unwrap(),
+                constructor: *constructor_def_span,
                 arity: args.as_ref().map(|args| args.len()).unwrap_or(0),
             },
             Type::Func { params, .. } => SimpleType::Func { params: params.len() },
@@ -765,7 +764,7 @@ impl SimpleType {
     fn from_type_arg(r#type: &Type) -> SimpleType {
         match r#type {
             Type::Data { constructor_def_span, args, .. } => SimpleType::Data {
-                constructor: constructor_def_span.id().unwrap(),
+                constructor: *constructor_def_span,
                 arity: args.as_ref().map(|args| args.len()).unwrap_or(0),
             },
             Type::Func { params, .. } => SimpleType::Func { params: params.len() },

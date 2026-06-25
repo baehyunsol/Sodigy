@@ -191,6 +191,10 @@ impl Session {
         }
     }
 
+    pub fn get_lang_item_span_id(&self, lang_item: &str) -> SpanId {
+        self.get_lang_item_span(lang_item).id().unwrap()
+    }
+
     pub fn get_item_shape<'s>(&'s self, def_span: &Span) -> Option<ItemShape<'s>> {
         match self.struct_shapes.get(def_span) {
             Some(s) => Some(ItemShape::Struct(s)),

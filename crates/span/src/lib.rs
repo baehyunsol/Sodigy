@@ -195,6 +195,10 @@ impl Span {
         }
     }
 
+    pub fn id_equals(&self, id: SpanId) -> bool {
+        self.id() == Some(id)
+    }
+
     /// An error takes `Vec<RenderableSpan>` as an input,
     /// but we're too lazy to instantiate one.
     pub fn simple_error(&self) -> Vec<RenderableSpan> {

@@ -1,4 +1,4 @@
-use crate::{AssociatedFuncInstance, Expr, Session, Type, write_log};
+use crate::{AssociatedFuncInstance, Expr, Session, Type, get_def_span_from_id, write_log};
 use crate::error::{ErrorContext, TypeError};
 use sodigy_error::{EnumFieldKind, Error, ErrorKind};
 use sodigy_hir::{self as hir, AssociatedFunc, FuncPurity};
@@ -28,7 +28,7 @@ impl Session {
             Expr::Constant(Constant::Number { n, .. }) => match n.is_integer() {
                 true => (
                     Some(Type::Data {
-                        constructor_def_span: self.get_lang_item_span("type.Int"),
+                        constructor_def_span: self.get_lang_item_span_id("type.Int"),
                         constructor_span: Span::None,
                         args: None,
                         group_span: None,
@@ -37,7 +37,7 @@ impl Session {
                 ),
                 false => (
                     Some(Type::Data {
-                        constructor_def_span: self.get_lang_item_span("type.Number"),
+                        constructor_def_span: self.get_lang_item_span_id("type.Number"),
                         constructor_span: Span::None,
                         args: None,
                         group_span: None,
@@ -48,10 +48,10 @@ impl Session {
             Expr::Constant(Constant::String { binary, .. }) => match *binary {
                 true => (
                     Some(Type::Data {
-                        constructor_def_span: self.get_lang_item_span("type.List"),
+                        constructor_def_span: self.get_lang_item_span_id("type.List"),
                         constructor_span: Span::None,
                         args: Some(vec![Type::Data {
-                            constructor_def_span: self.get_lang_item_span("type.Byte"),
+                            constructor_def_span: self.get_lang_item_span_id("type.Byte"),
                             constructor_span: Span::None,
                             args: None,
                             group_span: None,
@@ -62,10 +62,10 @@ impl Session {
                 ),
                 false => (
                     Some(Type::Data {
-                        constructor_def_span: self.get_lang_item_span("type.List"),
+                        constructor_def_span: self.get_lang_item_span_id("type.List"),
                         constructor_span: Span::None,
                         args: Some(vec![Type::Data {
-                            constructor_def_span: self.get_lang_item_span("type.Char"),
+                            constructor_def_span: self.get_lang_item_span_id("type.Char"),
                             constructor_span: Span::None,
                             args: None,
                             group_span: None,
@@ -77,7 +77,7 @@ impl Session {
             },
             Expr::Constant(Constant::Char { .. }) => (
                 Some(Type::Data {
-                    constructor_def_span: self.get_lang_item_span("type.Char"),
+                    constructor_def_span: self.get_lang_item_span_id("type.Char"),
                     constructor_span: Span::None,
                     args: None,
                     group_span: None,
@@ -86,7 +86,7 @@ impl Session {
             ),
             Expr::Constant(Constant::Byte { .. }) => (
                 Some(Type::Data {
-                    constructor_def_span: self.get_lang_item_span("type.Byte"),
+                    constructor_def_span: self.get_lang_item_span_id("type.Byte"),
                     constructor_span: Span::None,
                     args: None,
                     group_span: None,
@@ -95,7 +95,7 @@ impl Session {
             ),
             Expr::Constant(Constant::Scalar(_)) => (
                 Some(Type::Data {
-                    constructor_def_span: self.get_lang_item_span("type.Scalar"),
+                    constructor_def_span: self.get_lang_item_span_id("type.Scalar"),
                     constructor_span: Span::None,
                     args: None,
                     group_span: None,
@@ -106,7 +106,7 @@ impl Session {
                 Some(s) => {
                     let mut has_error = false;
                     let bool_type = Type::Data {
-                        constructor_def_span: self.get_lang_item_span("type.Bool"),
+                        constructor_def_span: self.get_lang_item_span_id("type.Bool"),
                         constructor_span: Span::None,
                         args: None,
                         group_span: None,
@@ -150,7 +150,7 @@ impl Session {
                     if let Some(cond_type) = cond_type {
                         if let Err(()) = self.solve_supertype(
                             &Type::Data {
-                                constructor_def_span: self.get_lang_item_span("type.Bool"),
+                                constructor_def_span: self.get_lang_item_span_id("type.Bool"),
                                 constructor_span: Span::None,
                                 args: None,
                                 group_span: None,
@@ -233,7 +233,7 @@ impl Session {
                         if let Some(guard_type) = guard_type {
                             if let Err(()) = self.solve_supertype(
                                 &Type::Data {
-                                    constructor_def_span: self.get_lang_item_span("type.Bool"),
+                                    constructor_def_span: self.get_lang_item_span_id("type.Bool"),
                                     constructor_span: Span::None,
                                     args: None,
                                     group_span: None,
@@ -431,6 +431,8 @@ impl Session {
 
                                 else {
                                     for (generic_param, generic_arg) in generic_params.iter().zip(generic_args.iter()) {
+                                        // TODO: Don't call `substitute_generic_param` here. Just call `substitute_generic_param_for_arg`, like
+                                        //       when there's no dotfish, and call `solve_supertype` for each type arg in the dotfish.
                                         let generic_arg_type_var = Type::GenericArg { call: span.clone(), generic: generic_param.clone() };
 
                                         for param in params.iter_mut() {
@@ -641,7 +643,7 @@ impl Session {
 
                             (
                                 Some(Type::Data {
-                                    constructor_def_span: def_span.clone(),
+                                    constructor_def_span: def_span.id().unwrap(),
                                     constructor_span: Span::None,
                                     args,
                                     group_span,
@@ -733,7 +735,7 @@ impl Session {
                     },
                     Callable::TupleInit { .. } => (
                         Some(Type::Data {
-                            constructor_def_span: self.get_lang_item_span("type.Tuple"),
+                            constructor_def_span: self.get_lang_item_span_id("type.Tuple"),
                             constructor_span: Span::None,
                             args: Some(arg_types),
 
@@ -748,7 +750,7 @@ impl Session {
                             self.add_type_var(type_var.clone(), None);
 
                             let r#type = Type::Data {
-                                constructor_def_span: self.get_lang_item_span("type.List"),
+                                constructor_def_span: self.get_lang_item_span_id("type.List"),
                                 constructor_span: Span::None,
                                 args: Some(vec![type_var]),
 
@@ -783,7 +785,7 @@ impl Session {
                             }
 
                             let r#type = Type::Data {
-                                constructor_def_span: self.get_lang_item_span("type.List"),
+                                constructor_def_span: self.get_lang_item_span_id("type.List"),
                                 constructor_span: Span::None,
                                 args: Some(vec![elem_type]),
 
@@ -973,8 +975,9 @@ impl Session {
         let mut generic_map: HashMap<Span, &Type> = HashMap::new();
 
         match r#type {
-            Type::Data { constructor_def_span: def_span, args, .. } => {
-                if *def_span == self.get_lang_item_span("type.Tuple") {
+            Type::Data { constructor_def_span: def_span_id, args, .. } => {
+                let def_span = get_def_span_from_id(*def_span_id, args);
+                if *def_span_id == self.get_lang_item_span_id("type.Tuple") {
                     let args = args.as_ref().unwrap();
 
                     match &field[0] {
@@ -996,7 +999,7 @@ impl Session {
                     }
                 }
 
-                else if let Some(struct_shape) = self.struct_shapes.get(def_span) {
+                else if let Some(struct_shape) = self.struct_shapes.get(&def_span) {
                     if let Some(args) = args {
                         for (generic_param, generic_arg) in struct_shape.generics.iter().zip(args.iter()) {
                             generic_map.insert(generic_param.name_span.clone(), generic_arg);
@@ -1043,7 +1046,7 @@ impl Session {
                 }
 
                 if let Field::Name { name, name_span, .. } = &field[0] && field_type.is_none() {
-                    if let Some(item_shape) = self.get_item_shape(def_span) {
+                    if let Some(item_shape) = self.get_item_shape(&def_span) {
                         // `x.unwrap()` is desugared to `associated_func::unwrap::pure::1(x)`.
                         // `associated_func::unwrap::pure::1` is a poly-generic function and we can
                         // easily reference the function with its name.

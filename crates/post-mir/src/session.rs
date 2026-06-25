@@ -35,6 +35,10 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
         }
     }
 
+    pub fn get_lang_item_span_id(&self, lang_item: &str) -> SpanId {
+        self.get_lang_item_span(lang_item).id().unwrap()
+    }
+
     pub fn add_type_info(&mut self, def_span: &Span, r#type: Type) {
         self.global_context.types
             .as_mut()

@@ -15,6 +15,10 @@ pub trait SodigySession {
         }
     }
 
+    fn get_lang_item_span_id(&self, lang_item: &str) -> SpanId {
+        self.get_lang_item_span(lang_item).id().unwrap()
+    }
+
     fn lang_items(&self) -> Option<&HashMap<String, Span>> {
         None
     }

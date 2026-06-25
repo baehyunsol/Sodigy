@@ -490,10 +490,10 @@ impl Expr {
                                         types: vec![
                                             Type::Var { def_span: derived_span.clone(), is_return: false },
                                             Type::Data {
-                                                constructor_def_span: session.get_lang_item_span("type.List"),
+                                                constructor_def_span: session.get_lang_item_span_id("type.List"),
                                                 constructor_span: derived_span.clone(),
                                                 args: Some(vec![Type::Data {
-                                                    constructor_def_span: session.get_lang_item_span("type.Char"),
+                                                    constructor_def_span: session.get_lang_item_span_id("type.Char"),
                                                     constructor_span: derived_span.clone(),
                                                     args: None,
                                                     group_span: None,

@@ -40,7 +40,7 @@ impl Session {
                 self.monomorphize_expr(&mut block.value, monomorphization);
 
                 for r#let in block.lets.iter_mut() {
-                    let mut old_type = match self.types.get(&r#let.name_span) {
+                    let old_type = match self.types.get(&r#let.name_span) {
                         Some(r#type) => r#type.clone(),
                         None => {
                             let type_var = Type::Var { def_span: r#let.name_span.clone(), is_return: false };
@@ -49,18 +49,13 @@ impl Session {
                         },
                     };
 
-                    for (generic_param, generic_arg) in monomorphization.generics.iter() {
-                        old_type.substitute_generic_param(generic_param, generic_arg);
-                    }
-
-                    let new_type = old_type;
+                    let new_type = self.monomorphize_type(&old_type, monomorphization);
+                    self.types.insert(r#let.name_span.clone(), new_type);
                     r#let.keyword_span = r#let.keyword_span.monomorphize(monomorphization.id);
                     r#let.name_span = r#let.name_span.monomorphize(monomorphization.id);
                     r#let.type_annot_span = r#let.type_annot_span.as_ref().map(|span| span.monomorphize(monomorphization.id));
                     self.monomorphize_expr(&mut r#let.value, monomorphization);
                     // TODO: do we have to change `LetOrigin`?
-
-                    self.types.insert(r#let.name_span.clone(), new_type);
                 }
 
                 for assert in block.asserts.iter_mut() {

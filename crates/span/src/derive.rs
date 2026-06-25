@@ -81,6 +81,7 @@ impl Span {
     pub fn monomorphize(&self, id: u64) -> Span {
         match self {
             Span::None => Span::None,
+            Span::Monomorphize { .. } => todo!(),
             span => Span::Monomorphize {
                 id,
                 span: Box::new(span.clone()),

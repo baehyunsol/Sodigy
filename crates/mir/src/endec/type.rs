@@ -1,7 +1,7 @@
-use crate::{Dotfish, Type, TypeAssertion};
+use crate::{Dotfish, Type, TypeAssertion, TypeUnit};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_hir::FuncPurity;
-use sodigy_span::Span;
+use sodigy_span::{Span, SpanId};
 
 impl Endec for Type {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
@@ -50,7 +50,7 @@ impl Endec for Type {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         match buffer.get(cursor) {
             Some(0) => {
-                let (constructor_def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                let (constructor_def_span, cursor) = SpanId::decode_impl(buffer, cursor + 1)?;
                 let (constructor_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (args, cursor) = Option::<Vec<Type>>::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
@@ -88,6 +88,40 @@ impl Endec for Type {
                 Ok((Type::Blocked { origin }, cursor))
             },
             Some(n @ 7..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+
+impl Endec for TypeUnit {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            TypeUnit::DefSpan(id) => {
+                buffer.push(0);
+                id.encode_impl(buffer);
+            },
+            TypeUnit::Func(purity) => {
+                buffer.push(1);
+                purity.encode_impl(buffer);
+            },
+            TypeUnit::Never => {
+                buffer.push(2);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => {
+                let (id, cursor) = SpanId::decode_impl(buffer, cursor + 1)?;
+                Ok((TypeUnit::DefSpan(id), cursor))
+            },
+            Some(1) => {
+                let (purity, cursor) = FuncPurity::decode_impl(buffer, cursor + 1)?;
+                Ok((TypeUnit::Func(purity), cursor))
+            },
+            Some(2) => Ok((TypeUnit::Never, cursor + 1)),
+            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

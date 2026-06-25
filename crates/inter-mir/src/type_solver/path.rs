@@ -50,7 +50,7 @@ impl Session {
 
                                         return (
                                             Some(Type::Data {
-                                                constructor_def_span: def_span.clone(),
+                                                constructor_def_span: def_span.id().unwrap(),
                                                 constructor_span: Span::None,
                                                 args: None,
                                                 group_span: None,
@@ -103,7 +103,7 @@ impl Session {
 
                                         return (
                                             Some(Type::Data {
-                                                constructor_def_span: def_span.clone(),
+                                                constructor_def_span: def_span.id().unwrap(),
                                                 constructor_span: Span::None,
                                                 args: Some(type_args),
                                                 group_span: Some(dotfish_group_span),

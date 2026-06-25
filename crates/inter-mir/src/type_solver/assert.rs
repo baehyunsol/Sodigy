@@ -10,7 +10,7 @@ impl Session {
         if let Some(assertion_type) = assertion_type {
             if let Err(()) = self.solve_supertype(
                 &Type::Data {
-                    constructor_def_span: self.get_lang_item_span("type.Bool"),
+                    constructor_def_span: self.get_lang_item_span_id("type.Bool"),
                     constructor_span: Span::None,
                     args: None,
                     group_span: None,
@@ -35,10 +35,10 @@ impl Session {
                     // We shouldn't use `Type::Data { constructor_def_span: lang_item("type.String"), .. }` here!!
                     // `String` is just an alias to `[Char]` and it's already resolved.
                     &Type::Data {
-                        constructor_def_span: self.get_lang_item_span("type.List"),
+                        constructor_def_span: self.get_lang_item_span_id("type.List"),
                         constructor_span: Span::None,
                         args: Some(vec![Type::Data {
-                            constructor_def_span: self.get_lang_item_span("type.Char"),
+                            constructor_def_span: self.get_lang_item_span_id("type.Char"),
                             constructor_span: Span::None,
                             args: None,
                             group_span: None,

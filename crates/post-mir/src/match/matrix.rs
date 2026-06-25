@@ -1,5 +1,6 @@
 use super::{LiteralType, PatternField, Range};
 use crate::Session;
+use sodigy_inter_mir::get_def_span_from_id;
 use sodigy_mir::Type;
 use sodigy_number::InternedNumber;
 use sodigy_span::Span;
@@ -79,16 +80,18 @@ pub fn get_matrix(
 ) -> Vec<MatrixRow> {
     match r#type {
         Type::Data { constructor_def_span, args, .. } => {
+            let real_def_span = get_def_span_from_id(*constructor_def_span, args);
+
             // TODO: It's toooo inefficient to call `get_lang_item_span(...)` everytime.
-            if *constructor_def_span == session.get_lang_item_span("type.Int") ||
-               *constructor_def_span == session.get_lang_item_span("type.Char") ||
-               *constructor_def_span == session.get_lang_item_span("type.Byte") ||
-               *constructor_def_span == session.get_lang_item_span("type.Number") {
-                let r#type = if *constructor_def_span == session.get_lang_item_span("type.Int") {
+            if *constructor_def_span == session.get_lang_item_span_id("type.Int") ||
+               *constructor_def_span == session.get_lang_item_span_id("type.Char") ||
+               *constructor_def_span == session.get_lang_item_span_id("type.Byte") ||
+               *constructor_def_span == session.get_lang_item_span_id("type.Number") {
+                   let r#type = if *constructor_def_span == session.get_lang_item_span_id("type.Int") {
                     LiteralType::Int
-                } else if *constructor_def_span == session.get_lang_item_span("type.Char") {
+                   } else if *constructor_def_span == session.get_lang_item_span_id("type.Char") {
                     LiteralType::Char
-                } else if *constructor_def_span == session.get_lang_item_span("type.Byte") {
+                   } else if *constructor_def_span == session.get_lang_item_span_id("type.Byte") {
                     LiteralType::Byte
                 } else {
                     LiteralType::Number
@@ -108,7 +111,7 @@ pub fn get_matrix(
                 }]
             }
 
-            else if *constructor_def_span == session.get_lang_item_span("type.Tuple") {
+            else if *constructor_def_span == session.get_lang_item_span_id("type.Tuple") {
                 let args = args.as_ref().unwrap();
                 let mut result = vec![MatrixRow {
                     field: vec![PatternField::Constructor],
@@ -128,11 +131,11 @@ pub fn get_matrix(
                 result
             }
 
-            else if *constructor_def_span == session.get_lang_item_span("type.List") {
+            else if *constructor_def_span == session.get_lang_item_span_id("type.List") {
                 vec![
                     MatrixRow {
                         field: vec![PatternField::Constructor],
-                        constructor: MatrixConstructor::DefSpan(constructor_def_span.clone()),
+                        constructor: MatrixConstructor::DefSpan(real_def_span),
                     },
                     MatrixRow {
                         field: vec![PatternField::ListLength],
@@ -151,12 +154,12 @@ pub fn get_matrix(
                 ]
             }
 
-            else if let Some(enum_shape) = session.global_context.enum_shapes.unwrap().get(constructor_def_span) {
+            else if let Some(enum_shape) = session.global_context.enum_shapes.unwrap().get(&real_def_span) {
                 vec![
                     MatrixRow {
                         field: vec![PatternField::Constructor],
                         constructor: MatrixConstructor::EnumVariants {
-                            enum_def_span: constructor_def_span.clone(),
+                            enum_def_span: real_def_span,
                             variants: enum_shape.variants.iter().map(
                                 |variant| variant.name_span.clone()
                             ).collect(),

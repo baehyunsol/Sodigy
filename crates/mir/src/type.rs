@@ -5,7 +5,7 @@ use sodigy_hir::{self as hir, FuncPurity};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_session::SodigySession;
-use sodigy_span::Span;
+use sodigy_span::{Span, SpanId};
 use sodigy_string::hash;
 use sodigy_token::Constant;
 use std::collections::HashSet;
@@ -22,7 +22,10 @@ pub enum Type {
         // If the type is `Result<Int, String>`, it's `Result`.
         // If the type is `Int`, it's just def_span.
         // If the type is `(Int, Int)`, it's the def_span of `Tuple`
-        constructor_def_span: Span,
+        //
+        // It uses `SpanId` instead of `Span`. Read the document of `get_def_span_from_id`
+        // for more information.
+        constructor_def_span: SpanId,
 
         // of the type annotation
         constructor_span: Span,
@@ -114,6 +117,14 @@ pub struct TypeAssertion {
     pub r#type: Type,
 }
 
+// This is used by `Type::flatten`, which is used to hash a type.
+#[derive(Clone, Debug)]
+pub enum TypeUnit {
+    DefSpan(SpanId),
+    Func(FuncPurity),
+    Never,
+}
+
 impl Type {
     pub fn from_hir(hir_type: &hir::Type, session: &mut Session) -> Result<Type, ()> {
         match hir_type {
@@ -130,7 +141,7 @@ impl Type {
                     NameOrigin::Foreign { kind } => match kind {
                         NameKind::Struct |
                         NameKind::Enum => Ok(Type::Data {
-                            constructor_def_span: path.id.def_span.clone(),
+                            constructor_def_span: path.id.def_span.id().unwrap(),
                             constructor_span: path.id.span.clone(),
                             args: None,
                             group_span: None,
@@ -164,7 +175,7 @@ impl Type {
 
                 else {
                     Ok(Type::Data {
-                        constructor_def_span: constructor.id.def_span.clone(),
+                        constructor_def_span: constructor.id.def_span.id().unwrap(),
                         constructor_span: constructor.id.span.clone(),
                         args: Some(args),
                         group_span: Some(group_span.clone()),
@@ -192,7 +203,7 @@ impl Type {
 
                 else {
                     Ok(Type::Data {
-                        constructor_def_span: session.get_lang_item_span("type.Tuple"),
+                        constructor_def_span: session.get_lang_item_span_id("type.Tuple"),
                         constructor_span: group_span.clone(),
                         args: Some(types),
                         group_span: Some(group_span.clone()),
@@ -286,6 +297,54 @@ impl Type {
                 result
             },
             Type::Var { .. } | Type::GenericArg { .. } => vec![self.clone()],
+        }
+    }
+
+    // This is used by `get_monomorphization_id`, to hash this type.
+    // It can only flatten fully-infered type. For example, we can't know whether
+    // `Result<?T, String>` and `Result<Int, ?U>` are equal until ?T and ?U are
+    // solved. There's no point of hashing those types.
+    pub fn flatten(&self) -> Option<Vec<TypeUnit>> {
+        match self {
+            Type::Data {
+                constructor_def_span,
+                args: None,
+                ..
+            } => Some(vec![TypeUnit::DefSpan(*constructor_def_span)]),
+            Type::Data {
+                constructor_def_span,
+                args: Some(args),
+                ..
+            } if args.is_empty() => Some(vec![TypeUnit::DefSpan(*constructor_def_span)]),
+            Type::Data {
+                constructor_def_span,
+                args: Some(args),
+                ..
+            } => {
+                let mut units = vec![TypeUnit::DefSpan(*constructor_def_span)];
+
+                for arg in args.iter() {
+                    units.extend(arg.flatten()?);
+                }
+
+                Some(units)
+            },
+            Type::Func {
+                purity,
+                params,
+                r#return,
+                ..
+            } => {
+                let mut units = vec![TypeUnit::Func(*purity)];
+
+                for r#type in params.iter().chain(std::iter::once(r#return.as_ref())) {
+                    units.extend(r#type.flatten()?);
+                }
+
+                Some(units)
+            },
+            Type::Never(_) => Some(vec![TypeUnit::Never]),
+            _ => None,
         }
     }
 
@@ -539,13 +598,13 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
         },
         Expr::Constant(Constant::Number { n, .. }) => match n.is_integer() {
             true => Some(Type::Data {
-                constructor_def_span: global_context.get_lang_item_span("type.Int"),
+                constructor_def_span: global_context.get_lang_item_span_id("type.Int"),
                 constructor_span: Span::None,
                 args: None,
                 group_span: None,
             }),
             false => Some(Type::Data {
-                constructor_def_span: global_context.get_lang_item_span("type.Number"),
+                constructor_def_span: global_context.get_lang_item_span_id("type.Number"),
                 constructor_span: Span::None,
                 args: None,
                 group_span: None,
@@ -553,10 +612,10 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
         },
         Expr::Constant(Constant::String { binary, .. }) => match *binary {
             true => Some(Type::Data {
-                constructor_def_span: global_context.get_lang_item_span("type.List"),
+                constructor_def_span: global_context.get_lang_item_span_id("type.List"),
                 constructor_span: Span::None,
                 args: Some(vec![Type::Data {
-                    constructor_def_span: global_context.get_lang_item_span("type.Byte"),
+                    constructor_def_span: global_context.get_lang_item_span_id("type.Byte"),
                     constructor_span: Span::None,
                     args: None,
                     group_span: None,
@@ -564,10 +623,10 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
                 group_span: Some(Span::None),
             }),
             false => Some(Type::Data {
-                constructor_def_span: global_context.get_lang_item_span("type.List"),
+                constructor_def_span: global_context.get_lang_item_span_id("type.List"),
                 constructor_span: Span::None,
                 args: Some(vec![Type::Data {
-                    constructor_def_span: global_context.get_lang_item_span("type.Char"),
+                    constructor_def_span: global_context.get_lang_item_span_id("type.Char"),
                     constructor_span: Span::None,
                     args: None,
                     group_span: None,
@@ -576,19 +635,19 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
             }),
         },
         Expr::Constant(Constant::Char { .. }) => Some(Type::Data {
-            constructor_def_span: global_context.get_lang_item_span("type.Char"),
+            constructor_def_span: global_context.get_lang_item_span_id("type.Char"),
             constructor_span: Span::None,
             args: None,
             group_span: None,
         }),
         Expr::Constant(Constant::Byte { .. }) => Some(Type::Data {
-            constructor_def_span: global_context.get_lang_item_span("type.Byte"),
+            constructor_def_span: global_context.get_lang_item_span_id("type.Byte"),
             constructor_span: Span::None,
             args: None,
             group_span: None,
         }),
         Expr::Constant(Constant::Scalar(_)) => Some(Type::Data {
-            constructor_def_span: global_context.get_lang_item_span("type.Scalar"),
+            constructor_def_span: global_context.get_lang_item_span_id("type.Scalar"),
             constructor_span: Span::None,
             args: None,
             group_span: None,
@@ -623,7 +682,7 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
                 }
 
                 Some(Type::Data {
-                    constructor_def_span: global_context.get_lang_item_span("type.Tuple"),
+                    constructor_def_span: global_context.get_lang_item_span_id("type.Tuple"),
                     constructor_span: Span::None,
                     args: Some(arg_types),
                     group_span: Some(Span::None),
@@ -642,14 +701,14 @@ pub fn type_of_field(r#type: &Type, field: &[Field], global_context: GlobalConte
 
     let t = match r#type {
         Type::Data { constructor_def_span, args, .. } => {
-            if *constructor_def_span == global_context.get_lang_item_span("type.Tuple") {
+            if *constructor_def_span == global_context.get_lang_item_span_id("type.Tuple") {
                 match &field[0] {
                     Field::Index(i) if *i >= 0 => args.as_ref().unwrap()[*i as usize].clone(),
                     _ => todo!(),
                 }
             }
 
-            else if *constructor_def_span == global_context.get_lang_item_span("type.List") {
+            else if *constructor_def_span == global_context.get_lang_item_span_id("type.List") {
                 match &field[0] {
                     Field::Index(_) => args.as_ref().unwrap()[0].clone(),
                     _ => todo!(),

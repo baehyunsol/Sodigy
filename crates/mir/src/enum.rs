@@ -33,7 +33,7 @@ impl Enum {
         let mut variants = Vec::with_capacity(hir_enum.variants.len());
         let mut has_error = false;
         let enum_type = Type::Data {
-            constructor_def_span: hir_enum.name_span.clone(),
+            constructor_def_span: hir_enum.name_span.id().unwrap(),
             constructor_span: Span::None,
             args: if hir_enum.generics.is_empty() {
                 None

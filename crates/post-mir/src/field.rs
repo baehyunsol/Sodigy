@@ -1,4 +1,5 @@
 use crate::Session;
+use sodigy_inter_mir::get_def_span_from_id;
 use sodigy_mir::{Expr, Type, type_of, type_of_field};
 use sodigy_parse::Field;
 use sodigy_string::InternedString;
@@ -14,7 +15,9 @@ pub(crate) fn lower_fields(lhs: &Expr, fields: &mut Vec<Field>, session: &mut Se
     for (i, field) in fields.iter_mut().enumerate() {
         match &curr_type {
             Type::Data { constructor_def_span, args, .. } => {
-                if constructor_def_span == &session.get_lang_item_span("type.Tuple") {
+                let real_def_span = get_def_span_from_id(*constructor_def_span, args);
+
+                if *constructor_def_span == session.get_lang_item_span_id("type.Tuple") {
                     let args = args.as_ref().unwrap();
 
                     match field {
@@ -34,7 +37,7 @@ pub(crate) fn lower_fields(lhs: &Expr, fields: &mut Vec<Field>, session: &mut Se
                     }
                 }
 
-                else if let Some(struct_shape) = session.global_context.struct_shapes.unwrap().get(constructor_def_span) {
+                else if let Some(struct_shape) = session.global_context.struct_shapes.unwrap().get(&real_def_span) {
                     match field {
                         Field::Name { name, .. } => {
                             for (j, field_def) in struct_shape.fields.iter().enumerate() {

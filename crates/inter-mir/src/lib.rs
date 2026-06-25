@@ -19,7 +19,7 @@ mod type_solver;
 
 pub use error::{ErrorContext, ExprContext, TypeError, TypeWarning};
 pub use log::LogEntry;
-pub use mono::Monomorphization;
+pub use mono::{Monomorphization, get_def_span_from_id, get_monomorphization_id};
 pub(crate) use poly::{PolySolver, SolvePolyResult};
 pub use session::Session;
 

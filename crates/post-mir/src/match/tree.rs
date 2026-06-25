@@ -636,7 +636,7 @@ pub(crate) fn build_tree(
                     PatternConstructor::Wildcard => {
                         okay_patterns.push((id, arm));
                     },
-                    _ => todo!(),
+                    pattern => panic!("TODO\npattern: {pattern:?}\ndef_span: {def_span:?}"),
                 }
             }
 

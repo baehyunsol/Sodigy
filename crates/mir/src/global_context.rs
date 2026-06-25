@@ -87,4 +87,8 @@ impl<'hir> GlobalContext<'hir, '_> {
             None => panic!("lang_items in global_context not initialized!"),
         }
     }
+
+    pub fn get_lang_item_span_id(&self, lang_item: &str) -> SpanId {
+        self.get_lang_item_span(lang_item).id().unwrap()
+    }
 }

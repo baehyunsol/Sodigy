@@ -40,7 +40,7 @@ impl Session {
             PatternKind::Constant(Constant::Number { n, .. }) => match n.is_integer() {
                 true => (
                     Some(Type::Data {
-                        constructor_def_span: self.get_lang_item_span("type.Int"),
+                        constructor_def_span: self.get_lang_item_span_id("type.Int"),
                         constructor_span: Span::None,
                         args: None,
                         group_span: None,
@@ -49,7 +49,7 @@ impl Session {
                 ),
                 false => (
                     Some(Type::Data {
-                        constructor_def_span: self.get_lang_item_span("type.Number"),
+                        constructor_def_span: self.get_lang_item_span_id("type.Number"),
                         constructor_span: Span::None,
                         args: None,
                         group_span: None,
@@ -60,10 +60,10 @@ impl Session {
             PatternKind::Constant(Constant::String { binary, .. }) => match *binary {
                 true => (
                     Some(Type::Data {
-                        constructor_def_span: self.get_lang_item_span("type.List"),
+                        constructor_def_span: self.get_lang_item_span_id("type.List"),
                         constructor_span: Span::None,
                         args: Some(vec![Type::Data {
-                            constructor_def_span: self.get_lang_item_span("type.Byte"),
+                            constructor_def_span: self.get_lang_item_span_id("type.Byte"),
                             constructor_span: Span::None,
                             args: None,
                             group_span: None,
@@ -74,10 +74,10 @@ impl Session {
                 ),
                 false => (
                     Some(Type::Data {
-                        constructor_def_span: self.get_lang_item_span("type.List"),
+                        constructor_def_span: self.get_lang_item_span_id("type.List"),
                         constructor_span: Span::None,
                         args: Some(vec![Type::Data {
-                            constructor_def_span: self.get_lang_item_span("type.Char"),
+                            constructor_def_span: self.get_lang_item_span_id("type.Char"),
                             constructor_span: Span::None,
                             args: None,
                             group_span: None,
@@ -89,7 +89,7 @@ impl Session {
             },
             PatternKind::Constant(Constant::Char { .. }) => (
                 Some(Type::Data {
-                    constructor_def_span: self.get_lang_item_span("type.Char"),
+                    constructor_def_span: self.get_lang_item_span_id("type.Char"),
                     constructor_span: Span::None,
                     args: None,
                     group_span: None,
@@ -98,7 +98,7 @@ impl Session {
             ),
             PatternKind::Constant(Constant::Byte { .. }) => (
                 Some(Type::Data {
-                    constructor_def_span: self.get_lang_item_span("type.Byte"),
+                    constructor_def_span: self.get_lang_item_span_id("type.Byte"),
                     constructor_span: Span::None,
                     args: None,
                     group_span: None,
@@ -203,7 +203,7 @@ impl Session {
 
                     (
                         Some(Type::Data {
-                            constructor_def_span: self.get_lang_item_span("type.Tuple"),
+                            constructor_def_span: self.get_lang_item_span_id("type.Tuple"),
                             constructor_span: Span::None,
                             args: Some(elem_types),
                             group_span: Some(Span::None),
@@ -224,7 +224,7 @@ impl Session {
                     self.add_type_var(type_var.clone(), None);
 
                     let r#type = Type::Data {
-                        constructor_def_span: self.get_lang_item_span("type.List"),
+                        constructor_def_span: self.get_lang_item_span_id("type.List"),
                         constructor_span: Span::None,
                         args: Some(vec![type_var]),
 
@@ -272,7 +272,7 @@ impl Session {
                     }
 
                     let r#type = Type::Data {
-                        constructor_def_span: self.get_lang_item_span("type.List"),
+                        constructor_def_span: self.get_lang_item_span_id("type.List"),
                         constructor_span: Span::None,
                         args: Some(vec![elem_type]),
 

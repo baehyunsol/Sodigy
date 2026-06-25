@@ -158,6 +158,7 @@ use crate::Session;
 use sodigy_endec::IndentedLines;
 use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
 use sodigy_hir::{LetOrigin, Pattern, PatternKind};
+use sodigy_inter_mir::get_def_span_from_id;
 use sodigy_mir::{
     ArmSplit,
     Block,
@@ -166,6 +167,7 @@ use sodigy_mir::{
     Let,
     Match,
     MatchArm,
+    Type,
     dump_expr,
     type_of,
 };
@@ -470,7 +472,19 @@ fn read_field_of_pattern(
                 rhs: Some(InternedNumber::from_u32(*ch, true)),
                 rhs_inclusive: true,
             }),
-            PatternKind::Constant(Constant::String { .. }) => PatternConstructor::DefSpan(session.get_lang_item_span("type.List")),
+            PatternKind::Constant(Constant::String { .. }) => {
+                let list_def_span_id = session.get_lang_item_span_id("type.List");
+                let string_def_span = get_def_span_from_id(
+                    list_def_span_id,
+                    &Some(vec![Type::Data {
+                        constructor_def_span: session.get_lang_item_span_id("type.Char"),
+                        constructor_span: Span::None,
+                        args: None,
+                        group_span: None,
+                    }]),
+                );
+                PatternConstructor::DefSpan(string_def_span)
+            },
             PatternKind::Struct { r#struct, .. } | PatternKind::TupleStruct { r#struct, .. } => PatternConstructor::DefSpan(r#struct.id.def_span.clone()),
             PatternKind::Tuple { elements, rest, .. } => {
                 if let Some(_) = rest {
@@ -483,8 +497,10 @@ fn read_field_of_pattern(
                     PatternConstructor::Tuple(elements.len())
                 }
             },
-            // TODO: Lists are monomorphized...
-            PatternKind::List { .. } => PatternConstructor::DefSpan(session.get_lang_item_span("type.List")),
+
+            // TODO: We have to call `get_def_span_from_id`, but we don't know the type of the elements...
+            PatternKind::List { .. } => PatternConstructor::DefSpan(todo!()),
+
             PatternKind::Range { lhs, rhs, is_inclusive, .. } => {
                 let mut literal_type = None;
                 let lhs = lhs.as_ref().map(
