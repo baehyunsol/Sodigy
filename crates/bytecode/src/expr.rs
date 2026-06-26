@@ -256,7 +256,7 @@ pub fn lower_expr(
 
                             if !is_tail_call {
                                 bytecodes.push(Bytecode::Move {
-                                    src: Memory::SSA(func_ssa),
+                                    src: Memory::Return,
                                     dst,
                                 });
                             }
