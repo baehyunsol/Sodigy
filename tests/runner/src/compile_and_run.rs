@@ -98,6 +98,10 @@ struct CnrContext {
     pub sdg_files: usize,
     pub dump_output: bool,
     pub log_post_mir: bool,
+
+    // If this flag is set, it doesn't check the output.
+    // It just launches an interactive interpreter and quit.
+    pub debug_bytecode: bool,
 }
 
 pub fn run_cases(
@@ -106,6 +110,7 @@ pub fn run_cases(
     test_dir: &str,  // `<ROOT>/tests/compile-and-run/`
     sodigy_path: &str,
     log_post_mir: bool,
+    debug_bytecode: bool,
 ) -> Vec<CompileAndRun> {
     let mut cases = vec![];
 
@@ -165,7 +170,7 @@ pub fn run_cases(
     let mut fail = 0;
 
     for case in cases.iter() {
-        let case_result = run_cnr(case, root, sodigy_path, filter.is_some(), log_post_mir);
+        let case_result = run_cnr(case, root, sodigy_path, filter.is_some(), log_post_mir, debug_bytecode);
         let (color, status) = if case_result.error.is_none() {
             pass += 1;
             (32, "pass")
@@ -194,8 +199,9 @@ fn run_cnr(
     sodigy_path: &str,
     dump_output: bool,
     log_post_mir: bool,
+    debug_bytecode: bool,
 ) -> CompileAndRun {
-    let cnr_context = prepare_cnr(name, root, sodigy_path, dump_output, log_post_mir);
+    let cnr_context = prepare_cnr(name, root, sodigy_path, dump_output, log_post_mir, debug_bytecode);
     let mut result = cnr_context.main_test();
     cnr_context.extra_tests(&mut result);
     result
@@ -207,6 +213,7 @@ fn prepare_cnr(
     sodigy_path: &str,
     dump_output: bool,
     log_post_mir: bool,
+    debug_bytecode: bool,
 ) -> CnrContext {
     let test_dir = join3(root, "tests", "compile-and-run").unwrap();
     let base_path = join(&test_dir, name).unwrap();
@@ -246,6 +253,7 @@ fn prepare_cnr(
         sdg_files,
         dump_output,
         log_post_mir,
+        debug_bytecode,
     }
 }
 

@@ -93,10 +93,12 @@ pub enum Bytecode {
     InitTuple {
         elements: usize,
         dst: Memory,
+        debug_info: Option<Box<Span>>,
     },
     InitList {
         elements: usize,
         dst: Memory,
+        debug_info: Option<Box<Span>>,
     },
 
     // The runtime has to implement a special control flow for assertions.
@@ -193,6 +195,75 @@ pub enum DebugInfoKind {
     AssertionName,
     AssertionNoteDecoratorSpan,
     AssertionNote,
+}
+
+impl Bytecode {
+    pub fn debug_info(&self) -> Option<Box<Span>> {
+        match self {
+            Bytecode::Const { debug_info, .. } |
+            Bytecode::Call { debug_info, .. } |
+            Bytecode::CallDynamic { debug_info, .. } |
+            Bytecode::JumpIf { debug_info, .. } |
+            Bytecode::Intrinsic { debug_info, .. } |
+            Bytecode::InitTuple { debug_info, .. } |
+            Bytecode::InitList { debug_info, .. } => debug_info.clone(),
+            _ => None,
+        }
+    }
+
+    pub fn used_ssa_indexes(&self) -> Vec<u32> {
+        let mut indexes: Vec<u32> = vec![];
+        let mut memories: Vec<Memory> = vec![];
+
+        match self {
+            Bytecode::Const { dst: memory, .. } |
+            Bytecode::JumpIf { value: memory, .. } |
+            Bytecode::InitTuple { dst: memory, .. } |
+            Bytecode::InitList { dst: memory, .. } |
+            Bytecode::PushDebugInfo { src: memory, .. } => {
+                memories.push(memory.clone());
+            },
+            Bytecode::Move { src, dst } => {
+                memories.push(src.clone());
+                memories.push(dst.clone());
+            },
+            Bytecode::Phi { pair: (a, b), dst } => {
+                indexes.push(*a);
+                indexes.push(*b);
+                memories.push(dst.clone());
+            },
+            Bytecode::Call { args, .. } |
+            Bytecode::CallDynamic { args, .. } => {
+                indexes.extend(args.to_vec());
+            },
+            Bytecode::Return(n) => {
+                indexes.push(*n);
+            },
+            Bytecode::Intrinsic { args, dst, .. } => {
+                indexes.extend(args.to_vec());
+                memories.push(dst.clone());
+            },
+            Bytecode::Jump(_) |
+            Bytecode::InitOrJump { .. } |
+            Bytecode::Label(_) |
+            Bytecode::PopDebugInfo => {},
+        }
+
+        while let Some(m) = memories.pop() {
+            match m {
+                Memory::SSA(n) => {
+                    indexes.push(n);
+                },
+                Memory::Heap { ptr, .. } |
+                Memory::List { ptr, .. } => {
+                    memories.push(*ptr.clone());
+                },
+                Memory::Return | Memory::Global(_) => {},
+            }
+        }
+
+        indexes
+    }
 }
 
 pub fn lower<'hir, 'mir>(mir_session: MirSession<'hir, 'mir>) -> Session<'hir, 'mir> {

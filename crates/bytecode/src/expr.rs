@@ -266,9 +266,15 @@ pub fn lower_expr(
                 },
                 Callable::StructInit { .. } |
                 Callable::TupleInit { .. } => {
+                    let debug_info = match (session.debug_info, func) {
+                        (true, Callable::TupleInit { group_span }) => Some(Box::new(group_span.clone())),
+                        _ => None,
+                    };
+
                     bytecodes.push(Bytecode::InitTuple {
                         elements: args.len(),
                         dst: dst.clone(),
+                        debug_info,
                     });
 
                     for (i, arg) in args.iter().enumerate() {
@@ -306,6 +312,7 @@ pub fn lower_expr(
                             bytecodes.push(Bytecode::InitTuple {
                                 elements: args.len() + 1,
                                 dst: dst.clone(),
+                                debug_info: None,
                             });
                             bytecodes.push(Bytecode::Const {
                                 value: Value::Scalar(variant_index as u32),
@@ -337,10 +344,11 @@ pub fn lower_expr(
                         bytecodes.push(Bytecode::Return(return_ssa));
                     }
                 },
-                Callable::ListInit { .. } => {
+                Callable::ListInit { group_span } => {
                     bytecodes.push(Bytecode::InitList {
                         elements: args.len(),
                         dst: dst.clone(),
+                        debug_info: if session.debug_info { Some(Box::new(group_span.clone())) } else { None },
                     });
 
                     for (i, arg) in args.iter().enumerate() {

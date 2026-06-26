@@ -60,8 +60,16 @@ impl Display for Bytecode {
                 ).collect::<Vec<_>>().join(", "),
                 dump_debug_info(debug_info),
             ),
-            Bytecode::InitTuple { elements, dst } => write!(fmt, "{dst} = intrinsic InitTuple({elements});"),
-            Bytecode::InitList { elements, dst } => write!(fmt, "{dst} = intrinsic InitList({elements});"),
+            Bytecode::InitTuple { elements, dst, debug_info } => write!(
+                fmt,
+                "{dst} = intrinsic InitTuple({elements});{}",
+                dump_debug_info(debug_info),
+            ),
+            Bytecode::InitList { elements, dst, debug_info } => write!(
+                fmt,
+                "{dst} = intrinsic InitList({elements});{}",
+                dump_debug_info(debug_info),
+            ),
             _ => write!(fmt, "{self:?}"),
         }
     }

@@ -1,29 +1,75 @@
 use crate::{Heap, Stack};
 use sodigy_bytecode::Bytecode;
 use sodigy_number::bi_to_string;
+use sodigy_span::{RenderableSpan, RenderSpanOption, RenderSpanSession, render_spans};
+use std::collections::HashSet;
 
 pub fn debug(
     stack: &Stack,
     heap: &Heap,
     bytecodes: &[Bytecode],
     cursor: usize,
+    render_span_session: &mut RenderSpanSession,
 ) {
-    let mut interesting_stack: Vec<&u32> = stack.ssa.keys().take(16).collect();
-    interesting_stack.sort();
+    let mut stack_preview: Vec<&u32> = stack.ssa.keys().collect();
+    let mut total_stack_size = stack_preview.len();
+    let mut too_many_ssas = None;
+    stack_preview.sort();
 
-    // for used_stack in bytecodes[cursor].used_stacks() {
-    //     if !interesting_stack.contains(&used_stack) {
-    //         interesting_stack.push(used_stack);
-    //     }
-    // }
+    if stack_preview.len() > 8 {
+        let mut interesting_stack = HashSet::new();
 
-    println!("-------");
+        for c in (cursor.max(2) - 2)..(cursor + 3).min(bytecodes.len()) {
+            for s in bytecodes[c].used_ssa_indexes() {
+                interesting_stack.insert(s);
+            }
+        }
+
+        stack_preview = stack_preview.into_iter().filter(
+            |s| interesting_stack.contains(s)
+        ).collect();
+    }
+
+    if stack_preview.len() > 8 {
+        too_many_ssas = Some(total_stack_size - 8);
+        stack_preview = stack_preview[..8].to_vec();
+    }
+
+    println!("\n\n{}\n", "-".repeat(64));
+
+    if let Some(debug_info) = bytecodes[cursor].debug_info() {
+        let s = render_spans(
+            &[RenderableSpan {
+                span: *debug_info.clone(),
+                auxiliary: true,
+                note: None,
+            }],
+            &RenderSpanOption {
+                max_height: 10,
+                max_width: 88,
+                context: 5,
+                render_source: true,
+                color: None,
+                group_delim: None,
+            },
+            render_span_session,
+        );
+
+        if s.trim() != "" {
+            println!("\n{s}\n");
+        }
+    }
+
     println!("_ret: {}", debug_stack(stack.r#return, stack, heap));
 
-    for s in interesting_stack {
+    for s in stack_preview {
         if let Some(ss) = stack.ssa.get(s) {
             println!("_{s}: {}", debug_stack(*ss, stack, heap));
         }
+    }
+
+    if let Some(n) = too_many_ssas {
+        println!("... (truncated {n} ssas)");
     }
 
     println!();

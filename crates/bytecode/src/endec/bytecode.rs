@@ -74,15 +74,17 @@ impl Endec for Bytecode {
                 dst.encode_impl(buffer);
                 debug_info.encode_impl(buffer);
             },
-            Bytecode::InitTuple { elements, dst } => {
+            Bytecode::InitTuple { elements, dst, debug_info } => {
                 buffer.push(11);
                 elements.encode_impl(buffer);
                 dst.encode_impl(buffer);
+                debug_info.encode_impl(buffer);
             },
-            Bytecode::InitList { elements, dst } => {
+            Bytecode::InitList { elements, dst, debug_info } => {
                 buffer.push(12);
                 elements.encode_impl(buffer);
                 dst.encode_impl(buffer);
+                debug_info.encode_impl(buffer);
             },
             Bytecode::PushDebugInfo { kind, src } => {
                 buffer.push(13);
@@ -161,12 +163,14 @@ impl Endec for Bytecode {
             Some(11) => {
                 let (elements, cursor) = usize::decode_impl(buffer, cursor + 1)?;
                 let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
-                Ok((Bytecode::InitTuple { elements, dst }, cursor))
+                let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
+                Ok((Bytecode::InitTuple { elements, dst, debug_info }, cursor))
             },
             Some(12) => {
                 let (elements, cursor) = usize::decode_impl(buffer, cursor + 1)?;
                 let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
-                Ok((Bytecode::InitList { elements, dst }, cursor))
+                let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
+                Ok((Bytecode::InitList { elements, dst, debug_info }, cursor))
             },
             Some(13) => {
                 let (kind, cursor) = DebugInfoKind::decode_impl(buffer, cursor + 1)?;

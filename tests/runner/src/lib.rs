@@ -28,6 +28,7 @@ pub fn get_sodigy_path(
     root: &str,
     release: bool,
     log_inter_mir: bool,
+    debug_bytecode: bool,
 ) -> String {
     let mut args = vec!["build"];
 
@@ -35,8 +36,15 @@ pub fn get_sodigy_path(
         args.push("--release");
     }
 
-    if log_inter_mir {
-        args.push("--features=log-inter-mir");
+    if log_inter_mir || debug_bytecode {
+        let arg = match (log_inter_mir, debug_bytecode) {
+            (true, true) => "--features=log-inter-mir,debug-bytecode",
+            (true, false) => "--features=log-inter-mir",
+            (false, true) => "--features=debug-bytecode",
+            (false, false) => unreachable!(),
+        };
+
+        args.push(arg);
     }
 
     let output = Command::new("cargo")

@@ -37,6 +37,10 @@ fn main() {
             let parsed_args = ArgParser::new()
                 .optional_flag(&["--log-inter-mir"])
                 .optional_flag(&["--log-post-mir"])
+
+                // If this flag is set, it'll launch the interactive interpreter
+                // and quit. You can't check the assertions in the cnr.
+                .optional_flag(&["--debug-bytecode"])
                 .args(ArgType::String, ArgCount::Leq(1))
                 .parse(&args, 2)
                 .map_err(|_| "cli error")
@@ -44,11 +48,13 @@ fn main() {
 
             let log_inter_mir = parsed_args.get_flag(0).is_some();
             let log_post_mir = parsed_args.get_flag(1).is_some();
+            let debug_bytecode = parsed_args.get_flag(2).is_some();
             let filter = parsed_args.get_args().get(0).map(|f| f.to_string());
             let sodigy_path = get_sodigy_path(
                 &root,
                 false,  // --release
                 log_inter_mir,
+                debug_bytecode,
             );
 
             compile_and_run::run_cases(
@@ -57,6 +63,7 @@ fn main() {
                 &join3(&root, "tests", "compile-and-run").unwrap(),
                 &sodigy_path,
                 log_post_mir,
+                debug_bytecode,
             );
         },
         Some("crates") => {
@@ -142,6 +149,7 @@ fn main() {
                 &root,
                 false,  // --release
                 false,  // log-inter-mir
+                false,  // debug-bytecode
             );
 
             let metadata = meta::get();
@@ -165,6 +173,7 @@ fn main() {
                 &root,
                 &join3(&root, "tests", "compile-and-run").unwrap(),
                 &sodigy_path,
+                false,
                 false,
             ));
             let empty_fuzz_result = empty_fuzzer.collect();

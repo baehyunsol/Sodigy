@@ -22,6 +22,7 @@ use sodigy_number::{
     shr_ubi,
     sub_bi,
 };
+use sodigy_span::RenderSpanSession;
 
 #[cfg(feature="debug-bytecode")]
 mod debug;
@@ -32,9 +33,10 @@ mod stack;
 pub use heap::Heap;
 pub use stack::Stack;
 
-pub fn interpret(executable: &Executable, label: usize) -> Result<(), ()> {
+pub fn interpret(executable: &Executable, label: usize, intermediate_dir: &str) -> Result<(), ()> {
     let mut heap = Heap::new();
-    let result = call(Stack::new(), &mut heap, executable, label);
+    let mut render_span_session = RenderSpanSession::new(intermediate_dir);
+    let result = call(Stack::new(), &mut heap, executable, label, &mut render_span_session);
 
     #[cfg(feature="debug-heap")] {
         heap.check_integrity();
@@ -53,12 +55,15 @@ fn call(
     heap: &mut Heap,
     executable: &Executable,
     label: usize,
+
+    // only used for `debug::debug`.
+    render_span_session: &mut RenderSpanSession,
 ) -> Result<u32, ()> {
     let mut cursor = label;
 
     loop {
         #[cfg(feature="debug-bytecode")] {
-            debug::debug(&stack, heap, &executable.bytecodes, cursor);
+            debug::debug(&stack, heap, &executable.bytecodes, cursor, render_span_session);
         }
 
         match &executable.bytecodes[cursor] {
@@ -99,7 +104,7 @@ fn call(
                 }
 
                 else {
-                    stack.r#return = call(new_stack, heap, executable, pc as usize)?;
+                    stack.r#return = call(new_stack, heap, executable, pc as usize, render_span_session)?;
                 }
             },
             Bytecode::CallDynamic { func, args, tail, debug_info: _ } => {
@@ -113,7 +118,7 @@ fn call(
                 }
 
                 else {
-                    stack.r#return = call(new_stack, heap, executable, pc as usize)?;
+                    stack.r#return = call(new_stack, heap, executable, pc as usize, render_span_session)?;
                 }
             },
             Bytecode::JumpIf { value, label, debug_info: _ } => {
@@ -141,7 +146,7 @@ fn call(
                 } else {
                     match func {
                         Label::Flatten(i) => {
-                            stack.r#return = call(Stack::new(), heap, executable, *i)?;
+                            stack.r#return = call(Stack::new(), heap, executable, *i, render_span_session)?;
                         },
                         _ => unreachable!(),
                     }
@@ -346,11 +351,11 @@ fn call(
                     update(dst, v, &mut stack, heap);
                 },
             },
-            Bytecode::InitTuple { elements, dst } => {
+            Bytecode::InitTuple { elements, dst, debug_info: _ } => {
                 let ptr = heap.alloc(*elements);
                 update(dst, ptr as u32, &mut stack, heap);
             },
-            Bytecode::InitList { elements, dst } => todo!(),
+            Bytecode::InitList { elements, dst, debug_info: _ } => todo!(),
             Bytecode::PushDebugInfo { kind, src } => {
                 let src = read(src, &stack, heap);
                 heap.debug_info.push((*kind, src));

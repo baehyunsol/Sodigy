@@ -101,6 +101,17 @@ impl CnrContext {
             },
         };
 
+        if self.debug_bytecode {
+            std::process::Command::new(&self.sodigy_path)
+                .args(&["interpret", "target/run"])
+                .current_dir(&self.project_dir)
+                .stdin(std::process::Stdio::inherit())
+                .status()
+                .unwrap();
+
+            return CompileAndRun::default();
+        }
+
         let compile_elapsed_ms = Instant::now().duration_since(compile_started_at).as_millis() as u64;
         stdout_colored.extend(&output.stdout);
         stderr_colored.extend(&output.stderr);

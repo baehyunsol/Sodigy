@@ -181,7 +181,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
         CliCommand::Interpret { bytecodes_path, profile } => interpret(
             StoreIrAt::File(bytecodes_path.to_string()),
             *profile,
-            "",  // intermediate_dir not needed
+            &ir_dir,
         ),
         CliCommand::Clean => {
             if exists(&ir_dir) {
@@ -699,7 +699,7 @@ fn interpret(exe: StoreIrAt, profile: Profile, intermediate_dir: &str) -> Result
             let mut ever_failed = false;
 
             for (name, label) in exe.asserts.iter() {
-                let fail = sodigy_interpreter::interpret(&exe, *label).is_err();
+                let fail = sodigy_interpreter::interpret(&exe, *label, intermediate_dir).is_err();
                 println!("assertion `{name}`: {}", if fail { "fail" } else { "success" });
 
                 if fail {
