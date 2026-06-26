@@ -268,7 +268,7 @@ impl From<&NameKind> for NotXBut {
         match k {
             NameKind::Let { .. } |
             NameKind::Func |
-            NameKind::EnumVariant { .. } |
+            NameKind::EnumVariant |
             NameKind::Alias |
             NameKind::Use |
             NameKind::FuncParam |

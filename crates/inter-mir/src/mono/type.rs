@@ -1,4 +1,4 @@
-use super::{Monomorphization, get_monomorphization_id};
+use super::Monomorphization;
 use crate::Session;
 use sodigy_mir::Type;
 

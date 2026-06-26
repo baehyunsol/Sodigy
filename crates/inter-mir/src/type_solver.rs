@@ -353,7 +353,7 @@ impl Session {
 
                             else {
                                 Ok(Type::Data {
-                                    constructor_def_span: constructor1.clone(),
+                                    constructor_def_span: *constructor1,
                                     constructor_span: Span::None,
                                     args: Some(args),
                                     group_span: Some(Span::None),

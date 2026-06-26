@@ -174,7 +174,7 @@ fn dummy_span(id: u32) -> Span {
 
 fn simple_type(id: u32) -> Type {
     Type::Data {
-        constructor_def_span: dummy_span(id + 10000),
+        constructor_def_span: dummy_span(id + 10000).id().unwrap(),
         constructor_span: Span::None,
         args: None,
         group_span: None,
@@ -183,7 +183,7 @@ fn simple_type(id: u32) -> Type {
 
 fn type_with_args(id: u32, args: Vec<Type>) -> Type {
     Type::Data {
-        constructor_def_span: dummy_span(id + 20000),
+        constructor_def_span: dummy_span(id + 20000).id().unwrap(),
         constructor_span: Span::None,
         args: Some(args),
         group_span: Some(Span::None),
