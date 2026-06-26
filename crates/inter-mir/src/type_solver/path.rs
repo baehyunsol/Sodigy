@@ -1,5 +1,6 @@
 use crate::Session;
 use crate::error::{ErrorContext, TypeError};
+use sodigy_error::TypeVarInfo;
 use sodigy_mir::{Dotfish, Type};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_span::Span;
@@ -134,7 +135,7 @@ impl Session {
                 // NOTE: inter-hir must have checked that `id` is a valid expression
 
                 let type_var = Type::Var { def_span: id.def_span.clone(), is_return: false };
-                self.add_type_var(type_var.clone(), Some(id.id));
+                self.add_type_var(type_var.clone(), Some(TypeVarInfo::Ident(id.id)));
                 (Some(type_var), false)
             },
         }

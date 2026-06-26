@@ -19,7 +19,7 @@ mod type_solver;
 
 pub use error::{ErrorContext, ExprContext, TypeError, TypeWarning};
 pub use log::LogEntry;
-pub use mono::{Monomorphization, get_def_span_from_id, get_monomorphization_id};
+pub use mono::{Monomorphization, get_def_span_from_id, get_monomorphization_id, get_monomorphization_id_owned};
 pub(crate) use poly::{PolySolver, SolvePolyResult};
 pub use session::Session;
 
@@ -141,7 +141,19 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                     }
 
                     else if let Some(index) = session.structs_rev.get(&monomorphization.def_span) {
-                        todo!()
+                        if monomorphization.def_span.id_equals(session.get_lang_item_span_id("type.Tuple")) {
+                            todo!()
+                        }
+
+                        let r#struct = &mir_session.structs[*index];
+                        let new_struct = session.monomorphize_struct(r#struct, &monomorphization);
+                        let struct_shape = session.struct_shapes.get(&monomorphization.def_span).unwrap().clone();
+                        let new_struct_shape = session.monomorphize_struct_shape(&struct_shape, &monomorphization);
+
+                        session.monomorphizations.insert(monomorphization.id, monomorphization);
+                        session.struct_shapes.insert(new_struct.name_span.clone(), new_struct_shape);
+                        session.structs_rev.insert(new_struct.name_span.clone(), mir_session.structs.len());
+                        mir_session.structs.push(new_struct);
                     }
 
                     else if let Some(index) = session.enums_rev.get(&monomorphization.def_span) {
@@ -162,8 +174,60 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                     }
 
                     else {
-                        println!("{monomorphization:?}");
+                        eprintln!("{monomorphization:?}");
                         unreachable!()
+                    }
+                }
+
+                for (intermediate_type, call_span) in plan.intermediate_types.drain(..) {
+                    for (def_span_id, args) in intermediate_type.get_intermediate_types() {
+                        let def_span = Span::Range(def_span_id);  // Span without monomorphization.
+                        let monomorphization_id = get_monomorphization_id_owned(def_span_id, &args).unwrap();
+
+                        if session.monomorphizations.contains_key(&monomorphization_id) {
+                            continue;
+                        }
+
+                        if let Some(index) = session.structs_rev.get(&def_span) {
+                            if def_span_id == session.get_lang_item_span_id("type.Tuple") {
+                                // TODO: I'm not sure how I should monomorphize tuples. I'm just skipping it for now.
+                                continue;
+                            }
+
+                            let r#struct = &mir_session.structs[*index];
+                            assert_eq!(r#struct.generics.len(), args.len());
+                            let generics = r#struct.generics.iter().zip(args.into_iter()).map(
+                                |(generic, r#type)| (generic.name_span.clone(), r#type)
+                            ).collect();
+
+                            let monomorphization = Monomorphization {
+                                id: monomorphization_id,
+                                def_span,
+                                call_span: call_span.clone(),
+                                is_intermediate: true,
+                                generics,
+                            };
+                            let new_struct = session.monomorphize_struct(r#struct, &monomorphization);
+                            let struct_shape = session.struct_shapes.get(&monomorphization.def_span).unwrap().clone();
+                            let new_struct_shape = session.monomorphize_struct_shape(&struct_shape, &monomorphization);
+
+                            session.monomorphizations.insert(monomorphization.id, monomorphization);
+                            session.struct_shapes.insert(new_struct.name_span.clone(), new_struct_shape);
+                            session.structs_rev.insert(new_struct.name_span.clone(), mir_session.structs.len());
+                            mir_session.structs.push(new_struct);
+                        }
+
+                        else if let Some(index) = session.enums_rev.get(&def_span) {
+                            let r#enum = &mir_session.enums[*index];
+                            println!("{enum:?}");
+                            todo!()
+                        }
+
+                        else {
+                            eprintln!("{def_span_id:?}");
+                            eprintln!("{args:?}");
+                            unreachable!()
+                        }
                     }
                 }
 
@@ -211,7 +275,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
             else {
                 for def_span in session.blocked_type_vars.iter() {
                     session.type_errors.push(TypeError::CannotInferType {
-                        id: None,
+                        info: None,
                         span: def_span.clone(),
                         is_return: false,
                     });

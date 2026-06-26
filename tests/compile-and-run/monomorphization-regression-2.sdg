@@ -26,3 +26,4 @@ let c3 = [
 
 assert c1 == c2;
 assert c1 == c3;
+assert c2 == c3;

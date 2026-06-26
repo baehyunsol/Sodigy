@@ -20,4 +20,4 @@ fn not_char() -> MaybeChar = OurOption.Some(YourOption.None);
 assert some_int(3) != not_int();
 assert some_int(3) != some_int(4);
 assert some_int(3) == MyOption.Some(YourOption.Some(OurOption.Some(3)));
-// assert some_int(10).unwrap().unwrap().unwrap() == 10;
+assert some_int(10).unwrap().unwrap().unwrap() == 10;

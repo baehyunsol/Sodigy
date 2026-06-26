@@ -1,5 +1,6 @@
 use crate::{Session, Type, write_log};
 use crate::error::{ErrorContext, TypeError, TypeWarning};
+use sodigy_error::TypeVarInfo;
 use sodigy_mir::Func;
 use std::collections::HashMap;
 
@@ -27,7 +28,7 @@ impl Session {
 
                 for type_var in f.get_type_vars() {
                     let type_var_name = match &type_var {
-                        Type::Var { def_span, .. } => span_to_name_map.get(def_span).copied(),
+                        Type::Var { def_span, .. } => span_to_name_map.get(def_span).map(|id| TypeVarInfo::Ident(*id)),
                         _ => None,
                     };
                     self.add_type_var(type_var.clone(), type_var_name);

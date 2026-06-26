@@ -499,7 +499,19 @@ fn read_field_of_pattern(
             },
 
             // TODO: We have to call `get_def_span_from_id`, but we don't know the type of the elements...
-            PatternKind::List { .. } => PatternConstructor::DefSpan(todo!()),
+            PatternKind::List { group_span, .. } => {
+                let elem_type = session
+                    .global_context
+                    .generic_args
+                    .unwrap()
+                    .get(&(group_span.clone(), session.get_lang_item_span("built_in.init_list.generic.0")))
+                    .unwrap();
+
+                PatternConstructor::DefSpan(get_def_span_from_id(
+                    session.get_lang_item_span_id("type.List"),
+                    &Some(vec![elem_type.clone()]),
+                ))
+            },
 
             PatternKind::Range { lhs, rhs, is_inclusive, .. } => {
                 let mut literal_type = None;

@@ -20,6 +20,7 @@ mod expr;
 mod func;
 mod path;
 mod pattern;
+mod r#struct;
 mod r#type;
 
 pub struct MonomorphizePlan {
@@ -27,6 +28,9 @@ pub struct MonomorphizePlan {
     // value: def_span of the monomorphized function
     pub dispatch_map: HashMap<Span, Span>,
     pub monomorphizations: Vec<Monomorphization>,
+
+    // extra types to monomorphize
+    pub intermediate_types: Vec<(Type, Span /* call_span, for error messages */)>,
 }
 
 #[derive(Clone, Debug)]
@@ -36,6 +40,13 @@ pub struct Monomorphization {
 
     // This is later used for error messages.
     pub call_span: Span,
+
+    // This is also used for error messages.
+    // When you encounter `eq.<Foo<Int>>()`, there are 2 things to monomorphize.
+    // 1. `fn eq<T>` with `<T=Foo<Int>>`.
+    // 2. `struct Foo<T>` with `T=Int`.
+    // The second case is *intermediate*. I'm not sure whether it's a correct term to use...
+    pub is_intermediate: bool,
 
     pub generics: HashMap<Span, Type>,
 }
@@ -94,6 +105,7 @@ impl Session {
         // and the value is the def_span of the monomorphized function.
         let mut dispatch_map: HashMap<Span, Span> = HashMap::new();
         let mut monomorphizations = vec![];
+        let mut intermediate_types = vec![];
 
         for (_, generic_call) in generic_calls.iter() {
             match self.try_solve_poly(poly_solver, generic_call) {
@@ -118,10 +130,21 @@ impl Session {
                     sorted_generics.sort_by_key(|&(span, _)| span);
                     let sorted_generics: Vec<&Type> = sorted_generics.into_iter().map(|(_, r#type)| r#type).collect();
 
+                    // When we monomorphize `eq<Foo<Int>>(..)`, we also have to monomorphize `Foo<Int>`.
+                    //
+                    // TODO: I guess it's adding A LOT of duplicate types to `intermediate_types`.
+                    //       We have to deduplicate it. Maybe using `.flatten()`?
+                    for r#type in sorted_generics.iter() {
+                        if r#type.has_to_be_monomorphized() {
+                            intermediate_types.push(((*r#type).clone(), generic_call.call.clone()));
+                        }
+                    }
+
                     let monomorphization_id = get_monomorphization_id(generic_call.def.id().unwrap(), &sorted_generics).unwrap();
                     monomorphizations.push(Monomorphization {
                         def_span: generic_call.def.clone(),
                         call_span: generic_call.call.clone(),
+                        is_intermediate: false,
                         generics: generic_call.generics.clone(),
                         id: monomorphization_id,
                     });
@@ -173,6 +196,7 @@ impl Session {
             Ok(MonomorphizePlan {
                 dispatch_map,
                 monomorphizations,
+                intermediate_types,
             })
         }
     }

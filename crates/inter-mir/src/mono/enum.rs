@@ -7,12 +7,6 @@ use sodigy_span::Span;
 impl Session {
     pub fn monomorphize_enum(&mut self, r#enum: &Enum, monomorphization: &Monomorphization) -> Enum {
         let new_enum_span = r#enum.name_span.monomorphize(monomorphization.id);
-        let new_enum_type = Type::Data {
-            constructor_def_span: new_enum_span.id().unwrap(),
-            constructor_span: Span::None,
-            args: None,
-            group_span: None,
-        };
         let mut new_variants = Vec::with_capacity(r#enum.variants.len());
 
         for variant in r#enum.variants.iter() {

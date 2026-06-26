@@ -1,6 +1,6 @@
 use crate::{AssociatedFuncInstance, LogEntry, Monomorphization};
 use crate::error::{TypeError, TypeWarning};
-use sodigy_error::{Error, Warning};
+use sodigy_error::{Error, TypeVarInfo, Warning};
 use sodigy_hir::{EnumShape, FuncShape, ItemShape, Poly, StructShape};
 use sodigy_mir::{Session as MirSession, Type};
 use sodigy_span::{Span, SpanId};
@@ -13,19 +13,18 @@ use std::collections::{HashMap, HashSet};
 // 2. If we don't remove entries in `type_var_refs`, cyclic type vars will cause a stack overflow.
 pub struct Session {
     // Whenever `types.get(span)` returns `None`, it creates a type variable
-    // and inserts the `span` to this hash set. It's later used to check
+    // and inserts the `span` to this hash map. It's later used to check
     // if all the type variables are infered.
     //
-    // If the type variable is from a type annotation and a name is bound to
-    // the type annotation, it also collects the name: that'd be helpful when
-    // creating error messages.
+    // It collects `TypeVarInfo` of the type variable, which helps generating
+    // the error messages.
     //
     // The key (`Type`) is either `Type::Var` or `Type::GenericArg`.
     // Every type variable the type-solver encountered must be in this map.
     // The value being `None` or `Some(_)`... doesn't mean much. It's just used to
     // help generating error messages. If you want to check if a variable has been
     // successfully infered, you have to check `.types` or `.generic_args`.
-    pub type_vars: HashMap<Type, Option<InternedString>>,
+    pub type_vars: HashMap<Type, Option<TypeVarInfo>>,
 
     // If a type variable references another type variable, we have to track the relation.
     // For example, if a type of function `add` is `Type::Var(add) = Fn(Type::Var(x), Type::Var(y)) -> Int`,

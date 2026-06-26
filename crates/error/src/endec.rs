@@ -6,9 +6,11 @@ use crate::{
     NameCollisionKind,
     NotXBut,
     ParamIndex,
+    TypeVarInfo,
 };
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::RenderableSpan;
+use sodigy_string::InternedString;
 use sodigy_token::{Delim, Keyword, Punct};
 
 impl Endec for Error {
@@ -308,6 +310,36 @@ impl Endec for EnumFieldKind {
             Some(0) => Ok((EnumFieldKind::None, cursor + 1)),
             Some(1) => Ok((EnumFieldKind::Tuple, cursor + 1)),
             Some(2) => Ok((EnumFieldKind::Struct, cursor + 1)),
+            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+
+impl Endec for TypeVarInfo {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            TypeVarInfo::Ident(id) => {
+                buffer.push(0);
+                id.encode_impl(buffer);
+            },
+            TypeVarInfo::ListExpr => {
+                buffer.push(1);
+            },
+            TypeVarInfo::ListPattern => {
+                buffer.push(2);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => {
+                let (id, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
+                Ok((TypeVarInfo::Ident(id), cursor))
+            },
+            Some(1) => Ok((TypeVarInfo::ListExpr, cursor + 1)),
+            Some(2) => Ok((TypeVarInfo::ListPattern, cursor + 1)),
             Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }

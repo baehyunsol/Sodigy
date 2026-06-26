@@ -1,4 +1,5 @@
 use sodigy_span::{RenderableSpan, Span};
+use sodigy_string::InternedString;
 use std::collections::HashSet;
 
 mod dump;
@@ -136,4 +137,11 @@ pub fn deduplicate(errors: &mut Vec<Error>) -> Vec<Error> {
 pub enum ParamIndex {
     Param(usize),
     Return,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum TypeVarInfo {
+    Ident(InternedString),
+    ListExpr,
+    ListPattern,
 }

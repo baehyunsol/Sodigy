@@ -1,6 +1,6 @@
 use crate::{AssociatedFuncInstance, Expr, Session, Type, get_def_span_from_id, write_log};
 use crate::error::{ErrorContext, TypeError};
-use sodigy_error::{EnumFieldKind, Error, ErrorKind};
+use sodigy_error::{EnumFieldKind, Error, ErrorKind, TypeVarInfo};
 use sodigy_hir::{self as hir, AssociatedFunc, FuncPurity};
 use sodigy_inter_hir::get_associated_func_name;
 use sodigy_mir::{Callable, Dotfish, ShortCircuitKind};
@@ -602,7 +602,7 @@ impl Session {
                                     },
                                     None => {
                                         let type_var = Type::Var { def_span: struct_shape.fields[i].name_span.clone(), is_return: false };
-                                        self.add_type_var(type_var.clone(), Some(struct_shape.fields[i].name));
+                                        self.add_type_var(type_var.clone(), Some(TypeVarInfo::Ident(struct_shape.fields[i].name)));
                                         type_var
                                     },
                                 };
@@ -745,10 +745,10 @@ impl Session {
                         has_error,
                     ),
                     Callable::ListInit { group_span } => {
-                        if arg_types.is_empty() {
-                            let type_var = Type::GenericArg { call: group_span.clone(), generic: self.get_lang_item_span("built_in.init_list.generic.0") };
-                            self.add_type_var(type_var.clone(), None);
+                        let type_var = Type::GenericArg { call: group_span.clone(), generic: self.get_lang_item_span("built_in.init_list.generic.0") };
+                        self.add_type_var(type_var.clone(), Some(TypeVarInfo::ListExpr));
 
+                        if arg_types.is_empty() {
                             let r#type = Type::Data {
                                 constructor_def_span: self.get_lang_item_span_id("type.List"),
                                 constructor_span: Span::None,
@@ -782,6 +782,20 @@ impl Session {
                                 else {
                                     has_error = true;
                                 }
+                            }
+
+                            // It won't return an error. I just want to
+                            // register the type-var.
+                            if let Err(e) = self.solve_supertype(
+                                &elem_type,
+                                &type_var,
+                                false,
+                                None,
+                                None,
+                                ErrorContext::None,
+                                true,
+                            ) {
+                                has_error = true;
                             }
 
                             let r#type = Type::Data {
@@ -1016,7 +1030,7 @@ impl Session {
                                         },
                                         None => {
                                             let type_var = Type::Var { def_span: field.name_span.clone(), is_return: false };
-                                            self.add_type_var(type_var.clone(), Some(field.name));
+                                            self.add_type_var(type_var.clone(), Some(TypeVarInfo::Ident(field.name)));
                                             field_type = Some(type_var);
                                         },
                                     }
@@ -1036,7 +1050,7 @@ impl Session {
                                 },
                                 None => {
                                     let type_var = Type::Var { def_span: name_span.clone(), is_return: false };
-                                    self.add_type_var(type_var.clone(), Some(name));
+                                    self.add_type_var(type_var.clone(), Some(TypeVarInfo::Ident(name)));
                                     field_type = Some(type_var);
                                 },
                             }
@@ -1094,6 +1108,12 @@ impl Session {
                                 },
                             });
                         }
+                    }
+
+                    // This is not an ICE.
+                    // It's just that the type is not monomorphized yet.
+                    else {
+                        return (associated_func_instance, Ok(Type::Blocked { origin: def_span.clone() }));
                     }
                 }
             },

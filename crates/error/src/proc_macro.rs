@@ -61,8 +61,8 @@
     UnexpectedType { expected: String, got: String }, WrongNumberOfArgs
     { expected: usize, got: usize }, WrongNumberOfGenericArgs
     { expected: usize, got: usize }, CannotInferType
-    { id: Option<InternedString>, is_return: bool }, PartiallyInferedType
-    { id: Option<InternedString>, r#type: String, is_return: bool },
+    { info: Option<TypeVarInfo>, is_return: bool }, PartiallyInferedType
+    { info: Option<TypeVarInfo>, r#type: String, is_return: bool },
     CannotInferGenericType { id: Option<String> }, PartiallyInferedGenericType
     { id: Option<String>, r#type: String }, UnknownField
     { r#type: String, field: InternedString }, CannotUpdateAssociatedFunc
@@ -593,15 +593,15 @@
             {
                 buffer.push(1u8); buffer.push(161u8);
                 r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
-            }, ErrorKind :: CannotInferType { r#id, r#is_return, } =>
+            }, ErrorKind :: CannotInferType { r#info, r#is_return, } =>
             {
                 buffer.push(1u8); buffer.push(164u8);
-                r#id.encode_impl(buffer); r#is_return.encode_impl(buffer);
+                r#info.encode_impl(buffer); r#is_return.encode_impl(buffer);
             }, ErrorKind :: PartiallyInferedType
-            { r#id, r#type, r#is_return, } =>
+            { r#info, r#type, r#is_return, } =>
             {
                 buffer.push(1u8); buffer.push(169u8);
-                r#id.encode_impl(buffer); r#type.encode_impl(buffer);
+                r#info.encode_impl(buffer); r#type.encode_impl(buffer);
                 r#is_return.encode_impl(buffer);
             }, ErrorKind :: CannotInferGenericType { r#id, } =>
             {
@@ -1020,19 +1020,19 @@
                 { r#expected, r#got, }, cursor))
             }, 420u16 =>
             {
-                let (r#id, cursor) = Option :: < InternedString >::
+                let (r#info, cursor) = Option :: < TypeVarInfo >::
                 decode_impl(buffer, cursor) ? ; let (r#is_return, cursor) =
                 bool :: decode_impl(buffer, cursor) ? ;
-                Ok((ErrorKind :: CannotInferType { r#id, r#is_return, },
+                Ok((ErrorKind :: CannotInferType { r#info, r#is_return, },
                 cursor))
             }, 425u16 =>
             {
-                let (r#id, cursor) = Option :: < InternedString >::
+                let (r#info, cursor) = Option :: < TypeVarInfo >::
                 decode_impl(buffer, cursor) ? ; let (r#type, cursor) = String
                 :: decode_impl(buffer, cursor) ? ; let (r#is_return, cursor) =
                 bool :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: PartiallyInferedType
-                { r#id, r#type, r#is_return, }, cursor))
+                { r#info, r#type, r#is_return, }, cursor))
             }, 430u16 =>
             {
                 let (r#id, cursor) = Option :: < String > ::

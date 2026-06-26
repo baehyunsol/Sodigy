@@ -1,4 +1,4 @@
-use crate::{ErrorLevel, ErrorToken, ParamIndex};
+use crate::{ErrorLevel, ErrorToken, ParamIndex, TypeVarInfo};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_error_gen::error_kinds;
 use sodigy_file::{GetFilePathError, ModulePath};
@@ -158,13 +158,13 @@ error_kinds!(
     (WrongNumberOfArgs { expected: usize, got: usize },                  416,    Error),
 
     (WrongNumberOfGenericArgs { expected: usize, got: usize },           417,    Error),
-    (CannotInferType { id: Option<InternedString>, is_return: bool },    420,    Error),
-    (PartiallyInferedType { id: Option<InternedString>, r#type: String, is_return: bool }, 425,    Error),
+    (CannotInferType { info: Option<TypeVarInfo>, is_return: bool },     420,    Error),
+    (PartiallyInferedType { info: Option<TypeVarInfo>, r#type: String, is_return: bool }, 425,    Error),
     (CannotInferGenericType { id: Option<String> },                      430,    Error),
     (PartiallyInferedGenericType { id: Option<String>, r#type: String }, 435,    Error),
 
     // TODO: suggest similar names
-    (UnknownField { r#type: String, field: InternedString },             436,    Error),
+    (UnknownField { r#type: String, field: InternedString },               436,    Error),
 
     (CannotUpdateAssociatedFunc { r#type: String, name: InternedString },  439,  Error),
     (CannotApplyInfixOp { op: InfixOp, arg_types: Vec<String> },           440,  Error),

@@ -4,7 +4,7 @@ use std.scalar.Scalar;
 
 #[built_in]
 #[lang_item("type.List")]
-pub struct List;
+pub struct List<T>;
 
 #[impl(std.op.index)]
 fn index_list<T>(ls: [T], i: Int) -> T = {

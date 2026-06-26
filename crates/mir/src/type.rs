@@ -6,7 +6,7 @@ use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_session::SodigySession;
 use sodigy_span::{Span, SpanId};
-use sodigy_string::hash;
+use sodigy_string::{InternedString, hash};
 use sodigy_token::Constant;
 use std::collections::HashSet;
 
@@ -370,6 +370,43 @@ impl Type {
             },
             Type::Var { .. } | Type::GenericArg { .. } | Type::Blocked { .. } => true,
             _ => false,
+        }
+    }
+
+    pub fn has_to_be_monomorphized(&self) -> bool {
+        match self {
+            Type::Data { args, .. } => args.is_some(),
+            Type::Func { params, r#return, .. } => todo!(),
+            _ => false,
+        }
+    }
+
+    // When we monomorphize `Foo<Option<Int>, Option<Char>, Option<Byte>>`, we not only have to monomorphize
+    // `Foo<...>`, but also `Option<Int>`, `Option<Char>` and `Option<Byte>`.
+    // `get_intermediate_types(Foo<Option<Int>, Option<Char>, Option<Byte>>)` will give you the 4 types (Foo and 3 Options).
+    pub fn get_intermediate_types(&self) -> Vec<(SpanId, Vec<Type>)> {
+        let mut result = vec![];
+        self.get_intermediate_types_worker(&mut result);
+        result
+    }
+
+    fn get_intermediate_types_worker(&self, result: &mut Vec<(SpanId, Vec<Type>)>) {
+        match self {
+            Type::Data { constructor_def_span, args: Some(args), .. } => {
+                result.push((*constructor_def_span, args.clone()));
+
+                for arg in args.iter() {
+                    arg.get_intermediate_types_worker(result);
+                }
+            },
+            Type::Func { params, r#return, .. } => {
+                for param in params.iter() {
+                    param.get_intermediate_types_worker(result);
+                }
+
+                r#return.get_intermediate_types_worker(result);
+            },
+            _ => {},
         }
     }
 

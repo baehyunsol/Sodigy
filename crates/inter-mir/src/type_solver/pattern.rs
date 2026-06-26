@@ -1,4 +1,5 @@
 use crate::{ErrorContext, Session, Type, TypeError};
+use sodigy_error::TypeVarInfo;
 use sodigy_hir::{Path, Pattern, PatternKind};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::Span;
@@ -14,7 +15,7 @@ impl Session {
             // we can solve a type var!
             (Some(pattern_type), Some(name_binding), Some(name_span)) => {
                 let type_var = Type::Var { def_span: name_span.clone(), is_return: false };
-                self.add_type_var(type_var.clone(), Some(*name_binding));
+                self.add_type_var(type_var.clone(), Some(TypeVarInfo::Ident(*name_binding)));
 
                 if let Err(()) = self.solve_supertype(
                     pattern_type,
@@ -108,7 +109,7 @@ impl Session {
             PatternKind::NameBinding { id, span, .. } => match self.types.get(span) {
                 Some(r#type) => (Some(r#type.clone()), false),
                 None => {
-                    self.add_type_var(Type::Var { def_span: span.clone(), is_return: false }, Some(*id));
+                    self.add_type_var(Type::Var { def_span: span.clone(), is_return: false }, Some(TypeVarInfo::Ident(*id)));
                     (
                         Some(Type::Var {
                             def_span: span.clone(),
@@ -214,15 +215,14 @@ impl Session {
             },
             PatternKind::List { elements, group_span, rest } => {
                 let mut rest_pattern_name_binding = None;
+                let type_var = Type::GenericArg { call: group_span.clone(), generic: self.get_lang_item_span("built_in.init_list.generic.0") };
+                self.add_type_var(type_var.clone(), Some(TypeVarInfo::ListPattern));
 
                 if let Some(rest) = rest {
                     rest_pattern_name_binding = rest.name_span.clone();
                 }
 
                 let (mut r#type, mut has_error) = if elements.is_empty() {
-                    let type_var = Type::GenericArg { call: group_span.clone(), generic: self.get_lang_item_span("built_in.init_list.generic.0") };
-                    self.add_type_var(type_var.clone(), None);
-
                     let r#type = Type::Data {
                         constructor_def_span: self.get_lang_item_span_id("type.List"),
                         constructor_span: Span::None,
@@ -269,6 +269,20 @@ impl Session {
                         else {
                             has_error = true;
                         }
+                    }
+
+                    // It won't return an error. I just want to
+                    // register the type-var.
+                    if let Err(e) = self.solve_supertype(
+                        &elem_type,
+                        &type_var,
+                        false,
+                        None,
+                        None,
+                        ErrorContext::None,
+                        true,
+                    ) {
+                        has_error = true;
                     }
 
                     let r#type = Type::Data {

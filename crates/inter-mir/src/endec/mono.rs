@@ -9,6 +9,7 @@ impl Endec for Monomorphization {
         self.id.encode_impl(buffer);
         self.def_span.encode_impl(buffer);
         self.call_span.encode_impl(buffer);
+        self.is_intermediate.encode_impl(buffer);
         self.generics.encode_impl(buffer);
     }
 
@@ -16,12 +17,14 @@ impl Endec for Monomorphization {
         let (id, cursor) = u64::decode_impl(buffer, cursor)?;
         let (def_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (call_span, cursor) = Span::decode_impl(buffer, cursor)?;
+        let (is_intermediate, cursor) = bool::decode_impl(buffer, cursor)?;
         let (generics, cursor) = HashMap::<Span, Type>::decode_impl(buffer, cursor)?;
 
         Ok((
             Monomorphization {
                 def_span,
                 call_span,
+                is_intermediate,
                 generics,
                 id,
             },

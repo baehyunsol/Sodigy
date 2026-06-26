@@ -115,7 +115,10 @@ impl Struct {
         }
 
         let Some(Namespace::GenericParam { names, .. }) = session.name_stack.pop() else { unreachable!() };
-        session.warn_unused_names(&names);
+
+        if !built_in {
+            session.warn_unused_names(&names);
+        }
 
         if has_error {
             Err(())

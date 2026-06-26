@@ -3,6 +3,7 @@ use sodigy_error::{
     Error,
     ErrorKind,
     ParamIndex,
+    TypeVarInfo,
     Warning,
     WarningKind,
     comma_list_strs,
@@ -50,14 +51,14 @@ pub enum TypeError {
         arg_group_span: Span,
     },
     CannotInferType {
-        id: Option<InternedString>,
+        info: Option<TypeVarInfo>,
         span: Span,
 
         // if `is_return`, `span` is a def_span of a function, and we're talking about the return type of the function.
         is_return: bool,
     },
     PartiallyInferedType {
-        id: Option<InternedString>,
+        info: Option<TypeVarInfo>,
         span: Span,
 
         // if `is_return`, `r#type` is the return type of `id`.
@@ -483,18 +484,18 @@ impl Session {
                 ],
                 note: None,
             },
-            TypeError::CannotInferType { id, span, is_return } => Error {
-                kind: ErrorKind::CannotInferType { id, is_return },
+            TypeError::CannotInferType { info, span, is_return } => Error {
+                kind: ErrorKind::CannotInferType { info, is_return },
                 spans: span.simple_error(),
                 note: None,
             },
             TypeError::PartiallyInferedType {
-                id,
+                info,
                 span,
                 r#type,
                 is_return,
             } => Error {
-                kind: ErrorKind::PartiallyInferedType { id, r#type: self.render_type(&r#type), is_return },
+                kind: ErrorKind::PartiallyInferedType { info, r#type: self.render_type(&r#type), is_return },
                 spans: span.simple_error(),
                 note: None,
             },

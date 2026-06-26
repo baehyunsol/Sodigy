@@ -1,5 +1,6 @@
 use super::Monomorphization;
 use crate::Session;
+use sodigy_error::TypeVarInfo;
 use sodigy_mir::{Callable, Expr, Type};
 
 impl Session {
@@ -44,7 +45,7 @@ impl Session {
                         Some(r#type) => r#type.clone(),
                         None => {
                             let type_var = Type::Var { def_span: r#let.name_span.clone(), is_return: false };
-                            self.add_type_var(type_var.clone(), Some(r#let.name));
+                            self.add_type_var(type_var.clone(), Some(TypeVarInfo::Ident(r#let.name)));
                             type_var
                         },
                     };

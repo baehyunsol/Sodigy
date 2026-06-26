@@ -1,9 +1,9 @@
 use crate::{Session, Type, write_log};
 use crate::error::{ErrorContext, TypeError};
+use sodigy_error::TypeVarInfo;
 use sodigy_hir::FuncPurity;
 use sodigy_mir::TypeAssertion;
 use sodigy_span::Span;
-use sodigy_string::InternedString;
 use std::collections::hash_map::Entry;
 
 #[cfg(feature = "log")]
@@ -72,7 +72,7 @@ impl Session {
     pub fn check_all_types_infered(&mut self) -> Result<(), ()> {
         let mut has_error = false;
 
-        for (type_var, id) in self.type_vars.iter() {
+        for (type_var, info) in self.type_vars.iter() {
             match type_var {
                 Type::Var { def_span, is_return } => match self.types.get(def_span) {
                     None | Some(Type::Var { .. } | Type::GenericArg { .. }) => {
@@ -82,7 +82,7 @@ impl Session {
 
                         has_error = true;
                         self.type_errors.push(TypeError::CannotInferType {
-                            id: *id,
+                            info: *info,
                             span: def_span.clone(),
                             is_return: false,
                         });
@@ -99,7 +99,7 @@ impl Session {
                                     Type::Var { .. } | Type::GenericArg { .. } => {
                                         has_error = true;
                                         self.type_errors.push(TypeError::CannotInferType {
-                                            id: *id,
+                                            info: *info,
                                             span: def_span.clone(),
                                             is_return: true,
                                         });
@@ -110,7 +110,7 @@ impl Session {
                                         if !type_vars.is_empty() {
                                             has_error = true;
                                             self.type_errors.push(TypeError::PartiallyInferedType {
-                                                id: *id,
+                                                info: *info,
                                                 span: def_span.clone(),
                                                 r#type: return_type,
                                                 is_return: true,
@@ -123,7 +123,7 @@ impl Session {
                             else {
                                 has_error = true;
                                 self.type_errors.push(TypeError::PartiallyInferedType {
-                                    id: *id,
+                                    info: *info,
                                     span: def_span.clone(),
                                     r#type: t.clone(),
                                     is_return: false,
@@ -209,13 +209,13 @@ impl Session {
         }
     }
 
-    pub fn add_type_var(&mut self, type_var: Type, id: Option<InternedString>) {
+    pub fn add_type_var(&mut self, type_var: Type, info: Option<TypeVarInfo>) {
         match self.type_vars.entry(type_var) {
-            Entry::Occupied(mut e) if id.is_some() => {
-                *e.get_mut() = id;
+            Entry::Occupied(mut e) if info.is_some() => {
+                *e.get_mut() = info;
             },
             Entry::Vacant(e) => {
-                e.insert(id);
+                e.insert(info);
             },
             _ => {},
         }
