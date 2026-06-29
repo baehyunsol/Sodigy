@@ -12,3 +12,7 @@ fn try_convert<T, U, E>(x: T) -> Result<U, E>;
 
 #[impl(convert)]
 fn convert_self<T>(x: T) -> T = x;
+
+// TODO: define `InfallibleError`
+// #[impl(try_convert)]
+// fn try_convert_self<T>(x: T) -> Result<T, InfallibleError> = Result.Ok(x);

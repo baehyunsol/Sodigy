@@ -2,3 +2,9 @@ enum Result<T, E> = {
     Ok(T),
     Error(E),
 };
+
+#[associate(Result<T, E>)]
+fn unwrap<T, E>(self) -> T = match self {
+    Result.Ok($v) => v,
+    Result.Error($e) => std.panic(f"attempt to unwrap {e}"),
+};

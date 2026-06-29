@@ -47,7 +47,7 @@ fn spigot(n, p, max_n) = {
     }
 };
 
-fn spigot_iter(n, p) = {
+fn spigot_iter(n) = {
     let d1 = 8 * n + 1;
     let d2 = 8 * n + 4;
     let d3 = 8 * n + 5;

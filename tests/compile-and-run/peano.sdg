@@ -5,7 +5,7 @@ enum Nat = {
 
 fn add(n: Nat, m: Nat) -> Nat = match n {
     Nat.Zero => m,
-    Nat.Succ(p) => Nat.Succ(add(p, m)),
+    Nat.Succ($p) => Nat.Succ(add(p, m)),
 };
 
 fn mul(n: Nat, m: Nat) -> Nat = match n {
@@ -13,7 +13,8 @@ fn mul(n: Nat, m: Nat) -> Nat = match n {
     Nat.Succ($p) => add(mul(p, m), m),
 };
 
-fn eq(n: Nat, m: Nat) -> Nat = match (n, m) {
+#[impl(std.op.eq)]
+fn eq(n: Nat, m: Nat) -> Bool = match (n, m) {
     (Nat.Zero, Nat.Zero) => True,
     (Nat.Succ($np), Nat.Succ($mp)) => eq(np, mp),
     _ => False,
@@ -34,5 +35,5 @@ let six = from_int(6);
 let eleven = from_int(11);
 let thirty = from_int(30);
 
-assert mul(five, six) == thiry;
+assert mul(five, six) == thirty;
 assert add(five, six) == eleven;

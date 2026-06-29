@@ -34,13 +34,13 @@ fn gcd(a: Int, b: Int) -> Int = match b {
     _ => gcd(b, a % b),
 };
 
-// TODO: It has to be a method
-fn normalize(n: Number) -> Number = {
-    let is_neg = n.numer < 0 != n.denom < 0;
-    let numer_abs = n.numer.abs();
-    let denom_abs = n.denom.abs();
+#[associate(Number)]
+fn normalize(self) -> Number = {
+    let is_neg = self.numer < 0 != self.denom < 0;
+    let numer_abs = self.numer.abs();
+    let denom_abs = self.denom.abs();
 
-    let (numer, denom) = match (numer_abs, denom_abs) {
+    let ($numer, $denom) = match (numer_abs, denom_abs) {
         (0, _) => (0, 1),
         (_, 0) => (1, 0),
 
@@ -62,7 +62,7 @@ fn normalize(n: Number) -> Number = {
         // inf
         ((1 << 2048).., _) => (1, 0),
 
-        (n, d) => (n, d),
+        ($n, $d) => (n, d),
     };
 
     Number {
@@ -149,17 +149,6 @@ fn div_number(a: Number, b: Number) -> Number = {
         };
 
         normalize(result)
-    }
-};
-
-#[impl(std.op.eq)]
-fn eq_number(a: Number, b: Number) -> Bool = {
-    if a.is_inf() || b.is_inf() {
-        False
-    }
-
-    else {
-        a.denom == b.denom && a.numer == b.numer
     }
 };
 
@@ -273,10 +262,10 @@ fn to_string(n: Number) -> String = match (n.numer, n.denom) {
     (0, _) => "0",
     (1, 0) => "inf",
     (-1, 0) => "-inf",
-    (numer, denom) => {
+    ($numer, $denom) => {
         assert (1 << 80) <= numer_mantissa && numer_mantissa < (1 << 81);
         // numer = numer_mantissa * 2^(numer_exp + 80)
-        let (numer_mantissa, numer_exp) = match numer.ilog2() {
+        let ($numer_mantissa, $numer_exp) = match numer.ilog2() {
             $e @ ..80 => (numer << (80 - e), e - 80),
             $e @ 81.. => (numer >> (e - 80), e - 80),
             _ => (numer, 0),
@@ -284,7 +273,7 @@ fn to_string(n: Number) -> String = match (n.numer, n.denom) {
 
         assert (1 << 80) <= denom_mantissa && denom_mantissa < (1 << 81);
         // denom = denom_mantissa * 2^(denom_exp + 80)
-        let (denom_mantissa, denom_exp) = match denom.ilog2() {
+        let ($denom_mantissa, $denom_exp) = match denom.ilog2() {
             $e @ ..80 => (denom << (80 - e), e - 80),
             $e @ 81.. => (denom >> (e - 80), e - 80),
             _ => (denom, 0),
@@ -295,10 +284,10 @@ fn to_string(n: Number) -> String = match (n.numer, n.denom) {
         let mantissa_digits = numer_mantissa * 1_000_000_000_000_000_000_000 / denom_mantissa;
 
         // first 21 digits + exp
-        let (exp_digits, exp_exp) = get_decimal_digits(numer_exp - denom_exp);
+        let ($exp_digits, $exp_exp) = get_decimal_digits(numer_exp - denom_exp);
 
         // first 42 digits
-        let (digits, exp) = match mantissa_digits * exp_digits {
+        let ($digits, $exp) = match mantissa_digits * exp_digits {
             $d @ 10_000_000_000_000_000_000_000_000_000_000_000_000_000_000.. => (d / 10, exp_exp + 1),
             $d => (d, exp_exp),
         };
@@ -307,7 +296,7 @@ fn to_string(n: Number) -> String = match (n.numer, n.denom) {
         let digits_rounded = if digits_rem >= 500 { digits + 1 } else { digits };
 
         // first 39 digits
-        let (digits_off, exp_off) = match digits_rounded {
+        let ($digits_off, $exp_off) = match digits_rounded {
             10_000_000_000_000_000_000_000_000_000_000_000_000_000_000.. => (digits_rounded / 10_000, exp + 1),
             _ => (digits_rounded / 1_000, exp),
         };
@@ -324,7 +313,7 @@ fn get_decimal_digits(exp: Int) -> (Int, Int) = match exp {
     },
     0..80 => EXP_TABLE[exp],
     80.. => {
-        let (p_digits, p_exp) = get_decimal_digits(exp - 80);
+        let ($p_digits, $p_exp) = get_decimal_digits(exp - 80);
         (p_digits * 1_208_925_819_614_629_174_706 / 1_000_000_000_000_000_000_000, p_exp + 24)
     },
 };
@@ -332,7 +321,7 @@ fn get_decimal_digits(exp: Int) -> (Int, Int) = match exp {
 fn render_digits(digits: Int, exp: Int) -> String = {
     assert digits.len() == 40;
     assert digits[0] == '1';
-    let digits = f"{digits}";
+    let digits_str = f"{digits}";
 
     todo()
 };
