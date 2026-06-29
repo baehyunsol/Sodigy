@@ -555,10 +555,14 @@ pub enum SimpleType {
 
 impl StateMachine {
     pub fn get_candidates<'a, 'b>(&'a self, generics: &'b HashMap<Span, Type>) -> &'a [Span] {
-        match generics.get(&self.generic_param).map(|r#type| self.branches.get(&SimpleType::from_type_arg(r#type))) {
-            Some(Some(StateMachineOrLeaves::StateMachine(s))) => s.get_candidates(generics),
-            Some(Some(StateMachineOrLeaves::Leaves(impls))) => impls,
-            _ => match self.default.as_ref() {
+        let simple_type = generics.get(&self.generic_param).map(
+            |r#type| SimpleType::from_type_arg(r#type)
+        ).unwrap_or(SimpleType::Var);
+
+        match self.branches.get(&simple_type) {
+            Some(StateMachineOrLeaves::StateMachine(s)) => s.get_candidates(generics),
+            Some(StateMachineOrLeaves::Leaves(impls)) => impls,
+            None => match self.default.as_ref() {
                 StateMachineOrLeaves::StateMachine(s) => s.get_candidates(generics),
                 StateMachineOrLeaves::Leaves(impls) => impls,
             },
