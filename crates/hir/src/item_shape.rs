@@ -10,11 +10,13 @@ use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub enum ItemShapeMut<'s> {
     Struct(&'s mut StructShape),
     Enum(&'s mut EnumShape),
 }
 
+#[derive(Debug)]
 pub enum ItemShape<'s> {
     Struct(&'s StructShape),
     Enum(&'s EnumShape),

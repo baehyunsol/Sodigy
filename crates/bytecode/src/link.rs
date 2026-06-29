@@ -54,7 +54,7 @@ impl Session<'_, '_> {
                         Label::Local(_) => label_map.get(&(curr_item_span.clone(), label.clone())).unwrap(),
                         Label::Global(s) => match label_map.get(&(s.clone(), Label::Global(s.clone()))) {
                             Some(i) => i,
-                            None => panic!("Internal Compiler Error: Cannot find bytecode of {s:?}. Perhaps it's defined as a built-in in Sodigy, but not implemented in the compiler?"),
+                            None => panic!("Internal Compiler Error: Cannot find bytecode of {s:?} ({}). Perhaps it's defined as a built-in in Sodigy, but not implemented in the compiler?", Label::Global(s.clone())),
                         },
                         Label::Flatten(_) => unreachable!(),
                     };
@@ -67,7 +67,7 @@ impl Session<'_, '_> {
                             Label::Local(_) => label_map.get(&(curr_item_span.clone(), label.clone())).unwrap(),
                             Label::Global(s) => match label_map.get(&(s.clone(), Label::Global(s.clone()))) {
                                 Some(i) => i,
-                                None => panic!("Internal Compiler Error: Cannot find bytecode of {s:?}. Perhaps it's defined as a built-in in Sodigy, but not implemented in the compiler?"),
+                                None => panic!("Internal Compiler Error: Cannot find bytecode of {s:?} ({}). Perhaps it's defined as a built-in in Sodigy, but not implemented in the compiler?", Label::Global(s.clone())),
                             },
                             Label::Flatten(_) => unreachable!(),
                         };

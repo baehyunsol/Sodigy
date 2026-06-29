@@ -227,7 +227,8 @@ pub fn get_enum_variant_sub_matrix(
 ) -> Vec<MatrixRow> {
     match variant_def_span {
         Some(s) => {
-            println!("{:?}", session.global_context.types.as_ref().unwrap().as_ref().read().unwrap().get(s));
+            println!("variant_def_span: {s:?}");
+            println!("type: {:?}", session.global_context.types.as_ref().unwrap().as_ref().read().unwrap().get(s));
             todo!()
         },
 
