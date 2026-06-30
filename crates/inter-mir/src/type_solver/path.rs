@@ -19,7 +19,13 @@ impl Session {
                 r#type.substitute_generic_param_for_arg(&id.span, &mut substituted_generics);
 
                 for def_span in substituted_generics.iter() {
-                    self.add_type_var(Type::GenericArg { call: id.span.clone(), generic: def_span.clone() }, None);
+                    let type_var = Type::GenericArg { call: id.span.clone(), generic: def_span.clone() };
+
+                    if let Some(already_infered) = self.generic_args.get(&(id.span.clone(), def_span.clone())) {
+                        r#type.substitute(&type_var, already_infered);
+                    }
+
+                    self.add_type_var(type_var, None);
                 }
 
                 (Some(r#type), false)
@@ -34,6 +40,7 @@ impl Session {
                                 NameKind::Struct => id.def_span.clone(),
                                 _ => unreachable!(),
                             };
+                            let mut type_vars_to_add = vec![];
                             let item_shape = match self.get_item_shape(&def_span) {
                                 Some(item_shape) => {
                                     if item_shape.generics().is_empty() {
@@ -69,6 +76,25 @@ impl Session {
                                                 generic: generic.name_span.clone(),
                                             }
                                         ).collect();
+                                        let mut r#type = Type::Data {
+                                            constructor_def_span: def_span.id().unwrap(),
+                                            constructor_span: Span::None,
+                                            args: Some(type_args.clone()),
+                                            group_span: Some(dotfish_group_span),
+                                        };
+
+                                        for generic in item_shape.generics().iter() {
+                                            let type_var = Type::GenericArg {
+                                                call: id.span.clone(),
+                                                generic: generic.name_span.clone(),
+                                            };
+
+                                            if let Some(already_infered) = self.generic_args.get(&(id.span.clone(), generic.name_span.clone())) {
+                                                r#type.substitute(&type_var, already_infered);
+                                            }
+
+                                            type_vars_to_add.push(type_var);
+                                        }
 
                                         if let Some(dotfish) = dotfish {
                                             dotfish_group_span = dotfish.group_span.clone();
@@ -98,17 +124,12 @@ impl Session {
                                             }
                                         }
 
-                                        for type_arg in type_args.iter() {
-                                            self.add_type_var(type_arg.clone(), None);
+                                        for type_var in type_vars_to_add.into_iter() {
+                                            self.add_type_var(type_var, None);
                                         }
 
                                         return (
-                                            Some(Type::Data {
-                                                constructor_def_span: def_span.id().unwrap(),
-                                                constructor_span: Span::None,
-                                                args: Some(type_args),
-                                                group_span: Some(dotfish_group_span),
-                                            }),
+                                            Some(r#type),
                                             has_error,
                                         );
                                     }

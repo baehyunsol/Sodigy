@@ -488,7 +488,17 @@ impl Session {
                                 return_type.substitute_generic_param_for_arg(&span, &mut substituted_generics);
 
                                 for def_span in substituted_generics.iter() {
-                                    self.add_type_var(Type::GenericArg { call: span.clone(), generic: def_span.clone() }, None);
+                                    let type_var = Type::GenericArg { call: span.clone(), generic: def_span.clone() };
+
+                                    if let Some(already_infered) = self.generic_args.get(&(span.clone(), def_span.clone())) {
+                                        for param in params.iter_mut() {
+                                            param.substitute(&type_var, already_infered);
+                                        }
+
+                                        return_type.substitute(&type_var, already_infered);
+                                    }
+
+                                    self.add_type_var(type_var, None);
                                 }
                             }
 
@@ -676,7 +686,13 @@ impl Session {
                                 variant_type.substitute_generic_param_for_arg(span, &mut substituted_generics);
 
                                 for def_span in substituted_generics.iter() {
-                                    self.add_type_var(Type::GenericArg { call: span.clone(), generic: def_span.clone() }, None);
+                                    let type_var = Type::GenericArg { call: span.clone(), generic: def_span.clone() };
+
+                                    if let Some(already_infered) = self.generic_args.get(&(span.clone(), def_span.clone())) {
+                                        variant_type.substitute(&type_var, already_infered);
+                                    }
+
+                                    self.add_type_var(type_var, None);
                                 }
                             }
 

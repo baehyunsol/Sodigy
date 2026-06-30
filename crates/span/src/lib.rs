@@ -32,7 +32,8 @@ impl fmt::Debug for SpanId {
 
         write!(
             fmt,
-            "{{ file: {file:?}, start: {start}, end: {end} }}",
+            "{{ file: {file:?}, start: {start}, end: {end}, id: {} }}",
+            self.0,
         )
     }
 }
