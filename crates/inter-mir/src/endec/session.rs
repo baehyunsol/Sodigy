@@ -76,6 +76,7 @@ impl Endec for Session {
                 log: vec![],
                 errors,
                 warnings,
+                maybe_type_errors: vec![],
             },
             cursor,
         ))

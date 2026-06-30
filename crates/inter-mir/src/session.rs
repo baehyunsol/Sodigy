@@ -103,6 +103,16 @@ pub struct Session {
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
 
+    // `TypeError::MultiplePolyCandidates` is special. If we encounter this error,
+    // it's either 1) the user wrote wrong Sodigy code, so it's really an error or
+    // 2) the user's code has no problem but we don't have enough information to
+    // solve the poly-generic. It's because the inter-mir loop runs multiple times
+    // and we incrementally collect type information.
+    //
+    // So we first keep the errors here. If this error still remains after we
+    // have enough information, then that's a real error!
+    pub maybe_type_errors: Vec<TypeError>,
+
     // The session collects log only if `cfg(feature = "log")` is enabled.
     pub log: Vec<LogEntry>,
 }
@@ -141,6 +151,7 @@ impl Session {
             type_warnings: vec![],
             errors: vec![],
             warnings: vec![],
+            maybe_type_errors: vec![],
             log: vec![],
         }
     }
@@ -179,6 +190,7 @@ impl Session {
             type_warnings: vec![],
             errors: mir_session.errors.drain(..).collect(),
             warnings: mir_session.warnings.drain(..).collect(),
+            maybe_type_errors: vec![],
             log: vec![],
         }
     }

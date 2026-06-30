@@ -171,15 +171,11 @@ impl Session {
                         self.solved_generic_args.insert((generic_call.call.clone(), generic.clone()));
                     }
                 },
+                // If it has multiple candidates, that means either
+                // 1. The user wrote wrong Sodigy code and we can't choose one poly-generic impl.
+                // 2. There's no problem with the user's code, but we don't have enough information to solve this.
                 SolvePolyResult::MultiCandidates(ps) => {
-                    // TODO
-                    //    1. `solve_type` loop runs multiple times.
-                    //    2. In the first run, it's likely to reach this error because
-                    //       there's not enough hints yet.
-                    //    3. So, we want to skip this error for the first few times. But how many times?
-                    //    4. ...
-                    has_error = true;
-                    self.type_errors.push(TypeError::MultiplePolyCandidates {
+                    self.maybe_type_errors.push(TypeError::MultiplePolyCandidates {
                         call: generic_call.call.clone(),
                         poly_def: generic_call.def.clone(),
                         candidates: ps.clone(),

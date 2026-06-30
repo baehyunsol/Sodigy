@@ -54,6 +54,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
         }
 
         session.blocked_type_vars = HashSet::new();
+        session.maybe_type_errors = vec![];
 
         for func in mir_session.funcs.iter() {
             // We'll check generic functions after monomorphization.
@@ -286,6 +287,13 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
         }
 
         break;
+    }
+
+    // If we have both real errors and maybe-errors, we ignore the
+    // maybe-errors.
+    if !has_error && !session.maybe_type_errors.is_empty() {
+        has_error = true;
+        session.type_errors.extend(session.maybe_type_errors.drain(..));
     }
 
     // If we already have an error, it's likely that type-inference is not complete,
