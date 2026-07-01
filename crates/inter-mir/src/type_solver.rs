@@ -1,4 +1,4 @@
-use crate::{Session, Type, write_log};
+use crate::{LogId, Session, Type, write_log};
 use crate::error::{ErrorContext, TypeError};
 use sodigy_error::TypeVarInfo;
 use sodigy_hir::FuncPurity;
@@ -239,6 +239,43 @@ impl Session {
         }
     }
 
+    pub fn solve_supertype(
+        &mut self,
+        lhs: &Type,
+        rhs: &Type,
+        is_checking_argument: bool,
+        lhs_span: Option<&Span>,
+        rhs_span: Option<&Span>,
+        context: ErrorContext,
+        bidirectional: bool,
+    ) -> Result<Type, ()> {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::SolveSupertypeStart {
+            id: _id.unwrap(),
+            lhs: lhs.clone(),
+            rhs: rhs.clone(),
+            lhs_span: lhs_span.cloned(),
+            rhs_span: rhs_span.cloned(),
+            context: context.clone(),
+        });
+
+        let result = self.solve_supertype_(lhs, rhs, is_checking_argument, lhs_span, rhs_span, context, bidirectional);
+
+        write_log!(self, LogEntry::SolveSupertypeEnd {
+            id: _id.unwrap(),
+            solved_type: result.clone().ok(),
+            has_error: result.is_err(),
+            last_errors: self.last_errors(),
+        });
+
+        result
+    }
+
     /// It checks whether `lhs` is supertype of `rhs`. If so, it returns the supertype (`lhs`).
     /// For example, if there's Sodigy code `let x: Foo = y`, the compiler will call
     /// `solve_supertype(Foo, solve_expr(y))` because the type annotation has to be the supertype
@@ -256,7 +293,7 @@ impl Session {
     /// 2. `PureFn` is subtype of `Fn` and `ImpureFn` is subtype of `Fn`.
     /// 3. If type A and type B are exactly the same, A and B are subtype of each other.
     /// 4. Otherwise, it's a type error.
-    pub fn solve_supertype(
+    fn solve_supertype_(
         &mut self,
         lhs: &Type,
         rhs: &Type,
@@ -271,14 +308,6 @@ impl Session {
         context: ErrorContext,
         bidirectional: bool,
     ) -> Result<Type, ()> {
-        write_log!(self, LogEntry::SolveSupertype {
-            lhs: lhs.clone(),
-            rhs: rhs.clone(),
-            lhs_span: lhs_span.cloned(),
-            rhs_span: rhs_span.cloned(),
-            context: context.clone(),
-        });
-
         match (lhs, rhs) {
             (Type::Never(_), Type::Never(_)) => Ok(lhs.clone()),
             (

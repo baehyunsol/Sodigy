@@ -18,7 +18,7 @@ mod span_string_map;
 mod type_solver;
 
 pub use error::{ErrorContext, ExprContext, TypeError, TypeWarning};
-pub use log::LogEntry;
+pub use log::{LogEntry, LogId};
 pub use mono::{Monomorphization, get_def_span_from_id, get_monomorphization_id, get_monomorphization_id_owned};
 pub(crate) use poly::{PolySolver, SolvePolyResult};
 pub use session::Session;
@@ -100,6 +100,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
         // We don't want to do monomorphization if there's a type error
         // -> an erroneous monomorphization might generate very unreadable error messages
         if has_error {
+            write_log!(session, LogEntry::TypeSolveLoopEnd(i));
             break;
         }
 
@@ -110,6 +111,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                 Ok(s) => s,
                 Err(()) => {
                     has_error = true;
+                    write_log!(session, LogEntry::TypeSolveLoopEnd(i));
                     break;
                 },
             };
@@ -252,11 +254,13 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                         session.generic_args.insert((call, generic), r#type);
                     }
 
+                    write_log!(session, LogEntry::TypeSolveLoopEnd(i));
                     continue;
                 }
             },
             Err(()) => {
                 has_error = true;
+                write_log!(session, LogEntry::TypeSolveLoopEnd(i));
                 break;
             },
         }
@@ -268,6 +272,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
             // we're making a progress! let's continue
             if session.blocked_type_vars.len() < prev_blocked_type_var_count {
                 prev_blocked_type_var_count = session.blocked_type_vars.len();
+                write_log!(session, LogEntry::TypeSolveLoopEnd(i));
                 continue;
             }
 
@@ -286,6 +291,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
             }
         }
 
+        write_log!(session, LogEntry::TypeSolveLoopEnd(i));
         break;
     }
 

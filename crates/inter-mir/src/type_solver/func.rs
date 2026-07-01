@@ -1,4 +1,4 @@
-use crate::{Session, Type, write_log};
+use crate::{LogId, Session, Type, write_log};
 use crate::error::{ErrorContext, TypeError, TypeWarning};
 use sodigy_error::TypeVarInfo;
 use sodigy_mir::Func;
@@ -9,6 +9,17 @@ use crate::LogEntry;
 
 impl Session {
     pub fn solve_func(&mut self, func: &Func) -> (Option<Type>, bool /* has_error */) {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::SolveFuncStart {
+            id: _id.unwrap(),
+            func: func.clone(),
+        });
+
         let mut impure_calls = vec![];
         let mut span_to_name_map = vec![(func.name_span.clone(), func.name)];
 
@@ -58,16 +69,10 @@ impl Session {
             self.solve_expr(&func.value, &mut impure_calls)
         };
 
-        write_log!(self, LogEntry::SolveFunc {
-            func: func.clone(),
-            annotated_type: annotated_type.as_ref().clone(),
-            infered_type: infered_type.clone(),
-        });
-
-        if let Some(infered_type) = infered_type {
+        if let Some(infered_type) = &infered_type {
             if let Err(()) = self.solve_supertype(
                 &annotated_type,
-                &infered_type,
+                infered_type,
                 false,
                 type_annot_span.as_ref(),
                 Some(&value_span),
@@ -96,6 +101,14 @@ impl Session {
             },
             _ => {},
         }
+
+        write_log!(self, LogEntry::SolveFuncEnd {
+            id: _id.unwrap(),
+            annotated_type: annotated_type.as_ref().clone(),
+            infered_type: infered_type.clone(),
+            has_error,
+            last_errors: self.last_errors(),
+        });
 
         (Some(*annotated_type), has_error)
     }

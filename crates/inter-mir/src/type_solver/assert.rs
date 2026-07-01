@@ -1,10 +1,24 @@
-use crate::{Session, Type};
+use crate::{LogId, Session, Type, write_log};
 use crate::error::ErrorContext;
 use sodigy_mir::Assert;
 use sodigy_span::Span;
 
+#[cfg(feature = "log")]
+use crate::log::LogEntry;
+
 impl Session {
     pub fn solve_assert(&mut self, assert: &Assert, impure_calls: &mut Vec<Span>) -> Result<(), ()> {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::SolveAssertStart {
+            id: _id.unwrap(),
+            assert: assert.clone(),
+        });
+
         let (assertion_type, mut has_error) = self.solve_expr(&assert.value, impure_calls);
 
         if let Some(assertion_type) = assertion_type {
@@ -56,6 +70,12 @@ impl Session {
                 }
             }
         }
+
+        write_log!(self, LogEntry::SolveAssertEnd {
+            id: _id.unwrap(),
+            has_error,
+            last_errors: self.last_errors(),
+        });
 
         if has_error {
             Err(())

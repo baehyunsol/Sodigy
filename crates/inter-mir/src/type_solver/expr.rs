@@ -1,4 +1,4 @@
-use crate::{AssociatedFuncInstance, Expr, Session, Type, get_def_span_from_id, write_log};
+use crate::{AssociatedFuncInstance, Expr, LogId, Session, Type, get_def_span_from_id, write_log};
 use crate::error::{ErrorContext, TypeError};
 use sodigy_error::{EnumFieldKind, Error, ErrorKind, TypeVarInfo};
 use sodigy_hir::{self as hir, AssociatedFunc, FuncPurity};
@@ -13,7 +13,34 @@ use std::collections::{HashMap, HashSet};
 #[cfg(feature = "log")]
 use crate::log::{BlockedTypeVarKind, LogEntry};
 
+#[cfg(feature = "log")]
+use sodigy_hir::ItemShape;
+
 impl Session {
+    pub fn solve_expr(&mut self, expr: &Expr, impure_calls: &mut Vec<Span>) -> (Option<Type>, bool) {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::SolveExprStart {
+            id: _id.unwrap(),
+            expr: expr.clone(),
+        });
+
+        let (result, has_error) = self.solve_expr_(expr, impure_calls);
+
+        write_log!(self, LogEntry::SolveExprEnd {
+            id: _id.unwrap(),
+            infered_type: result.clone(),
+            has_error,
+            last_errors: self.last_errors(),
+        });
+
+        (result, has_error)
+    }
+
     // FIXME: there are A LOT OF heap allocations
     //
     // It can solve type of any expression, but the result maybe `Type::Var`.
@@ -22,7 +49,7 @@ impl Session {
     // If there's no error, it must return the type of the expr: `(Some(ty), false)`.
     // If there're errors, it'll still try to return the type, so that it
     // can find more type errors (only obvious ones).
-    pub fn solve_expr(&mut self, expr: &Expr, impure_calls: &mut Vec<Span>) -> (Option<Type>, bool /* has_error */) {
+    fn solve_expr_(&mut self, expr: &Expr, impure_calls: &mut Vec<Span>) -> (Option<Type>, bool /* has_error */) {
         match expr {
             Expr::Ident { id, dotfish } => self.solve_path(id, dotfish),
             Expr::Constant(Constant::Number { n, .. }) => match n.is_integer() {
@@ -317,10 +344,6 @@ impl Session {
                 (Some(lhs_type), has_error) => match self.get_type_of_field(&lhs_type, fields) {
                     (associated_func, Ok(field_type)) => {
                         if let Some(associated_func) = associated_func {
-                            write_log!(self, LogEntry::AssociatedFunc {
-                                def_span: associated_func.def_span.clone(),
-                                call_span: associated_func.call_span.clone(),
-                            });
                             self.associated_funcs.push(associated_func);
                         }
 
@@ -993,8 +1016,34 @@ impl Session {
         }
     }
 
-    // If `field.last()` is an associated func, (e.g. `x.y.z.unwrap`), it returns the information about the associated function.
     pub fn get_type_of_field(&mut self, r#type: &Type, field: &[Field]) -> (Option<AssociatedFuncInstance>, Result<Type, TypeError>) {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::GetTypeOfFieldStart {
+            id: _id.unwrap(),
+            r#type: r#type.clone(),
+            field: field.to_vec(),
+        });
+
+        let result = self.get_type_of_field_(r#type, field);
+
+        write_log!(self, LogEntry::GetTypeOfFieldEnd {
+            id: _id.unwrap(),
+            associated_func: result.0.clone(),
+            infered_type: result.1.clone().ok(),
+            has_error: result.1.is_err(),
+            last_errors: result.1.clone().err().into_iter().collect(),
+        });
+
+        result
+    }
+
+    // If `field.last()` is an associated func, (e.g. `x.y.z.unwrap`), it returns the information about the associated function.
+    fn get_type_of_field_(&mut self, r#type: &Type, field: &[Field]) -> (Option<AssociatedFuncInstance>, Result<Type, TypeError>) {
         let mut field_type = None;
         let mut associated_func_instance = None;
 
@@ -1007,6 +1056,34 @@ impl Session {
         match r#type {
             Type::Data { constructor_def_span: def_span_id, args, .. } => {
                 let def_span = get_def_span_from_id(*def_span_id, args);
+
+                // <log>
+                let _id = if cfg!(feature = "log") {
+                    Some(LogId::new())
+                } else {
+                    None
+                };
+                write_log!(self, LogEntry::GetItemShapeStart {
+                    id: _id.unwrap(),
+                    r#type: r#type.clone(),
+                    def_span: def_span.clone(),
+                });
+                write_log!(self, {
+                    let item_shape = self.get_item_shape(&def_span);
+                    let (struct_shape, enum_shape) = match item_shape {
+                        Some(ItemShape::Struct(s)) => (Some(s.clone()), None),
+                        Some(ItemShape::Enum(e)) => (None, Some(e.clone())),
+                        None => (None, None),
+                    };
+
+                    LogEntry::GetItemShapeEnd {
+                        id: _id.unwrap(),
+                        struct_shape,
+                        enum_shape,
+                    }
+                });
+                // </log>
+
                 if *def_span_id == self.get_lang_item_span_id("type.Tuple") {
                     let args = args.as_ref().unwrap();
 

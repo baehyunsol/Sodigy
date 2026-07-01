@@ -215,4 +215,9 @@ impl Session {
             },
         }
     }
+
+    #[cfg(feature = "log")]
+    pub fn last_errors(&self) -> Vec<TypeError> {
+        self.type_errors.iter().rev().take(3).rev().map(|e| e.clone()).collect()
+    }
 }

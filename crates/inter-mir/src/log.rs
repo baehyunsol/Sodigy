@@ -1,4 +1,5 @@
 use crate::{
+    AssociatedFuncInstance,
     ErrorContext,
     GenericCall,
     Monomorphization,
@@ -8,10 +9,11 @@ use crate::{
     TypeError,
 };
 use sodigy_error::Error;
-use sodigy_hir::Poly;
-use sodigy_mir::{Expr, Func, Let, Type};
+use sodigy_hir::{EnumShape, Poly, StructShape};
+use sodigy_mir::{Assert, Expr, Func, Let, Type};
 use sodigy_parse::Field;
 use sodigy_span::Span;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 macro_rules! write_log {
     ($session:expr, $entry:expr) => {
@@ -19,6 +21,18 @@ macro_rules! write_log {
             $session.write_log($entry);
         }
     };
+}
+
+// VIBE NOTE: gpt-5.5 (via neukgu-chat) wrote this atomic increment.
+static NEXT_ID: AtomicU32 = AtomicU32::new(0);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct LogId(u32);
+
+impl LogId {
+    pub fn new() -> Self {
+        LogId(NEXT_ID.fetch_add(1, Ordering::Relaxed))
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -33,25 +47,91 @@ pub enum BlockedTypeVarKind {
     },
 }
 
+// Many functions return `Err(())` when there's an error. The actual error is
+// stored in the session. So the entries have `last_errors` field, which stores
+// the most recent 3 errors. The errors may or may not be from the logged function.
 #[derive(Clone, Debug)]
 pub enum LogEntry {
     TypeSolveLoopStart(u32),
-    SolveSupertype {
+    TypeSolveLoopEnd(u32),
+    SolveSupertypeStart {
+        id: LogId,
         lhs: Type,
         rhs: Type,
         lhs_span: Option<Span>,
         rhs_span: Option<Span>,
         context: ErrorContext,
     },
-    SolveFunc {
-        func: Func,
-        annotated_type: Type,
-        infered_type: Option<Type>,
+    SolveSupertypeEnd {
+        id: LogId,
+        solved_type: Option<Type>,
+        has_error: bool,
+        last_errors: Vec<TypeError>,
     },
-    SolveLet {
-        r#let: Let,
+    SolveFuncStart {
+        id: LogId,
+        func: Func,
+    },
+    SolveFuncEnd {
+        id: LogId,
         annotated_type: Type,
         infered_type: Option<Type>,
+        has_error: bool,
+        last_errors: Vec<TypeError>,
+    },
+    SolveLetStart {
+        id: LogId,
+        r#let: Let,
+    },
+    SolveLetEnd {
+        id: LogId,
+        annotated_type: Type,
+        infered_type: Option<Type>,
+        has_error: bool,
+        last_errors: Vec<TypeError>,
+    },
+    SolveAssertStart {
+        id: LogId,
+        assert: Assert,
+    },
+    SolveAssertEnd {
+        id: LogId,
+        has_error: bool,
+        last_errors: Vec<TypeError>,
+    },
+    SolveExprStart {
+        id: LogId,
+        expr: Expr,
+    },
+    SolveExprEnd {
+        id: LogId,
+        infered_type: Option<Type>,
+        has_error: bool,
+        last_errors: Vec<TypeError>,
+    },
+    GetTypeOfFieldStart {
+        id: LogId,
+        r#type: Type,
+        field: Vec<Field>,
+    },
+    GetTypeOfFieldEnd {
+        id: LogId,
+        associated_func: Option<AssociatedFuncInstance>,
+        infered_type: Option<Type>,
+        has_error: bool,
+
+        // `get_type_of_field` returns the exact error, so this vector has 0 or 1 errors.
+        last_errors: Vec<TypeError>,
+    },
+    GetItemShapeStart {
+        id: LogId,
+        r#type: Type,
+        def_span: Span,
+    },
+    GetItemShapeEnd {
+        id: LogId,
+        struct_shape: Option<StructShape>,
+        enum_shape: Option<EnumShape>,
     },
     InitPolySolver {
         poly_def_span: Span,
@@ -63,10 +143,6 @@ pub enum LogEntry {
         result: SolvePolyResult,
     },
     Monomorphization(Monomorphization),
-    AssociatedFunc {
-        def_span: Span,
-        call_span: Span,
-    },
     BlockedTypeVar {
         kind: BlockedTypeVarKind,
         span: Span,
@@ -75,6 +151,33 @@ pub enum LogEntry {
         type_error: TypeError,
         general_error: Error,
     },
+}
+
+impl LogEntry {
+    pub fn id(&self) -> Option<LogId> {
+        match self {
+            LogEntry::TypeSolveLoopStart(n) | LogEntry::TypeSolveLoopEnd(n) => Some(LogId(0x4_0000 | n)),
+            LogEntry::SolveSupertypeStart { id, .. } |
+            LogEntry::SolveSupertypeEnd { id, .. } |
+            LogEntry::SolveFuncStart { id, .. } |
+            LogEntry::SolveFuncEnd { id, .. } |
+            LogEntry::SolveLetStart { id, .. } |
+            LogEntry::SolveLetEnd { id, .. } |
+            LogEntry::SolveAssertStart { id, .. } |
+            LogEntry::SolveAssertEnd { id, .. } |
+            LogEntry::SolveExprStart { id, .. } |
+            LogEntry::SolveExprEnd { id, .. } |
+            LogEntry::GetTypeOfFieldStart { id, .. } |
+            LogEntry::GetTypeOfFieldEnd { id, .. } |
+            LogEntry::GetItemShapeStart { id, .. } |
+            LogEntry::GetItemShapeEnd { id, .. } => Some(*id),
+            LogEntry::InitPolySolver { .. } |
+            LogEntry::TrySolvePoly { .. } |
+            LogEntry::Monomorphization(_) |
+            LogEntry::BlockedTypeVar { .. } |
+            LogEntry::TypeError { .. } => None,
+        }
+    }
 }
 
 impl Session {

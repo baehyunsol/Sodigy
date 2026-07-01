@@ -1,4 +1,4 @@
-use crate::{Session, Type, write_log};
+use crate::{LogId, Session, Type, write_log};
 use crate::error::ErrorContext;
 use sodigy_error::TypeVarInfo;
 use sodigy_mir::Let;
@@ -9,6 +9,17 @@ use crate::LogEntry;
 
 impl Session {
     pub fn solve_let(&mut self, r#let: &Let, impure_calls: &mut Vec<Span>) -> (Option<Type>, bool /* has_error */) {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::SolveLetStart {
+            id: _id.unwrap(),
+            r#let: r#let.clone(),
+        });
+
         let (
             annotated_type,
             value_span,
@@ -38,17 +49,12 @@ impl Session {
         };
 
         let (infered_type, mut has_error) = self.solve_expr(&r#let.value, impure_calls);
-        write_log!(self, LogEntry::SolveLet {
-            r#let: r#let.clone(),
-            annotated_type: annotated_type.clone(),
-            infered_type: infered_type.clone(),
-        });
 
-        match infered_type {
+        match &infered_type {
             Some(infered_type) => {
                 if let Err(()) = self.solve_supertype(
                     &annotated_type,
-                    &infered_type,
+                    infered_type,
                     false,
                     type_annot_span.as_ref(),
                     Some(&value_span),
@@ -64,6 +70,14 @@ impl Session {
                 has_error = true;
             },
         }
+
+        write_log!(self, LogEntry::SolveLetEnd {
+            id: _id.unwrap(),
+            annotated_type: annotated_type.clone(),
+            infered_type: infered_type.clone(),
+            has_error,
+            last_errors: self.last_errors(),
+        });
 
         (Some(annotated_type), has_error)
     }

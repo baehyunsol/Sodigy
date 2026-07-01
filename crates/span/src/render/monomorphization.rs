@@ -41,8 +41,8 @@ impl RenderSpanSession {
         let mut result = vec![];
 
         for mono_id in monomorphizations.iter() {
-            // TODO: I don't want to unwrap this... but I have to change so many APIs to propagate this error.
-            let mono_info = self.get_monomorphization_info(*mono_id).unwrap();
+            // TODO: I don't ignore this error... but I have to change so many APIs to propagate this error.
+            let Ok(mono_info) = self.get_monomorphization_info(*mono_id) else { continue };
 
             // TODO: follow parent
             result.push(RenderableSpan {

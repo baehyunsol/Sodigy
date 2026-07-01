@@ -52,7 +52,9 @@ fn main() {
             let filter = parsed_args.get_args().get(0).map(|f| f.to_string());
             let sodigy_path = get_sodigy_path(
                 &root,
-                false,  // --release
+
+                // some inter-mir-log are stupidly expensive, so I have to optimize
+                true,  // --release
                 log_inter_mir,
                 debug_bytecode,
             );
