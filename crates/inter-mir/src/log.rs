@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 macro_rules! write_log {
     ($session:expr, $entry:expr) => {
         #[cfg(feature = "log")] {
-            $session.write_log($entry);
+            $session.log.push($entry);
         }
     };
 }
@@ -133,13 +133,33 @@ pub enum LogEntry {
         struct_shape: Option<StructShape>,
         enum_shape: Option<EnumShape>,
     },
-    InitPolySolver {
+    InitPolySolverStart {
+        id: LogId,
         poly_def_span: Span,
-        solver: PolySolver,
+        poly: Poly,
     },
-    TrySolvePoly {
+    InitPolySolverEnd {
+        id: LogId,
+        solver: Option<PolySolver>,
+        has_error: bool,
+        last_errors: Vec<TypeError>,
+    },
+    InitPolySolversStart {
+        id: LogId,
+    },
+    InitPolySolversEnd {
+        id: LogId,
+        has_error: bool,
+        last_errors: Vec<TypeError>,
+    },
+    TrySolvePolyStart {
+        id: LogId,
         generic_call: GenericCall,
-        poly_def: Option<Poly>,
+        poly: Option<Poly>,
+        solver: Option<PolySolver>,
+    },
+    TrySolvePolyEnd {
+        id: LogId,
         result: SolvePolyResult,
     },
     Monomorphization(Monomorphization),
@@ -170,19 +190,17 @@ impl LogEntry {
             LogEntry::GetTypeOfFieldStart { id, .. } |
             LogEntry::GetTypeOfFieldEnd { id, .. } |
             LogEntry::GetItemShapeStart { id, .. } |
-            LogEntry::GetItemShapeEnd { id, .. } => Some(*id),
-            LogEntry::InitPolySolver { .. } |
-            LogEntry::TrySolvePoly { .. } |
+            LogEntry::GetItemShapeEnd { id, .. } |
+            LogEntry::InitPolySolverStart { id, .. } |
+            LogEntry::InitPolySolverEnd { id, .. } |
+            LogEntry::InitPolySolversStart { id, .. } |
+            LogEntry::InitPolySolversEnd { id, .. } |
+            LogEntry::TrySolvePolyStart { id, .. } |
+            LogEntry::TrySolvePolyEnd { id, .. } => Some(*id),
             LogEntry::Monomorphization(_) |
             LogEntry::BlockedTypeVar { .. } |
             LogEntry::TypeError { .. } => None,
         }
-    }
-}
-
-impl Session {
-    pub fn write_log(&mut self, entry: LogEntry) {
-        self.log.push(entry);
     }
 }
 

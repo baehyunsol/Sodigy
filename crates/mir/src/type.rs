@@ -376,7 +376,7 @@ impl Type {
     pub fn has_to_be_monomorphized(&self) -> bool {
         match self {
             Type::Data { args, .. } => args.is_some(),
-            Type::Func { params, r#return, .. } => todo!(),
+            Type::Func { params, r#return, .. } => r#return.has_to_be_monomorphized() || params.iter().any(|p| p.has_to_be_monomorphized()),
             _ => false,
         }
     }

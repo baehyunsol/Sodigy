@@ -1,4 +1,4 @@
-use crate::{ErrorContext, GenericCall, Session, TypeError, write_log};
+use crate::{ErrorContext, GenericCall, LogId, Session, TypeError, write_log};
 use sodigy_error::ParamIndex;
 use sodigy_mir::{Func, Session as MirSession, Type};
 use sodigy_span::{Span, SpanId};
@@ -40,6 +40,27 @@ impl Session {
         solvers: &HashMap<Span, PolySolver>,
         generic_call: &GenericCall,
     ) -> SolvePolyResult {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, {
+            let poly = self.polys.get(&generic_call.def).cloned();
+            let solver = match &poly {
+                Some(poly) => solvers.get(&poly.name_span).cloned(),
+                None => None,
+            };
+
+            LogEntry::TrySolvePolyStart {
+                id: _id.unwrap(),
+                generic_call: generic_call.clone(),
+                poly,
+                solver,
+            }
+        });
+
         let r = match self.polys.get(&generic_call.def) {
             Some(poly) => {
                 let solver = solvers.get(&poly.name_span).unwrap();
@@ -62,15 +83,24 @@ impl Session {
             None => SolvePolyResult::NotPoly,
         };
 
-        write_log!(self, LogEntry::TrySolvePoly {
-            generic_call: generic_call.clone(),
-            poly_def: self.polys.get(&generic_call.def).cloned(),
+        write_log!(self, LogEntry::TrySolvePolyEnd {
+            id: _id.unwrap(),
             result: r.clone(),
         });
         r
     }
 
     pub fn init_poly_solvers(&mut self, mir_session: &MirSession) -> Result<HashMap<Span, PolySolver>, ()> {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::InitPolySolversStart {
+            id: _id.unwrap(),
+        });
+
         let mut has_error = false;
         let mut result = HashMap::new();
         let index_by_span = mir_session.funcs.iter().enumerate().map(
@@ -82,6 +112,18 @@ impl Session {
         //     `#[impl(add)] fn add_int(a: Int, b: Int) -> Int;`
         //     `#[impl(add)] fn add_homo<T>(a: T, b: T) -> Int;`
         for (span, poly) in self.polys.iter() {
+            let _id = if cfg!(feature = "log") {
+                Some(LogId::new())
+            } else {
+                None
+            };
+
+            write_log!(self, LogEntry::InitPolySolverStart {
+                id: _id.unwrap(),
+                poly_def_span: span.clone(),
+                poly: poly.clone(),
+            });
+
             let poly_def = &mir_session.funcs[*index_by_span.get(span).unwrap()];
 
             // poly_type: `Fn(?T, ?U) -> Int`
@@ -95,6 +137,13 @@ impl Session {
                 self.type_errors.push(TypeError::CannotInferPolyGenericParam {
                     poly_span: span.clone(),
                     param_index,
+                });
+
+                write_log!(self, LogEntry::InitPolySolverEnd {
+                    id: _id.unwrap(),
+                    solver: None,
+                    has_error,
+                    last_errors: self.last_errors(),
                 });
                 continue;
             }
@@ -149,9 +198,32 @@ impl Session {
 
             if !has_error {
                 solver.build_state_machine();
+
+                write_log!(self, LogEntry::InitPolySolverEnd {
+                    id: _id.unwrap(),
+                    solver: Some(solver.clone()),
+                    has_error,
+                    last_errors: self.last_errors(),
+                });
+
                 result.insert(span.clone(), solver);
             }
+
+            else {
+                write_log!(self, LogEntry::InitPolySolverEnd {
+                    id: _id.unwrap(),
+                    solver: None,
+                    has_error,
+                    last_errors: self.last_errors(),
+                });
+            }
         }
+
+        write_log!(self, LogEntry::InitPolySolversEnd {
+            id: _id.unwrap(),
+            has_error,
+            last_errors: self.last_errors(),
+        });
 
         if has_error {
             Err(())

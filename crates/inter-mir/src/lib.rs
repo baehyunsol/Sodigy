@@ -20,7 +20,7 @@ mod type_solver;
 pub use error::{ErrorContext, ExprContext, TypeError, TypeWarning};
 pub use log::{LogEntry, LogId};
 pub use mono::{Monomorphization, get_def_span_from_id, get_monomorphization_id, get_monomorphization_id_owned};
-pub(crate) use poly::{PolySolver, SolvePolyResult};
+pub use poly::{PolySolver, SolvePolyResult};
 pub use session::Session;
 
 #[cfg(test)]
@@ -115,13 +115,6 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                     break;
                 },
             };
-
-            for (span, solver) in poly_solver.iter() {
-                write_log!(session, LogEntry::InitPolySolver {
-                    poly_def_span: span.clone(),
-                    solver: solver.clone(),
-                });
-            }
         }
 
         match session.get_mono_plan(&poly_solver, mir_session) {
@@ -135,7 +128,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
 
                     if let Some(index) = session.funcs_rev.get(&monomorphization.def_span) {
                         let func = &mir_session.funcs[*index];
-                        let new_func = session.monomorphize_func(func, &monomorphization);
+                        let new_func = session.monomorphize_func(func, &monomorphization, &mut plan.intermediate_types);
 
                         session.monomorphizations.insert(monomorphization.id, monomorphization);
                         session.func_shapes.insert(new_func.name_span.clone(), new_func.shape());
