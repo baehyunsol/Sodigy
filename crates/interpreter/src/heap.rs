@@ -148,7 +148,7 @@ impl Heap {
             // `d02` is a scalar value. It's the length of the slice.
             Value::List(vs) => {
                 // TODO: don't alloc if `vs` is empty
-                let data_ptr = self.alloc(vs.len());
+                let data_ptr = self.alloc(vs.len());  // TODO: It's supposed to be `vs.len() + 1`, isn't it?
                 self.data[data_ptr] = vs.len() as u32;
 
                 for (i, v) in vs.iter().enumerate() {

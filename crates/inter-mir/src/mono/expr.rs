@@ -2,6 +2,7 @@ use super::Monomorphization;
 use crate::Session;
 use sodigy_error::TypeVarInfo;
 use sodigy_mir::{Callable, Expr, Type};
+use sodigy_parse::Field;
 
 impl Session {
     pub fn monomorphize_expr(&mut self, expr: &mut Expr, monomorphization: &Monomorphization) {
@@ -72,8 +73,15 @@ impl Session {
                     }
                 }
             },
-            Expr::Field { lhs, .. } => {
+            Expr::Field { lhs, fields, .. } => {
                 self.monomorphize_expr(lhs, monomorphization);
+
+                for field in fields.iter_mut() {
+                    if let Field::Name { name_span, dot_span, .. } = field {
+                        *name_span = name_span.monomorphize(monomorphization.id);
+                        *dot_span = dot_span.monomorphize(monomorphization.id);
+                    }
+                }
             },
             Expr::FieldUpdate { .. } => todo!(),
             Expr::Call { func, args, arg_group_span, .. } => {

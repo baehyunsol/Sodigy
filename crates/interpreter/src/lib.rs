@@ -355,7 +355,15 @@ fn call(
                 let ptr = heap.alloc(*elements);
                 update(dst, ptr as u32, &mut stack, heap);
             },
-            Bytecode::InitList { elements, dst, debug_info: _ } => todo!(),
+            Bytecode::InitList { elements, dst, debug_info: _ } => {
+                let data_ptr = heap.alloc(*elements);  // TODO: It's supposed to be `elements + 1`, isn't it?
+                heap.data[data_ptr] = *elements as u32;
+                let slice_ptr = heap.alloc(3);
+                heap.data[slice_ptr] = data_ptr as u32;
+                heap.data[slice_ptr] = 0;
+                heap.data[slice_ptr] = *elements as u32;
+                update(dst, slice_ptr as u32, &mut stack, heap);
+            },
             Bytecode::PushDebugInfo { kind, src } => {
                 let src = read(src, &stack, heap);
                 heap.debug_info.push((*kind, src));
