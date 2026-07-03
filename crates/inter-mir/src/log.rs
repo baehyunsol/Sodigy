@@ -162,6 +162,15 @@ pub enum LogEntry {
         id: LogId,
         result: SolvePolyResult,
     },
+    MonomorphizeFuncStart {
+        id: LogId,
+        func: Func,
+        monomorphization: Monomorphization,
+    },
+    MonomorphizeFuncEnd {
+        id: LogId,
+        result: Func,
+    },
     Monomorphization(Monomorphization),
     BlockedTypeVar {
         kind: BlockedTypeVarKind,
@@ -196,7 +205,9 @@ impl LogEntry {
             LogEntry::InitPolySolversStart { id, .. } |
             LogEntry::InitPolySolversEnd { id, .. } |
             LogEntry::TrySolvePolyStart { id, .. } |
-            LogEntry::TrySolvePolyEnd { id, .. } => Some(*id),
+            LogEntry::TrySolvePolyEnd { id, .. } |
+            LogEntry::MonomorphizeFuncStart { id, .. } |
+            LogEntry::MonomorphizeFuncEnd { id, .. } => Some(*id),
             LogEntry::Monomorphization(_) |
             LogEntry::BlockedTypeVar { .. } |
             LogEntry::TypeError { .. } => None,

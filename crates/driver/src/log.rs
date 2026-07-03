@@ -532,7 +532,45 @@ pub fn log_inter_mir(session: &InterMirSession) -> Result<(), FileError> {
                     });
                 }
 
-                ("try_solve_poly_start", *id)
+                ("try_solve_poly", *id)
+            },
+            LogEntry::MonomorphizeFuncStart { id, func, monomorphization } => {
+                input.push(Value {
+                    name: String::from("func"),
+                    short: func.name.unintern_or_default(&session.intermediate_dir),
+                    long: Some(String::from_utf8(prettify(format!("{func:?}").into_bytes())).unwrap()),
+                });
+                input.push(Value {
+                    name: String::from("monomorphization"),
+                    short: String::from("(...)"),
+                    long: Some(String::from_utf8(prettify(format!("{monomorphization:?}").into_bytes())).unwrap()),
+                });
+
+                spans.push(RenderableSpan {
+                    span: func.name_span.clone(),
+                    auxiliary: true,
+                    note: Some(String::from("func")),
+                });
+                spans.push(RenderableSpan {
+                    span: monomorphization.def_span.clone(),
+                    auxiliary: true,
+                    note: Some(String::from("monomorphization.def_span")),
+                });
+                spans.push(RenderableSpan {
+                    span: monomorphization.call_span.clone(),
+                    auxiliary: true,
+                    note: Some(String::from("monomorphization.call_span")),
+                });
+
+                for (span, r#type) in monomorphization.generics.iter() {
+                    spans.push(RenderableSpan {
+                        span: span.clone(),
+                        auxiliary: true,
+                        note: Some(session.render_type(r#type)),
+                    });
+                }
+
+                ("monomorphize_func", *id)
             },
             _ => return (None, index + 1),
         };
@@ -764,6 +802,15 @@ pub fn log_inter_mir(session: &InterMirSession) -> Result<(), FileError> {
                     },
                     SolvePolyResult::NotPoly | SolvePolyResult::NoCandidates => {},
                 }
+
+                (false, vec![])
+            },
+            LogEntry::MonomorphizeFuncEnd { result, .. } => {
+                output.push(Value {
+                    name: String::from("result"),
+                    short: String::from("(...)"),
+                    long: Some(String::from_utf8(prettify(format!("{result:?}").into_bytes())).unwrap()),
+                });
 
                 (false, vec![])
             },
