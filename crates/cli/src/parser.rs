@@ -610,28 +610,3 @@ impl ParsedArgs {
         self.show_help
     }
 }
-
-/// It's originally implemented to parse ragit's -C option, which acts like
-/// git's -C option.
-pub fn parse_pre_args(args: &[String]) -> Result<(Vec<String>, ParsedArgs), Error> {
-    match args.get(1).map(|s| s.as_str()) {
-        Some("-C") => match args.get(2).map(|s| s.as_str()) {
-            Some(path) => {
-                let mut result = ParsedArgs::new();
-                result.arg_flags.insert(String::from("-C"), path.to_string());
-                Ok((
-                    vec![
-                        vec![args[0].clone()],
-                        if args.len() < 4 { vec![] } else { args[3..].to_vec() },
-                    ].concat(),
-                    result,
-                ))
-            },
-            None => Err(Error {
-                span: Span::Exact(2).render(args, 0),
-                kind: ErrorKind::MissingArg(String::from("-C"), ArgType::String),
-            }),
-        },
-        _ => Ok((args.to_vec(), ParsedArgs::new())),
-    }
-}

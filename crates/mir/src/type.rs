@@ -6,7 +6,7 @@ use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_session::SodigySession;
 use sodigy_span::{Span, SpanId};
-use sodigy_string::{InternedString, hash};
+use sodigy_string::hash;
 use sodigy_token::Constant;
 use std::collections::HashSet;
 

@@ -1,8 +1,7 @@
 use super::Monomorphization;
 use crate::Session;
 use sodigy_hir::{self as hir, EnumShape};
-use sodigy_mir::{Enum, EnumVariant, EnumVariantFields, Type};
-use sodigy_span::Span;
+use sodigy_mir::{Enum, EnumVariant, EnumVariantFields};
 
 impl Session {
     pub fn monomorphize_enum(&mut self, r#enum: &Enum, monomorphization: &Monomorphization) -> Enum {

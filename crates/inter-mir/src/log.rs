@@ -4,7 +4,6 @@ use crate::{
     GenericCall,
     Monomorphization,
     PolySolver,
-    Session,
     SolvePolyResult,
     TypeError,
 };

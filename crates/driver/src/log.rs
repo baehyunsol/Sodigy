@@ -23,8 +23,7 @@ use sodigy_span::{
     RenderableSpan,
     render_spans,
 };
-use sodigy_string::InternedString;
-use std::collections::hash_map::{Entry, HashMap};
+use std::collections::HashMap;
 
 pub fn log_matches(matches: &Vec<MatchDump>, intermediate_dir: &str) -> Result<(), FileError> {
     let mut buffer = vec![];
@@ -839,7 +838,7 @@ pub fn log_inter_mir(session: &InterMirSession) -> Result<(), FileError> {
     let mut calls = vec![];
 
     while session.log.get(index).is_some() {
-        let (call, new_index) = to_func_call(&session.log, index, &session);
+        let (call, new_index) = to_func_call(&session.log, index, session);
         index = new_index;
 
         if let Some(call) = call {
