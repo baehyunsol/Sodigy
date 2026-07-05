@@ -356,12 +356,12 @@ fn call(
                 update(dst, ptr as u32, &mut stack, heap);
             },
             Bytecode::InitList { elements, dst, debug_info: _ } => {
-                let data_ptr = heap.alloc(*elements);  // TODO: It's supposed to be `elements + 1`, isn't it?
+                let data_ptr = heap.alloc(*elements + 1);
                 heap.data[data_ptr] = *elements as u32;
                 let slice_ptr = heap.alloc(3);
                 heap.data[slice_ptr] = data_ptr as u32;
-                heap.data[slice_ptr] = 0;
-                heap.data[slice_ptr] = *elements as u32;
+                heap.data[slice_ptr + 1] = 0;
+                heap.data[slice_ptr + 2] = *elements as u32;
                 update(dst, slice_ptr as u32, &mut stack, heap);
             },
             Bytecode::PushDebugInfo { kind, src } => {
@@ -412,7 +412,16 @@ fn update(dst: &Memory, value: u32, stack: &mut Stack, heap: &mut Heap) {
 
             heap.data[(ptr + offset) as usize] = value;
         },
-        Memory::List { ptr, offset } => todo!(),
+        Memory::List { ptr, offset } => {
+            let ptr = read(ptr, stack, heap) as usize;
+            let offset = match offset {
+                Offset::Static(i) => *i,
+                Offset::Dynamic(p) => read(p, stack, heap),
+            };
+            let data_ptr = heap.data[ptr];
+            let start = heap.data[ptr + 1];
+            heap.data[(data_ptr + start + offset + 1) as usize] = value;
+        },
         Memory::Global(s) => {
             heap.global_values.insert(s.clone(), value);
         },
