@@ -320,28 +320,29 @@ impl PatternKind {
                             // `Some(x + 1)` is lowered to `Some($tmp) if tmp == x + 1`
                             ast::PatternValueKind::Value => {
                                 let tmp_value_name = intern_string(b"$tmp", &session.intermediate_dir).unwrap();
-                                let derived_span = result_span.derive(SpanDeriveKind::ExprInPattern);
+                                let tmp_id_span = result_span.derive(SpanDeriveKind::TmpIdInPattern);
+                                let tmp_expr_span = result_span.derive(SpanDeriveKind::TmpExprInPattern);
                                 let extra_guard = Expr::InfixOp {
                                     op: InfixOp::Eq,
                                     lhs: Box::new(Expr::Path(Path {
                                         id: IdentWithOrigin {
                                             id: tmp_value_name,
-                                            span: derived_span.clone(),
+                                            span: tmp_id_span.clone(),
                                             origin: NameOrigin::Local { kind: NameKind::PatternNameBind },
-                                            def_span: derived_span.clone(),
+                                            def_span: tmp_id_span.clone(),
                                         },
                                         fields: vec![],
                                         dotfish: vec![None],
                                     })),
                                     rhs: Box::new(expr),
-                                    op_span: derived_span.clone(),
+                                    op_span: tmp_expr_span.clone(),
                                 };
                                 extra_guards.push(ExtraGuard {
                                     name: tmp_value_name,
-                                    span: derived_span.clone(),
+                                    span: tmp_expr_span.clone(),
                                     condition: extra_guard,
                                 });
-                                Ok(PatternKind::NameBinding { id: tmp_value_name, span: derived_span.clone() })
+                                Ok(PatternKind::NameBinding { id: tmp_value_name, span: tmp_id_span.clone() })
                             },
                             _ => unreachable!(),
                         }

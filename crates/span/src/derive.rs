@@ -11,7 +11,8 @@ pub enum SpanDeriveKind {
 
     // `match foo { x => 0 }` -> `match foo { $tmp if tmp == x => 0 }`
     // `match foo { x + 1 => 0 }` -> `match foo { $tmp if tmp == x + 1 => 0 }`
-    ExprInPattern,
+    TmpIdInPattern,  // `tmp` in `tmp == x`
+    TmpExprInPattern,  // `==` in `tmp == x`
 
     // `let f = \() => 0;` -> `fn lambda() = 0; let f = lambda;`
     Lambda,
@@ -47,7 +48,7 @@ impl SpanDeriveKind {
         match self {
             SpanDeriveKind::Pipeline => Some("It is desugared to an inline `let` statement."),
             SpanDeriveKind::ConstEval => Some("It is evaluated at compile-time."),
-            SpanDeriveKind::ExprInPattern => Some("It is desugared to a guard expression."),
+            SpanDeriveKind::TmpIdInPattern | SpanDeriveKind::TmpExprInPattern => Some("It is desugared to a guard expression."),
             SpanDeriveKind::Lambda => None,
             SpanDeriveKind::IfLet => Some("It is desugared to a match expression."),
 

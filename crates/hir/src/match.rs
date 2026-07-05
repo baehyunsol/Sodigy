@@ -65,7 +65,7 @@ impl Match {
                 let extra_guards: Vec<Expr> = extra_guards.into_iter().map(
                     |guard| guard.condition
                 ).collect();
-                let tmp_span = extra_guards[0].error_span_wide().derive(SpanDeriveKind::ExprInPattern);
+                let tmp_span = extra_guards[0].error_span_wide().derive(SpanDeriveKind::TmpExprInPattern);
                 let mut extra_guard = fold_exprs(
                     extra_guards,
                     InfixOp::LogicAnd,
@@ -74,7 +74,7 @@ impl Match {
 
                 match guard.take() {
                     Some(g) => {
-                        let tmp_span = g.error_span_wide().derive(SpanDeriveKind::ExprInPattern);
+                        let tmp_span = g.error_span_wide().derive(SpanDeriveKind::TmpExprInPattern);
                         extra_guard = fold_exprs(vec![extra_guard, g], InfixOp::LogicAnd, tmp_span);
                         guard = Some(extra_guard);
                     },

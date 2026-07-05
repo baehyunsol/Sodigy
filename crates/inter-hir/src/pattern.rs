@@ -174,27 +174,28 @@ impl Session {
                 }
 
                 let tmp_value_name = intern_string(b"$tmp", &self.intermediate_dir).unwrap();
-                let derived_span = p.id.span.derive(SpanDeriveKind::ExprInPattern);
+                let tmp_id_span = p.id.span.derive(SpanDeriveKind::TmpIdInPattern);
+                let tmp_expr_span = p.id.span.derive(SpanDeriveKind::TmpExprInPattern);
                 let extra_guard = Expr::InfixOp {
                     op: InfixOp::Eq,
                     lhs: Box::new(Expr::Path(Path {
                         id: IdentWithOrigin {
                             id: tmp_value_name,
-                            span: derived_span.clone(),
+                            span: tmp_id_span.clone(),
                             origin: NameOrigin::Local { kind: NameKind::PatternNameBind },
-                            def_span: derived_span.clone(),
+                            def_span: tmp_id_span.clone(),
                         },
                         fields: vec![],
                         dotfish: vec![None],
                     })),
                     rhs: Box::new(Expr::Path(p.clone())),
-                    op_span: derived_span.clone(),
+                    op_span: tmp_expr_span.clone(),
                 };
 
-                *pattern_kind = PatternKind::NameBinding { id: tmp_value_name, span: derived_span.clone() };
+                *pattern_kind = PatternKind::NameBinding { id: tmp_value_name, span: tmp_id_span.clone() };
                 extra_guards.push(ExtraGuard {
                     name: tmp_value_name,
-                    span: derived_span.clone(),
+                    span: tmp_expr_span.clone(),
                     condition: extra_guard,
                 });
                 Ok(())

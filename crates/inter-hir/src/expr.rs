@@ -81,7 +81,7 @@ impl Session {
                         let extra_guards: Vec<Expr> = extra_guards.into_iter().map(
                             |extra_guards| extra_guards.condition
                         ).collect();
-                        let op_span = extra_guards[0].error_span_wide().derive(SpanDeriveKind::ExprInPattern);
+                        let op_span = extra_guards[0].error_span_wide().derive(SpanDeriveKind::TmpExprInPattern);
                         arm.guard = Some(fold_exprs(extra_guards, InfixOp::LogicAnd, op_span));
                     }
 
