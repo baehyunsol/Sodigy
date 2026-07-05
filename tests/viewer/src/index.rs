@@ -76,7 +76,7 @@ pub struct CnrDiff {
     pub new_fails: Vec<(Option<CompileAndRun>, CompileAndRun)>,
 
     // TODO: nice way to compare outputs
-    //       naively comparing stderr/stdout is to unstable
+    //       naively comparing stderr/stdout is too unstable
     //       How about comparing bytecode outputs?
     pub changes: Vec<(CompileAndRun, CompileAndRun)>,
 }

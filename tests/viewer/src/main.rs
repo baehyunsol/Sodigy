@@ -252,6 +252,34 @@ fn collect_diff_files(dir: &str) -> HashMap<String, String> {
 }
 
 fn summary(test_harness: &TestHarness) -> TestHarnessSummary {
+    let mut crate_errors = vec![];
+
+    for crate_test in test_harness.crates.as_ref().unwrap_or(&vec![]).iter() {
+        if crate_test.has_error() {
+            let mut errors = vec![];
+
+            if crate_test.clippy.has_error() {
+                errors.push(String::from("clippy"));
+            }
+
+            if crate_test.doc.has_error() {
+                errors.push(String::from("doc"));
+            }
+
+            if crate_test.debug.has_error() {
+                errors.push(String::from("debug"));
+            }
+
+            if crate_test.release.has_error() {
+                errors.push(String::from("release"));
+            }
+
+            crate_errors.push(format!("  * {}: {}", crate_test.name, errors.join(", ")));
+        }
+    }
+
+    let crate_errors = if crate_errors.is_empty() { None } else { Some(crate_errors.join("\n")) };
+
     TestHarnessSummary {
         started_at: test_harness.meta.started_at.to_string(),
         crates_pass: test_harness.crates.as_ref().map(|crates| crates.iter().filter(
@@ -260,6 +288,7 @@ fn summary(test_harness: &TestHarness) -> TestHarnessSummary {
         crates_fail: test_harness.crates.as_ref().map(|crates| crates.iter().filter(
             |cr| cr.has_error()
         ).count()).unwrap_or(0),
+        crate_errors,
         cnr_pass: test_harness.compile_and_run.as_ref().map(|cnrs| cnrs.iter().filter(
             |cnr| cnr.error.is_none()
         ).count()).unwrap_or(0),
@@ -274,6 +303,7 @@ struct TestHarnessSummary {
     started_at: String,
     crates_pass: usize,
     crates_fail: usize,
+    crate_errors: Option<String>,
     cnr_pass: usize,
     cnr_fail: usize,
 }

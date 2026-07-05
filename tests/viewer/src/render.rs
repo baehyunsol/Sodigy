@@ -53,9 +53,14 @@ pub fn render_harness(entry: &Entry, _: EntryState) -> Result<Vec<Graphic>, Stri
     let entry: TestHarnessSummary = serde_json::from_str(entry.content.as_ref().unwrap()).unwrap();
     Ok(TextBox::new(
         &format!(
-            "crates: {}/{}\ncompile-and-run: {}/{}\ntested at: {}",
+            "crates: {}/{}{}\ncompile-and-run: {}/{}\ntested at: {}",
             entry.crates_pass,
             entry.crates_pass + entry.crates_fail,
+            if let Some(crate_errors) = &entry.crate_errors {
+                format!("\n{crate_errors}")
+            } else {
+                String::new()
+            },
             entry.cnr_pass,
             entry.cnr_pass + entry.cnr_fail,
             entry.started_at,
