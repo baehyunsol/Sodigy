@@ -1,19 +1,12 @@
-use sodigy_bytecode::Session as BytecodeSession;
-use sodigy_mir::Session as MirSession;
+mod bytecode;
+mod mir;
+
+pub use bytecode::optimize_bytecode;
+pub use mir::optimize_mir;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OptimizeLevel {
     None,
     Mild,
     Extreme,
-}
-
-pub fn optimize_mir<'hir, 'mir>(mir_session: MirSession<'hir, 'mir>, level: OptimizeLevel) -> MirSession<'hir, 'mir> {
-    // TODO: optimize
-    mir_session
-}
-
-pub fn optimize_bytecode<'hir, 'mir>(bytecode_session: BytecodeSession<'hir, 'mir>, level: OptimizeLevel) -> BytecodeSession<'hir, 'mir> {
-    // TODO: optimize
-    bytecode_session
 }
