@@ -139,7 +139,8 @@ pub enum Bytecode {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Memory {
-    // When a function is called and returned, the function's return value is stored here.
+    // A register for a return value.
+    // A return value maybe stored here or directly stored in a SSA register.
     Return,
     SSA(u32),
 
@@ -255,19 +256,60 @@ impl Bytecode {
 
     pub fn apply_ssa_alias(&mut self, ssa_alias: &HashMap<u32, u32>, heap_ssa_alias: &HashMap<(u32, u32), u32>) {
         fn apply_ssa_alias(src: &mut Memory, ssa_alias: &HashMap<u32, u32>, heap_ssa_alias: &HashMap<(u32, u32), u32>) {
-            todo!()
+            match src {
+                Memory::Return => {},
+                Memory::SSA(i) => {
+                    *i = *ssa_alias.get(i).unwrap_or(i);
+                },
+                Memory::Heap { ptr, offset: Offset::Static(b) } if let Memory::SSA(a) = &**ptr => {
+                    if let Some(c) = heap_ssa_alias.get(&(*a, *b)) {
+                        *src = Memory::SSA(*ssa_alias.get(c).unwrap_or(c));
+                    }
+
+                    else {
+                        *ptr = Box::new(Memory::SSA(*ssa_alias.get(a).unwrap_or(a)));
+                    }
+                },
+                Memory::Heap { ptr, .. } if let Memory::SSA(a) = &**ptr => {
+                    *ptr = Box::new(Memory::SSA(*ssa_alias.get(a).unwrap_or(a)));
+                },
+                Memory::Heap { .. } => {},
+                Memory::List { ptr, offset: Offset::Static(b) } if let Memory::SSA(a) = &**ptr => {
+                    if let Some(c) = heap_ssa_alias.get(&(*a, *b)) {
+                        *src = Memory::SSA(*ssa_alias.get(c).unwrap_or(c));
+                    }
+
+                    else {
+                        *ptr = Box::new(Memory::SSA(*ssa_alias.get(a).unwrap_or(a)));
+                    }
+                },
+                Memory::List { ptr, .. } if let Memory::SSA(a) = &**ptr => {
+                    *ptr = Box::new(Memory::SSA(*ssa_alias.get(a).unwrap_or(a)));
+                },
+                Memory::List { .. } => {},
+                Memory::Global(_) => {},
+            }
         }
 
-        fn apply_ssa_alias_args(args: &mut [u32], ssa_alias: &HashMap<u32, u32>, heap_ssa_alias: &HashMap<(u32, u32), u32>) {
-            todo!()
+        fn apply_ssa_alias_args(args: &mut Vec<u32>, ssa_alias: &HashMap<u32, u32>, heap_ssa_alias: &HashMap<(u32, u32), u32>) {
+            *args = args.iter().map(|i| *ssa_alias.get(i).unwrap_or(i)).collect();
         }
 
         match self {
             Bytecode::Const { .. } => {},
-            Bytecode::Move { src, .. } => {
+            Bytecode::Move { src, dst } => {
+                if let Memory::SSA(_) = dst {
+                    apply_ssa_alias(dst, ssa_alias, heap_ssa_alias);
+                }
+
                 apply_ssa_alias(src, ssa_alias, heap_ssa_alias);
             },
-            Bytecode::Phi { pair, .. } => todo!(),
+            Bytecode::Phi { pair, .. } => {
+                let (mut a, mut b) = *pair;
+                a = *ssa_alias.get(&a).unwrap_or(&a);
+                b = *ssa_alias.get(&b).unwrap_or(&b);
+                *pair = (a, b);
+            },
             Bytecode::Jump(_) => {},
             Bytecode::Call { args, .. } => {
                 apply_ssa_alias_args(args, ssa_alias, heap_ssa_alias);
@@ -281,7 +323,9 @@ impl Bytecode {
             },
             Bytecode::InitOrJump { .. } => {},
             Bytecode::Label(_) => {},
-            Bytecode::Return(a) => todo!(),
+            Bytecode::Return(a) => {
+                *a = *ssa_alias.get(a).unwrap_or(a);
+            },
             Bytecode::Intrinsic { args, .. } => {
                 apply_ssa_alias_args(args, ssa_alias, heap_ssa_alias);
             },

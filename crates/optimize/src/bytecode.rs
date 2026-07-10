@@ -5,6 +5,9 @@ use sodigy_mir::Intrinsic;
 use sodigy_string::hash;
 use std::collections::hash_map::{Entry, HashMap};
 
+#[cfg(test)]
+mod tests;
+
 struct LocalContext {
     // If there's `_5 = _7;`, we can replace all `_7` with `_5` and remove this bytecode.
     // It replaces the larger one with the smaller one.
@@ -32,6 +35,7 @@ struct LocalContext {
     // It's a `expr -> SSA` map. Let's say there are `_x = expr1;` and `_y = expr2;`. If `expr1` and `expr2` are the same,
     // this map will remember the fact and will later remove `_y = expr2;` and replace all `_y` with `_x`.
     common_expression: HashMap<ExprHash, Vec<u32>>,
+    free_ssa: u32,
 }
 
 impl LocalContext {
@@ -44,6 +48,7 @@ impl LocalContext {
             indirect_use_counts: HashMap::new(),
             heap_use_counts: HashMap::new(),
             common_expression: HashMap::new(),
+            free_ssa: 1000,
         }
     }
 
@@ -100,13 +105,16 @@ impl LocalContext {
 
     pub fn finalize(&mut self) {
         let mut sroa = HashMap::new();
+        let mut free_ssa = self.free_ssa;
 
         for (a, b) in self.heap_use_counts.keys() {
             if let Some(0) | None = self.use_counts.get(a) {
-                sroa.insert((*a, *b), todo!());
+                sroa.insert((*a, *b), free_ssa);
+                free_ssa += 1;
             }
         }
 
+        self.free_ssa = free_ssa;
         self.sroa = sroa;
     }
 }
@@ -157,28 +165,38 @@ impl ExprHash {
 
 fn optimize_local(bytecodes: &mut Vec<Bytecode>) {
     let mut context = LocalContext::new();
+    let mut max_ssa = 1000;
 
     for bytecode in bytecodes.iter() {
         match bytecode {
             Bytecode::Const { value, dst, .. } => {
                 if let Memory::SSA(a) = dst {
                     context.register_expression(ExprHash::from_const(value), *a);
+                    max_ssa = max_ssa.max(*a);
                 }
             },
             Bytecode::Move { src, dst } => {
                 context.count_use(src);
 
-                if let Memory::SSA(a) = dst && let Memory::SSA(b) = src {
-                    context.add_ssa_alias(*a, *b);
+                if let Memory::SSA(a) = dst {
+                    if let Memory::SSA(b) = src {
+                        context.add_ssa_alias(*a, *b);
+                    }
+
+                    max_ssa = max_ssa.max(*a);
                 }
 
                 if let Some((a, b)) = dst.get_heap_index() && let Memory::SSA(c) = src {
                     context.heap_ssa_alias.insert((a, b), *c);
                 }
             },
-            Bytecode::Phi { pair: (a, b), .. } => {
+            Bytecode::Phi { pair: (a, b), dst } => {
                 context.count_use(&Memory::SSA(*a));
                 context.count_use(&Memory::SSA(*b));
+
+                if let Memory::SSA(c) = dst {
+                    max_ssa = max_ssa.max(*c);
+                }
             },
             Bytecode::Jump(_) => {},
             Bytecode::Call { func, args, dst, .. } => {
@@ -188,6 +206,7 @@ fn optimize_local(bytecodes: &mut Vec<Bytecode>) {
 
                 if let Some(Memory::SSA(a)) = dst {
                     context.register_expression(ExprHash::from_func_call(func, args), *a);
+                    max_ssa = max_ssa.max(*a);
                 }
             },
             Bytecode::CallDynamic { func, args, dst, .. } => {
@@ -199,6 +218,7 @@ fn optimize_local(bytecodes: &mut Vec<Bytecode>) {
 
                 if let Some(Memory::SSA(a)) = dst {
                     context.register_expression(ExprHash::from_dynamic_func_call(func, args), *a);
+                    max_ssa = max_ssa.max(*a);
                 }
             },
             Bytecode::JumpIf { value, .. } => {
@@ -216,10 +236,19 @@ fn optimize_local(bytecodes: &mut Vec<Bytecode>) {
 
                 if let Memory::SSA(a) = dst {
                     context.register_expression(ExprHash::from_intrinsic(*intrinsic, args), *a);
+                    max_ssa = max_ssa.max(*a);
                 }
             },
-            Bytecode::InitTuple { .. } => {},
-            Bytecode::InitList { .. } => {},
+            Bytecode::InitTuple { dst, .. } => {
+                if let Memory::SSA(a) = dst {
+                    max_ssa = max_ssa.max(*a);
+                }
+            },
+            Bytecode::InitList { dst, .. } => {
+                if let Memory::SSA(a) = dst {
+                    max_ssa = max_ssa.max(*a);
+                }
+            },
             Bytecode::PushDebugInfo { src, .. } => {
                 context.count_use(src);
             },
@@ -227,6 +256,7 @@ fn optimize_local(bytecodes: &mut Vec<Bytecode>) {
         }
     }
 
+    context.free_ssa = max_ssa;
     context.finalize();
 
     let mut new_bytecodes: Vec<Bytecode> = Vec::with_capacity(bytecodes.len());
@@ -242,7 +272,7 @@ fn optimize_local(bytecodes: &mut Vec<Bytecode>) {
                 match context.heap_ssa_alias.get(&(a, b)) {
                     Some(c) => {
                         let alias = context.ssa_alias.get(c).unwrap_or(c);
-                        new_bytecodes.push(Bytecode::Move { src: src.clone(), dst: Memory::SSA(*alias) });
+                        new_bytecodes.push(Bytecode::Move { src: Memory::SSA(*alias), dst: dst.clone() });
                         continue;
                     },
                     None => {},
@@ -252,11 +282,11 @@ fn optimize_local(bytecodes: &mut Vec<Bytecode>) {
 
         if let Some(dst) = bytecode.get_dst() {
             if let Memory::SSA(a) = dst {
-                match context.use_counts.get(a) {
-                    Some(0) | None => {
+                match (context.use_counts.get(a), context.indirect_use_counts.get(a)) {
+                    (Some(0) | None, Some(0) | None) => {
                         continue;
                     },
-                    Some(1) => {
+                    (Some(1), _) => {
                         // TODO: move this definition to the use point
                     },
                     _ => {},
@@ -287,6 +317,7 @@ pub fn optimize_bytecode<'hir, 'mir>(mut session: Session<'hir, 'mir>, level: Op
     }
 
     for func in session.funcs.iter_mut() {
+        // TODO: it has to run more than once... but how many times?
         optimize_local(&mut func.bytecodes);
     }
 

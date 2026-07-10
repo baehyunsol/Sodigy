@@ -8,7 +8,7 @@ impl CnrContext {
 
         match subprocess::run(
             &self.sodigy_path,
-            &["test", "--release"],
+            &["test", "--release", "--emit-irs"],
             &self.project_dir,
             30.0,
             false,
