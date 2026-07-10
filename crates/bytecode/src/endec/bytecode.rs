@@ -33,18 +33,18 @@ impl Endec for Bytecode {
                 buffer.push(3);
                 dst.encode_impl(buffer);
             },
-            Bytecode::Call { func, args, tail, debug_info } => {
+            Bytecode::Call { func, args, dst, debug_info } => {
                 buffer.push(4);
                 func.encode_impl(buffer);
                 args.encode_impl(buffer);
-                tail.encode_impl(buffer);
+                dst.encode_impl(buffer);
                 debug_info.encode_impl(buffer);
             },
-            Bytecode::CallDynamic { func, args, tail, debug_info } => {
+            Bytecode::CallDynamic { func, args, dst, debug_info } => {
                 buffer.push(5);
                 func.encode_impl(buffer);
                 args.encode_impl(buffer);
-                tail.encode_impl(buffer);
+                dst.encode_impl(buffer);
                 debug_info.encode_impl(buffer);
             },
             Bytecode::JumpIf { value, label, debug_info } => {
@@ -122,16 +122,16 @@ impl Endec for Bytecode {
             Some(4) => {
                 let (func, cursor) = Label::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<u32>::decode_impl(buffer, cursor)?;
-                let (tail, cursor) = bool::decode_impl(buffer, cursor)?;
+                let (dst, cursor) = Option::<Memory>::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
-                Ok((Bytecode::Call { func, args, tail, debug_info }, cursor))
+                Ok((Bytecode::Call { func, args, dst, debug_info }, cursor))
             },
             Some(5) => {
                 let (func, cursor) = Memory::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<u32>::decode_impl(buffer, cursor)?;
-                let (tail, cursor) = bool::decode_impl(buffer, cursor)?;
+                let (dst, cursor) = Option::<Memory>::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
-                Ok((Bytecode::CallDynamic { func, args, tail, debug_info }, cursor))
+                Ok((Bytecode::CallDynamic { func, args, dst, debug_info }, cursor))
             },
             Some(6) => {
                 let (value, cursor) = Memory::decode_impl(buffer, cursor + 1)?;

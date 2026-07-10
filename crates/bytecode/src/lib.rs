@@ -1,5 +1,6 @@
 use sodigy_mir::{Intrinsic, Session as MirSession};
 use sodigy_span::Span;
+use std::collections::HashMap;
 
 mod assert;
 mod dump;
@@ -46,14 +47,22 @@ pub enum Bytecode {
     Call {
         func: Label,
         args: Vec<u32>,  // list of SSA indexes
-        tail: bool,
+
+        // The returned value is stored here.
+        // It's None iff it's a tail-call.
+        dst: Option<Memory>,
+
         debug_info: Option<Box<Span>>,
     },
 
     CallDynamic {
         func: Memory,    // function pointer
         args: Vec<u32>,  // list of SSA indexes
-        tail: bool,
+
+        // The returned value is stored here.
+        // It's None iff it's a tail-call.
+        dst: Option<Memory>,
+
         debug_info: Option<Box<Span>>,
     },
 
@@ -151,6 +160,16 @@ pub enum Memory {
     Global(Span),
 }
 
+impl Memory {
+    pub fn get_heap_index(&self) -> Option<(u32, u32)> {
+        match self {
+            Memory::Heap { ptr, offset: Offset::Static(b) } if let Memory::SSA(a) = &**ptr => Some((*a, *b)),
+            Memory::List { ptr, offset: Offset::Static(b) } if let Memory::SSA(a) = &**ptr => Some((*a, *b)),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Label {
     Local(u32),
@@ -198,6 +217,83 @@ pub enum DebugInfoKind {
 }
 
 impl Bytecode {
+    pub fn get_dst(&self) -> Option<&Memory> {
+        match self {
+            Bytecode::Const { dst, .. } |
+            Bytecode::Move { dst, .. } |
+            Bytecode::Phi { dst, .. } |
+            Bytecode::Intrinsic { dst, .. } |
+            Bytecode::InitTuple { dst, .. } |
+            Bytecode::InitList { dst, .. } => Some(dst),
+            Bytecode::Call { dst, .. } |
+            Bytecode::CallDynamic { dst, .. } => dst.as_ref(),
+            Bytecode::Jump(_) |
+            Bytecode::JumpIf { .. } |
+            Bytecode::InitOrJump { .. } |
+            Bytecode::Label(_) |
+            Bytecode::Return(_) |
+            Bytecode::PushDebugInfo { .. } |
+            Bytecode::PopDebugInfo => None,
+        }
+    }
+
+    pub fn set_dst(&mut self, new_dst: Memory) {
+        match self {
+            Bytecode::Const { dst, .. } |
+            Bytecode::Move { dst, .. } |
+            Bytecode::Phi { dst, .. } |
+            Bytecode::Intrinsic { dst, .. } |
+            Bytecode::InitTuple { dst, .. } |
+            Bytecode::InitList { dst, .. } |
+            Bytecode::Call { dst: Some(dst), .. } |
+            Bytecode::CallDynamic { dst: Some(dst), .. } => {
+                *dst = new_dst;
+            },
+            _ => panic!("Bytecode {self:?} has no dst."),
+        }
+    }
+
+    pub fn apply_ssa_alias(&mut self, ssa_alias: &HashMap<u32, u32>, heap_ssa_alias: &HashMap<(u32, u32), u32>) {
+        fn apply_ssa_alias(src: &mut Memory, ssa_alias: &HashMap<u32, u32>, heap_ssa_alias: &HashMap<(u32, u32), u32>) {
+            todo!()
+        }
+
+        fn apply_ssa_alias_args(args: &mut [u32], ssa_alias: &HashMap<u32, u32>, heap_ssa_alias: &HashMap<(u32, u32), u32>) {
+            todo!()
+        }
+
+        match self {
+            Bytecode::Const { .. } => {},
+            Bytecode::Move { src, .. } => {
+                apply_ssa_alias(src, ssa_alias, heap_ssa_alias);
+            },
+            Bytecode::Phi { pair, .. } => todo!(),
+            Bytecode::Jump(_) => {},
+            Bytecode::Call { args, .. } => {
+                apply_ssa_alias_args(args, ssa_alias, heap_ssa_alias);
+            },
+            Bytecode::CallDynamic { func, args, .. } => {
+                apply_ssa_alias(func, ssa_alias, heap_ssa_alias);
+                apply_ssa_alias_args(args, ssa_alias, heap_ssa_alias);
+            },
+            Bytecode::JumpIf { value, .. } => {
+                apply_ssa_alias(value, ssa_alias, heap_ssa_alias);
+            },
+            Bytecode::InitOrJump { .. } => {},
+            Bytecode::Label(_) => {},
+            Bytecode::Return(a) => todo!(),
+            Bytecode::Intrinsic { args, .. } => {
+                apply_ssa_alias_args(args, ssa_alias, heap_ssa_alias);
+            },
+            Bytecode::InitTuple { .. } => {},
+            Bytecode::InitList { .. } => {},
+            Bytecode::PushDebugInfo { src, .. } => {
+                apply_ssa_alias(src, ssa_alias, heap_ssa_alias);
+            },
+            Bytecode::PopDebugInfo => {},
+        }
+    }
+
     pub fn debug_info(&self) -> Option<Box<Span>> {
         match self {
             Bytecode::Const { debug_info, .. } |

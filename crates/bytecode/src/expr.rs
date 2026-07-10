@@ -225,16 +225,9 @@ pub fn lower_expr(
                                 bytecodes.push(Bytecode::Call {
                                     func,
                                     args: arg_ssa_regs,
-                                    tail: is_tail_call,
+                                    dst: if is_tail_call { None } else { Some(dst) },
                                     debug_info: if session.debug_info { Some(Box::new(span.clone())) } else { None },
                                 });
-
-                                if !is_tail_call {
-                                    bytecodes.push(Bytecode::Move {
-                                        src: Memory::Return,
-                                        dst,
-                                    });
-                                }
                             },
                         },
                         Callable::Dynamic(f) => {
@@ -250,16 +243,9 @@ pub fn lower_expr(
                             bytecodes.push(Bytecode::CallDynamic {
                                 func: Memory::SSA(func_ssa),
                                 args: arg_ssa_regs,
-                                tail: is_tail_call,
+                                dst: if is_tail_call { None } else { Some(dst) },
                                 debug_info: if session.debug_info { Some(Box::new(f.error_span_wide())) } else { None },
                             });
-
-                            if !is_tail_call {
-                                bytecodes.push(Bytecode::Move {
-                                    src: Memory::Return,
-                                    dst,
-                                });
-                            }
                         },
                         _ => unreachable!(),
                     }

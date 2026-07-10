@@ -90,35 +90,41 @@ fn call(
                 },
                 _ => unreachable!(),
             },
-            Bytecode::Call { func, args, tail, debug_info: _ } => {
+            Bytecode::Call { func, args, dst, debug_info: _ } => {
                 let new_stack = Stack::from_args(args, &stack);
                 let pc = match func {
                     Label::Flatten(i) => *i,
                     _ => unreachable!(),
                 };
 
-                if *tail {
-                    stack = new_stack;
-                    cursor = pc as usize;
-                    continue;
-                }
-
-                else {
-                    stack.r#return = call(new_stack, heap, executable, pc as usize, render_span_session)?;
+                match dst {
+                    Some(dst) => {
+                        let value = call(new_stack, heap, executable, pc as usize, render_span_session)?;
+                        update(dst, value, &mut stack, heap);
+                    },
+                    // tail call
+                    None => {
+                        stack = new_stack;
+                        cursor = pc as usize;
+                        continue;
+                    },
                 }
             },
-            Bytecode::CallDynamic { func, args, tail, debug_info: _ } => {
+            Bytecode::CallDynamic { func, args, dst, debug_info: _ } => {
                 let new_stack = Stack::from_args(args, &stack);
                 let pc = read(func, &stack, heap);
 
-                if *tail {
-                    stack = new_stack;
-                    cursor = pc as usize;
-                    continue;
-                }
-
-                else {
-                    stack.r#return = call(new_stack, heap, executable, pc as usize, render_span_session)?;
+                match dst {
+                    Some(dst) => {
+                        let value = call(new_stack, heap, executable, pc as usize, render_span_session)?;
+                        update(dst, value, &mut stack, heap);
+                    },
+                    // tail call
+                    None => {
+                        stack = new_stack;
+                        cursor = pc as usize;
+                        continue;
+                    },
                 }
             },
             Bytecode::JumpIf { value, label, debug_info: _ } => {
