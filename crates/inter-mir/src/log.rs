@@ -170,14 +170,18 @@ pub enum LogEntry {
         id: LogId,
         result: Func,
     },
+    CheckAllTypesInferedStart {
+        id: LogId,
+    },
+    CheckAllTypesInferedEnd {
+        id: LogId,
+        has_error: bool,
+        last_errors: Vec<(TypeError, Error)>,
+    },
     Monomorphization(Monomorphization),
     BlockedTypeVar {
         kind: BlockedTypeVarKind,
         span: Span,
-    },
-    TypeError {
-        type_error: TypeError,
-        general_error: Error,
     },
 }
 
@@ -206,10 +210,11 @@ impl LogEntry {
             LogEntry::TrySolvePolyStart { id, .. } |
             LogEntry::TrySolvePolyEnd { id, .. } |
             LogEntry::MonomorphizeFuncStart { id, .. } |
-            LogEntry::MonomorphizeFuncEnd { id, .. } => Some(*id),
+            LogEntry::MonomorphizeFuncEnd { id, .. } |
+            LogEntry::CheckAllTypesInferedStart { id, .. } |
+            LogEntry::CheckAllTypesInferedEnd { id, .. } => Some(*id),
             LogEntry::Monomorphization(_) |
-            LogEntry::BlockedTypeVar { .. } |
-            LogEntry::TypeError { .. } => None,
+            LogEntry::BlockedTypeVar { .. } => None,
         }
     }
 }

@@ -124,8 +124,6 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                         continue;
                     }
 
-                    write_log!(session, LogEntry::Monomorphization(monomorphization.clone()));
-
                     if let Some(index) = session.funcs_rev.get(&monomorphization.def_span) {
                         let func = &mir_session.funcs[*index];
                         let new_func = session.monomorphize_func(func, &monomorphization, &mut plan.intermediate_types);

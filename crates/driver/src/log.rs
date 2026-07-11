@@ -572,6 +572,7 @@ pub fn log_inter_mir(session: &InterMirSession) -> Result<(), FileError> {
 
                 ("monomorphize_func", *id)
             },
+            LogEntry::CheckAllTypesInferedStart { id } => ("check_all_types_infered", *id),
             _ => return (None, index + 1),
         };
 
@@ -814,6 +815,7 @@ pub fn log_inter_mir(session: &InterMirSession) -> Result<(), FileError> {
 
                 (false, vec![])
             },
+            LogEntry::CheckAllTypesInferedEnd { has_error, last_errors, .. } => (*has_error, last_errors.clone()),
             _ => todo!(),
         };
 

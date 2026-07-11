@@ -1,4 +1,4 @@
-use crate::{Session, Type, write_log};
+use crate::{Session, Type};
 use sodigy_error::{
     Error,
     ErrorKind,
