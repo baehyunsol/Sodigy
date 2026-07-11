@@ -71,6 +71,15 @@ impl Session {
 
     pub fn check_all_types_infered(&mut self) -> Result<(), ()> {
         let mut has_error = false;
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::CheckAllTypesInferedStart {
+            id: _id.unwrap(),
+        });
 
         for (type_var, info) in self.type_vars.iter() {
             match type_var {
@@ -164,6 +173,12 @@ impl Session {
                 _ => unreachable!(),
             }
         }
+
+        write_log!(self, LogEntry::CheckAllTypesInferedEnd {
+            id: _id.unwrap(),
+            has_error,
+            last_errors: self.last_errors(),
+        });
 
         if has_error {
             Err(())

@@ -195,16 +195,22 @@ impl Endec for NameCollisionKind {
             NameCollisionKind::Enum => {
                 buffer.push(1);
             },
-            NameCollisionKind::Func { params, generics } => {
+            NameCollisionKind::EnumGeneric => {
                 buffer.push(2);
+            },
+            NameCollisionKind::Func { params, generics } => {
+                buffer.push(3);
                 params.encode_impl(buffer);
                 generics.encode_impl(buffer);
             },
             NameCollisionKind::Pattern => {
-                buffer.push(3);
+                buffer.push(4);
             },
             NameCollisionKind::Struct => {
-                buffer.push(4);
+                buffer.push(5);
+            },
+            NameCollisionKind::StructGeneric => {
+                buffer.push(6);
             },
         }
     }
@@ -216,15 +222,17 @@ impl Endec for NameCollisionKind {
                 Ok((NameCollisionKind::Block { is_top_level }, cursor))
             },
             Some(1) => Ok((NameCollisionKind::Enum, cursor + 1)),
-            Some(2) => {
+            Some(2) => Ok((NameCollisionKind::EnumGeneric, cursor + 1)),
+            Some(3) => {
                 let (params, cursor) = bool::decode_impl(buffer, cursor + 1)?;
                 let (generics, cursor) = bool::decode_impl(buffer, cursor)?;
 
                 Ok((NameCollisionKind::Func { params, generics }, cursor))
             },
-            Some(3) => Ok((NameCollisionKind::Pattern, cursor + 1)),
-            Some(4) => Ok((NameCollisionKind::Struct, cursor + 1)),
-            Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(4) => Ok((NameCollisionKind::Pattern, cursor + 1)),
+            Some(5) => Ok((NameCollisionKind::Struct, cursor + 1)),
+            Some(6) => Ok((NameCollisionKind::StructGeneric, cursor + 1)),
+            Some(n @ 7..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

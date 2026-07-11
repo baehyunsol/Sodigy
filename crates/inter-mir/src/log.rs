@@ -65,7 +65,7 @@ pub enum LogEntry {
         id: LogId,
         solved_type: Option<Type>,
         has_error: bool,
-        last_errors: Vec<TypeError>,
+        last_errors: Vec<(TypeError, Error)>,
     },
     SolveFuncStart {
         id: LogId,
@@ -76,7 +76,7 @@ pub enum LogEntry {
         annotated_type: Type,
         infered_type: Option<Type>,
         has_error: bool,
-        last_errors: Vec<TypeError>,
+        last_errors: Vec<(TypeError, Error)>,
     },
     SolveLetStart {
         id: LogId,
@@ -87,7 +87,7 @@ pub enum LogEntry {
         annotated_type: Type,
         infered_type: Option<Type>,
         has_error: bool,
-        last_errors: Vec<TypeError>,
+        last_errors: Vec<(TypeError, Error)>,
     },
     SolveAssertStart {
         id: LogId,
@@ -96,7 +96,7 @@ pub enum LogEntry {
     SolveAssertEnd {
         id: LogId,
         has_error: bool,
-        last_errors: Vec<TypeError>,
+        last_errors: Vec<(TypeError, Error)>,
     },
     SolveExprStart {
         id: LogId,
@@ -106,7 +106,7 @@ pub enum LogEntry {
         id: LogId,
         infered_type: Option<Type>,
         has_error: bool,
-        last_errors: Vec<TypeError>,
+        last_errors: Vec<(TypeError, Error)>,
     },
     GetTypeOfFieldStart {
         id: LogId,
@@ -120,7 +120,7 @@ pub enum LogEntry {
         has_error: bool,
 
         // `get_type_of_field` returns the exact error, so this vector has 0 or 1 errors.
-        last_errors: Vec<TypeError>,
+        last_errors: Vec<(TypeError, Error)>,
     },
     GetItemShapeStart {
         id: LogId,
@@ -141,7 +141,7 @@ pub enum LogEntry {
         id: LogId,
         solver: Option<PolySolver>,
         has_error: bool,
-        last_errors: Vec<TypeError>,
+        last_errors: Vec<(TypeError, Error)>,
     },
     InitPolySolversStart {
         id: LogId,
@@ -149,7 +149,7 @@ pub enum LogEntry {
     InitPolySolversEnd {
         id: LogId,
         has_error: bool,
-        last_errors: Vec<TypeError>,
+        last_errors: Vec<(TypeError, Error)>,
     },
     TrySolvePolyStart {
         id: LogId,
@@ -170,14 +170,18 @@ pub enum LogEntry {
         id: LogId,
         result: Func,
     },
+    CheckAllTypesInferedStart {
+        id: LogId,
+    },
+    CheckAllTypesInferedEnd {
+        id: LogId,
+        has_error: bool,
+        last_errors: Vec<(TypeError, Error)>,
+    },
     Monomorphization(Monomorphization),
     BlockedTypeVar {
         kind: BlockedTypeVarKind,
         span: Span,
-    },
-    TypeError {
-        type_error: TypeError,
-        general_error: Error,
     },
 }
 
@@ -206,10 +210,11 @@ impl LogEntry {
             LogEntry::TrySolvePolyStart { id, .. } |
             LogEntry::TrySolvePolyEnd { id, .. } |
             LogEntry::MonomorphizeFuncStart { id, .. } |
-            LogEntry::MonomorphizeFuncEnd { id, .. } => Some(*id),
+            LogEntry::MonomorphizeFuncEnd { id, .. } |
+            LogEntry::CheckAllTypesInferedStart { id, .. } |
+            LogEntry::CheckAllTypesInferedEnd { id, .. } => Some(*id),
             LogEntry::Monomorphization(_) |
-            LogEntry::BlockedTypeVar { .. } |
-            LogEntry::TypeError { .. } => None,
+            LogEntry::BlockedTypeVar { .. } => None,
         }
     }
 }

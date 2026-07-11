@@ -50,7 +50,14 @@ fn get_inner<K, V>(
 };
 
 #[associate(Hamt<K, V>)]
-fn insert<K, V>(self, key: K, value: V) -> Hamt<K, V> = insert_inner(self.root, key, value, key.hash(), 0);
+fn insert<K, V>(self, key: K, value: V) -> Hamt<K, V> = {
+    let ($new_node, $already) = insert_inner(self.root, key, value, key.hash(), 0);
+
+    Hamt {
+        len: self.len + if already { 0 } else { 1 },
+        root: new_node,
+    }
+};
 
 fn insert_inner<K, V>(
     node: Node<K, V>,
@@ -82,3 +89,23 @@ fn insert_inner<K, V>(
 
     (node `entries node.entries.update(index, new_entry), already)
 };
+
+// TODO: when this module is moved to std, there must be a module std.hamt.test
+//       and the items in this block must be the top-level items of the module.
+fn simple_hamt() = {
+    let empty_xs = new_hamt();
+    let full_xs = empty_xs
+        .insert(1, "one")
+        .insert(2, "two")
+        .insert(3, "three")
+        .insert(4, "four")
+        .insert(5, "five");
+
+    assert full_xs.get(0) == None;
+    assert full_xs.get(1) == Some("one");
+    assert full_xs.get(2) == Some("two");
+    assert full_xs.len() == 5;
+    True
+};
+
+assert simple_hamt();

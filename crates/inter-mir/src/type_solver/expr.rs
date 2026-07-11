@@ -1031,12 +1031,19 @@ impl Session {
 
         let result = self.get_type_of_field_(r#type, field);
 
-        write_log!(self, LogEntry::GetTypeOfFieldEnd {
-            id: _id.unwrap(),
-            associated_func: result.0.clone(),
-            infered_type: result.1.clone().ok(),
-            has_error: result.1.is_err(),
-            last_errors: result.1.clone().err().into_iter().collect(),
+        write_log!(self, {
+            let last_errors = match &result.1 {
+                Ok(_) => vec![],
+                Err(e) => vec![(e.clone(), self.type_error_to_general_error(e.clone()))],
+            };
+
+            LogEntry::GetTypeOfFieldEnd {
+                id: _id.unwrap(),
+                associated_func: result.0.clone(),
+                infered_type: result.1.clone().ok(),
+                has_error: result.1.is_err(),
+                last_errors,
+            }
         });
 
         result

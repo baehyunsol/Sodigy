@@ -9,14 +9,15 @@ impl Enum {
         let mut errors = vec![];
 
         // name collision check
-        let mut spans_by_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
+        let mut spans_by_variant_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
+        let mut spans_by_generic_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
 
         if let Err(e) = self.attribute.check(intermediate_dir) {
             errors.extend(e);
         }
 
         for generic in self.generics.iter() {
-            match spans_by_name.entry(generic.name) {
+            match spans_by_generic_name.entry(generic.name) {
                 Entry::Occupied(mut e) => {
                     e.get_mut().push(generic.name_span.clone());
                 },
@@ -32,7 +33,7 @@ impl Enum {
                     errors.extend(e);
                 }
 
-                match spans_by_name.entry(variant.name) {
+                match spans_by_variant_name.entry(variant.name) {
                     Entry::Occupied(mut e) => {
                         e.get_mut().push(variant.name_span.clone());
                     },
@@ -43,12 +44,12 @@ impl Enum {
             }
         }
 
-        for (name, spans) in spans_by_name.iter() {
+        for (name, spans, is_variant) in spans_by_variant_name.iter().map(|(name, spans)| (name, spans, true)).chain(spans_by_generic_name.iter().map(|(name, spans)| (name, spans, false))) {
             if spans.len() > 1 {
                 errors.push(Error {
                     kind: ErrorKind::NameCollision {
                         name: *name,
-                        kind: NameCollisionKind::Enum,
+                        kind: if is_variant { NameCollisionKind::Enum } else { NameCollisionKind::EnumGeneric },
                     },
                     spans: spans.iter().map(
                         |span| RenderableSpan {

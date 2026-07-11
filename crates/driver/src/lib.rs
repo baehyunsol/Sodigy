@@ -258,13 +258,16 @@ pub fn init_workers_and_compile(
     );
 
     if !quiet {
-        sodigy_error::dump_errors(
+        let e = sodigy_error::dump_errors(
             errors,
             warnings,
             &ir_dir,
             dump_error_option,
             Some(elapsed_ms as u64),
+            true,  // show summary
         );
+
+        eprintln!("{e}");
     }
 
     let mut all_worker_ids = Vec::with_capacity(channels.len());

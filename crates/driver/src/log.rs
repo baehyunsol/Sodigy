@@ -1,3 +1,4 @@
+use sodigy_error::{Error, dump_errors};
 use sodigy_fs_api::{
     FileError,
     WriteMode,
@@ -247,7 +248,7 @@ pub fn log_inter_mir(session: &InterMirSession) -> Result<(), FileError> {
 
         // self.has_error || self.children.any(|c| c.has_inner_error)
         has_inner_error: bool,
-        last_errors: Vec<TypeError>,
+        last_errors: Vec<(TypeError, Error)>,
     }
 
     impl FuncCall {
@@ -571,6 +572,7 @@ pub fn log_inter_mir(session: &InterMirSession) -> Result<(), FileError> {
 
                 ("monomorphize_func", *id)
             },
+            LogEntry::CheckAllTypesInferedStart { id } => ("check_all_types_infered", *id),
             _ => return (None, index + 1),
         };
 
@@ -813,6 +815,7 @@ pub fn log_inter_mir(session: &InterMirSession) -> Result<(), FileError> {
 
                 (false, vec![])
             },
+            LogEntry::CheckAllTypesInferedEnd { has_error, last_errors, .. } => (*has_error, last_errors.clone()),
             _ => todo!(),
         };
 
@@ -1010,6 +1013,37 @@ if (closeButton) {{
         let output = call.output.iter().enumerate().map(
             |(i, output)| format!("<li>{}</li>", render_value(output, i + 1000))
         ).collect::<Vec<_>>().concat();
+        let error = if call.has_error {
+            let error = call.last_errors.iter().enumerate().map(
+                |(i, (type_error, error))| {
+                    let type_error_str = format!("{type_error:?}");
+
+                    let value = Value {
+                        name: String::from("e"),
+                        short: format!("{}...", type_error_str.chars().take(40).collect::<String>()),
+                        long: Some(vec![
+                            dump_errors(
+                                vec![error.clone()],
+                                vec![],
+                                &session.intermediate_dir,
+                                Default::default(),
+                                None,
+                                false,
+                            ),
+                            String::from_utf8(prettify(type_error_str.into_bytes())).unwrap(),
+                            String::from_utf8(prettify(format!("{error:?}").into_bytes())).unwrap(),
+                        ].join("\n\n------------\n\n")),
+                    };
+
+                    format!("<li>{}</li>", render_value(&value, i + 2000))
+                }
+            ).collect::<Vec<_>>().concat();
+            format!(r#"
+<li>error<ul>{error}</ul></li>
+"#)
+        } else {
+            String::new()
+        };
 
         let body = format!(r#"
 <h1>{title}</h1>
@@ -1031,6 +1065,7 @@ if (closeButton) {{
 <ul>
 <li>input<ul>{input}</ul></li>
 <li>output<ul>{output}</ul></li>
+{error}
 </ul>
 "#);
         let inter_dir = join3(

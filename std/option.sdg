@@ -1,3 +1,5 @@
+use std.bool.{Bool, Bool.False, Bool.True};
+
 pub enum Option<T> = {
     Some(T),
     None,
@@ -7,4 +9,11 @@ pub enum Option<T> = {
 fn unwrap<T>(self) -> T = match self {
     Option.Some($v) => v,
     Option.None => std.panic("attempt to unwrap None"),
+};
+
+#[impl(std.op.eq)]
+fn eq_option<T>(a: Option<T>, b: Option<T>) -> Bool = match (a, b) {
+    (Option.Some($a), Option.Some($b)) => a == b,
+    (Option.None, Option.None) => True,
+    _ => False,
 };

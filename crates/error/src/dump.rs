@@ -19,6 +19,7 @@ pub struct DumpErrorOption {
     pub span_max_width: usize,
     pub span_max_height: usize,
     pub span_context: usize,
+    pub max_dump: Option<usize>,
 }
 
 impl Default for DumpErrorOption {
@@ -32,19 +33,37 @@ impl Default for DumpErrorOption {
             span_max_width: 88,
             span_max_height: 10,
             span_context: 2,
+            max_dump: Some(100),
         }
     }
 }
 
+#[must_use]
 pub fn dump_errors(
     mut errors: Vec<Error>,
     mut warnings: Vec<Error>,
     intermediate_dir: &str,
     option: DumpErrorOption,
     elapsed_ms: Option<u64>,  // may or may not be available
-) {
+    show_summary: bool,
+) -> String {
     errors.sort_by_key(|e| e.spans.get(0).map(|s| s.span.clone()).unwrap_or(Span::None));
     warnings.sort_by_key(|w| w.spans.get(0).map(|s| s.span.clone()).unwrap_or(Span::None));
+
+    let total_errors = errors.len();
+    let mut truncated_errors = None;
+    let total_warnings = warnings.len();
+    let mut truncated_warnings = None;
+
+    if let Some(n) = option.max_dump && errors.len() > n {
+        truncated_errors = Some(errors.len() - n);
+        errors = errors.drain(..).take(n).collect();
+    }
+
+    if let Some(n) = option.max_dump && warnings.len() > n {
+        truncated_warnings = Some(warnings.len() - n);
+        warnings = warnings.drain(..).take(n).collect();
+    }
 
     let mut stderr = vec![];
     let mut session = RenderSpanSession::new(intermediate_dir);
@@ -91,25 +110,40 @@ pub fn dump_errors(
         ));
     }
 
-    eprint!("{}", stderr.join(&option.delim));
+    if show_summary {
+        let error_truncation_note = if let Some(n) = truncated_errors {
+            format!(
+                "\nNote: There are too many errors, so only the first {} errors are shown ({n} error{} truncated).",
+                option.max_dump.unwrap(),
+                if n == 1 { "" } else { "s" },
+            )
+        } else {
+            String::new()
+        };
+        let warning_truncation_note = if let Some(n) = truncated_warnings {
+            format!(
+                "\nNote: There are too many warnings, so only the first {} warnings are shown ({n} warning{} truncated).",
+                option.max_dump.unwrap(),
+                if n == 1 { "" } else { "s" },
+            )
+        } else {
+            String::new()
+        };
 
-    if !stderr.is_empty() {
-        eprint!("{}", option.delim);
+        stderr.push(format!(
+            "Finished: {total_errors} error{} and {total_warnings} warning{}{}{error_truncation_note}{warning_truncation_note}\n",
+            if total_errors == 1 { "" } else { "s" },
+            if total_warnings == 1 { "" } else { "s" },
+            match elapsed_ms {
+                Some(elapsed_ms) => format!(
+                    " (elapsed {}.{:03}s)",
+                    elapsed_ms / 1000,
+                    elapsed_ms % 1000,
+                ),
+                None => String::new(),
+            },
+        ));
     }
 
-    eprintln!(
-        "Finished: {} error{} and {} warning{}{}",
-        errors.len(),
-        if errors.len() == 1 { "" } else { "s" },
-        warnings.len(),
-        if warnings.len() == 1 { "" } else { "s" },
-        match elapsed_ms {
-            Some(elapsed_ms) => format!(
-                " (elapsed {}.{:03}s)",
-                elapsed_ms / 1000,
-                elapsed_ms % 1000,
-            ),
-            None => String::new(),
-        },
-    );
+    stderr.join(&option.delim)
 }

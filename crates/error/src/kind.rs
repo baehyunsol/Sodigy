@@ -237,9 +237,11 @@ impl From<GetFilePathError> for ErrorKind {
 pub enum NameCollisionKind {
     Block { is_top_level: bool },   // all items
     Enum,     // variants
+    EnumGeneric,
     Func { params: bool, generics: bool },     // params and/or generics
     Pattern,  // name bindings
     Struct,   // fields
+    StructGeneric,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

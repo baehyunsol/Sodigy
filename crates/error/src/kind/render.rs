@@ -12,18 +12,20 @@ impl ErrorKind {
                     NameCollisionKind::Block { is_top_level: true } => format!("Top-level item `{name}` is defined multiple times."),
                     NameCollisionKind::Block { is_top_level: false } => format!("Item `{name}` is defined multiple times in a block."),
                     NameCollisionKind::Enum => format!("An enum variant `{name}` is defined multiple times."),
+                    NameCollisionKind::EnumGeneric => format!("An enum generic `{name}` is defined multiple times."),
                     NameCollisionKind::Func { params: true, generics: true } => format!(
                         "There are parameters and generics that have the same name: `{name}`.",
                     ),
                     NameCollisionKind::Func { params: true, generics: false } => format!(
-                        "Function parameter `{name}` is defined multiple times.",
+                        "A function parameter `{name}` is defined multiple times.",
                     ),
                     NameCollisionKind::Func { params: false, generics: true } => format!(
-                        "Function generic parameter `{name}` is defined multiple times.",
+                        "A function generic parameter `{name}` is defined multiple times.",
                     ),
                     NameCollisionKind::Func { params: false, generics: false } => unreachable!(),
                     NameCollisionKind::Pattern => format!("Name `{name}` is bound multiple times in a pattern."),
                     NameCollisionKind::Struct => format!("A struct field `{name}` is defined multiple times."),
+                    NameCollisionKind::StructGeneric => format!("A struct generic `{name}` is defined multiple times."),
                 }
             },
             ErrorKind::KeywordArgRepeated(keyword) => format!(
