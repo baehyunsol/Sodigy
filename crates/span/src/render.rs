@@ -568,7 +568,7 @@ fn render_span_worker(
                 }
             }
 
-            for (mut line, mut colors) in label_lines.into_iter().zip(label_line_colors.into_iter()) {
+            for (mut line, mut colors) in label_lines.into_iter().zip(label_line_colors) {
                 while let Some(b' ') = line.last() {
                     line.pop().unwrap();
                     colors.pop().unwrap();

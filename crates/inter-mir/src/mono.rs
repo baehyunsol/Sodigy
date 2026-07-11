@@ -107,7 +107,7 @@ impl Session {
         let mut monomorphizations = vec![];
         let mut intermediate_types = vec![];
 
-        for (_, generic_call) in generic_calls.iter() {
+        for generic_call in generic_calls.values() {
             match self.try_solve_poly(poly_solver, generic_call) {
                 // If it's not poly-generic, it's just a normal generic (TODO: better naming), so we monomorphize.
                 // If default-impl is chosen, ... it's still a generic function, so we monomorphize.

@@ -192,7 +192,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
 
                             let r#struct = &mir_session.structs[*index];
                             assert_eq!(r#struct.generics.len(), args.len());
-                            let generics = r#struct.generics.iter().zip(args.into_iter()).map(
+                            let generics = r#struct.generics.iter().zip(args).map(
                                 |(generic, r#type)| (generic.name_span.clone(), r#type)
                             ).collect();
 

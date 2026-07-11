@@ -267,11 +267,11 @@ impl Bytecode {
                     }
 
                     else {
-                        *ptr = Box::new(Memory::SSA(*ssa_alias.get(a).unwrap_or(a)));
+                        **ptr = Memory::SSA(*ssa_alias.get(a).unwrap_or(a));
                     }
                 },
                 Memory::Heap { ptr, .. } if let Memory::SSA(a) = &**ptr => {
-                    *ptr = Box::new(Memory::SSA(*ssa_alias.get(a).unwrap_or(a)));
+                    **ptr = Memory::SSA(*ssa_alias.get(a).unwrap_or(a));
                 },
                 Memory::Heap { .. } => {},
                 Memory::List { ptr, offset: Offset::Static(b) } if let Memory::SSA(a) = &**ptr => {
@@ -280,11 +280,11 @@ impl Bytecode {
                     }
 
                     else {
-                        *ptr = Box::new(Memory::SSA(*ssa_alias.get(a).unwrap_or(a)));
+                        **ptr = Memory::SSA(*ssa_alias.get(a).unwrap_or(a));
                     }
                 },
                 Memory::List { ptr, .. } if let Memory::SSA(a) = &**ptr => {
-                    *ptr = Box::new(Memory::SSA(*ssa_alias.get(a).unwrap_or(a)));
+                    **ptr = Memory::SSA(*ssa_alias.get(a).unwrap_or(a));
                 },
                 Memory::List { .. } => {},
                 Memory::Global(_) => {},
