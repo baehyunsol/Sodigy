@@ -53,8 +53,11 @@ fn main() {
             let sodigy_path = get_sodigy_path(
                 &root,
 
-                // some inter-mir-log are stupidly expensive, so I have to optimize
-                true,  // --release
+                // `--release` is set when `--log-inter-mir` is set.
+                // Some inter-mir-logs are stupidly expensive, so we
+                // have to turn this on.
+                log_inter_mir,
+
                 log_inter_mir,
                 debug_bytecode,
             );
