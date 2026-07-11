@@ -9,8 +9,7 @@ use std::collections::hash_map::{Entry, HashMap};
 mod tests;
 
 struct LocalContext {
-    // If there's `_5 = _7;`, we can replace all `_7` with `_5` and remove this bytecode.
-    // It replaces the larger one with the smaller one.
+    // If there's `_5 = _7;`, we can replace all `_5` with `_7` and remove this bytecode.
     //
     // So, all `Bytecode::Move`s will be gone in the optimized bytecodes.
     ssa_alias: HashMap<u32, u32>,
@@ -50,13 +49,6 @@ impl LocalContext {
             common_expression: HashMap::new(),
             free_ssa: 1000,
         }
-    }
-
-    pub fn add_ssa_alias(&mut self, a: u32, b: u32) {
-        let min = a.min(b);
-        let min = *self.ssa_alias.get(&a).unwrap_or(&min).min(self.ssa_alias.get(&b).unwrap_or(&min));
-        self.ssa_alias.insert(a, min);
-        self.ssa_alias.insert(b, min);
     }
 
     pub fn count_use(&mut self, memory: &Memory) {
@@ -104,6 +96,32 @@ impl LocalContext {
     }
 
     pub fn finalize(&mut self) {
+        // If there's `_10 = _0; _20 = _10;`, we have to connect `_20` and `_0`.
+        // There must be a better algorithm, but I'm not smart enough to figure that out...
+        loop {
+            let mut new_connection = HashMap::new();
+
+            for (dst, src) in self.ssa_alias.iter() {
+                if let Some(s2) = self.ssa_alias.get(src) {
+                    if let Some(s3) = self.ssa_alias.get(s2) {
+                        new_connection.insert(*dst, *s3);
+                    }
+
+                    else {
+                        new_connection.insert(*dst, *s2);
+                    }
+                }
+            }
+
+            if new_connection.is_empty() {
+                break;
+            }
+
+            for (dst, src) in new_connection.drain() {
+                self.ssa_alias.insert(dst, src);
+            }
+        }
+
         let mut sroa = HashMap::new();
         let mut free_ssa = self.free_ssa;
 
@@ -180,7 +198,7 @@ fn optimize_local(bytecodes: &mut Vec<Bytecode>) {
 
                 if let Memory::SSA(a) = dst {
                     if let Memory::SSA(b) = src {
-                        context.add_ssa_alias(*a, *b);
+                        context.ssa_alias.insert(*a, *b);
                     }
 
                     max_ssa = max_ssa.max(*a);
@@ -312,14 +330,26 @@ fn optimize_local(bytecodes: &mut Vec<Bytecode>) {
 }
 
 pub fn optimize_bytecode<'hir, 'mir>(mut session: Session<'hir, 'mir>, level: OptimizeLevel) -> Session<'hir, 'mir> {
-    if level == OptimizeLevel::None {
-        return session;
-    }
+    match level {
+        OptimizeLevel::None => session,
+        OptimizeLevel::Mild => {
+            for func in session.funcs.iter_mut() {
+                optimize_local(&mut func.bytecodes);
+                optimize_local(&mut func.bytecodes);
+            }
 
-    for func in session.funcs.iter_mut() {
-        // TODO: it has to run more than once... but how many times?
-        optimize_local(&mut func.bytecodes);
-    }
+            session
+        },
+        OptimizeLevel::Extreme => {
+            for func in session.funcs.iter_mut() {
+                optimize_local(&mut func.bytecodes);
+                optimize_local(&mut func.bytecodes);
+                optimize_local(&mut func.bytecodes);
+                optimize_local(&mut func.bytecodes);
+                optimize_local(&mut func.bytecodes);
+            }
 
-    session
+            session
+        },
+    }
 }
