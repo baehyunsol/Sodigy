@@ -1,7 +1,7 @@
 use super::Monomorphization;
 use crate::Session;
 use sodigy_hir::{self as hir, StructShape};
-use sodigy_mir::Struct;
+use sodigy_mir::{Struct, StructField};
 
 impl Session {
     pub fn monomorphize_struct(&mut self, r#struct: &Struct, monomorphization: &Monomorphization) -> Struct {
@@ -9,14 +9,26 @@ impl Session {
         let mut new_fields = Vec::with_capacity(r#struct.fields.len());
 
         for field in r#struct.fields.iter() {
-            new_fields.push(todo!());
+            let new_field_span = field.name_span.monomorphize(monomorphization.id);
+            let old_field_type = self.types.get(&field.name_span).unwrap();
+            let new_field_type = self.monomorphize_type(&old_field_type.clone(), monomorphization);
+            self.types.insert(new_field_span.clone(), new_field_type);
+
+            new_fields.push(StructField {
+                name: field.name,
+                name_span: new_field_span,
+                default_value: match &field.default_value {
+                    Some(_) => todo!(),
+                    None => None,
+                },
+            });
         }
 
         Struct {
             name: r#struct.name,
             name_span: new_struct_span,
-            generics: vec![],
             fields: new_fields,
+            generics: vec![],
         }
     }
 

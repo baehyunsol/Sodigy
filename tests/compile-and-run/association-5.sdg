@@ -1,0 +1,16 @@
+struct Foo<T> = {
+    data: (T, Option<Foo<T>>),
+};
+
+fn new_foo<T>(x: T) = Foo { data: (x, None) };
+
+#[associate(Foo<T>)]
+fn concat<T>(self, x: T) -> Foo<T> = Foo { data: (x, Some(self)) };
+
+#[associate(Foo<T>)]
+fn unwrap<T>(self) -> Option<Foo<T>> = self.data._1;
+
+let f = new_foo(300);
+let g = f.concat(400).concat(500);
+
+assert g.unwrap().unwrap().data == 400;

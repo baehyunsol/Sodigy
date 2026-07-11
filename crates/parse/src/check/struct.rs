@@ -9,10 +9,22 @@ impl Struct {
         let mut errors = vec![];
 
         // name collision check
-        let mut spans_by_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
+        let mut spans_by_field_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
+        let mut spans_by_generic_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
 
         if let Err(e) = self.attribute.check(intermediate_dir) {
             errors.extend(e);
+        }
+
+        for generic in self.generics.iter() {
+            match spans_by_generic_name.entry(generic.name) {
+                Entry::Occupied(mut e) => {
+                    e.get_mut().push(generic.name_span.clone());
+                },
+                Entry::Vacant(e) => {
+                    e.insert(vec![generic.name_span.clone()]);
+                },
+            }
         }
 
         // Some([]) = self.fields -> Error::StructWithoutField
@@ -32,7 +44,7 @@ impl Struct {
                     errors.extend(e);
                 }
 
-                match spans_by_name.entry(field.name) {
+                match spans_by_field_name.entry(field.name) {
                     Entry::Occupied(mut e) => {
                         e.get_mut().push(field.name_span.clone());
                     },
@@ -43,12 +55,12 @@ impl Struct {
             }
         }
 
-        for (name, spans) in spans_by_name.iter() {
+        for (name, spans, is_field) in spans_by_field_name.iter().map(|(name, spans)| (name, spans, true)).chain(spans_by_generic_name.iter().map(|(name, spans)| (name, spans, false))) {
             if spans.len() > 1 {
                 errors.push(Error {
                     kind: ErrorKind::NameCollision {
                         name: *name,
-                        kind: NameCollisionKind::Struct,
+                        kind: if is_field { NameCollisionKind::Struct } else { NameCollisionKind::StructGeneric },
                     },
                     spans: spans.iter().map(
                         |span| RenderableSpan {

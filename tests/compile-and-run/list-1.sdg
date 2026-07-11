@@ -1,24 +1,37 @@
-fn map<T, U>(ls: [T], f: Fn(T) -> U) -> [U] = match ls {
+// TODO: move this to std, and add tests
+
+#[associate([T])]
+fn map<T, U>(self, f: PureFn(T) -> U) -> [U] = match self {
     [] => [],
-    [$x] ++ $rem => [f(x)] ++ map(rem, f),
+    [$x] ++ $rem => [f(x)] ++ rem.map(f),
 };
 
-fn filter<T>(ls: [T], f: Fn(T) -> Bool) -> [T] = match ls {
+#[associate([T])]
+fn filter<T>(self, f: Fn(T) -> Bool) -> [T] = match self {
     [] => [],
-    [$x] ++ $rem => if f(x) { [x] ++ filter(rem, f) } else { filter(rem, f) },
+    [$x] ++ $rem => if f(x) { [x] ++ rem.filter(f) } else { rem.filter(f) },
 };
 
-fn sort<T>(ls: [T]) -> [T] = match ls {
-    [] | [_] => ls,
-    _ => sort(filter(ls, \(x) => x < ls[0])) ++ filter(ls, \(x) => x == ls[0]) ++ sort(filter(ls, \(x) => x > ls[0])),
+#[associate([T])]
+fn sort<T>(self) -> [T] = match self {
+    [] | [_] => self,
+    _ => self.filter(\(x) => x < self[0]).sort() ++ self.filter(\(x) => x == self[0]) ++ self.filter(\(x) => x > self[0]).sort(),
 };
 
-fn reverse<T>(ls: [T]) -> [T] = match ls {
-    [] | [_] => ls,
-    [$x] ++ $rem => reverse(rem) ++ [x],
+#[associate([T])]
+fn reverse<T>(self) -> [T] = match self {
+    [] | [_] => self,
+    [$x] ++ $rem => rem.reverse() ++ [x],
 };
 
-fn length<T>(ls: [T]) -> Int = match ls {
+#[associate([T])]
+fn length<T>(self) -> Int = match self {
     [] => 0,
-    [_] ++ $rem => 1 + length(rem),
+    [_] ++ $rem => 1 + rem.length(),
+};
+
+#[associate([T])]
+fn find<T>(self, f: PureFn(T) -> Bool) -> Option<T> = match self {
+    [] => None,
+    [$x] ++ $xs => if f(x) { Some(x) } else { xs.find(f) },
 };

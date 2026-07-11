@@ -1,0 +1,12 @@
+// TODO: I want it to raise exactly 1 error (currently there're 4).
+//       But I have no idea how I can do that...
+//% compile-error == 1
+
+enum ABC<A, B, C> = {
+    A(A),
+    B(B),
+    C(C),
+    D,
+};
+
+let abcs = ABC.D;

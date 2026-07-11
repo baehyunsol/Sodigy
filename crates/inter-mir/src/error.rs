@@ -16,9 +16,6 @@ use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
-#[cfg(feature = "log")]
-use crate::LogEntry;
-
 pub type TypeWarning = TypeError;
 
 #[derive(Clone, Debug)]
@@ -260,22 +257,7 @@ impl ErrorContext {
 }
 
 impl Session {
-    pub fn type_error_to_general_error(&mut self, error: TypeError) -> Error {
-        if cfg!(feature = "log") {
-            let general_error = self.type_error_to_general_error_impl(error.clone());
-            write_log!(self, LogEntry::TypeError {
-                type_error: error.clone(),
-                general_error: general_error.clone(),
-            });
-            general_error
-        }
-
-        else {
-            self.type_error_to_general_error_impl(error)
-        }
-    }
-
-    fn type_error_to_general_error_impl(&self, error: TypeError) -> Error {
+    pub fn type_error_to_general_error(&self, error: TypeError) -> Error {
         match error {
             TypeError::UnexpectedType {
                 expected,
