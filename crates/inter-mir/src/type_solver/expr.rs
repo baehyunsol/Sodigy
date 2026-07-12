@@ -5,7 +5,7 @@ use sodigy_hir::{self as hir, AssociatedFunc, FuncPurity};
 use sodigy_inter_hir::get_associated_func_name;
 use sodigy_mir::{Callable, Dotfish, ShortCircuitKind, get_def_span_from_id};
 use sodigy_parse::{Field, merge_field_spans};
-use sodigy_span::{PolySpanKind, Span};
+use sodigy_span::{PolySpanKind, Span, SpanDeriveKind};
 use sodigy_string::intern_string;
 use sodigy_token::Constant;
 use std::collections::{HashMap, HashSet};
@@ -950,11 +950,12 @@ impl Session {
 
                                 // TODO: If `prev_infered` is `Type::Var` or `Type::GenericArg` (I'll call it prev_type_var),
                                 //       it has to unify the prev_type_var and the type_var.
+                                //       ... -> come to think about it, they must already be unified, right? That's why
+                                //              they're found in `self.types` or `self.generic_args`
                                 match prev_infered {
                                     Some(Type::Var { .. } | Type::GenericArg { .. }) | None => {
-                                        let intermediate_type_var_id: Span = todo!();
                                         let intermediate_type_var = Type::Var {
-                                            def_span: intermediate_type_var_id.clone(),
+                                            def_span: Span::IntermediateTypeVar(Box::new(func.error_span_wide())),
                                             is_return: false,
                                         };
                                         let intermediate_func_type = Type::Func {

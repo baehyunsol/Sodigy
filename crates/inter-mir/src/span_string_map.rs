@@ -161,6 +161,7 @@ fn update_span_string_map(
         },
         Span::Prelude(_) |
         Span::Poly { .. } |
+        Span::IntermediateTypeVar(_) |
         Span::Std |
         Span::Lib |
         Span::None => {},

@@ -35,14 +35,18 @@ impl Endec for Span {
                 name.encode_impl(buffer);
                 kind.encode_impl(buffer);
             },
-            Span::Std => {
+            Span::IntermediateTypeVar(span) => {
                 buffer.push(5);
+                span.encode_impl(buffer);
             },
-            Span::Lib => {
+            Span::Std => {
                 buffer.push(6);
             },
-            Span::None => {
+            Span::Lib => {
                 buffer.push(7);
+            },
+            Span::None => {
+                buffer.push(8);
             },
         }
     }
@@ -72,10 +76,14 @@ impl Endec for Span {
                 let (kind, cursor) = PolySpanKind::decode_impl(buffer, cursor)?;
                 Ok((Span::Poly { name, kind }, cursor))
             },
-            Some(5) => Ok((Span::Std, cursor + 1)),
-            Some(6) => Ok((Span::Lib, cursor + 1)),
-            Some(7) => Ok((Span::None, cursor + 1)),
-            Some(n @ 8..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(5) => {
+                let (span, cursor) = Box::<Span>::decode_impl(buffer, cursor + 1)?;
+                Ok((Span::IntermediateTypeVar(span), cursor))
+            },
+            Some(6) => Ok((Span::Std, cursor + 1)),
+            Some(7) => Ok((Span::Lib, cursor + 1)),
+            Some(8) => Ok((Span::None, cursor + 1)),
+            Some(n @ 9..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

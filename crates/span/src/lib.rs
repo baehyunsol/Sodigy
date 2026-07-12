@@ -55,6 +55,13 @@ pub enum Span {
         name: InternedString,
         kind: PolySpanKind,
     },
+
+    // Let's say there's `let x = { ... }; let y = x();`.
+    // When we try to solve the type of `y`, it'll get `Type::Blocked(call_span_of_x)`.
+    // To move further, we introduce an intermediate type:
+    // `Type::Func { return: Type::Var { def_span: IntermediateTypeVar(call_span_of_x), .. }, .. }`.
+    IntermediateTypeVar(Box<Span>),
+
     Std,  // def_span of `std/lib.sdg`
     Lib,  // def_span of `lib.sdg`
     None,
@@ -120,7 +127,11 @@ impl Span {
                 kind: *kind,
                 span: Box::new(span.start()),
             },
-            Span::Prelude(_) | Span::Poly { .. } | Span::Std | Span::Lib => self.clone(),
+            Span::Prelude(_) |
+            Span::Poly { .. } |
+            Span::IntermediateTypeVar(_) |
+            Span::Std |
+            Span::Lib => self.clone(),
             Span::None => Span::None,
         }
     }
@@ -139,7 +150,11 @@ impl Span {
                 kind: *kind,
                 span: Box::new(span.end()),
             },
-            Span::Prelude(_) | Span::Poly { .. } | Span::Std | Span::Lib => self.clone(),
+            Span::Prelude(_) |
+            Span::Poly { .. } |
+            Span::IntermediateTypeVar(_) |
+            Span::Std |
+            Span::Lib => self.clone(),
             Span::None => Span::None,
         }
     }
@@ -149,7 +164,10 @@ impl Span {
             Span::Range(SpanId(r)) => Some(File(((r >> 64) & 0xffff_ffff) as u32)),
             Span::Monomorphize { span, .. } |
             Span::Derived { span, .. } => span.file(),
-            Span::None | Span::Prelude(_) | Span::Poly { .. } => None,
+            Span::None |
+            Span::Prelude(_) |
+            Span::Poly { .. } |
+            Span::IntermediateTypeVar(_) => None,
             Span::Std | Span::Lib => todo!(),
         }
     }
@@ -166,6 +184,7 @@ impl Span {
             },
             Span::Prelude(_) |
             Span::Poly { .. } |
+            Span::IntermediateTypeVar(_) |
             Span::Std |
             Span::Lib |
             Span::None => {},
@@ -182,6 +201,7 @@ impl Span {
             Span::Derived { span, .. } => span.get_bounds(),
             Span::Prelude(_) |
             Span::Poly { .. } |
+            Span::IntermediateTypeVar(_) |
             Span::Std |
             Span::Lib |
             Span::None => None,
