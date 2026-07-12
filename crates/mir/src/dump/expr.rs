@@ -1,5 +1,5 @@
 use super::{dump_assert, dump_let, dump_type, span_to_string_or_verbose};
-use crate::{Callable, Expr, Type};
+use crate::{Callable, Dotfish, Expr, Type};
 use sodigy_endec::IndentedLines;
 use sodigy_error::EnumFieldKind;
 use sodigy_hir::dump::dump_pattern;
@@ -187,38 +187,7 @@ pub fn dump_expr<S: SodigySession>(
                 lines.push(">");
             }
 
-            assert_eq!(fields.len() + 1, dotfish.len());
-
-            for (field, dotfish) in fields.iter().zip(dotfish[1..].iter()) {
-                lines.push(".");
-
-                match field {
-                    Field::Name { name, .. } => {
-                        lines.push(&name.unintern_or_default(session.intermediate_dir()));
-                    },
-                    Field::Index(i) => {
-                        if *i < 0 { todo!() }
-                        lines.push(&format!("_{i}"));
-                    },
-                    Field::Range(_, _) => todo!(),
-                    Field::EnumDiscriminant => {
-                        lines.push("__DISCRIMINANT__");
-                    },
-                    Field::ListLength => {
-                        lines.push("__LIST_LENGTH__");
-                    },
-                }
-
-                if let Some(dotfish) = dotfish {
-                    lines.push(".<");
-
-                    for r#type in dotfish.types.iter() {
-                        dump_type(r#type, lines, session);
-                    }
-
-                    lines.push(">");
-                }
-            }
+            dump_field(fields, dotfish, lines, session);
         },
         Expr::FieldUpdate { lhs, fields, rhs } => {
             dump_expr(lhs, lines, types, session, max_len, single_line);
@@ -341,6 +310,48 @@ pub fn dump_expr<S: SodigySession>(
             lines.push(close_delim);
         },
     }
+}
+
+pub fn dump_field<S: SodigySession>(fields: &[Field], dotfish: &[Option<Dotfish>], lines: &mut IndentedLines, session: &S) {
+    assert_eq!(fields.len() + 1, dotfish.len());
+
+    for (field, dotfish) in fields.iter().zip(dotfish[1..].iter()) {
+        lines.push(".");
+
+        match field {
+            Field::Name { name, .. } => {
+                lines.push(&name.unintern_or_default(session.intermediate_dir()));
+            },
+            Field::Index(i) => {
+                if *i < 0 { todo!() }
+                lines.push(&format!("_{i}"));
+            },
+            Field::Range(_, _) => todo!(),
+            Field::EnumDiscriminant => {
+                lines.push("__DISCRIMINANT__");
+            },
+            Field::ListLength => {
+                lines.push("__LIST_LENGTH__");
+            },
+        }
+
+        if let Some(dotfish) = dotfish {
+            lines.push(".<");
+
+            for r#type in dotfish.types.iter() {
+                dump_type(r#type, lines, session);
+            }
+
+            lines.push(">");
+        }
+    }
+}
+
+pub fn dump_field_to_string<S: SodigySession>(fields: &[Field], session: &S) -> String {
+    let mut indented_lines = IndentedLines::new();
+    let dotfish: Vec<_> = (0..(fields.len() + 1)).map(|_| None).collect();
+    dump_field(fields, &dotfish, &mut indented_lines, session);
+    indented_lines.dump()
 }
 
 fn lookahead_args<S: SodigySession>(args: &[Expr], types: &HashMap<Span, Type>, session: &S, max_len: usize) -> usize {

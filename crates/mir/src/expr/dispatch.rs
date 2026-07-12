@@ -97,7 +97,7 @@ impl Expr {
 
                                 *self = Expr::Call {
                                     func: Callable::Static {
-                                        def_span: poly_def_span.clone(),
+                                        def_span: dispatch_map.get(name_span).unwrap_or(poly_def_span).clone(),
                                         span: name_span.clone(),
                                     },
                                     args: new_args,

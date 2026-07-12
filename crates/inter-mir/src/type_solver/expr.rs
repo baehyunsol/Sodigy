@@ -1,9 +1,9 @@
-use crate::{AssociatedFuncInstance, Expr, LogId, Session, Type, get_def_span_from_id, write_log};
+use crate::{AssociatedFuncInstance, Expr, LogId, Session, Type, write_log};
 use crate::error::{ErrorContext, TypeError};
 use sodigy_error::{EnumFieldKind, Error, ErrorKind, TypeVarInfo};
 use sodigy_hir::{self as hir, AssociatedFunc, FuncPurity};
 use sodigy_inter_hir::get_associated_func_name;
-use sodigy_mir::{Callable, Dotfish, ShortCircuitKind};
+use sodigy_mir::{Callable, Dotfish, ShortCircuitKind, get_def_span_from_id};
 use sodigy_parse::{Field, merge_field_spans};
 use sodigy_span::{PolySpanKind, Span};
 use sodigy_string::intern_string;
@@ -34,6 +34,7 @@ impl Session {
         write_log!(self, LogEntry::SolveExprEnd {
             id: _id.unwrap(),
             infered_type: result.clone(),
+            type_vars: if let Some(r#type) = &result { self.collect_type_var_info(r#type) } else { HashMap::new() },
             has_error,
             last_errors: self.last_errors(),
         });
@@ -341,9 +342,34 @@ impl Session {
                 (expr_type, e || has_error)
             },
             Expr::Field { lhs, fields, dotfish } => match self.solve_expr(lhs, impure_calls) {
-                (Some(lhs_type), has_error) => match self.get_type_of_field(&lhs_type, fields) {
+                (Some(lhs_type), mut has_error) => match self.get_type_of_field(&lhs_type, fields) {
                     (associated_func, Ok(field_type)) => {
                         if let Some(associated_func) = associated_func {
+                            // `x.unwrap()` is desugared to `associated_func::unwrap::pure::1(x)`.
+                            // In order to solve this, we give the information that
+                            // "the type of the first argument and the type of `x` are the same"
+                            // to the type solver.
+                            if let Span::Poly { name, kind: PolySpanKind::Name } = &associated_func.def_span {
+                                let lhs_type_var = Type::GenericArg {
+                                    call: associated_func.call_span.clone(),
+                                    generic: Span::Poly { name: *name, kind: PolySpanKind::Param(0) },
+                                };
+
+                                if let Err(()) = self.solve_supertype(
+                                    &lhs_type,
+                                    &lhs_type_var,
+                                    false,
+                                    None,
+                                    None,
+                                    ErrorContext::None,
+                                    true,
+                                ) {
+                                    has_error = true;
+                                }
+
+                                self.add_type_var(lhs_type_var, None);
+                            }
+
                             self.associated_funcs.push(associated_func);
                         }
 

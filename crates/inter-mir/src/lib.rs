@@ -4,7 +4,7 @@ mod log;
 use crate::log::write_log;
 use crate::mono::GenericCall;
 use sodigy_error::{Error, Warning};
-use sodigy_mir::{Expr, Session as MirSession, Type};
+use sodigy_mir::{Expr, Session as MirSession, Type, get_monomorphization_id_owned};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::{HashMap, HashSet};
@@ -19,7 +19,7 @@ mod type_solver;
 
 pub use error::{ErrorContext, ExprContext, TypeError, TypeWarning};
 pub use log::{LogEntry, LogId};
-pub use mono::{Monomorphization, get_def_span_from_id, get_monomorphization_id, get_monomorphization_id_owned};
+pub use mono::Monomorphization;
 pub use poly::{PolySolver, SolvePolyResult};
 pub use session::Session;
 

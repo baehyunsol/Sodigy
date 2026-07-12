@@ -9,9 +9,8 @@ use sodigy_fs_api::{
     parent,
     write_bytes,
 };
-use sodigy_mir::{Session as MirSession, Type, TypeUnit};
-use sodigy_span::{MonomorphizationInfo, Span, SpanId};
-use sodigy_string::hash;
+use sodigy_mir::{Session as MirSession, Type, get_monomorphization_id};
+use sodigy_span::{MonomorphizationInfo, Span};
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
@@ -269,52 +268,4 @@ pub struct GenericCall {
     pub def: Span,
     pub variant: Option<Span>,
     pub generics: HashMap<Span, Type>,
-}
-
-// Let's say there's `enum Foo<T> = { Message(T), ... };`. The initial name_span of the enum
-// would look like `Span::Range(1234)`.
-// Let's say it's monomorphized twice: `Foo<Int>` and `Foo<String>`.
-// That would create 2 more enum instances (mir::Enum, hir::EnumShape, ...), and
-// those 2 would have different name_spans: `Span::Monomorphize { id: 5678, span: Span::Range(1234) }`
-// and `Span::Monomorphize { id: 9012, span: Span::Range(1234) }`.
-// Sometimes we have to treat `Foo<Int>` and `Foo<String>` differently, and sometimes not.
-//
-// For example, if we want to know the type of the payload of the first variant, we have to
-// look for an `hir::EnumShape`, which is identified by their name_span. We have to use their
-// monomorphization_id to treat them differently.
-//
-// The type-checker has to treat the 2 `Foo`s equally. When it tries to unify `Foo<Int>` and
-// `Foo<String>`, it has to know that the two types have the same constructor and different
-// type arguments. So, `mir::Type::Data`'s `constructor_def_span` field has type `SpanId`,
-// not `Span`.
-pub fn get_def_span_from_id(span_id: SpanId, args: &Option<Vec<Type>>) -> Span {
-    match args {
-        Some(args) => match get_monomorphization_id_owned(span_id, args) {
-            Some(mono_id) => Span::Range(span_id).monomorphize(mono_id),
-            None => Span::Range(span_id),
-        },
-        None => Span::Range(span_id),
-    }
-}
-
-// If there're un-solved type_args, it returns None.
-pub fn get_monomorphization_id(def_span: SpanId, type_args: &[&Type]) -> Option<u64> {
-    let mut units = vec![TypeUnit::DefSpan(def_span)];
-
-    for type_arg in type_args.iter() {
-        units.extend(type_arg.flatten()?);
-    }
-
-    Some((hash(&units.encode()) & 0xffff_ffff_ffff_ffff) as u64)
-}
-
-// If there're un-solved type_args, it returns None.
-pub fn get_monomorphization_id_owned(def_span: SpanId, type_args: &[Type]) -> Option<u64> {
-    let mut units = vec![TypeUnit::DefSpan(def_span)];
-
-    for type_arg in type_args.iter() {
-        units.extend(type_arg.flatten()?);
-    }
-
-    Some((hash(&units.encode()) & 0xffff_ffff_ffff_ffff) as u64)
 }

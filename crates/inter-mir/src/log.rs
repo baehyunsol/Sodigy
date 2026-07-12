@@ -12,6 +12,7 @@ use sodigy_hir::{EnumShape, Poly, StructShape};
 use sodigy_mir::{Assert, Expr, Func, Let, Type};
 use sodigy_parse::Field;
 use sodigy_span::Span;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 macro_rules! write_log {
@@ -105,6 +106,7 @@ pub enum LogEntry {
     SolveExprEnd {
         id: LogId,
         infered_type: Option<Type>,
+        type_vars: HashMap<Type, Option<Type>>,
         has_error: bool,
         last_errors: Vec<(TypeError, Error)>,
     },

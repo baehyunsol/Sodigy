@@ -13,4 +13,5 @@ fn unwrap<T>(self) -> Option<Foo<T>> = self.data._1;
 let f = new_foo(300);
 let g = f.concat(400).concat(500);
 
-assert g.unwrap().unwrap().data == 400;
+assert g.unwrap().unwrap().data._0 == 400;
+assert g.unwrap().unwrap().unwrap().unwrap().data._0 == 300;

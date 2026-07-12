@@ -35,6 +35,10 @@ impl Ord for Span {
             (None, None, Some(_), Some(_)) => Ordering::Less,
             (None, None, None, None) => match (self, other) {
                 (Span::None, Span::None) => Ordering::Equal,
+                (Span::Poly { name: name1, kind: kind1 }, Span::Poly { name: name2, kind: kind2 }) => match name1.cmp(name2) {
+                    Ordering::Equal => todo!(),
+                    o => o,
+                },
                 p => panic!("TODO: {p:?}"),
             },
             _ => unreachable!(),

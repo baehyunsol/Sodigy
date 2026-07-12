@@ -109,6 +109,12 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
         // TODO: structs/enums
     }
 
+    pub fn sort_items(&mut self) {
+        self.lets.sort_by_key(|l| l.name_span.clone());
+        self.funcs.sort_by_key(|f| f.name_span.clone());
+        self.asserts.sort_by_key(|a| a.keyword_span.clone());
+    }
+
     // TODO: We can make it more fine-grained...
     //
     // It only replaces `def_span`, not `span`.

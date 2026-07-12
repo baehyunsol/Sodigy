@@ -158,7 +158,6 @@ use crate::Session;
 use sodigy_endec::IndentedLines;
 use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
 use sodigy_hir::{LetOrigin, Pattern, PatternKind};
-use sodigy_inter_mir::get_def_span_from_id;
 use sodigy_mir::{
     ArmSplit,
     Block,
@@ -169,6 +168,7 @@ use sodigy_mir::{
     MatchArm,
     Type,
     dump_expr,
+    get_def_span_from_id,
     type_of,
 };
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};

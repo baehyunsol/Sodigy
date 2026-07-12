@@ -222,4 +222,23 @@ impl Session {
             |e| (e.clone(), self.type_error_to_general_error(e.clone()))
         ).collect()
     }
+
+    #[cfg(feature = "log")]
+    pub fn collect_type_var_info(&self, r#type: &Type) -> HashMap<Type, Option<Type>> {
+        let mut result = HashMap::new();
+
+        for type_var in r#type.get_type_vars() {
+            match type_var {
+                Type::Var { ref def_span, .. } => {
+                    result.insert(type_var.clone(), self.types.get(def_span).cloned());
+                },
+                Type::GenericArg { ref call, ref generic } => {
+                    result.insert(type_var.clone(), self.generic_args.get(&(call.clone(), generic.clone())).cloned());
+                },
+                _ => unreachable!(),
+            }
+        }
+
+        result
+    }
 }

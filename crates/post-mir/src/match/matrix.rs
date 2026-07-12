@@ -1,7 +1,6 @@
 use super::{LiteralType, PatternField, Range};
 use crate::Session;
-use sodigy_inter_mir::get_def_span_from_id;
-use sodigy_mir::Type;
+use sodigy_mir::{Type, get_def_span_from_id};
 use sodigy_number::InternedNumber;
 use sodigy_span::Span;
 use std::collections::HashSet;
@@ -228,7 +227,7 @@ pub fn get_enum_variant_sub_matrix(
     match variant_def_span {
         Some(s) => {
             println!("variant_def_span: {s:?}");
-            println!("type: {:?}", session.global_context.types.as_ref().unwrap().as_ref().read().unwrap().get(s));
+            println!("type: {:?}", session.global_context.get_type(s));
             todo!()
         },
 

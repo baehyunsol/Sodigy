@@ -572,6 +572,10 @@ impl Worker {
                 }
 
                 let mut mir_session = merged_mir_session.unwrap();
+
+                // Let's make inter-mir-log deterministic!!
+                mir_session.sort_items();
+
                 mir_session.global_context = MirGlobalContext::from_inter_hir_session(global_context.inter_hir_session.as_ref().unwrap());
                 self.stage_end(false);
 
@@ -591,7 +595,7 @@ impl Worker {
 
                 // `.log` field always exists, but it would be empty if logging is disabled.
                 self.stage_start(CompileStage::InterMir, Some("store-inter-mir-log"), None);
-                log_inter_mir(&inter_mir_session)?;
+                log_inter_mir(&inter_mir_session, &mir_session)?;
                 self.stage_end(false);
 
                 // InterMir may have modified MIRs, so we have to update all the cached MIRs.

@@ -1,6 +1,5 @@
 use crate::Session;
-use sodigy_inter_mir::get_def_span_from_id;
-use sodigy_mir::{Expr, Type, type_of, type_of_field};
+use sodigy_mir::{Expr, Type, get_def_span_from_id, type_of, type_of_field};
 use sodigy_parse::Field;
 use sodigy_string::InternedString;
 use std::slice;

@@ -13,6 +13,7 @@ use sodigy_fs_api::{
     write_string,
 };
 use sodigy_inter_mir::{LogEntry, Session as InterMirSession, SolvePolyResult, TypeError};
+use sodigy_mir::{Session as MirSession, Type, dump_field_to_string};
 use sodigy_parse::merge_field_spans;
 use sodigy_post_mir::MatchDump;
 use sodigy_prettify::prettify;
@@ -236,7 +237,7 @@ fn to_html(title: &str, body: &str) -> String {
 </html>
 "#)}
 
-pub fn log_inter_mir(session: &InterMirSession) -> Result<(), FileError> {
+pub fn log_inter_mir(session: &InterMirSession, mir_session: &MirSession) -> Result<(), FileError> {
     struct FuncCall {
         call_index: usize,
         name: String,
@@ -266,6 +267,23 @@ pub fn log_inter_mir(session: &InterMirSession) -> Result<(), FileError> {
         name: String,
         short: String,
         long: Option<String>,
+    }
+
+    impl Value {
+        pub fn from_optional_type(name: &str, r#type: &Option<Type>, session: &InterMirSession) -> Value {
+            match r#type {
+                Some(r#type) => Value {
+                    name: name.to_string(),
+                    short: escape_html(&session.render_type(r#type)),
+                    long: Some(String::from_utf8(prettify(format!("{type:?}").into_bytes())).unwrap()),
+                },
+                None => Value {
+                    name: name.to_string(),
+                    short: String::from("N/A"),
+                    long: None,
+                },
+            }
+        }
     }
 
     struct PreviewMap {
@@ -300,7 +318,7 @@ pub fn log_inter_mir(session: &InterMirSession) -> Result<(), FileError> {
     }
 
     // It's supposed to return `(FuncCall, usize)`, but some are not implemented yet, so it returns `Option<FuncCall>`.
-    fn to_func_call(log: &[LogEntry], mut index: usize, session: &InterMirSession) -> (Option<FuncCall>, usize) {
+    fn to_func_call(log: &[LogEntry], mut index: usize, session: &InterMirSession, mir_session: &MirSession) -> (Option<FuncCall>, usize) {
         let mut spans = vec![];
         let mut input = vec![];
 
@@ -318,12 +336,12 @@ pub fn log_inter_mir(session: &InterMirSession) -> Result<(), FileError> {
             LogEntry::SolveSupertypeStart { id, lhs, rhs, lhs_span, rhs_span, context } => {
                 input.push(Value {
                     name: String::from("lhs"),
-                    short: session.render_type(lhs),
+                    short: escape_html(&session.render_type(lhs)),
                     long: Some(String::from_utf8(prettify(format!("{lhs:?}").into_bytes())).unwrap()),
                 });
                 input.push(Value {
                     name: String::from("rhs"),
-                    short: session.render_type(rhs),
+                    short: escape_html(&session.render_type(rhs)),
                     long: Some(String::from_utf8(prettify(format!("{rhs:?}").into_bytes())).unwrap()),
                 });
                 input.push(Value {
@@ -413,13 +431,13 @@ pub fn log_inter_mir(session: &InterMirSession) -> Result<(), FileError> {
             LogEntry::GetTypeOfFieldStart { id, r#type, field } => {
                 input.push(Value {
                     name: String::from("type"),
-                    short: session.render_type(r#type),
+                    short: escape_html(&session.render_type(r#type)),
                     long: Some(String::from_utf8(prettify(format!("{type:?}").into_bytes())).unwrap()),
                 });
 
                 input.push(Value {
                     name: String::from("field"),
-                    short: String::new(),  // TODO: impl `dump_field()` -> it's in `mir::dump_expr`, we have to extract it
+                    short: dump_field_to_string(field, mir_session),
                     long: Some(String::from_utf8(prettify(format!("{field:?}").into_bytes())).unwrap()),
                 });
 
@@ -434,7 +452,7 @@ pub fn log_inter_mir(session: &InterMirSession) -> Result<(), FileError> {
             LogEntry::GetItemShapeStart { id, r#type, def_span } => {
                 input.push(Value {
                     name: String::from("type"),
-                    short: session.render_type(r#type),
+                    short: escape_html(&session.render_type(r#type)),
                     long: Some(String::from_utf8(prettify(format!("{type:?}").into_bytes())).unwrap()),
                 });
                 input.push(Value {
@@ -580,7 +598,7 @@ pub fn log_inter_mir(session: &InterMirSession) -> Result<(), FileError> {
         index += 1;
 
         while log[index].id() != Some(log_id) {
-            let (child, new_index) = to_func_call(log, index, session);
+            let (child, new_index) = to_func_call(log, index, session, mir_session);
             index = new_index;
 
             if let Some(child) = child {
@@ -593,117 +611,87 @@ pub fn log_inter_mir(session: &InterMirSession) -> Result<(), FileError> {
         let (has_error, last_errors) = match &log[index] {
             LogEntry::TypeSolveLoopEnd(_) => (false, vec![]),
             LogEntry::SolveSupertypeEnd { solved_type, has_error, last_errors, .. } => {
-                match solved_type {
-                    Some(t) => {
-                        output.push(Value {
-                            name: String::from("solved_type"),
-                            short: session.render_type(t),
-                            long: Some(String::from_utf8(prettify(format!("{t:?}").into_bytes())).unwrap()),
-                        });
-                    },
-                    None => {
-                        output.push(Value {
-                            name: String::from("solved_type"),
-                            short: String::from("N/A"),
-                            long: None,
-                        });
-                    },
-                }
-
+                output.push(Value::from_optional_type("solved_type", solved_type, session));
                 (*has_error, last_errors.clone())
             },
             LogEntry::SolveFuncEnd { annotated_type, infered_type, has_error, last_errors, .. } => {
                 output.push(Value {
                     name: String::from("annotated_type"),
-                    short: session.render_type(annotated_type),
+                    short: escape_html(&session.render_type(annotated_type)),
                     long: Some(String::from_utf8(prettify(format!("{annotated_type:?}").into_bytes())).unwrap()),
                 });
-
-                match infered_type {
-                    Some(t) => {
-                        output.push(Value {
-                            name: String::from("infered_type"),
-                            short: session.render_type(t),
-                            long: Some(String::from_utf8(prettify(format!("{t:?}").into_bytes())).unwrap()),
-                        });
-                    },
-                    None => {
-                        output.push(Value {
-                            name: String::from("infered_type"),
-                            short: String::from("N/A"),
-                            long: None,
-                        });
-                    },
-                }
-
+                output.push(Value::from_optional_type("infered_type", infered_type, session));
                 (*has_error, last_errors.clone())
             },
             LogEntry::SolveLetEnd { annotated_type, infered_type, has_error, last_errors, .. } => {
                 output.push(Value {
                     name: String::from("annotated_type"),
-                    short: session.render_type(annotated_type),
+                    short: escape_html(&session.render_type(annotated_type)),
                     long: Some(String::from_utf8(prettify(format!("{annotated_type:?}").into_bytes())).unwrap()),
                 });
-
-                match infered_type {
-                    Some(t) => {
-                        output.push(Value {
-                            name: String::from("infered_type"),
-                            short: session.render_type(t),
-                            long: Some(String::from_utf8(prettify(format!("{t:?}").into_bytes())).unwrap()),
-                        });
-                    },
-                    None => {
-                        output.push(Value {
-                            name: String::from("infered_type"),
-                            short: String::from("N/A"),
-                            long: None,
-                        });
-                    },
-                }
-
+                output.push(Value::from_optional_type("infered_type", infered_type, session));
                 (*has_error, last_errors.clone())
             },
             LogEntry::SolveAssertEnd { has_error, last_errors, .. } => (*has_error, last_errors.clone()),
-            LogEntry::SolveExprEnd { infered_type, has_error, last_errors, .. } => {
-                match infered_type {
-                    Some(t) => {
-                        output.push(Value {
-                            name: String::from("infered_type"),
-                            short: session.render_type(t),
-                            long: Some(String::from_utf8(prettify(format!("{t:?}").into_bytes())).unwrap()),
-                        });
-                    },
-                    None => {
-                        output.push(Value {
-                            name: String::from("infered_type"),
-                            short: String::from("N/A"),
-                            long: None,
-                        });
-                    },
+            LogEntry::SolveExprEnd { infered_type, type_vars, has_error, last_errors, .. } => {
+                output.push(Value::from_optional_type("infered_type", infered_type, session));
+
+                if !type_vars.is_empty() {
+                    for (i, (type_var, r#type)) in type_vars.iter().enumerate() {
+                        match r#type {
+                            Some(r#type) => {
+                                output.push(Value {
+                                    name: format!("type-var-{i}"),
+                                    short: escape_html(&session.render_type(r#type)),
+                                    long: Some(format!(
+                                        "var: {}\n\n------\n\ntype: {}",
+                                        String::from_utf8(prettify(format!("{type_var:?}").into_bytes())).unwrap(),
+                                        String::from_utf8(prettify(format!("{type:?}").into_bytes())).unwrap(),
+                                    )),
+                                });
+                            },
+                            None => {
+                                output.push(Value {
+                                    name: format!("type-var-{i}"),
+                                    short: String::from("N/A"),
+                                    long: Some(format!(
+                                        "var: {}",
+                                        String::from_utf8(prettify(format!("{type_var:?}").into_bytes())).unwrap(),
+                                    )),
+                                });
+                            },
+                        }
+
+                        match type_var {
+                            Type::Var { def_span, .. } => {
+                                spans.push(RenderableSpan {
+                                    span: def_span.clone(),
+                                    auxiliary: true,
+                                    note: Some(format!("type-var-{i}-def")),
+                                });
+                            },
+                            Type::GenericArg { call, generic } => {
+                                spans.push(RenderableSpan {
+                                    span: call.clone(),
+                                    auxiliary: true,
+                                    note: Some(format!("type-var-{i}-call")),
+                                });
+                                spans.push(RenderableSpan {
+                                    span: generic.clone(),
+                                    auxiliary: true,
+                                    note: Some(format!("type-var-{i}-generic")),
+                                });
+                            },
+                            _ => {},
+                        }
+                    }
                 }
 
                 (*has_error, last_errors.clone())
             },
             LogEntry::GetTypeOfFieldEnd { associated_func, infered_type, has_error, last_errors, .. } => {
                 // TODO: dump associated_func
-                match infered_type {
-                    Some(t) => {
-                        output.push(Value {
-                            name: String::from("infered_type"),
-                            short: session.render_type(t),
-                            long: Some(String::from_utf8(prettify(format!("{t:?}").into_bytes())).unwrap()),
-                        });
-                    },
-                    None => {
-                        output.push(Value {
-                            name: String::from("infered_type"),
-                            short: String::from("N/A"),
-                            long: None,
-                        });
-                    },
-                }
-
+                output.push(Value::from_optional_type("infered_type", infered_type, session));
                 (*has_error, last_errors.clone())
             },
             LogEntry::GetItemShapeEnd { struct_shape, enum_shape, .. } => {
@@ -841,7 +829,7 @@ pub fn log_inter_mir(session: &InterMirSession) -> Result<(), FileError> {
     let mut calls = vec![];
 
     while session.log.get(index).is_some() {
-        let (call, new_index) = to_func_call(&session.log, index, session);
+        let (call, new_index) = to_func_call(&session.log, index, session, mir_session);
         index = new_index;
 
         if let Some(call) = call {
@@ -1132,13 +1120,13 @@ if (closeButton) {{
 
         write_string(
             &join(&inter_dir, "map.html")?,
-            &to_html("map", &render_map(calls, false, 3)),
+            &to_html("map", &render_map(calls, false, 4)),
             WriteMode::CreateOrTruncate,
         )?;
 
         write_string(
             &join(&inter_dir, "error.html")?,
-            &to_html("error", &render_map(calls, true, 10)),
+            &to_html("error", &render_map(calls, true, 12)),
             WriteMode::CreateOrTruncate,
         )?;
 
