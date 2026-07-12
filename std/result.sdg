@@ -1,3 +1,5 @@
+use std.bool.{Bool, Bool.False, Bool.True};
+
 enum Result<T, E> = {
     Ok(T),
     Error(E),
@@ -7,4 +9,11 @@ enum Result<T, E> = {
 fn unwrap<T, E>(self) -> T = match self {
     Result.Ok($v) => v,
     Result.Error($e) => std.panic(f"attempt to unwrap {e}"),
+};
+
+#[impl(std.op.eq)]
+fn eq_result<T, E>(a: Result<T, E>, b: Result<T, E>) -> Bool = match (a, b) {
+    (Result.Ok($a), Result.Ok($b)) => a == b,
+    (Result.Error($a), Result.Error($b)) => a == b,
+    _ => False,
 };
