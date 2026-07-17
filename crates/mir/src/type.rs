@@ -335,7 +335,7 @@ impl Type {
                 r#return,
                 ..
             } => {
-                let mut units = vec![TypeUnit::Func(*purity)];
+                let mut units = vec![TypeUnit::Func(purity.clone())];
 
                 for r#type in params.iter().chain(std::iter::once(r#return.as_ref())) {
                     units.extend(r#type.flatten()?);
@@ -567,7 +567,14 @@ impl Type {
                 }
 
                 buffer.extend(r#return.hash().to_le_bytes());
-                buffer.push(*purity as u8);
+
+                let purity = match purity {
+                    FuncPurity::Pure => 0,
+                    FuncPurity::Impure => 1,
+                    FuncPurity::Both => 2,
+                    FuncPurity::Var(_) => todo!(),
+                };
+                buffer.push(purity);
             },
             Type::Never(_) => {
                 buffer.push(2);

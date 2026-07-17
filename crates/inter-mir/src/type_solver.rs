@@ -490,6 +490,9 @@ impl Session {
 
                     else {
                         let purity = match (p1, p2) {
+                            (FuncPurity::Var(v1), FuncPurity::Var(v2)) => todo!(),
+                            (FuncPurity::Var(v), _) => todo!(),
+                            (_, FuncPurity::Var(v)) => todo!(),
                             (FuncPurity::Both, _) => FuncPurity::Both,
                             (FuncPurity::Pure, FuncPurity::Pure) => FuncPurity::Pure,
                             (FuncPurity::Impure, FuncPurity::Impure) => FuncPurity::Impure,
@@ -502,10 +505,10 @@ impl Session {
                                     if !is_checking_argument {
                                         self.type_errors.push(TypeError::UnexpectedPurity {
                                             expected_type: lhs.clone(),
-                                            expected_purity: *p1,
+                                            expected_purity: p1.clone(),
                                             expected_span: lhs_span.cloned(),
                                             got_type: rhs.clone(),
-                                            got_purity: *p2,
+                                            got_purity: p2.clone(),
                                             got_span: rhs_span.cloned(),
                                         });
                                     }

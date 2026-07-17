@@ -609,6 +609,7 @@ impl Session {
                         FuncPurity::Pure => "It expects a pure function.",
                         FuncPurity::Impure => "It expects an impure function.",
                         FuncPurity::Both => unreachable!(),
+                        FuncPurity::Var(_) => todo!(),
                     }.to_string();
 
                     spans.push(RenderableSpan {
@@ -623,6 +624,7 @@ impl Session {
                         FuncPurity::Pure => "This is a pure function.",
                         FuncPurity::Impure => "This is an impure function.",
                         FuncPurity::Both => "I'm not sure whether it's pure or not.",
+                        FuncPurity::Var(_) => todo!(),
                     }.to_string();
 
                     spans.push(RenderableSpan {
@@ -635,7 +637,12 @@ impl Session {
                 let note = match (expected_purity, got_purity) {
                     (ex, FuncPurity::Both) => Some(format!(
                         "If you're sure that this is {}, add a type annotation. Be careful that `Fn` is for 'pure or impure' functions, you have to use `PureFn` or `ImpureFn` to be clear.",
-                        match ex { FuncPurity::Pure => "pure", FuncPurity::Impure => "impure", FuncPurity::Both => unreachable!() },
+                        match ex {
+                            FuncPurity::Pure => "pure",
+                            FuncPurity::Impure => "impure",
+                            FuncPurity::Both => unreachable!(),
+                            FuncPurity::Var(_) => todo!(),
+                        },
                     )),
                     _ => None,
                 };

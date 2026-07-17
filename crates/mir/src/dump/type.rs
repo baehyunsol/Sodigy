@@ -63,6 +63,7 @@ pub fn render_type(
                 FuncPurity::Pure => "PureFn",
                 FuncPurity::Impure => "ImpureFn",
                 FuncPurity::Both => "Fn",
+                FuncPurity::Var(_) => "FnVar",
             },
             params.iter().map(
                 |param| render_type(param, verbose, lang_items, intermediate_dir, span_string_map)

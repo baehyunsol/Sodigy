@@ -954,8 +954,9 @@ impl Session {
                                 //              they're found in `self.types` or `self.generic_args`
                                 match prev_infered {
                                     Some(Type::Var { .. } | Type::GenericArg { .. }) | None => {
+                                        let call_span = func.error_span_wide();
                                         let intermediate_type_var = Type::Var {
-                                            def_span: Span::IntermediateTypeVar(Box::new(func.error_span_wide())),
+                                            def_span: Span::IntermediateTypeVar(Box::new(call_span.clone())),
                                             is_return: false,
                                         };
                                         let intermediate_func_type = Type::Func {
@@ -968,7 +969,7 @@ impl Session {
                                             // It's impossible to infer its purity.
                                             // We need some kinda purity-variable...
                                             // It'd be difficult to unify purity-variables because of `Purity::Both`.
-                                            purity: todo!(),
+                                            purity: FuncPurity::Var(call_span.clone()),
                                         };
 
                                         match type_var {

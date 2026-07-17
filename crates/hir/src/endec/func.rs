@@ -151,6 +151,10 @@ impl Endec for FuncPurity {
             FuncPurity::Both => {
                 buffer.push(2);
             },
+            FuncPurity::Var(s) => {
+                buffer.push(3);
+                s.encode_impl(buffer);
+            },
         }
     }
 
@@ -159,7 +163,11 @@ impl Endec for FuncPurity {
             Some(0) => Ok((FuncPurity::Pure, cursor + 1)),
             Some(1) => Ok((FuncPurity::Impure, cursor + 1)),
             Some(2) => Ok((FuncPurity::Both, cursor + 1)),
-            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(3) => {
+                let (s, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                Ok((FuncPurity::Var(s), cursor))
+            },
+            Some(n @ 4..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }
