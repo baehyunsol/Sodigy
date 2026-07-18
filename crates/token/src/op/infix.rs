@@ -148,7 +148,8 @@ impl TryFrom<Punct> for InfixOp {
             Punct::Pipeline => Ok(InfixOp::Pipeline),
             // Do not use a wildcard!
             Punct::Colon | Punct::Semicolon | Punct::Assign |
-            Punct::Comma | Punct::Dot | Punct::At | Punct::Dollar |
+            Punct::Comma | Punct::Dot | Punct::At |
+            Punct::Dollar | Punct::Backslash |
             Punct::Factorial | Punct::QuestionMark | Punct::Arrow |
             Punct::ReturnType => Err(()),
         }

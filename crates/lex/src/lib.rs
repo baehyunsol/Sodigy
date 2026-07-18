@@ -544,7 +544,7 @@ impl Session {
                     b'!' | b'$' | b'%' | b'&' | b'*' |
                     b'+' | b',' | b'-' | b'.' | b'/' |
                     b':' | b';' | b'<' | b'=' | b'>' |
-                    b'?' | b'@' | b'^' | b'|'
+                    b'?' | b'@' | b'\\' | b'^' | b'|'
                 )), _, _) => {
                     self.tokens.push(Token {
                         kind: TokenKind::Punct((*x).into()),

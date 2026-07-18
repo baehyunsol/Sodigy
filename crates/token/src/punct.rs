@@ -16,6 +16,7 @@ pub enum Punct {
     Factorial,
     At,
     Dollar,
+    Backslash,
     And,  // "&"
     Or,   // "|"
     Xor,  // "^"
@@ -57,6 +58,7 @@ impl Punct {
             Punct::Factorial => "!",
             Punct::At => "@",
             Punct::Dollar => "$",
+            Punct::Backslash => "\\",
             Punct::And => "&",
             Punct::Or => "|",
             Punct::Xor => "^",
@@ -100,6 +102,7 @@ impl From<u8> for Punct {
             b'>' => Punct::Gt,
             b'?' => Punct::QuestionMark,
             b'@' => Punct::At,
+            b'\\' => Punct::Backslash,
             b'^' => Punct::Xor,
             b'|' => Punct::Or,
             _ => panic!("TODO: {:?}", b as char),

@@ -52,62 +52,65 @@ impl Endec for Punct {
             Punct::Dollar => {
                 buffer.push(15);
             },
-            Punct::And => {
+            Punct::Backslash => {
                 buffer.push(16);
             },
-            Punct::Or => {
+            Punct::And => {
                 buffer.push(17);
             },
-            Punct::Xor => {
+            Punct::Or => {
                 buffer.push(18);
             },
-            Punct::AndAnd => {
+            Punct::Xor => {
                 buffer.push(19);
             },
-            Punct::OrOr => {
+            Punct::AndAnd => {
                 buffer.push(20);
             },
-            Punct::Shl => {
+            Punct::OrOr => {
                 buffer.push(21);
             },
-            Punct::Shr => {
+            Punct::Shl => {
                 buffer.push(22);
             },
-            Punct::Eq => {
+            Punct::Shr => {
                 buffer.push(23);
             },
-            Punct::Leq => {
+            Punct::Eq => {
                 buffer.push(24);
             },
-            Punct::Neq => {
+            Punct::Leq => {
                 buffer.push(25);
             },
-            Punct::Geq => {
+            Punct::Neq => {
                 buffer.push(26);
             },
-            Punct::Concat => {
+            Punct::Geq => {
                 buffer.push(27);
             },
-            Punct::Append => {
+            Punct::Concat => {
                 buffer.push(28);
             },
-            Punct::Prepend => {
+            Punct::Append => {
                 buffer.push(29);
             },
-            Punct::DotDot => {
+            Punct::Prepend => {
                 buffer.push(30);
             },
-            Punct::DotDotEq => {
+            Punct::DotDot => {
                 buffer.push(31);
             },
-            Punct::Arrow => {
+            Punct::DotDotEq => {
                 buffer.push(32);
             },
-            Punct::ReturnType => {
+            Punct::Arrow => {
                 buffer.push(33);
             },
-            Punct::Pipeline => {
+            Punct::ReturnType => {
                 buffer.push(34);
+            },
+            Punct::Pipeline => {
+                buffer.push(35);
             },
         }
     }
@@ -130,26 +133,27 @@ impl Endec for Punct {
             Some(13) => Ok((Punct::Factorial, cursor + 1)),
             Some(14) => Ok((Punct::At, cursor + 1)),
             Some(15) => Ok((Punct::Dollar, cursor + 1)),
-            Some(16) => Ok((Punct::And, cursor + 1)),
-            Some(17) => Ok((Punct::Or, cursor + 1)),
-            Some(18) => Ok((Punct::Xor, cursor + 1)),
-            Some(19) => Ok((Punct::AndAnd, cursor + 1)),
-            Some(20) => Ok((Punct::OrOr, cursor + 1)),
-            Some(21) => Ok((Punct::Shl, cursor + 1)),
-            Some(22) => Ok((Punct::Shr, cursor + 1)),
-            Some(23) => Ok((Punct::Eq, cursor + 1)),
-            Some(24) => Ok((Punct::Leq, cursor + 1)),
-            Some(25) => Ok((Punct::Neq, cursor + 1)),
-            Some(26) => Ok((Punct::Geq, cursor + 1)),
-            Some(27) => Ok((Punct::Concat, cursor + 1)),
-            Some(28) => Ok((Punct::Append, cursor + 1)),
-            Some(29) => Ok((Punct::Prepend, cursor + 1)),
-            Some(30) => Ok((Punct::DotDot, cursor + 1)),
-            Some(31) => Ok((Punct::DotDotEq, cursor + 1)),
-            Some(32) => Ok((Punct::Arrow, cursor + 1)),
-            Some(33) => Ok((Punct::ReturnType, cursor + 1)),
-            Some(34) => Ok((Punct::Pipeline, cursor + 1)),
-            Some(n @ 35..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(16) => Ok((Punct::Backslash, cursor + 1)),
+            Some(17) => Ok((Punct::And, cursor + 1)),
+            Some(18) => Ok((Punct::Or, cursor + 1)),
+            Some(19) => Ok((Punct::Xor, cursor + 1)),
+            Some(20) => Ok((Punct::AndAnd, cursor + 1)),
+            Some(21) => Ok((Punct::OrOr, cursor + 1)),
+            Some(22) => Ok((Punct::Shl, cursor + 1)),
+            Some(23) => Ok((Punct::Shr, cursor + 1)),
+            Some(24) => Ok((Punct::Eq, cursor + 1)),
+            Some(25) => Ok((Punct::Leq, cursor + 1)),
+            Some(26) => Ok((Punct::Neq, cursor + 1)),
+            Some(27) => Ok((Punct::Geq, cursor + 1)),
+            Some(28) => Ok((Punct::Concat, cursor + 1)),
+            Some(29) => Ok((Punct::Append, cursor + 1)),
+            Some(30) => Ok((Punct::Prepend, cursor + 1)),
+            Some(31) => Ok((Punct::DotDot, cursor + 1)),
+            Some(32) => Ok((Punct::DotDotEq, cursor + 1)),
+            Some(33) => Ok((Punct::Arrow, cursor + 1)),
+            Some(34) => Ok((Punct::ReturnType, cursor + 1)),
+            Some(35) => Ok((Punct::Pipeline, cursor + 1)),
+            Some(n @ 36..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

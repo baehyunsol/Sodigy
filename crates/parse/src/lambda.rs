@@ -20,13 +20,21 @@ pub struct Lambda {
 }
 
 impl<'t, 's> Tokens<'t, 's> {
+    // The cursor must be pointing to the backslash character.
+    // If there's `impure` keyword before the backslash, its callee will take care of that.
     pub fn parse_lambda(&mut self) -> Result<Lambda, Vec<Error>> {
-        match self.peek() {
-            Some(Token { kind: TokenKind::Group { delim: Delim::Lambda, tokens }, span }) => {
-                let span = span.clone();
+        match self.peek2() {
+            (Some(Token { kind: TokenKind::Punct(Punct::Backslash), .. }), Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span })) |
+            (Some(Token { kind: TokenKind::Group { delim: Delim::Lambda, tokens }, span }), _) => {
+                let (span, jump) = match self.peek2() {
+                    (Some(Token { kind: TokenKind::Punct(_), span: span1 }), Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, .. }, span: span2 })) => (span1.merge(span2), 2),
+                    (Some(Token { kind: TokenKind::Group { delim: Delim::Lambda, .. }, span }), _) => (span.clone(), 1),
+                    _ => unreachable!(),
+                };
+
                 let mut tokens = Tokens::new(tokens, span.end(), false, self.intermediate_dir);
                 let params = tokens.parse_func_params(true /* allow_wildcard */)?;
-                self.cursor += 1;
+                self.cursor += jump;
                 let mut type_annot = None;
 
                 match self.peek() {
@@ -52,7 +60,56 @@ impl<'t, 's> Tokens<'t, 's> {
                     value: Box::new(value),
                 })
             },
-            Some(t) => {
+            (Some(Token { kind: TokenKind::Punct(Punct::Backslash), span }), _) => {
+                let mut param_group_span_start = span.clone();
+                let mut arrow_span = None;
+                self.cursor += 1;
+
+                let mut param_tokens_start_index = self.cursor;
+                let mut param_tokens_end_index = None;
+
+                for (i, token) in self.enumerate_forward() {
+                    param_tokens_end_index = Some(i);
+
+                    if let Token { kind: TokenKind::Punct(Punct::ReturnType), span } = token {
+                        // This is a syntax error. I won't allow users to annotate type in this way.
+                        // They must use a parenthesis.
+                        todo!();
+                    }
+
+                    else if let Token { kind: TokenKind::Punct(Punct::Arrow), span } = token {
+                        arrow_span = Some(span.clone());
+                        break;
+                    }
+                }
+
+                match (arrow_span, param_tokens_end_index) {
+                    (Some(arrow_span), Some(param_tokens_end_index)) => {
+                        let end_span = self.tokens[param_tokens_end_index - 1].span.end();
+                        let param_group_span = param_group_span_start.merge(&end_span);
+                        let mut tokens = Tokens::new(&self.tokens[param_tokens_start_index..param_tokens_end_index], end_span, false, self.intermediate_dir);
+                        let params = tokens.parse_func_params(true /* allow_wildcard */)?;
+                        self.cursor = param_tokens_end_index;
+
+                        let arrow_span = self.match_and_pop(TokenKind::Punct(Punct::Arrow))?.span.clone();
+                        let value = self.parse_expr(true)?;
+
+                        Ok(Lambda {
+                            // if there's `impure` keyword, its callee will change these values.
+                            is_pure: true,
+                            impure_keyword_span: None,
+
+                            params,
+                            param_group_span,
+                            type_annot: Box::new(None),
+                            arrow_span,
+                            value: Box::new(value),
+                        })
+                    },
+                    _ => todo!(),
+                }
+            },
+            (Some(t), _) => {
                 return Err(vec![Error {
                     kind: ErrorKind::UnexpectedToken {
                         expected: ErrorToken::Group(Delim::Lambda),
@@ -62,7 +119,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     note: None,
                 }]);
             },
-            None => {
+            (None, _) => {
                 return Err(vec![self.unexpected_end((&TokenKind::Group { delim: Delim::Lambda, tokens: vec![] }).into())]);
             },
         }

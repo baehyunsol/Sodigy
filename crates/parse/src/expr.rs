@@ -207,6 +207,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 self.cursor += 1;
                 Expr::PipelineData(span)
             },
+            Some(Token { kind: TokenKind::Punct(Punct::Backslash), span }) => Expr::Lambda(self.parse_lambda()?),
             Some(Token { kind: TokenKind::Punct(p), span }) => {
                 let punct = *p;
                 let punct_span = span.clone();

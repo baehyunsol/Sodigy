@@ -45,9 +45,9 @@ impl TryFrom<Punct> for PostfixOp {
             Punct::Div | Punct::Rem | Punct::Colon | Punct::Semicolon |
             Punct::Lt | Punct::Assign | Punct::Gt |
             Punct::Comma | Punct::Dot | Punct::At |
-            Punct::Dollar | Punct::Factorial |
-            Punct::And | Punct::Or | Punct::Xor |
-            Punct::AndAnd | Punct::OrOr |
+            Punct::Dollar | Punct::Backslash |
+            Punct::Factorial | Punct::And | Punct::Or |
+            Punct::Xor | Punct::AndAnd | Punct::OrOr |
             Punct::Shl | Punct::Shr | Punct::Eq |
             Punct::Leq | Punct::Neq | Punct::Geq |
             Punct::Concat | Punct::Append | Punct::Prepend |
