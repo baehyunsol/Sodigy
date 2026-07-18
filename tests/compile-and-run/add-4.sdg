@@ -25,4 +25,4 @@ fn adder_test(x, y) = {
     }
 };
 
-assert (0..10000).map(\(n) => adder_test(n / 100, n % 100)).len() == 10000;
+assert (0..10000).map(\n => adder_test(n / 100, n % 100)).len() == 10000;

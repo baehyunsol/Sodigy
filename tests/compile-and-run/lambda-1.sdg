@@ -1,0 +1,37 @@
+let inc_1 = \x => x + 1;
+let inc_2 = \x=>x + 2;
+let inc_3 = \ x => x + 3;
+let inc_4 = \ x=> x + 4;
+let inc_5 = \(x) => x + 5;
+let inc_6 = \(x: Int) => x + 6;
+
+assert inc_1(10) == 11;
+assert inc_2(10) == 12;
+assert inc_3(10) == 13;
+assert inc_4(10) == 14;
+assert inc_5(10) == 15;
+assert inc_6(10) == 16;
+
+let const_1 = \=>1;
+let const_2 = \ =>2;
+let const_3 = \()=>3;
+let const_4 = \() => 4;
+let const_5 = \ () => 5;
+let const_6 = \_=>6;
+
+assert const_1() == 1;
+assert const_2() == 2;
+assert const_3() == 3;
+assert const_4() == 4;
+assert const_5() == 5;
+assert const_6(100) == 6;
+
+let adder_1 = \x,y => x + y + 1;
+let adder_2 = \ x, y => x + y + 2;
+let adder_3 = \(x, y) => x + y + 3;
+let adder_4 = \(x: Int, y) => x + y + 4;
+
+assert adder_1(100, 10) == 111;
+assert adder_2(200, 20) == 222;
+assert adder_3(300, 30) == 333;
+assert adder_4(400, 40) == 444;
