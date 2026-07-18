@@ -490,9 +490,62 @@ impl Session {
 
                     else {
                         let purity = match (p1, p2) {
-                            (FuncPurity::Var(v1), FuncPurity::Var(v2)) => todo!(),
-                            (FuncPurity::Var(v), _) => todo!(),
-                            (_, FuncPurity::Var(v)) => todo!(),
+                            (FuncPurity::Var(v1), FuncPurity::Var(v2)) => match (self.purity_vars.get(v1), self.purity_vars.get(v2)) {
+                                (
+                                    Some(p1 @ (FuncPurity::Both | FuncPurity::Pure | FuncPurity::Impure)),
+                                    Some(p2 @ (FuncPurity::Both | FuncPurity::Pure | FuncPurity::Impure)),
+                                ) => match (p1, p2) {
+                                    (FuncPurity::Both, _) => FuncPurity::Both,
+                                    (FuncPurity::Pure, FuncPurity::Pure) => FuncPurity::Pure,
+                                    (FuncPurity::Impure, FuncPurity::Impure) => FuncPurity::Impure,
+                                    _ => {
+                                        if bidirectional {
+                                            FuncPurity::Both
+                                        }
+
+                                        else {
+                                            if !is_checking_argument {
+                                                self.type_errors.push(TypeError::UnexpectedPurity {
+                                                    expected_type: lhs.clone(),
+                                                    expected_purity: p1.clone(),
+                                                    expected_span: lhs_span.cloned(),
+                                                    got_type: rhs.clone(),
+                                                    got_purity: p2.clone(),
+                                                    got_span: rhs_span.cloned(),
+                                                });
+                                            }
+
+                                            return Err(());
+                                        }
+                                    },
+                                },
+                                (Some(p1 @ (FuncPurity::Both | FuncPurity::Pure | FuncPurity::Impure)), None) => {
+                                    let p1 = p1.clone();
+                                    self.purity_vars.insert(v2.clone(), p1.clone());
+                                    p1.clone()
+                                },
+                                (None, Some(p2 @ (FuncPurity::Both | FuncPurity::Pure | FuncPurity::Impure))) => {
+                                    let p2 = p2.clone();
+                                    self.purity_vars.insert(v1.clone(), p2.clone());
+                                    p2.clone()
+                                },
+                                (None, None) => p1.clone(),  // lhs is the supertype.
+                                _ => unreachable!(),
+                            },
+                            (FuncPurity::Var(v), FuncPurity::Both) => {
+                                self.purity_vars.insert(v.clone(), FuncPurity::Both);
+                                FuncPurity::Both
+                            },
+                            (FuncPurity::Var(v), FuncPurity::Pure | FuncPurity::Impure) => FuncPurity::Var(v.clone()),
+
+                            // We're sure that the supertype of these are FuncPurity::Both, but we can't say that
+                            // this purity-variable is `FuncPurity::Both`.
+                            (FuncPurity::Both, FuncPurity::Var(_)) => FuncPurity::Both,
+
+                            (p1 @ (FuncPurity::Pure | FuncPurity::Impure), FuncPurity::Var(v)) => {
+                                self.purity_vars.insert(v.clone(), p1.clone());
+                                p1.clone()
+                            },
                             (FuncPurity::Both, _) => FuncPurity::Both,
                             (FuncPurity::Pure, FuncPurity::Pure) => FuncPurity::Pure,
                             (FuncPurity::Impure, FuncPurity::Impure) => FuncPurity::Impure,
@@ -574,7 +627,7 @@ impl Session {
                             Some(Type::Func { r#return, .. }) => {
                                 **r#return = t2.clone();
                             },
-                            _ => unreachable!(),
+                            _ => {},
                         }
                     } else {
                         self.types.insert(v1.clone(), t2.clone());
@@ -588,7 +641,7 @@ impl Session {
                             Some(Type::Func { r#return, .. }) => {
                                 **r#return = t1.clone();
                             },
-                            _ => unreachable!(),
+                            _ => {},
                         }
                     } else {
                         self.types.insert(v2.clone(), t1.clone());
@@ -717,14 +770,14 @@ impl Session {
                                 }
                             },
                         },
-                        _ => unreachable!(),
+                        _ => {},
                     }
 
                     match self.types.get_mut(def_span) {
                         Some(Type::Func { r#return, .. }) => {
                             **r#return = maybe_concrete.clone();
                         },
-                        _ => unreachable!(),
+                        _ => {},
                     }
                 }
 

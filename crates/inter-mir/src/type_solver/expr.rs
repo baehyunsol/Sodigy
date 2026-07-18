@@ -5,7 +5,7 @@ use sodigy_hir::{self as hir, AssociatedFunc, FuncPurity};
 use sodigy_inter_hir::get_associated_func_name;
 use sodigy_mir::{Callable, Dotfish, ShortCircuitKind, get_def_span_from_id};
 use sodigy_parse::{Field, merge_field_spans};
-use sodigy_span::{PolySpanKind, Span, SpanDeriveKind};
+use sodigy_span::{PolySpanKind, Span};
 use sodigy_string::intern_string;
 use sodigy_token::Constant;
 use std::collections::{HashMap, HashSet};
@@ -959,17 +959,14 @@ impl Session {
                                             def_span: Span::IntermediateTypeVar(Box::new(call_span.clone())),
                                             is_return: false,
                                         };
+                                        // Maybe it's solved in the previous iterations!
+                                        let purity = self.purity_vars.get(&call_span).cloned().unwrap_or_else(|| FuncPurity::Var(call_span.clone()));
                                         let intermediate_func_type = Type::Func {
                                             fn_span: Span::None,
                                             group_span: Span::None,
                                             params: arg_types,
                                             r#return: Box::new(intermediate_type_var.clone()),
-
-                                            // TODO
-                                            // It's impossible to infer its purity.
-                                            // We need some kinda purity-variable...
-                                            // It'd be difficult to unify purity-variables because of `Purity::Both`.
-                                            purity: FuncPurity::Var(call_span.clone()),
+                                            purity,
                                         };
 
                                         match type_var {

@@ -48,6 +48,7 @@ impl Endec for Session {
             Session {
                 type_vars: HashMap::new(),
                 type_var_refs: HashMap::new(),
+                purity_vars: HashMap::new(),
                 maybe_never_type: HashMap::new(),
                 blocked_type_vars: HashSet::new(),
                 pattern_name_bindings: HashSet::new(),
