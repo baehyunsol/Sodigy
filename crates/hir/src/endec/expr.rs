@@ -11,7 +11,7 @@ use crate::{
     Type,
 };
 use sodigy_endec::{DecodeError, Endec};
-use sodigy_parse::Field;
+use sodigy_parse::{ConversionKind, Field};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use sodigy_token::{Constant, InfixOp, PostfixOp, PrefixOp};
@@ -98,12 +98,12 @@ impl Endec for Expr {
                 op_span.encode_impl(buffer);
                 lhs.encode_impl(buffer);
             },
-            Expr::TypeConversion { keyword_span, lhs, rhs, has_question_mark } => {
+            Expr::TypeConversion { keyword_span, lhs, rhs, kind } => {
                 buffer.push(15);
                 keyword_span.encode_impl(buffer);
                 lhs.encode_impl(buffer);
                 rhs.encode_impl(buffer);
-                has_question_mark.encode_impl(buffer);
+                kind.encode_impl(buffer);
             },
             Expr::Closure { fp, captures } => {
                 buffer.push(16);
@@ -198,8 +198,8 @@ impl Endec for Expr {
                 let (keyword_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 let (rhs, cursor) = Box::<Type>::decode_impl(buffer, cursor)?;
-                let (has_question_mark, cursor) = bool::decode_impl(buffer, cursor)?;
-                Ok((Expr::TypeConversion { keyword_span, lhs, rhs, has_question_mark }, cursor))
+                let (kind, cursor) = ConversionKind::decode_impl(buffer, cursor)?;
+                Ok((Expr::TypeConversion { keyword_span, lhs, rhs, kind }, cursor))
             },
             Some(16) => {
                 let (fp, cursor) = Path::decode_impl(buffer, cursor + 1)?;

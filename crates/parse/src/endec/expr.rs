@@ -1,4 +1,4 @@
-use crate::{Expr, Field};
+use crate::{ConversionKind, Expr, Field};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -10,6 +10,32 @@ impl Endec for Expr {
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         todo!()
+    }
+}
+
+impl Endec for ConversionKind {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            ConversionKind::Convert => {
+                buffer.push(0);
+            },
+            ConversionKind::TryConvert => {
+                buffer.push(1);
+            },
+            ConversionKind::UnwrapTryConvert => {
+                buffer.push(2);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => Ok((ConversionKind::Convert, cursor + 1)),
+            Some(1) => Ok((ConversionKind::TryConvert, cursor + 1)),
+            Some(2) => Ok((ConversionKind::UnwrapTryConvert, cursor + 1)),
+            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
     }
 }
 

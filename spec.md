@@ -161,6 +161,34 @@ assert [1, 2, 3] <+ 4 == [1, 2, 3, 4];
 assert "abc" <+ 'd' == "abcd";
 ```
 
+### `as`, `as?` and `as!`
+
+`as` is a type conversion operator. You can convert a type of a value as long as it implements `std.convert.convert`. The syntax is `value as <type>`. Note that the type must be in angle brackets.
+
+```sodigy
+let x = 3;
+
+assert x as <Number> == 3.0;
+```
+
+You can use `as?` for type conversions that may fail. It'll call `std.convert.try_convert`.
+
+```sodigy
+let x = "3";
+
+assert x as? <Int> == Ok(3);
+```
+
+Let's say types A and B implements `try_convert` but not `convert` (e.g. `String` to `Int`). In many cases, you already did the safety check and you can just unwrap the result. Instead of writing `(value as? <type>).unwrap()`, you can use `as!` operator. `x as! <T>` is a shorthand for `(x as! <T>).unwrap()`.
+
+```sodigy
+let x = "3";
+
+// These 2 are the same.
+assert (x as? <Int>).unwrap() == 3;
+assert x as! <Int> == 3;
+```
+
 ## Functions
 
 Use `fn` keyword to define a function. The keyword is followed by a name of the function, a list of parameters (a parenthesis), an assignment (`=`), its return value, and a semicolon.
@@ -212,7 +240,7 @@ TODO: documentation
 ```sodigy
 enum Result<T, E> = {
     Ok(T),
-    Err(E),
+    Error(E),
 };
 ```
 
@@ -308,6 +336,7 @@ Use `match` keyword to match a pattern. The keyword is followed by a value, and 
 
 ```sodigy
 fn to_string(n: Int) -> String = match n {
+    ..0 => "negative number",
     0 => "zero",
     1 => "one",
     2 => "two",
@@ -316,6 +345,7 @@ fn to_string(n: Int) -> String = match n {
     _ => "very large number",
 };
 
+assert to_string(-1) == "negative number";
 assert to_string(0) == "zero";
 assert to_string(1) == "one";
 assert to_string(2) == "two";
@@ -327,7 +357,7 @@ fn greet(name: String) -> String = match name {
     "Bae" => "Hi, Bae",
 
     // There's a dollar-sign (`$`) for a name binding.
-    $name @ "John" => f"Good to see you, {name}",
+    $name @ ("John" | "Jane") => f"Good to see you, {name}",
     $other => f"Hello, {other}",
 };
 
@@ -426,7 +456,7 @@ use sodigy.random.random_int;
 // In an impure function, you can call another impure function.
 impure fn random_numbers() -> [Int] = [random_int(), random_int()];
 
-// This would be a compile error.
+// This is a compile error.
 // fn random_numbers() -> [Int] = [random_int(), random_int()];
 ```
 

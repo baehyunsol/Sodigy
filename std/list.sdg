@@ -9,11 +9,11 @@ pub struct List<T>;
 #[impl(std.op.index)]
 fn index_list<T>(ls: [T], i: Int) -> T = {
     if 0 <= i && i < ls.len() {
-        index_list_built_in(ls, i as <Scalar>)
+        index_list_built_in(ls, i as! <Scalar>)
     }
 
     else if -ls.len() <= i {
-        index_list_built_in(ls, (i + ls.len()) as <Scalar>)
+        index_list_built_in(ls, (i + ls.len()) as! <Scalar>)
     }
 
     else {

@@ -16,13 +16,19 @@ impl Ord for Span {
                                 Ordering::Equal => span1.cmp(span2),
                                 o => o,
                             },
-                            (Span::Monomorphize { .. }, _) => Ordering::Greater,
                             (Span::Derived { kind: kind1, span: span1 }, Span::Derived { kind: kind2, span: span2 }) => match kind1.cmp(kind2) {
                                 Ordering::Equal => span1.cmp(span2),
                                 o => o,
                             },
+                            (Span::Monomorphize { .. }, _) => Ordering::Greater,
+                            (_, Span::Monomorphize { .. }) => Ordering::Less,
                             (Span::Derived { .. }, _) => Ordering::Greater,
-                            _ => unreachable!(),
+                            (_, Span::Derived { .. }) => Ordering::Less,
+                            _ => {
+                                eprintln!("self: {self:?}");
+                                eprintln!("other: {other:?}");
+                                unreachable!()
+                            },
                         },
                         o => o,
                     },

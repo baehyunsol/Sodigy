@@ -10,7 +10,7 @@ use crate::{
 use sodigy_error::{EnumFieldKind, Error, ErrorKind, NotXBut, comma_list_strs, to_ordinal};
 use sodigy_hir::{self as hir, EnumVariantFields, Generic};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
-use sodigy_parse::{Field, merge_field_spans};
+use sodigy_parse::{ConversionKind, Field, merge_field_spans};
 use sodigy_session::SodigySession;
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
@@ -978,36 +978,69 @@ impl Expr {
                     given_keyword_args: vec![],
                 })
             },
-            hir::Expr::TypeConversion { keyword_span, lhs, rhs, has_question_mark } => Ok(Expr::Call {
-                func: Callable::Static {
-                    def_span: if *has_question_mark {
-                        session.get_lang_item_span("fn.try_convert")
-                    } else {
-                        session.get_lang_item_span("fn.convert")
+            hir::Expr::TypeConversion { keyword_span, lhs, rhs, kind } => match kind {
+                ConversionKind::Convert => Ok(Expr::Call {
+                    func: Callable::Static {
+                        def_span: session.get_lang_item_span("fn.convert"),
+                        span: keyword_span.clone(),
                     },
-                    span: keyword_span.clone(),
-                },
-                args: vec![Expr::from_hir(lhs, session)?],
-                arg_group_span: rhs.error_span_wide(),
-                types: Some(Dotfish {
-                    types: if *has_question_mark {
+                    args: vec![Expr::from_hir(lhs, session)?],
+                    arg_group_span: rhs.error_span_wide(),
+                    types: Some(Dotfish {
+                        // `3 as <String>` -> `std.convert.convert.<_, String>(3)`
+                        types: vec![
+                            Type::Var { def_span: keyword_span.clone(), is_return: false },
+                            Type::from_hir(rhs, session)?,
+                        ],
+                        group_span: rhs.error_span_wide(),
+                    }),
+                    given_keyword_args: vec![],
+                }),
+                ConversionKind::TryConvert => Ok(Expr::Call {
+                    func: Callable::Static {
+                        def_span: session.get_lang_item_span("fn.try_convert"),
+                        span: keyword_span.clone(),
+                    },
+                    args: vec![Expr::from_hir(lhs, session)?],
+                    arg_group_span: rhs.error_span_wide(),
+                    types: Some(Dotfish {
                         // `"3" as? <Int>` -> `std.convert.try_convert.<_, Int, _>("3")`
-                        vec![
+                        types: vec![
                             Type::Var { def_span: keyword_span.clone(), is_return: false },
                             Type::from_hir(rhs, session)?,
                             Type::Var { def_span: keyword_span.derive(SpanDeriveKind::ConvertError), is_return: false },
-                        ]
-                    } else {
-                        // `3 as <String>` -> `std.convert.convert.<_, String>(3)`
-                        vec![
-                            Type::Var { def_span: keyword_span.clone(), is_return: false },
-                            Type::from_hir(rhs, session)?,
-                        ]
-                    },
-                    group_span: rhs.error_span_wide(),
+                        ],
+                        group_span: rhs.error_span_wide(),
+                    }),
+                    given_keyword_args: vec![],
                 }),
-                given_keyword_args: vec![],
-            }),
+                // `lhs as! <rhs>` -> `std.convert.try_convert.<_, rhs, _>(lhs).unwrap()`
+                ConversionKind::UnwrapTryConvert => {
+                    let mut expr = hir_expr.clone();
+
+                    if let hir::Expr::TypeConversion { kind, .. } = &mut expr {
+                        *kind = ConversionKind::TryConvert;
+                    }
+
+                    let try_convert = Expr::from_hir(&expr, session)?;
+                    Ok(Expr::Call {
+                        func: Callable::Dynamic(Box::new(Expr::Field {
+                            lhs: Box::new(try_convert),
+                            fields: vec![Field::Name {
+                                name: intern_string(b"unwrap", &session.intermediate_dir).unwrap(),
+                                name_span: keyword_span.derive(SpanDeriveKind::UnwrapTryConvert),
+                                dot_span: keyword_span.derive(SpanDeriveKind::UnwrapTryConvert),
+                                is_from_alias: false,
+                            }],
+                            dotfish: vec![None, None],
+                        })),
+                        args: vec![],
+                        arg_group_span: Span::None,
+                        types: None,
+                        given_keyword_args: vec![],
+                    })
+                },
+            },
             hir::Expr::Closure { fp, captures } => todo!(),
         }
     }

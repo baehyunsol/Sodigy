@@ -38,7 +38,7 @@ pub use attribute::{
 };
 pub use block::Block;
 pub use r#enum::{Enum, EnumVariant, EnumVariantFields};
-pub use expr::{Expr, ExprOrString};
+pub use expr::{ConversionKind, Expr, ExprOrString};
 pub use func::{Func, FuncArg, FuncParam};
 pub use r#if::If;
 pub use lambda::Lambda;

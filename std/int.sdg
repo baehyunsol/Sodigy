@@ -1,6 +1,7 @@
 use std.bool.{Bool, Bool.{False, True}};
 use std.option.Option.{None, Some};
 use std.range.Range;
+use std.result.{Result, Result.{Error, Ok}};
 use std.scalar.Scalar;
 use std.string.String;
 
@@ -97,7 +98,7 @@ fn shr_int(a: Int, b: Int) -> Int = match (a, b) {
     (..0, _) => -shr_int(-a, b),
     (_, ..0) => shl_int(a, -b),
     (_, 65536..) => 0,
-    _ => shr_int_built_in(a, b as <Scalar>),
+    _ => shr_int_built_in(a, b as! <Scalar>),
 };
 
 #[built_in]
@@ -110,7 +111,7 @@ fn shl_int(a: Int, b: Int) -> Int = match (a, b) {
     (..0, _) => -shl_int(-a, b),
     (_, ..0) => shr_int(a, -b),
     (1.., 65536..) => std.panic("Integer Overflow"),
-    _ => shl_int_built_in(a, b as <Scalar>),
+    _ => shl_int_built_in(a, b as! <Scalar>),
 };
 
 #[built_in]
@@ -123,11 +124,16 @@ fn ilog2(n) -> Int = match n {
     _ => ilog2_built_in(n) as <Int>,
 };
 
-// TODO: safety checks in Sodigy (it has to be `try_convert(Int) -> Result<Scalar, _>`)
+// TODO: Error type
+#[impl(std.convert.try_convert)]
+fn int_to_scalar(n: Int) -> Result<Scalar, ()> = match n {
+    0..4294967296 => Ok(int_to_scalar_built_in(n)),
+    _ => std.panic("TODO: nice error value"),
+};
+
 #[built_in]
-#[impl(std.convert.convert)]
 #[lang_item("built_in.int_to_scalar")]
-fn int_to_scalar(n: Int) -> Scalar;
+fn int_to_scalar_built_in(n: Int) -> Scalar;
 
 #[impl(std.convert.convert)]
 fn int_to_string(n: Int) -> String = match n {

@@ -92,7 +92,7 @@ pub enum Expr {
         keyword_span: Span,
         lhs: Box<Expr>,
         rhs: Box<Type>,
-        has_question_mark: bool,
+        kind: ConversionKind,
     },
 
     // `x |> $ + 1` will become
@@ -104,6 +104,23 @@ pub enum Expr {
         pipe_spans: Vec<Span>,
     },
     PipelineData(Span),  // `$`
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ConversionKind {
+    Convert,
+    TryConvert,
+    UnwrapTryConvert,
+}
+
+impl ConversionKind {
+    pub fn marker(&self) -> &'static str {
+        match self {
+            ConversionKind::Convert => "",
+            ConversionKind::TryConvert => "?",
+            ConversionKind::UnwrapTryConvert => "!",
+        }
+    }
 }
 
 impl Expr {
@@ -715,13 +732,18 @@ impl<'t, 's> Tokens<'t, 's> {
 
                     self.cursor += 1;
 
-                    let has_question_mark = match self.peek() {
+                    let conversion_kind = match self.peek() {
                         Some(Token { kind: TokenKind::Punct(Punct::QuestionMark), span }) => {
                             keyword_span = keyword_span.merge(span);
                             self.cursor += 1;
-                            true
+                            ConversionKind::TryConvert
                         },
-                        _ => false,
+                        Some(Token { kind: TokenKind::Punct(Punct::Factorial), span }) => {
+                            keyword_span = keyword_span.merge(span);
+                            self.cursor += 1;
+                            ConversionKind::UnwrapTryConvert
+                        },
+                        _ => ConversionKind::Convert,
                     };
                     let (types, _) = self.parse_types_in_angle_brackets()?;
 
@@ -736,7 +758,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         keyword_span,
                         lhs: Box::new(lhs),
                         rhs: Box::new(types[0].clone()),
-                        has_question_mark,
+                        kind: conversion_kind,
                     };
                     continue;
                 },

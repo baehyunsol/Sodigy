@@ -13,7 +13,7 @@ use crate::{
 };
 use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
-use sodigy_parse::{self as ast, Field, merge_field_spans};
+use sodigy_parse::{self as ast, ConversionKind, Field, merge_field_spans};
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
 use sodigy_token::{Constant, InfixOp, PostfixOp, PrefixOp};
@@ -89,7 +89,7 @@ pub enum Expr {
         keyword_span: Span,
         lhs: Box<Expr>,
         rhs: Box<Type>,
-        has_question_mark: bool,
+        kind: ConversionKind,
     },
     Closure {
         fp: Path,
@@ -359,7 +359,7 @@ impl Expr {
                 op_span: op_span.clone(),
                 lhs: Box::new(Expr::from_ast(lhs, session)?),
             }),
-            ast::Expr::TypeConversion { keyword_span, lhs, rhs, has_question_mark } => match (
+            ast::Expr::TypeConversion { keyword_span, lhs, rhs, kind } => match (
                 Expr::from_ast(lhs, session),
                 Type::from_ast(rhs, session),
             ) {
@@ -367,7 +367,7 @@ impl Expr {
                     keyword_span: keyword_span.clone(),
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
-                    has_question_mark: *has_question_mark,
+                    kind: *kind,
                 }),
                 _ => Err(()),
             },

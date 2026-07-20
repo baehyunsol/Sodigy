@@ -1,7 +1,9 @@
-use std.bool.Bool;
+use std.bool.{Bool, Bool.{False, True}};
 use std.r#fn.PureFn;
 use std.int.Int;
-use std.option.Option;
+use std.list.slice_right_list;
+use std.option.{Option, Option.{None, Some}};
+use std.scalar.Scalar;
 
 struct Range<T> = {
     start: Option<T>,
@@ -19,7 +21,22 @@ fn map<T, U>(self, f: PureFn(T) -> U) -> [U] = std.panic("TODO");
 fn to_list<T>(self) -> [T] = std.panic("TODO");
 
 #[impl(std.op.index)]
-fn as_index<T>(ls: [T], i: Range<Int>) -> [T] = std.panic("TODO");
+fn as_index<T>(ls: [T], i: Range<Int>) -> [T] = match i {
+    Range { start: None, end: None, .. } => ls,
+    Range { start: Some(0), start_inclusive: True, end: None, .. } => ls,
+    Range { start: Some($i @ 0..), $start_inclusive, end: None, .. } => {
+        let start = i + !start_inclusive as <Int>;
+
+        if start < ls.len() {
+            slice_right_list(ls, start as <Scalar>)
+        }
+
+        else {
+            []
+        }
+    },
+    _ => std.panic("TODO"),
+};
 
 #[impl(std.op.index)]
 fn index<T>(r: Range<T>, i: Int) -> T = std.panic("TODO");

@@ -1,3 +1,6 @@
+use std.int.Int;
+use std.scalar.{Scalar, scalar_to_int_built_in};
+
 // TODO: How do I guarantee that `False` is lowered to 0 and `True` is lowered to 1?
 #[lang_item("type.Bool")]
 pub enum Bool = {
@@ -11,3 +14,9 @@ pub enum Bool = {
 // TODO: Again, I have to assure that `transmute(Bool) -> Scalar` is always safe...
 #[impl(std.op.eq)]
 fn eq_bool(a: Bool, b: Bool) -> Bool = std.scalar.eq_scalar(std.transmute(a), std.transmute(b));
+
+#[impl(std.convert.convert)]
+fn bool_to_int(a: Bool) -> Int = scalar_to_int_built_in(a as <Scalar>);
+
+#[impl(std.convert.convert)]
+fn bool_to_scalar(a: Bool) -> Scalar = std.transmute(a);

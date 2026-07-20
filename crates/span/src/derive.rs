@@ -40,6 +40,10 @@ pub enum SpanDeriveKind {
     // `"3" as? <Int>` -> `std.convert.try_convert.<_, Int, _>("3")`
     // The first `_` is not derived, and the second `_` is derived with this.
     ConvertError,
+
+    // `"3" as! <Int>` -> `std.convert.try_convert.<_, Int, _>("3").unwrap()`
+    // `unwrap`'s derived span has this kind.
+    UnwrapTryConvert,
 }
 
 impl SpanDeriveKind {
@@ -62,6 +66,7 @@ impl SpanDeriveKind {
             SpanDeriveKind::FStringToString => Some("It is desugared to `convert.<_, String>(..)`."),
             SpanDeriveKind::FStringConcat => Some("It is desugared to a `++` operator."),
             SpanDeriveKind::ConvertError => None,
+            SpanDeriveKind::UnwrapTryConvert => None,
         }
     }
 }

@@ -163,6 +163,9 @@ impl Endec for SpanDeriveKind {
             SpanDeriveKind::ConvertError => {
                 buffer.push(13);
             },
+            SpanDeriveKind::UnwrapTryConvert => {
+                buffer.push(14);
+            },
         }
     }
 
@@ -188,7 +191,8 @@ impl Endec for SpanDeriveKind {
             Some(11) => Ok((SpanDeriveKind::FStringToString, cursor + 1)),
             Some(12) => Ok((SpanDeriveKind::FStringConcat, cursor + 1)),
             Some(13) => Ok((SpanDeriveKind::ConvertError, cursor + 1)),
-            Some(n @ 14..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(14) => Ok((SpanDeriveKind::UnwrapTryConvert, cursor + 1)),
+            Some(n @ 15..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }
