@@ -175,7 +175,6 @@ impl Session {
                                 // push `#[poly] fn @associated_func_unwrap_1<T1, T2>(x: T1) -> T2;` to the session.
                                 let new_func = Func {
                                     is_pure,
-                                    impure_keyword_span: None,
 
                                     // TODO: I'm not sure whether it should be private/public
                                     //       I'll know that when I implement the visibility checker.

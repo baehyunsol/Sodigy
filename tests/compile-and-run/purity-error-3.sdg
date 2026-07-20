@@ -2,7 +2,7 @@
 
 let fs = [
     \(x, y) => x + y,
-    impure \(x, y) => x + y + 1,
+    proc \(x, y) => x + y + 1,
 ];
 
 let x = fs[0](10, 20);

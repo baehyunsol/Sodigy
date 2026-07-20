@@ -477,9 +477,9 @@ Creating an impure function is not impure. It's impure only if you call the impu
 use sodigy.random.random_int;
 
 // This is pure.
-let impure_functions: [ImpureFn() -> Int] = [
+let impure_functions: [Proc() -> Int] = [
     random_int,
-    impure \() => random_int(),
+    proc \() => random_int(),
 ];
 
 // This is impure.

@@ -1,5 +1,5 @@
-type Subtype = PureFn() -> ();
-type Supertype = Fn() -> ();
+type Subtype = Fn() -> ();
+type Supertype = Callable() -> ();
 
 let subtypes: [Subtype] = [];
 let supertypes: [Supertype] = [];

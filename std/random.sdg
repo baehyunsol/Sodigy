@@ -4,7 +4,7 @@ use std.scalar.Scalar;
 /// It returns a uniformly distributed random scalar.
 #[built_in]
 #[lang_item("built_in.random_int")]
-pub impure fn random_int_built_in() -> Scalar;
+pub proc random_int_built_in() -> Scalar;
 
 /// It returns a random integer uniformly distributed in range 0..=4294967295.
-pub impure fn random_int() -> Int = random_int_built_in() as <Int>;
+pub proc random_int() -> Int = random_int_built_in() as <Int>;

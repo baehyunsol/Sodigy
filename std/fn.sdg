@@ -3,9 +3,9 @@
 pub enum Fn;
 
 #[built_in]
-#[lang_item("type.PureFn")]
-pub enum PureFn;
+#[lang_item("type.Proc")]
+pub enum Proc;
 
 #[built_in]
-#[lang_item("type.ImpureFn")]
-pub enum ImpureFn;
+#[lang_item("type.Callable")]
+pub enum Callable;

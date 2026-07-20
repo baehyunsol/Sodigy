@@ -34,8 +34,8 @@ pub const PRELUDES: [&[u8]; 19] = [
 
     // for type annotations
     b"Fn",
-    b"PureFn",
-    b"ImpureFn",
+    b"Proc",
+    b"Callable",
 ];
 
 pub(crate) fn prelude_namespace(intermediate_dir: &str) -> Namespace {

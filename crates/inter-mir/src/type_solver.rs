@@ -305,7 +305,7 @@ impl Session {
     ///
     /// Sodigy has very limited kinds of subtyping:
     /// 1. `Never` type is subtype of every other type.
-    /// 2. `PureFn` is subtype of `Fn` and `ImpureFn` is subtype of `Fn`.
+    /// 2. `Fn` is subtype of `Callable` and `Proc` is subtype of `Callable`.
     /// 3. If type A and type B are exactly the same, A and B are subtype of each other.
     /// 4. Otherwise, it's a type error.
     fn solve_supertype_(

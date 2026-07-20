@@ -1,7 +1,7 @@
 // TODO: move this to std, and add tests
 
 #[associate([T])]
-fn map<T, U>(self, f: PureFn(T) -> U) -> [U] = match self {
+fn map<T, U>(self, f: Fn(T) -> U) -> [U] = match self {
     [] => [],
     [$x] ++ $rem => [f(x)] ++ rem.map(f),
 };
@@ -31,7 +31,7 @@ fn length<T>(self) -> Int = match self {
 };
 
 #[associate([T])]
-fn find<T>(self, f: PureFn(T) -> Bool) -> Option<T> = match self {
+fn find<T>(self, f: Fn(T) -> Bool) -> Option<T> = match self {
     [] => None,
     [$x] ++ $xs => if f(x) { Some(x) } else { xs.find(f) },
 };

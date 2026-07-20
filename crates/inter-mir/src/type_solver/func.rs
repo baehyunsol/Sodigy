@@ -96,7 +96,7 @@ impl Session {
             },
             (false, 0) => {
                 self.type_warnings.push(TypeWarning::NoImpureCallInImpureContext {
-                    impure_keyword_span: func.impure_keyword_span.clone().unwrap(),
+                    proc_keyword_span: func.keyword_span.clone(),
                 });
             },
             _ => {},

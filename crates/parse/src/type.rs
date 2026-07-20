@@ -86,7 +86,7 @@ pub enum Type {
         group_span: Span,
     },
     Func {  // `Fn(Int, Int) -> Int`
-        fn_constructor: Path,  // "Fn", "ImpureFn" or "PureFn".
+        fn_constructor: Path,  // "Fn", "Proc" or "Callable".
 
         // of `(Int, Int)`
         group_span: Span,

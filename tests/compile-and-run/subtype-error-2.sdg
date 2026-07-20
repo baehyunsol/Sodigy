@@ -3,8 +3,8 @@
 // This file is a sibling of `subtype-2.sdg`
 // Read `subtype-2.sdg` for more context.
 
-type Subtype = PureFn() -> ();
-type Supertype = Fn() -> ();
+type Subtype = Fn() -> ();
+type Supertype = Callable() -> ();
 
 let subtypes: [Subtype] = [];
 let supertypes: [Supertype] = [];

@@ -289,19 +289,21 @@ impl Expr {
             },
             ast::Expr::Lambda(ast::Lambda {
                 is_pure,
-                impure_keyword_span,
+                proc_keyword_span,
+                backslash_span,
                 params,
-                param_group_span,
                 type_annot,
                 value,
                 ..
             }) => {
-                let span = param_group_span.start().derive(SpanDeriveKind::Lambda);
+                let span = match (proc_keyword_span, backslash_span) {
+                    (Some(s1), s2) => s1.merge(s2).derive(SpanDeriveKind::Lambda),
+                    (None, s2) => s2.derive(SpanDeriveKind::Lambda),
+                };
                 let name = name_lambda_function(&span, &session.intermediate_dir);
 
                 let func = ast::Func {
                     is_pure: *is_pure,
-                    impure_keyword_span: impure_keyword_span.clone(),
                     keyword_span: span.clone(),
                     name,
                     name_span: span.clone(),

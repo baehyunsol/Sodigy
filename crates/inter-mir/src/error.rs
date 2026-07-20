@@ -142,7 +142,7 @@ pub enum TypeError {
         context: ExprContext,
     },
     NoImpureCallInImpureContext {  // warning by default
-        impure_keyword_span: Span,
+        proc_keyword_span: Span,
     },
 }
 
@@ -636,7 +636,7 @@ impl Session {
 
                 let note = match (expected_purity, got_purity) {
                     (ex, FuncPurity::Both) => Some(format!(
-                        "If you're sure that this is {}, add a type annotation. Be careful that `Fn` is for 'pure or impure' functions, you have to use `PureFn` or `ImpureFn` to be clear.",
+                        "If you're sure that this is {}, add a type annotation.",
                         match ex {
                             FuncPurity::Pure => "pure",
                             FuncPurity::Impure => "impure",
@@ -758,10 +758,10 @@ impl Session {
                     ExprContext::InlineLet => unreachable!(),
                     ExprContext::FuncDefaultValue => (None, Some("You can't call impure functions when initializing a default value.")),
                     ExprContext::TopLevelFunc | ExprContext::InlineFunc => (
-                        Some("A function is pure by default. If you want to define an impure function, add `impure` keyword before the `fn` keyword."),
+                        Some("A function is pure by default. If you want to define an impure function, use the `proc` keyword."),
                         None,
                     ),
-                    ExprContext::Lambda => (Some("A lambda function is pure by default. If you want the lambda to be impure, add `impure` keyword before the backslash."), None),
+                    ExprContext::Lambda => (Some("A lambda function is pure by default. If you want the lambda to be impure, add `proc` keyword before the backslash."), None),
                     ExprContext::TopLevelAssert => (Some("You can't call impure functions when asserting something."), None),
                     ExprContext::Monomorphization => todo!(),
                 };
@@ -789,12 +789,12 @@ impl Session {
             },
 
             // This is a warning, so don't expect `init_span_string_map()`!
-            TypeWarning::NoImpureCallInImpureContext { impure_keyword_span } => Warning {
+            TypeWarning::NoImpureCallInImpureContext { proc_keyword_span } => Warning {
                 kind: WarningKind::NoImpureCallInImpureContext,
                 spans: vec![RenderableSpan {
-                    span: impure_keyword_span.clone(),
+                    span: proc_keyword_span.clone(),
                     auxiliary: false,
-                    note: Some(String::from("This `impure` keyword makes this function impure.")),
+                    note: Some(String::from("This `proc` keyword makes this function impure.")),
                 }],
                 note: None,
             },

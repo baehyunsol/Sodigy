@@ -313,12 +313,12 @@ impl<'t, 's> Tokens<'t, 's> {
             },
             Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => Expr::If(Box::new(self.parse_if_expr()?)),
             Some(Token { kind: TokenKind::Keyword(Keyword::Match), .. }) => Expr::Match(Box::new(self.parse_match_expr()?)),
-            Some(Token { kind: TokenKind::Keyword(Keyword::Impure), span }) => {
-                let impure_keyword_span = span.clone();
+            Some(Token { kind: TokenKind::Keyword(Keyword::Proc), span }) => {
+                let proc_keyword_span = span.clone();
                 self.cursor += 1;
                 let mut lambda = self.parse_lambda()?;
                 lambda.is_pure = false;
-                lambda.impure_keyword_span = Some(impure_keyword_span);
+                lambda.proc_keyword_span = Some(proc_keyword_span);
                 Expr::Lambda(lambda)
             },
             Some(Token { kind: TokenKind::Group { delim, tokens }, span }) => match delim {

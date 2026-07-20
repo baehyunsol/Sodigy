@@ -19,10 +19,10 @@ impl Endec for Keyword {
             Keyword::Fn => {
                 buffer.push(4);
             },
-            Keyword::If => {
+            Keyword::Proc => {
                 buffer.push(5);
             },
-            Keyword::Impure => {
+            Keyword::If => {
                 buffer.push(6);
             },
             Keyword::Let => {
@@ -56,8 +56,8 @@ impl Endec for Keyword {
             Some(2) => Ok((Keyword::Else, cursor + 1)),
             Some(3) => Ok((Keyword::Enum, cursor + 1)),
             Some(4) => Ok((Keyword::Fn, cursor + 1)),
-            Some(5) => Ok((Keyword::If, cursor + 1)),
-            Some(6) => Ok((Keyword::Impure, cursor + 1)),
+            Some(5) => Ok((Keyword::Proc, cursor + 1)),
+            Some(6) => Ok((Keyword::If, cursor + 1)),
             Some(7) => Ok((Keyword::Let, cursor + 1)),
             Some(8) => Ok((Keyword::Match, cursor + 1)),
             Some(9) => Ok((Keyword::Mod, cursor + 1)),

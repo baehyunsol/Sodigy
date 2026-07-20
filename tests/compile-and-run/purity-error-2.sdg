@@ -6,6 +6,6 @@
 
 fn f1(n: Int) -> Int = std.random.random_int() + n;
 let v1 = std.random.random_int();
-let l1: Fn(Int) -> Int = \(n) => std.random.random_int() + n;
-let l2: PureFn(Int) -> Int = \(n) => std.random.random_int() + n;
+let l1: Callable(Int) -> Int = \(n) => std.random.random_int() + n;
+let l2: Fn(Int) -> Int = \(n) => std.random.random_int() + n;
 assert std.random.random_int() == 100;

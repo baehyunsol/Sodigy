@@ -20,7 +20,6 @@ use std::collections::HashMap;
 impl Endec for Func {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         self.is_pure.encode_impl(buffer);
-        self.impure_keyword_span.encode_impl(buffer);
         self.visibility.encode_impl(buffer);
         self.keyword_span.encode_impl(buffer);
         self.name.encode_impl(buffer);
@@ -39,7 +38,6 @@ impl Endec for Func {
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (is_pure, cursor) = bool::decode_impl(buffer, cursor)?;
-        let (impure_keyword_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (visibility, cursor) = Visibility::decode_impl(buffer, cursor)?;
         let (keyword_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
@@ -58,7 +56,6 @@ impl Endec for Func {
         Ok((
             Func {
                 is_pure,
-                impure_keyword_span,
                 visibility,
                 keyword_span,
                 name,

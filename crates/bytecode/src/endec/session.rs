@@ -67,8 +67,8 @@ impl DumpSession for Session<'_, '_> {
             lines.push(format!("// name: {}", func.name.unintern_or_default(&self.intermediate_dir)));
             lines.push(format!("// name_span: {:?}", func.name_span));
             lines.push(format!(
-                "{}fn @G{:09x}({}):",
-                if func.is_pure { "" } else { "impure " },
+                "{} @G{:09x}({}):",
+                if func.is_pure { "fn" } else { "proc" },
                 func.name_span.hash() & 0xfff_fff_fff,
                 (0..func.params).map(|i| format!("_{i}")).collect::<Vec<_>>().join(", "),
             ));

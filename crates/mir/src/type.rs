@@ -214,9 +214,9 @@ impl Type {
                 let mut has_error = false;
                 let fn_span = fn_constructor.id.span.clone();
                 let purity = match &fn_constructor.id.def_span {
-                    f if f == &session.get_lang_item_span("type.Fn") => FuncPurity::Both,
-                    f if f == &session.get_lang_item_span("type.PureFn") => FuncPurity::Pure,
-                    f if f == &session.get_lang_item_span("type.ImpureFn") => FuncPurity::Impure,
+                    f if f == &session.get_lang_item_span("type.Callable") => FuncPurity::Both,
+                    f if f == &session.get_lang_item_span("type.Fn") => FuncPurity::Pure,
+                    f if f == &session.get_lang_item_span("type.Proc") => FuncPurity::Impure,
                     _ => {
                         session.errors.push(Error {
                             kind: ErrorKind::InvalidFnType,

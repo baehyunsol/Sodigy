@@ -5,13 +5,13 @@
 // Read `purity-1.sdg` for more context.
 
 fn pure_func(n: Int) -> Int = n + 1;
-impure fn impure_func(n: Int) -> Int = std.random.random_int() + n;
+proc impure_func(n: Int) -> Int = std.random.random_int() + n;
 
-let f3: ImpureFn(Int) -> Int = pure_func;
-let f5: PureFn(Int) -> Int = impure_func;
-let funcs4: [PureFn(Int) -> Int] = [pure_func, impure_func];
-let funcs6: [PureFn(Int) -> Int] = [impure_func, impure_func];
-let funcs7: [ImpureFn(Int) -> Int] = [pure_func, impure_func];
-let funcs8: [ImpureFn(Int) -> Int] = [pure_func, pure_func];
-let lambda3: ImpureFn(Int) -> Int = \(n) => n + 1;
-let lambda5: PureFn(Int) -> Int = impure \(n) => std.random.random_int() + n;
+let f3: Proc(Int) -> Int = pure_func;
+let f5: Fn(Int) -> Int = impure_func;
+let funcs4: [Fn(Int) -> Int] = [pure_func, impure_func];
+let funcs6: [Fn(Int) -> Int] = [impure_func, impure_func];
+let funcs7: [Proc(Int) -> Int] = [pure_func, impure_func];
+let funcs8: [Proc(Int) -> Int] = [pure_func, pure_func];
+let lambda3: Proc(Int) -> Int = \(n) => n + 1;
+let lambda5: Fn(Int) -> Int = proc \(n) => std.random.random_int() + n;

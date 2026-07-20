@@ -11,7 +11,8 @@ use sodigy_token::{Delim, Punct, Token, TokenKind};
 #[derive(Clone, Debug)]
 pub struct Lambda {
     pub is_pure: bool,
-    pub impure_keyword_span: Option<Span>,
+    pub proc_keyword_span: Option<Span>,
+    pub backslash_span: Span,
     pub params: Vec<FuncParam>,
     pub param_group_span: Span,
     pub type_annot: Box<Option<Type>>,
@@ -21,18 +22,18 @@ pub struct Lambda {
 
 impl<'t, 's> Tokens<'t, 's> {
     // The cursor must be pointing to the backslash character.
-    // If there's `impure` keyword before the backslash, its callee will take care of that.
+    // If there's `proc` keyword before the backslash, its callee will take care of that.
     pub fn parse_lambda(&mut self) -> Result<Lambda, Vec<Error>> {
         match self.peek2() {
             (Some(Token { kind: TokenKind::Punct(Punct::Backslash), .. }), Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span })) |
             (Some(Token { kind: TokenKind::Group { delim: Delim::Lambda, tokens }, span }), _) => {
-                let (span, jump) = match self.peek2() {
-                    (Some(Token { kind: TokenKind::Punct(_), span: span1 }), Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, .. }, span: span2 })) => (span1.merge(span2), 2),
-                    (Some(Token { kind: TokenKind::Group { delim: Delim::Lambda, .. }, span }), _) => (span.clone(), 1),
+                let (backslash_span, param_group_span, jump) = match self.peek2() {
+                    (Some(Token { kind: TokenKind::Punct(_), span: span1 }), Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, .. }, span: span2 })) => (span1.clone(), span1.merge(span2), 2),
+                    (Some(Token { kind: TokenKind::Group { delim: Delim::Lambda, .. }, span }), _) => (span.start(), span.clone(), 1),
                     _ => unreachable!(),
                 };
 
-                let mut tokens = Tokens::new(tokens, span.end(), false, self.intermediate_dir);
+                let mut tokens = Tokens::new(tokens, param_group_span.end(), false, self.intermediate_dir);
                 let params = tokens.parse_func_params(true /* allow_wildcard */)?;
                 self.cursor += jump;
                 let mut type_annot = None;
@@ -49,18 +50,20 @@ impl<'t, 's> Tokens<'t, 's> {
                 let value = self.parse_expr(true)?;
 
                 Ok(Lambda {
-                    // if there's `impure` keyword, its callee will change these values.
+                    // if there's `proc` keyword, its callee will change these values.
                     is_pure: true,
-                    impure_keyword_span: None,
+                    proc_keyword_span: None,
+                    backslash_span,
 
                     params,
-                    param_group_span: span,
+                    param_group_span,
                     type_annot: Box::new(type_annot),
                     arrow_span,
                     value: Box::new(value),
                 })
             },
             (Some(Token { kind: TokenKind::Punct(Punct::Backslash), span }), _) => {
+                let backslash_span = span.clone();
                 let mut param_group_span_start = span.clone();
                 let mut arrow_span = None;
                 self.cursor += 1;
@@ -95,9 +98,10 @@ impl<'t, 's> Tokens<'t, 's> {
                         let value = self.parse_expr(true)?;
 
                         Ok(Lambda {
-                            // if there's `impure` keyword, its callee will change these values.
+                            // if there's `proc` keyword, its callee will change these values.
                             is_pure: true,
-                            impure_keyword_span: None,
+                            proc_keyword_span: None,
+                            backslash_span,
 
                             params,
                             param_group_span,

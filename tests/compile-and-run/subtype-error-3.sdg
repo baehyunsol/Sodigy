@@ -3,13 +3,13 @@
 // This file is a sibling of `subtype-3.sdg`
 // Read `subtype-3.sdg` for more context.
 
-type Subtype = PureFn() -> ();
-type Supertype = Fn() -> ();
+type Subtype = Fn() -> ();
+type Supertype = Callable() -> ();
 
-type SubSub = Fn(Subtype) -> Subtype;
-type SubSuper = Fn(Subtype) -> Supertype;
-type SuperSub = Fn(Supertype) -> Subtype;
-type SuperSuper = Fn(Supertype) -> Supertype;
+type SubSub = Callable(Subtype) -> Subtype;
+type SubSuper = Callable(Subtype) -> Supertype;
+type SuperSub = Callable(Supertype) -> Subtype;
+type SuperSuper = Callable(Supertype) -> Supertype;
 
 let subsubs: [SubSub] = [];
 let subsupers: [SubSuper] = [];

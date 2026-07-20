@@ -22,11 +22,11 @@ pub fn dump_func<S: SodigySession>(
         lines.break_line();
     }
 
-    if !func.is_pure {
-        lines.push("impure ");
-    }
-
-    lines.push(&format!("fn {}", func.name.unintern_or_default(session.intermediate_dir())));
+    lines.push(&format!(
+        "{} {}",
+        if func.is_pure { "fn" } else { "proc" },
+        func.name.unintern_or_default(session.intermediate_dir()),
+    ));
 
     if !func.generics.is_empty() {
         lines.push("<");

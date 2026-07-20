@@ -42,7 +42,6 @@ use std::collections::HashMap;
 #[derive(Clone, Debug)]
 pub struct Func {
     pub is_pure: bool,
-    pub impure_keyword_span: Option<Span>,  // It's `Some(_)` iff `is_pure` is false.
     pub visibility: Visibility,
     pub keyword_span: Span,
     pub name: InternedString,
@@ -102,14 +101,16 @@ pub struct FuncShape {
     pub generic_group_span: Option<Span>,
 }
 
-/// Type signature `Fn` is for both pure and impure functions.
-/// `PureFn` and `ImpureFn` are subtypes of `Fn`.
-/// You cannot use `Fn` in pure contexts.
+/// Type signature `Callable` is for both pure and impure functions.
+/// `Fn` and `Proc` are subtypes of `Callable`.
+/// You cannot use `Callable` in pure contexts.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum FuncPurity {
-    Pure,
-    Impure,
-    Both,
+    Pure,    // Fn
+    Impure,  // Proc
+    Both,    // Callable
+
+    // It's for purity-inference.
     Var(Span),
 }
 
@@ -385,7 +386,6 @@ impl Func {
         else {
             Ok(Func {
                 is_pure: ast_func.is_pure,
-                impure_keyword_span: ast_func.impure_keyword_span.clone(),
                 visibility,
                 keyword_span: ast_func.keyword_span.clone(),
                 name: ast_func.name,

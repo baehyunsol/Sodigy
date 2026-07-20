@@ -23,7 +23,7 @@ use std.string.String;
 
 #[built_in]
 #[lang_item("built_in.exit")]
-impure fn exit() -> !;
+proc exit() -> !;
 
 #[built_in]
 #[lang_item("built_in.panic")]
@@ -45,4 +45,4 @@ fn blackbox<T>(x: T) -> T = x;
 
 /// The compiler will never optimize-away this function.
 // NOTE: There's no optimization, so it's just an id function.
-impure fn impure_blackbox<T>(x: T) -> T = blackbox((random.random_int(), x))._1;
+proc impure_blackbox<T>(x: T) -> T = blackbox((random.random_int(), x))._1;

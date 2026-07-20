@@ -34,6 +34,7 @@ pub enum ErrorToken {
     CommaOrDot,
     CommaOrGt,
     DotOrSemicolon,
+    FnOrProc,
 }
 
 impl From<&TokenKind> for ErrorToken {

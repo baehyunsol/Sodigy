@@ -165,9 +165,9 @@ impl<'t, 's> Tokens<'t, 's> {
                         }
                     },
                 },
-                // `impure \() ..` is an expression, but `impure fn ..` is an item.
-                // So, we have to look 1 more token when we see `impure` keyword.
-                (Some(Token { kind: TokenKind::Keyword(Keyword::Impure), .. }), Some(Token { kind: TokenKind::Keyword(Keyword::Fn), .. })) |
+                // `proc \() ..` is an expression, but `proc foo(...)` is an item.
+                // So, we have to look 1 more token when we see `proc` keyword.
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Proc), .. }), Some(Token { kind: TokenKind::Ident(_), .. })) |
                 (Some(Token { kind: TokenKind::Keyword(Keyword::Fn), .. }), _) => match self.parse_func() {
                     Ok(mut func) => {
                         func.attribute = attribute;

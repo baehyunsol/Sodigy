@@ -210,9 +210,9 @@ impl TokenKind {
                 Keyword::Type |
                 Keyword::Use => false,
 
-                // `impure \(x) => { .. }` is an expression
+                // `proc \(x) => { .. }` is an expression
                 Keyword::If |
-                Keyword::Impure |
+                Keyword::Proc |
                 Keyword::Match => true,
             },
 

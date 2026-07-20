@@ -61,7 +61,6 @@ impl Session {
 
         let result = Func {
             is_pure: func.is_pure,
-            impure_keyword_span: func.impure_keyword_span.as_ref().map(|span| span.monomorphize(monomorphization.id)),
             keyword_span: func.keyword_span.monomorphize(monomorphization.id),
             name: func.name,
             name_span: new_name_span,

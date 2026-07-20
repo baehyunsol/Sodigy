@@ -60,9 +60,9 @@ pub fn render_type(
         Type::Func { params, r#return, purity, .. } => format!(
             "{}({}) -> {}",
             match purity {
-                FuncPurity::Pure => "PureFn",
-                FuncPurity::Impure => "ImpureFn",
-                FuncPurity::Both => "Fn",
+                FuncPurity::Pure => "Fn",
+                FuncPurity::Impure => "Proc",
+                FuncPurity::Both => "Callable",
                 FuncPurity::Var(_) => "FnVar",
             },
             params.iter().map(

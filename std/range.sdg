@@ -1,5 +1,5 @@
 use std.bool.{Bool, Bool.{False, True}};
-use std.r#fn.PureFn;
+use std.r#fn.Fn;
 use std.int.Int;
 use std.list.slice_right_list;
 use std.option.{Option, Option.{None, Some}};
@@ -14,7 +14,7 @@ struct Range<T> = {
 };
 
 #[associate(Range<T>)]
-fn map<T, U>(self, f: PureFn(T) -> U) -> [U] = std.panic("TODO");
+fn map<T, U>(self, f: Fn(T) -> U) -> [U] = std.panic("TODO");
 
 #[impl(std.convert.convert)]
 #[associate(Range<T>)]

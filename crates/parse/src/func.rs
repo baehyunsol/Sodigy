@@ -13,7 +13,6 @@ use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind};
 #[derive(Clone, Debug)]
 pub struct Func {
     pub is_pure: bool,
-    pub impure_keyword_span: Option<Span>,
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
@@ -47,16 +46,25 @@ impl<'t, 's> Tokens<'t, 's> {
     // `fn foo(x) = 3;`
     // `fn bar(x: Int, y: Int): Int = x + y;`
     pub fn parse_func(&mut self) -> Result<Func, Vec<Error>> {
-        let (is_pure, impure_keyword_span) = match self.peek() {
-            Some(Token { kind: TokenKind::Keyword(Keyword::Impure), span }) => {
-                let span = span.clone();
-                self.cursor += 1;
-                (false, Some(span))
+        let (is_pure, keyword_span) = match self.peek() {
+            Some(Token { kind: TokenKind::Keyword(Keyword::Fn), span }) => (true, span.clone()),
+            Some(Token { kind: TokenKind::Keyword(Keyword::Proc), span }) => (false, span.clone()),
+            Some(t) => {
+                return Err(vec![Error {
+                    kind: ErrorKind::UnexpectedToken {
+                        expected: ErrorToken::FnOrProc,
+                        got: (&t.kind).into(),
+                    },
+                    spans: t.span.simple_error(),
+                    note: None,
+                }]);
             },
-            _ => (true, None),
+            None => {
+                return Err(vec![self.unexpected_end(ErrorToken::FnOrProc)]);
+            },
         };
 
-        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Fn))?.span.clone();
+        self.cursor += 1;
         let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
         let mut generics = vec![];
         let mut generic_group_span = None;
@@ -113,7 +121,6 @@ impl<'t, 's> Tokens<'t, 's> {
 
         Ok(Func {
             is_pure,
-            impure_keyword_span,
             keyword_span,
             name,
             name_span,

@@ -4,7 +4,7 @@ Lowered numbered decisions have higher priority.
 
 ## 1. Everything has to be purely functional.
 
-Sodigy strictly distinguishes between pure functions and impure functions via `pure` keyword.
+Sodigy strictly distinguishes between pure functions and impure functions.
 
 Sodigy has no notion of "execution" or "evaluation". There are only values. An expression like `square(5)` doesn't "evaluate to" `25`. It simply "is" `25`.
 
