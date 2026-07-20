@@ -1,0 +1,25 @@
+use std.bool.Bool;
+use std.r#fn.PureFn;
+use std.int.Int;
+use std.option.Option;
+
+struct Range<T> = {
+    start: Option<T>,
+    start_inclusive: Bool,
+    end: Option<T>,
+    end_inclusive: Bool,
+    step: T,
+};
+
+#[associate(Range<T>)]
+fn map<T, U>(self, f: PureFn(T) -> U) -> [U] = std.panic("TODO");
+
+#[impl(std.convert.convert)]
+#[associate(Range<T>)]
+fn to_list<T>(self) -> [T] = std.panic("TODO");
+
+#[impl(std.op.index)]
+fn as_index<T>(ls: [T], i: Range<Int>) -> [T] = std.panic("TODO");
+
+#[impl(std.op.index)]
+fn index<T>(r: Range<T>, i: Int) -> T = std.panic("TODO");

@@ -36,6 +36,7 @@ pub static STD_FILES: LazyLock<Vec<StdFile>> = LazyLock::new(|| {
         (&["option"], include_bytes!("../../../std/option.sdg")),
         (&["prelude"], include_bytes!("../../../std/prelude.sdg")),
         (&["random"], include_bytes!("../../../std/random.sdg")),
+        (&["range"], include_bytes!("../../../std/range.sdg")),
         (&["result"], include_bytes!("../../../std/result.sdg")),
         (&["scalar"], include_bytes!("../../../std/scalar.sdg")),
         (&["string"], include_bytes!("../../../std/string.sdg")),

@@ -1,4 +1,6 @@
-use std.bool.Bool;
+use std.bool.{Bool, Bool.{False, True}};
+use std.option.Option.{None, Some};
+use std.range.Range;
 use std.scalar.Scalar;
 use std.string.String;
 
@@ -141,4 +143,40 @@ fn int_to_string(n: Int) -> String = match n {
     8 => "8",
     9 => "9",
     _ => int_to_string(n / 10) ++ int_to_string(n % 10),
+};
+
+#[impl(std.op.exclusive_range)]
+fn exclusive_range_int(lhs: Int, rhs: Int) -> Range<Int> = Range {
+    start: Some(lhs),
+    start_inclusive: True,
+    end: Some(rhs),
+    end_inclusive: False,
+    step: 1,
+};
+
+#[impl(std.op.inclusive_range)]
+fn inclusive_range_int(lhs: Int, rhs: Int) -> Range<Int> = Range {
+    start: Some(lhs),
+    start_inclusive: True,
+    end: Some(rhs),
+    end_inclusive: True,
+    step: 1,
+};
+
+#[impl(std.op.exclusive_pre_range)]
+fn exclusive_pre_range_int(rhs: Int) -> Range<Int> = Range {
+    start: None,
+    start_inclusive: False,
+    end: Some(rhs),
+    end_inclusive: False,
+    step: 1,
+};
+
+#[impl(std.op.exclusive_post_range)]
+fn exclusive_post_range_int(lhs: Int) -> Range<Int> = Range {
+    start: Some(lhs),
+    start_inclusive: True,
+    end: None,
+    end_inclusive: False,
+    step: 1,
 };

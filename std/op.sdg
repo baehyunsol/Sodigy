@@ -94,6 +94,26 @@ fn inclusive_range<T, U, V>(lhs: T, rhs: U) -> V;
 fn exclusive_range<T, U, V>(lhs: T, rhs: U) -> V;
 
 #[poly]
+#[lang_item("op.inclusive_pre_range")]
+#[lang_item_generics("op.inclusive_pre_range.generic.0", "op.inclusive_pre_range.generic.1")]
+fn inclusive_pre_range<T, U>(rhs: T) -> U;
+
+#[poly]
+#[lang_item("op.exclusive_pre_range")]
+#[lang_item_generics("op.exclusive_pre_range.generic.0", "op.exclusive_pre_range.generic.1")]
+fn exclusive_pre_range<T, U>(rhs: T) -> U;
+
+#[poly]
+#[lang_item("op.inclusive_post_range")]
+#[lang_item_generics("op.inclusive_post_range.generic.0", "op.inclusive_post_range.generic.1")]
+fn inclusive_post_range<T, U>(lhs: T) -> U;
+
+#[poly]
+#[lang_item("op.exclusive_post_range")]
+#[lang_item_generics("op.exclusive_post_range.generic.0", "op.exclusive_post_range.generic.1")]
+fn exclusive_post_range<T, U>(lhs: T) -> U;
+
+#[poly]
 #[lang_item("op.bit_and")]
 #[lang_item_generics("op.bit_and.generic.0", "op.bit_and.generic.1", "op.bit_and.generic.2")]
 fn bit_and<T, U, V>(lhs: T, rhs: U) -> V;

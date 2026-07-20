@@ -12,6 +12,7 @@ mod op;
 mod option;
 mod prelude;
 mod random;
+mod range;
 mod result;
 mod scalar;
 mod string;
