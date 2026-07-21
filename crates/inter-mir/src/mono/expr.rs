@@ -83,7 +83,18 @@ impl Session {
                     }
                 }
             },
-            Expr::FieldUpdate { .. } => todo!(),
+            Expr::FieldUpdate { lhs, fields, rhs } => {
+                self.monomorphize_expr(lhs, monomorphization);
+
+                for field in fields.iter_mut() {
+                    if let Field::Name { name_span, dot_span, .. } = field {
+                        *name_span = name_span.monomorphize(monomorphization.id);
+                        *dot_span = dot_span.monomorphize(monomorphization.id);
+                    }
+                }
+
+                self.monomorphize_expr(rhs, monomorphization);
+            },
             Expr::Call { func, args, arg_group_span, .. } => {
                 match func {
                     Callable::Static { span, .. } |

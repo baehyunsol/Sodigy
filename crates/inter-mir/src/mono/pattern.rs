@@ -18,6 +18,21 @@ impl Session {
             PatternKind::NameBinding { span, .. } => {
                 *span = span.monomorphize(monomorphization.id);
             },
+            PatternKind::Struct { r#struct, fields, rest, group_span } => {
+                assert!(r#struct.fields.is_empty());
+                self.monomorphize_id(&mut r#struct.id, monomorphization);
+
+                for field in fields.iter_mut() {
+                    field.span = field.span.monomorphize(monomorphization.id);
+                    self.monomorphize_pattern(&mut field.pattern, monomorphization);
+                }
+
+                if let Some(rest) = rest {
+                    *rest = rest.monomorphize(monomorphization.id);
+                }
+
+                *group_span = group_span.monomorphize(monomorphization.id);
+            },
             PatternKind::TupleStruct { r#struct, elements, rest, group_span } => {
                 assert!(r#struct.fields.is_empty());
                 self.monomorphize_id(&mut r#struct.id, monomorphization);

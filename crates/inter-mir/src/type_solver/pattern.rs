@@ -1,6 +1,7 @@
 use crate::{ErrorContext, Session, Type, TypeError};
 use sodigy_error::TypeVarInfo;
 use sodigy_hir::{Path, Pattern, PatternKind};
+use sodigy_mir::get_def_span_from_id;
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::Span;
 use sodigy_token::Constant;
@@ -118,6 +119,49 @@ impl Session {
                         false,
                     )
                 },
+            },
+            PatternKind::Struct { r#struct, fields, rest, .. } => {
+                if let (Some(struct_type), _) = self.solve_path(&r#struct.id, &None) {
+                    let struct_def_span = match &struct_type {
+                        Type::Data { constructor_def_span, args, .. } => get_def_span_from_id(*constructor_def_span, args),
+
+                        // TODO: I'm not sure whether it's reachable or not...
+                        _ => unreachable!(),
+                    };
+                    let mut field_types = HashMap::with_capacity(fields.len());
+                    let mut has_error = false;
+
+                    for field in fields.iter() {
+                        let (r#type, e) = self.solve_pattern(&field.pattern);
+                        has_error |= e;
+
+                        if let Some(r#type) = r#type {
+                            if let Some((prev_span, _)) = field_types.insert(field.name, (field.span.clone(), r#type)) {
+                                // This field appears twice in the pattern, hence an error.
+                                todo!();
+                            }
+                        }
+                    }
+
+                    if let Some(struct_shape) = self.struct_shapes.get(&struct_def_span) {
+                        for field in struct_shape.fields.iter() {
+                            match field_types.get(&field.name) {
+                                Some((_, r#type)) => {
+                                    eprintln!("infered type: {type:?}");
+                                    eprintln!("defined type: {:?}", self.types.get(&field.name_span));
+
+                                    todo!()  // check types
+                                },
+                                None if rest.is_some() => {},
+                                None => todo!(),  // error
+                            }
+                        }
+
+                        todo!()
+                    }
+                }
+
+                todo!()
             },
             // `Option.Some` has type `Fn(T) -> Option<T>` and the type must already be registered.
             PatternKind::TupleStruct { r#struct, elements, rest, .. } => match self.solve_path(&r#struct.id, &None) {
