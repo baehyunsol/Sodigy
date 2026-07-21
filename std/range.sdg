@@ -14,11 +14,23 @@ struct Range<T> = {
 };
 
 #[associate(Range<T>)]
-fn map<T, U>(self, f: Fn(T) -> U) -> [U] = std.panic("TODO");
+fn map<T, U>(self, f: Fn(T) -> U) -> [U] = match self {
+    // TODO: maybe we can implement a Haskell-ish lazy evaluation?
+    Range { start: None, .. } | Range { end: None, .. } => std.panic("infinite map"),
+
+    Range { start: Some($start), start_inclusive: True, end: Some($end), $step, .. } if start < end => [f(start)] ++ (self `start (start + step)).map(f),
+    _ => std.panic("TODO"),
+};
 
 #[impl(std.convert.convert)]
 #[associate(Range<T>)]
-fn to_list<T>(self) -> [T] = std.panic("TODO");
+fn to_list<T>(self) -> [T] = match self {
+    // TODO: maybe we can implement a Haskell-ish lazy evaluation?
+    Range { start: None, .. } | Range { end: None, .. } => std.panic("infinite list"),
+
+    Range { start: Some($start), start_inclusive: True, end: Some($end), $step, .. } if start < end => [start] ++ (self `start (start + step)).list(),
+    _ => std.panic("TODO"),
+};
 
 #[impl(std.op.index)]
 fn as_index<T>(ls: [T], i: Range<Int>) -> [T] = match i {
@@ -39,4 +51,7 @@ fn as_index<T>(ls: [T], i: Range<Int>) -> [T] = match i {
 };
 
 #[impl(std.op.index)]
-fn index<T>(r: Range<T>, i: Int) -> T = std.panic("TODO");
+fn index<T>(r: Range<T>, i: Int) -> T = match (r, i) {
+    (Range { start: Some($start), end: None, $step }, 0..) => start + i * step,
+    _ => std.panic("TODO"),
+};
