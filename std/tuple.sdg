@@ -1,4 +1,5 @@
 use std.bool.{Bool, Bool.True};
+use std.string.String;
 
 #[built_in]
 #[lang_item("type.Tuple")]
@@ -15,5 +16,17 @@ fn eq_tuple2<T0, T1>(a: (T0, T1), b: (T0, T1)) -> Bool = a._0 == b._0 && a._1 ==
 
 #[impl(std.op.eq)]
 fn eq_tuple3<T0, T1, T2>(a: (T0, T1, T2), b: (T0, T1, T2)) -> Bool = a._0 == b._0 && a._1 == b._1 && a._2 == b._2;
+
+#[impl(std.convert.convert)]
+fn tuple0_to_string(_: ()) -> String = "()";
+
+#[impl(std.convert.convert)]
+fn tuple1_to_string<T0>(a: (T0,)) -> String = f"({a._0},)";
+
+#[impl(std.convert.convert)]
+fn tuple2_to_string<T0, T1>(a: (T0, T1)) -> String = f"({a._0}, {a._1})";
+
+#[impl(std.convert.convert)]
+fn tuple3_to_string<T0, T1, T2>(a: (T0, T1, T2)) -> String = f"({a._0}, {a._1}, {a._2})";
 
 // TODO: more arities... maybe macro?
