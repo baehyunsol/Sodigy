@@ -79,7 +79,7 @@ impl Expr {
 
                             // `x.y.push(z)` -> `associated_func::push(x.y, z)`
                             if let Some(Field::Name { name_span, .. }) = fields.last() && let Some(poly_def_span) = associated_funcs.get(name_span) {
-                                let new_lhs = if fields.len() == 1 {
+                                let mut new_lhs = if fields.len() == 1 {
                                     lhs.as_ref().clone()
                                 } else {
                                     Expr::Field {
@@ -88,6 +88,8 @@ impl Expr {
                                         dotfish: dotfish[..(dotfish.len() - 1)].to_vec(),
                                     }
                                 };
+                                new_lhs.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+
                                 let mut new_args = vec![new_lhs];
                                 new_args.extend(args.to_vec());
 
