@@ -18,7 +18,7 @@ fn map<T, U>(self, f: Fn(T) -> U) -> [U] = match self {
     // TODO: maybe we can implement a Haskell-ish lazy evaluation?
     Range { start: None, .. } | Range { end: None, .. } => std.panic("infinite map"),
 
-    Range { start: Some($start), start_inclusive: True, end: Some($end), $step, .. } if start < end => [f(start)] ++ (self `start (start + step)).map(f),
+    Range { start: Some($start), start_inclusive: True, end: Some($end), $step, .. } if start < end => [f(start)] ++ (self `start Some(start + step)).map(f),
     _ => std.panic("TODO"),
 };
 
@@ -28,7 +28,7 @@ fn to_list<T>(self) -> [T] = match self {
     // TODO: maybe we can implement a Haskell-ish lazy evaluation?
     Range { start: None, .. } | Range { end: None, .. } => std.panic("infinite list"),
 
-    Range { start: Some($start), start_inclusive: True, end: Some($end), $step, .. } if start < end => [start] ++ (self `start (start + step)).list(),
+    Range { start: Some($start), start_inclusive: True, end: Some($end), $step, .. } if start < end => [start] ++ (self `start Some(start + step)).list(),
     _ => std.panic("TODO"),
 };
 

@@ -5,7 +5,7 @@ use sodigy_mir::get_def_span_from_id;
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::Span;
 use sodigy_token::Constant;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 impl Session {
     // TODO: I don't want to raise errors if the compiler fails to infer type of name bindings in patterns.
@@ -129,6 +129,7 @@ impl Session {
                         _ => unreachable!(),
                     };
                     let mut field_types = HashMap::with_capacity(fields.len());
+                    let mut type_vars_to_add = vec![];
                     let mut has_error = false;
 
                     for field in fields.iter() {
@@ -144,24 +145,56 @@ impl Session {
                     }
 
                     if let Some(struct_shape) = self.struct_shapes.get(&struct_def_span) {
-                        for field in struct_shape.fields.iter() {
+                        for field in struct_shape.fields.clone().iter() {
                             match field_types.get(&field.name) {
-                                Some((_, r#type)) => {
-                                    eprintln!("infered type: {type:?}");
-                                    eprintln!("defined type: {:?}", self.types.get(&field.name_span));
+                                Some((pattern_span, infered_type)) => {
+                                    let mut annotated_type = self.types.get(&field.name_span).unwrap().clone();
+                                    let mut substituted_generics = HashSet::new();
+                                    let field_span = field.name_span.clone();
+                                    annotated_type.substitute_generic_param_for_arg(&field_span, &mut substituted_generics);
 
-                                    todo!()  // check types
+                                    for def_span in substituted_generics.iter() {
+                                        let type_var = Type::GenericArg { call: field_span.clone(), generic: def_span.clone() };
+
+                                        if let Some(already_infered) = self.generic_args.get(&(field_span.clone(), def_span.clone())) {
+                                            annotated_type.substitute(&type_var, already_infered);
+                                        }
+
+                                        type_vars_to_add.push(type_var);
+                                    }
+
+                                    if let Err(()) = self.solve_supertype(
+                                        &annotated_type,
+                                        infered_type,
+                                        false,
+                                        Some(&field_span),
+                                        Some(pattern_span),
+                                        ErrorContext::StructFields,
+                                        false,
+                                    ) {
+                                        has_error = true;
+                                    }
                                 },
                                 None if rest.is_some() => {},
                                 None => todo!(),  // error
                             }
                         }
+                    }
 
+                    else {
                         todo!()
                     }
+
+                    for type_var in type_vars_to_add.into_iter() {
+                        self.add_type_var(type_var, None);
+                    }
+
+                    (Some(struct_type), has_error)
                 }
 
-                todo!()
+                else {
+                    todo!()
+                }
             },
             // `Option.Some` has type `Fn(T) -> Option<T>` and the type must already be registered.
             PatternKind::TupleStruct { r#struct, elements, rest, .. } => match self.solve_path(&r#struct.id, &None) {

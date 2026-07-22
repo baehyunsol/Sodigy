@@ -388,6 +388,7 @@ impl PatternKind {
             PatternKind::Regex { .. } |
             PatternKind::Wildcard(_) => vec![],
             PatternKind::NameBinding { id, span } => vec![(*id, span.clone())],
+            PatternKind::Struct { fields, .. } => fields.iter().flat_map(|f| f.pattern.bound_names()).collect(),
             PatternKind::TupleStruct { elements, rest, .. } |
             PatternKind::Tuple { elements, rest, .. } |
             PatternKind::List { elements, rest, .. } => {

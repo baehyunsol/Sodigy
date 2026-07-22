@@ -41,7 +41,8 @@ impl Session {
                                 _ => unreachable!(),
                             };
                             let mut type_vars_to_add = vec![];
-                            let item_shape = match self.get_item_shape(&def_span) {
+
+                            match self.get_item_shape(&def_span) {
                                 Some(item_shape) => {
                                     if item_shape.generics().is_empty() {
                                         let has_error = if let Some(dotfish) = dotfish {
@@ -135,7 +136,7 @@ impl Session {
                                     }
                                 },
                                 None => todo!(),  // unreachable?
-                            };
+                            }
                         },
                         NameKind::Func => {
                             // If it has generic parameters, do something
