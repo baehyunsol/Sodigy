@@ -216,7 +216,7 @@ pub enum PatternField {
     Range(i64, i64),
     ListIndex(i64),
     ListRange(i64, i64),
-    StructField(InternedString),
+    StructField { index: usize, name: InternedString },
     EnumDiscriminant,
 
     // When you only know the type, you can't use `EnumPayloadIndex`, but can use
@@ -443,7 +443,7 @@ fn read_field_of_pattern(
                 },
                 PatternField::Range(_, _) => todo!(),
                 PatternField::ListRange(_, _) => todo!(),
-                PatternField::StructField(field_name) => match &curr_pattern.kind {
+                PatternField::StructField { name: field_name, .. } => match &curr_pattern.kind {
                     PatternKind::Struct { fields, .. } => {
                         curr_pattern = &wildcard;
 
@@ -818,6 +818,7 @@ fn to_field_expr(expr: &Expr, fields: &[PatternField], session: &Session) -> Exp
             PatternField::Constructor | PatternField::EnumPayload | PatternField::ListElements => None,
             PatternField::Index(i) => Some(Field::Index(*i)),
             PatternField::Range(a, b) => Some(Field::Range(*a, *b)),
+            PatternField::StructField { index, .. } => Some(Field::Index(*index as i64)),
             PatternField::EnumPayloadIndex { variant, payload } => Some(Field::EnumPayload { variant: *variant, payload: *payload }),
             PatternField::ListLength => Some(Field::ListLength),
             _ => panic!("TODO: {field:?}"),

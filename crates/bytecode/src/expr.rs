@@ -172,6 +172,18 @@ pub fn lower_expr(
                             dst: Memory::SSA(ssa_reg),
                         });
                     },
+                    Field::EnumPayload { payload, .. } => {
+                        bytecodes.push(Bytecode::Move {
+                            src: Memory::Heap {
+                                ptr: Box::new(Memory::SSA(curr_ssa_reg)),
+
+                                // Without the niche optimization, an enum is a tuple, where the first element
+                                // is the variant discriminant, and the other elements are the payload.
+                                offset: Offset::Static(*payload as u32 + 1),
+                            },
+                            dst: Memory::SSA(ssa_reg),
+                        });
+                    },
                     _ => panic!("TODO: {field:?}"),
                 }
 
@@ -188,6 +200,9 @@ pub fn lower_expr(
                 bytecodes.push(Bytecode::Return(return_ssa));
             }
         },
+        // How should I implement this...
+        // I'm gonna need a new kind of bytecode, right?
+        Expr::FieldUpdate { fields, lhs, rhs } => panic!("TODO: {fields:?}\n{lhs:?}\n{rhs:?}"),
         Expr::Call { func, args, .. } => {
             match func {
                 Callable::Static { .. } | Callable::Dynamic(_) => {
@@ -357,6 +372,5 @@ pub fn lower_expr(
                 },
             }
         },
-        _ => panic!("TODO: {expr:?}"),
     }
 }

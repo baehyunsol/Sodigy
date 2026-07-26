@@ -4,7 +4,7 @@ use sodigy_mir::{Dotfish, Type};
 use sodigy_name_analysis::{IdentWithOrigin, NameOrigin};
 
 impl Session {
-    pub fn monomorphize_id(&mut self, id: &mut IdentWithOrigin, monomorphization: &Monomorphization) {
+    pub fn monomorphize_id(&self, id: &mut IdentWithOrigin, monomorphization: &Monomorphization) {
         id.span = id.span.monomorphize(monomorphization.id);
 
         match &id.origin {

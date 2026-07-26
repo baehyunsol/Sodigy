@@ -135,12 +135,20 @@ impl Enum {
             });
         }
 
-        Ok(Enum {
-            name: hir_enum.name,
-            name_span: hir_enum.name_span.clone(),
-            generics: hir_enum.generics.clone(),
-            variants,
-        })
+        session.types.insert(hir_enum.name_span.clone(), enum_type);
+
+        if has_error {
+            Err(())
+        }
+
+        else {
+            Ok(Enum {
+                name: hir_enum.name,
+                name_span: hir_enum.name_span.clone(),
+                generics: hir_enum.generics.clone(),
+                variants,
+            })
+        }
     }
 }
 

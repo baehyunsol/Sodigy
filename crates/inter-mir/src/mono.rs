@@ -9,7 +9,15 @@ use sodigy_fs_api::{
     parent,
     write_bytes,
 };
-use sodigy_mir::{Session as MirSession, Type, get_monomorphization_id};
+use sodigy_hir::{EnumShape, StructShape};
+use sodigy_mir::{
+    Enum,
+    Func,
+    Session as MirSession,
+    Struct,
+    Type,
+    get_monomorphization_id,
+};
 use sodigy_span::{MonomorphizationInfo, Span};
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
@@ -235,6 +243,73 @@ impl Session {
             span: mono.call_span.clone(),
         }
     }
+}
+
+pub fn register_monomorphized_func(
+    monomorphization: Monomorphization,
+    new_func: Func,
+    session: &mut Session,
+    mir_session: &mut MirSession,
+) {
+    let old_type = session.types.get(&Span::Range(new_func.name_span.id().unwrap())).unwrap();
+    let mut new_type = old_type.clone();
+
+    for (param, arg) in monomorphization.generics.iter() {
+        new_type.substitute_generic_param(param, arg);
+    }
+
+    session.monomorphizations.insert(monomorphization.id, monomorphization);
+    session.func_shapes.insert(new_func.name_span.clone(), new_func.shape());
+    session.funcs_rev.insert(new_func.name_span.clone(), mir_session.funcs.len());
+    session.types.insert(new_func.name_span.clone(), new_type);
+    mir_session.funcs.push(new_func);
+}
+
+pub fn register_monomorphized_struct(
+    monomorphization: Monomorphization,
+    new_struct: Struct,
+    new_struct_shape: StructShape,
+    session: &mut Session,
+    mir_session: &mut MirSession,
+) {
+    let old_type = session.types.get(&Span::Range(new_struct.name_span.id().unwrap())).unwrap();
+    let mut new_type = old_type.clone();
+
+    for (param, arg) in monomorphization.generics.iter() {
+        new_type.substitute_generic_param(param, arg);
+    }
+
+    session.monomorphizations.insert(monomorphization.id, monomorphization);
+    session.struct_shapes.insert(new_struct.name_span.clone(), new_struct_shape);
+    session.structs_rev.insert(new_struct.name_span.clone(), mir_session.structs.len());
+    session.types.insert(new_struct.name_span.clone(), new_type);
+    mir_session.structs.push(new_struct);
+}
+
+pub fn register_monomorphized_enum(
+    monomorphization: Monomorphization,
+    new_enum: Enum,
+    new_enum_shape: EnumShape,
+    session: &mut Session,
+    mir_session: &mut MirSession,
+) {
+    let old_type = session.types.get(&Span::Range(new_enum.name_span.id().unwrap())).unwrap();
+    let mut new_type = old_type.clone();
+
+    for (param, arg) in monomorphization.generics.iter() {
+        new_type.substitute_generic_param(param, arg);
+    }
+
+    session.monomorphizations.insert(monomorphization.id, monomorphization);
+    session.enum_shapes.insert(new_enum.name_span.clone(), new_enum_shape);
+    session.enums_rev.insert(new_enum.name_span.clone(), mir_session.enums.len());
+    session.types.insert(new_enum.name_span.clone(), new_type);
+
+    for variant in new_enum.variants.iter() {
+        session.variant_to_enum_span.insert(variant.name_span.clone(), new_enum.name_span.clone());
+    }
+
+    mir_session.enums.push(new_enum);
 }
 
 // Let's say there're

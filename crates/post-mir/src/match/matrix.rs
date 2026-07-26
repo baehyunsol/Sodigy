@@ -163,12 +163,12 @@ pub fn get_matrix(
                     constructor: MatrixConstructor::DefSpan(real_def_span),
                 }];
 
-                for field in struct_shape.fields.iter() {
+                for (i, field) in struct_shape.fields.iter().enumerate() {
                     let field_type = session.global_context.get_type(&field.name_span).unwrap();
                     let mut field_matrix = get_matrix(&field_type, session);
 
                     for row in field_matrix.iter_mut() {
-                        row.field.insert(0, PatternField::StructField(field.name));
+                        row.field.insert(0, PatternField::StructField { index: i, name: field.name });
                     }
 
                     result.extend(field_matrix);

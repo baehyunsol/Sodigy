@@ -23,8 +23,23 @@ pub struct StructField {
 
 impl Struct {
     pub fn from_hir(hir_struct: &hir::Struct, session: &mut Session) -> Result<Struct, ()> {
-        let mut has_error = false;
         let mut fields = vec![];
+        let mut has_error = false;
+        let struct_type = Type::Data {
+            constructor_def_span: hir_struct.name_span.id().unwrap(),
+            constructor_span: Span::None,
+            args: if hir_struct.generics.is_empty() {
+                None
+            } else {
+                Some(hir_struct.generics.iter().map(
+                    |generic| Type::GenericParam {
+                        def_span: generic.name_span.clone(),
+                        span: Span::None,
+                    }
+                ).collect())
+            },
+            group_span: if hir_struct.generics.is_empty() { None } else { Some(Span::None) },
+        };
 
         for field in hir_struct.fields.iter() {
             match field.type_annot.as_ref().map(|type_annot| Type::from_hir(type_annot, session)) {
@@ -52,6 +67,8 @@ impl Struct {
                 default_value: field.default_value.clone(),
             });
         }
+
+        session.types.insert(hir_struct.name_span.clone(), struct_type);
 
         if has_error {
             Err(())

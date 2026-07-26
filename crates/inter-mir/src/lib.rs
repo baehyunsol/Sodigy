@@ -19,7 +19,12 @@ mod type_solver;
 
 pub use error::{ErrorContext, ExprContext, TypeError, TypeWarning};
 pub use log::{LogEntry, LogId};
-pub use mono::Monomorphization;
+pub use mono::{
+    Monomorphization,
+    register_monomorphized_enum,
+    register_monomorphized_func,
+    register_monomorphized_struct,
+};
 pub use poly::{PolySolver, SolvePolyResult};
 pub use session::Session;
 
@@ -127,11 +132,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                     if let Some(index) = session.funcs_rev.get(&monomorphization.def_span) {
                         let func = &mir_session.funcs[*index];
                         let new_func = session.monomorphize_func(func, &monomorphization, &mut plan.intermediate_types);
-
-                        session.monomorphizations.insert(monomorphization.id, monomorphization);
-                        session.func_shapes.insert(new_func.name_span.clone(), new_func.shape());
-                        session.funcs_rev.insert(new_func.name_span.clone(), mir_session.funcs.len());
-                        mir_session.funcs.push(new_func);
+                        register_monomorphized_func(monomorphization, new_func, &mut session, mir_session);
                     }
 
                     else if let Some(index) = session.structs_rev.get(&monomorphization.def_span) {
@@ -143,11 +144,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                         let new_struct = session.monomorphize_struct(r#struct, &monomorphization);
                         let struct_shape = session.struct_shapes.get(&monomorphization.def_span).unwrap().clone();
                         let new_struct_shape = session.monomorphize_struct_shape(&struct_shape, &monomorphization);
-
-                        session.monomorphizations.insert(monomorphization.id, monomorphization);
-                        session.struct_shapes.insert(new_struct.name_span.clone(), new_struct_shape);
-                        session.structs_rev.insert(new_struct.name_span.clone(), mir_session.structs.len());
-                        mir_session.structs.push(new_struct);
+                        register_monomorphized_struct(monomorphization, new_struct, new_struct_shape, &mut session, mir_session);
                     }
 
                     else if let Some(index) = session.enums_rev.get(&monomorphization.def_span) {
@@ -155,16 +152,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                         let new_enum = session.monomorphize_enum(r#enum, &monomorphization);
                         let enum_shape = session.enum_shapes.get(&monomorphization.def_span).unwrap().clone();
                         let new_enum_shape = session.monomorphize_enum_shape(&enum_shape, &monomorphization);
-
-                        session.monomorphizations.insert(monomorphization.id, monomorphization);
-                        session.enum_shapes.insert(new_enum.name_span.clone(), new_enum_shape);
-                        session.enums_rev.insert(new_enum.name_span.clone(), mir_session.enums.len());
-
-                        for variant in new_enum.variants.iter() {
-                            session.variant_to_enum_span.insert(variant.name_span.clone(), new_enum.name_span.clone());
-                        }
-
-                        mir_session.enums.push(new_enum);
+                        register_monomorphized_enum(monomorphization, new_enum, new_enum_shape, &mut session, mir_session);
                     }
 
                     else {
@@ -204,11 +192,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                             let new_struct = session.monomorphize_struct(r#struct, &monomorphization);
                             let struct_shape = session.struct_shapes.get(&monomorphization.def_span).unwrap().clone();
                             let new_struct_shape = session.monomorphize_struct_shape(&struct_shape, &monomorphization);
-
-                            session.monomorphizations.insert(monomorphization.id, monomorphization);
-                            session.struct_shapes.insert(new_struct.name_span.clone(), new_struct_shape);
-                            session.structs_rev.insert(new_struct.name_span.clone(), mir_session.structs.len());
-                            mir_session.structs.push(new_struct);
+                            register_monomorphized_struct(monomorphization, new_struct, new_struct_shape, &mut session, mir_session);
                         }
 
                         else if let Some(index) = session.enums_rev.get(&def_span) {

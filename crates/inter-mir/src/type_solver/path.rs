@@ -34,6 +34,12 @@ impl Session {
                 match &id.origin {
                     NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
                         NameKind::EnumVariant | NameKind::Struct => {
+                            // This branch is supposed to be unreachable... right?
+                            //    -> I just fixed monomorphization code and all the items (their def_spans) are supposed to be in `self.types`.
+                            // If you see this comment and the comment is more than 6 months old, just remove this entire branch.
+                            // If you accidentally stepped this `unreachable` and not sure what to do, just remove this `unreachable!` macro and forget about it.
+                            unreachable!();
+
                             let def_span = match kind {
                                 // `False` in `Bool.False` has type `Bool`.
                                 NameKind::EnumVariant => self.variant_to_enum_span.get(&id.def_span).unwrap().clone(),
