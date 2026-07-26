@@ -330,6 +330,9 @@ pub fn dump_field<S: SodigySession>(fields: &[Field], dotfish: &[Option<Dotfish>
             Field::EnumDiscriminant => {
                 lines.push("__DISCRIMINANT__");
             },
+            Field::EnumPayload { variant, payload } => {
+                lines.push(&format!("__PAYLOAD_{variant}_{payload}__"));
+            },
             Field::ListLength => {
                 lines.push("__LIST_LENGTH__");
             },

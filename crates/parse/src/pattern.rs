@@ -566,10 +566,11 @@ impl<'t, 's> Tokens<'t, 's> {
                 }
             },
             (Some(Token { kind: TokenKind::Punct(p @ (Punct::DotDot | Punct::DotDotEq)), span }), _) => {
+                let (_, r_bp) = range_binding_power();
                 let is_inclusive = matches!(p, Punct::DotDotEq);
                 let op_span = span.clone();
                 self.cursor += 1;
-                let rhs = self.parse_pattern(context)?;
+                let rhs = self.pratt_parse_pattern(context, r_bp)?;
 
                 Pattern {
                     name: None,

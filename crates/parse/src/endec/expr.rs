@@ -61,8 +61,13 @@ impl Endec for Field {
             Field::EnumDiscriminant => {
                 buffer.push(3);
             },
-            Field::ListLength => {
+            Field::EnumPayload { variant, payload } => {
                 buffer.push(4);
+                variant.encode_impl(buffer);
+                payload.encode_impl(buffer);
+            },
+            Field::ListLength => {
+                buffer.push(5);
             },
         }
     }
@@ -94,8 +99,13 @@ impl Endec for Field {
                 Ok((Field::Range(a, b), cursor))
             },
             Some(3) => Ok((Field::EnumDiscriminant, cursor + 1)),
-            Some(4) => Ok((Field::ListLength, cursor + 1)),
-            Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(4) => {
+                let (variant, cursor) = usize::decode_impl(buffer, cursor + 1)?;
+                let (payload, cursor) = usize::decode_impl(buffer, cursor)?;
+                Ok((Field::EnumPayload { variant, payload }, cursor))
+            },
+            Some(5) => Ok((Field::ListLength, cursor + 1)),
+            Some(n @ 6..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

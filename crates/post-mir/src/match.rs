@@ -208,6 +208,7 @@ use tree::{
 };
 
 // This is like `sodigy_parse::Field`, but for pattern analysis.
+// e.g. with `PatternKind` and `PatternField`, you can get a `PatternConstructor`.
 #[derive(Clone, Debug)]
 pub enum PatternField {
     Constructor,
@@ -222,7 +223,15 @@ pub enum PatternField {
     ListIndex(i64),
     ListRange(i64, i64),
     EnumDiscriminant,
+
+    // When you only know the type, you can't use `EnumPayloadIndex`, but can use
+    // `EnumPayload`. When you know the exact pattern, you can use `EnumPayloadIndex`
+    // to select an exact pattern inside the enum.
     EnumPayload,
+    EnumPayloadIndex {
+        variant: usize,
+        payload: usize,
+    },
     ListLength,
     ListElements,
 }
@@ -386,7 +395,8 @@ fn read_field_of_pattern(
         for f in field[..(field.len() - 1)].iter() {
             match f {
                 PatternField::Constructor |
-                PatternField::ListElements => {},
+                PatternField::ListElements |
+                PatternField::EnumPayload => {},
                 PatternField::Name { .. } => todo!(),
                 PatternField::Index(i) => match &curr_pattern.kind {
                     // hir must have lowered this variant to `PatternKind::List`.
@@ -439,9 +449,16 @@ fn read_field_of_pattern(
                 },
                 PatternField::Range(_, _) => todo!(),
                 PatternField::ListRange(_, _) => todo!(),
-                PatternField::EnumDiscriminant |
-                PatternField::EnumPayload |
-                PatternField::ListLength => unreachable!(),
+                PatternField::EnumPayloadIndex { payload, .. } => match &curr_pattern.kind {
+                    PatternKind::TupleStruct { elements, .. } => {
+                        curr_pattern = &elements[*payload];
+                    },
+                    PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => {
+                        curr_pattern = &wildcard;
+                    },
+                    p => panic!("TODO: {p:?}, {f:?}"),
+                },
+                PatternField::EnumDiscriminant | PatternField::ListLength => unreachable!(),
             }
         }
     }
@@ -782,7 +799,7 @@ fn to_field_expr(expr: &Expr, fields: &[PatternField], session: &Session) -> Exp
 
     let fields: Vec<Field> = fields.iter().filter_map(
         |field| match field {
-            PatternField::Constructor | PatternField::ListElements => None,
+            PatternField::Constructor | PatternField::EnumPayload | PatternField::ListElements => None,
             PatternField::Name { name, name_span, dot_span, is_from_alias } => Some(Field::Name {
                 name: *name,
                 name_span: name_span.clone(),
@@ -791,6 +808,7 @@ fn to_field_expr(expr: &Expr, fields: &[PatternField], session: &Session) -> Exp
             }),
             PatternField::Index(i) => Some(Field::Index(*i)),
             PatternField::Range(a, b) => Some(Field::Range(*a, *b)),
+            PatternField::EnumPayloadIndex { variant, payload } => Some(Field::EnumPayload { variant: *variant, payload: *payload }),
             PatternField::ListLength => Some(Field::ListLength),
             _ => panic!("TODO: {field:?}"),
         }

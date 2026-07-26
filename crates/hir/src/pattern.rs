@@ -402,8 +402,20 @@ impl PatternKind {
 
                 result
             },
+            PatternKind::Range { lhs, rhs, .. } => {
+                let mut result = vec![];
+
+                if let Some(lhs) = lhs {
+                    result.extend(lhs.bound_names());
+                }
+
+                if let Some(rhs) = rhs {
+                    result.extend(rhs.bound_names());
+                }
+
+                result
+            },
             PatternKind::Or { lhs, .. } => lhs.bound_names(),
-            _ => todo!(),
         }
     }
 

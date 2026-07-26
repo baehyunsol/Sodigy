@@ -1,7 +1,7 @@
 use crate::{Callable, Expr, GlobalContext, Session};
 use sodigy_endec::Endec;
 use sodigy_error::{Error, ErrorKind};
-use sodigy_hir::{self as hir, FuncPurity};
+use sodigy_hir::{self as hir, EnumVariantFields, FuncPurity};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_session::SodigySession;
@@ -743,7 +743,7 @@ pub fn type_of_field(r#type: &Type, field: &[Field], global_context: GlobalConte
         return Some(r#type.clone());
     }
 
-    let t = match r#type {
+    let t: Type = match r#type {
         Type::Data { constructor_def_span, args, .. } => {
             if *constructor_def_span == global_context.get_lang_item_span_id("type.Tuple") {
                 match &field[0] {
@@ -781,6 +781,29 @@ pub fn type_of_field(r#type: &Type, field: &[Field], global_context: GlobalConte
                             println!("{def_span:?}");
                             println!("{struct_shape:?}");
                             println!("{field:?}");
+                            todo!()
+                        },
+                    }
+                }
+
+                else if let Some(enum_shape) = global_context.enum_shapes.unwrap().get(&def_span) {
+                    match &field[0] {
+                        Field::EnumPayload { variant, payload } => {
+                            let variant = &enum_shape.variants[*variant];
+
+                            match variant.fields {
+                                EnumVariantFields::None => unreachable!(),
+                                EnumVariantFields::Tuple(_) => match global_context.get_type(&variant.name_span) {
+                                    Some(Type::Func { params, .. }) => params[*payload].clone(),
+                                    _ => unreachable!(),
+                                },
+                                EnumVariantFields::Struct(_) => todo!(),
+                            }
+                        },
+                        _ => {
+                            println!("{type:?}");
+                            println!("{field:?}");
+                            println!("{enum_shape:?}");
                             todo!()
                         },
                     }

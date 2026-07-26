@@ -114,6 +114,8 @@ impl Session<'_, '_> {
             PatternField::Name { name, .. } => format!(".{}", name.unintern_or_default(&self.intermediate_dir)),
             PatternField::Index(n) => format!("._{n}"),
             PatternField::ListIndex(n) => format!("[{n}]"),
+            PatternField::EnumPayload => String::from(".enum_payload()"),
+            PatternField::EnumPayloadIndex { variant, payload } => format!(".enum_payload_index({variant}, {payload})"),
             PatternField::ListLength => String::from(".len()"),
             PatternField::ListElements => String::from(".elements()"),
             _ => panic!("TODO: {field:?}"),

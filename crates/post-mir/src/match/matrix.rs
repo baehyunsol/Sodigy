@@ -1,5 +1,6 @@
 use super::{LiteralType, PatternField, Range};
 use crate::Session;
+use sodigy_hir::EnumVariantFields;
 use sodigy_mir::{Type, get_def_span_from_id};
 use sodigy_number::InternedNumber;
 use sodigy_span::Span;
@@ -85,15 +86,18 @@ pub fn get_matrix(
             if *constructor_def_span == session.get_lang_item_span_id("type.Int") ||
                *constructor_def_span == session.get_lang_item_span_id("type.Char") ||
                *constructor_def_span == session.get_lang_item_span_id("type.Byte") ||
-               *constructor_def_span == session.get_lang_item_span_id("type.Number") {
-                   let r#type = if *constructor_def_span == session.get_lang_item_span_id("type.Int") {
+               *constructor_def_span == session.get_lang_item_span_id("type.Number") ||
+               *constructor_def_span == session.get_lang_item_span_id("type.Scalar") {
+                let r#type = if *constructor_def_span == session.get_lang_item_span_id("type.Int") {
                     LiteralType::Int
-                   } else if *constructor_def_span == session.get_lang_item_span_id("type.Char") {
+                } else if *constructor_def_span == session.get_lang_item_span_id("type.Char") {
                     LiteralType::Char
-                   } else if *constructor_def_span == session.get_lang_item_span_id("type.Byte") {
+                } else if *constructor_def_span == session.get_lang_item_span_id("type.Byte") {
                     LiteralType::Byte
-                } else {
+                } else if *constructor_def_span == session.get_lang_item_span_id("type.Number") {
                     LiteralType::Number
+                } else {
+                    LiteralType::Scalar
                 };
 
                 // Invalid ranges (256.. for bytes and 0xd800..0xe000 | 0x110000.. for chars) will be
@@ -226,9 +230,40 @@ pub fn get_enum_variant_sub_matrix(
 ) -> Vec<MatrixRow> {
     match variant_def_span {
         Some(s) => {
-            println!("variant_def_span: {s:?}");
-            println!("type: {:?}", session.global_context.get_type(s));
-            todo!()
+            let mut result = vec![];
+            let enum_def_span = session.global_context.variant_to_enum_span.unwrap().get(s).unwrap();
+            let enum_shape = session.global_context.enum_shapes.unwrap().get(enum_def_span).unwrap();
+            let variant_index = *enum_shape.variant_index.get(s).unwrap();
+            let enum_variant = enum_shape.variants[variant_index].clone();
+
+            match enum_variant.fields {
+                EnumVariantFields::None => todo!(),
+
+                // If the variant is `Ok(Int)`, when you query with the def_span of `Ok`,
+                // you'll get `Fn(Int) -> Result`.
+                EnumVariantFields::Tuple(_) => match session.global_context.get_type(s) {
+                    Some(Type::Func { params, .. }) => {
+                        for (i, param) in params.iter().enumerate() {
+                            let mut arg_matrix = get_matrix(param, session);
+
+                            for row in arg_matrix.iter_mut() {
+                                row.field = vec![
+                                    field_prefix.to_vec(),
+                                    vec![PatternField::EnumPayloadIndex { variant: variant_index, payload: i }],
+                                    row.field.clone(),
+                                ].concat();
+                            }
+
+                            result.extend(arg_matrix);
+                        }
+
+                        result
+                    },
+                    _ => unreachable!(),
+                },
+
+                EnumVariantFields::Struct(_) => todo!(),
+            }
         },
 
         // nothing to check
