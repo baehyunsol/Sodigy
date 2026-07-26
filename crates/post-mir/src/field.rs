@@ -53,14 +53,16 @@ pub(crate) fn lower_fields(lhs: &Expr, fields: &mut Vec<Field>, session: &mut Se
                 }
 
                 else if let Some(enum_shape) = session.global_context.enum_shapes.unwrap().get(&real_def_span) {
-                    // TODO:
-                    //    1. If the field is `Field::EnumVariant { variant, payload }`, we're not gonna lower this.
-                    //       We already have the `payload` index, which works like `Field::Index`, and we cannot
-                    //       discard the `variant` index because we might need this later for type-solving.
-                    //    2. If the field is of another kind, ... I'm not sure what I should do.
-                    println!("{enum_shape:?}");
-                    println!("{field:?}");
-                    todo!()
+                    match field {
+                        Field::EnumPayload { .. } => {
+                            // We're not gonna lower this:
+                            //   1. We can use the payload index like `Field::Index`.
+                            //   2. We don't need the variant index at runtime, but we need that for type-solving.
+                        },
+
+                        // Is this reachable?
+                        _ => todo!(),
+                    }
                 }
 
                 else {

@@ -1,6 +1,7 @@
 use crate::{
     Pattern,
     PatternKind,
+    StructFieldPattern,
 };
 use sodigy_error::{Warning, WarningKind};
 use sodigy_span::{RenderableSpan, Span};
@@ -8,6 +9,9 @@ use sodigy_token::Constant;
 
 pub enum PatternSplit<'p> {
     NoSplit(&'p Pattern),
+
+    // `u32` is a unique id for each split.
+    // It's later used by the exhaustiveness checker.
     Split(Vec<(Pattern, u32)>),
 }
 
@@ -44,13 +48,45 @@ impl Pattern {
             PatternKind::NameBinding { .. } |
             PatternKind::Regex { .. } |
             PatternKind::Wildcard(_) => PatternSplit::NoSplit(self),
-            PatternKind::Struct { fields, .. } => todo!(),
+            PatternKind::Struct { fields, .. } => {
+                let mut no_split_at_all = true;
+                let splitted_fields: Vec<(&StructFieldPattern, PatternSplit<'p>)> = fields.iter().map(
+                    |field| {
+                        let r = field.pattern.split_or_patterns();
+
+                        if let PatternSplit::Split(_) = r {
+                            no_split_at_all = false;
+                        }
+
+                        (field, r)
+                    }
+                ).collect();
+
+                if no_split_at_all {
+                    PatternSplit::NoSplit(self)
+                }
+
+                else {
+                    todo!()
+                }
+            },
             PatternKind::TupleStruct { elements, .. } |
             PatternKind::Tuple { elements, .. } |
             PatternKind::List { elements, .. } => {
-                let splitted_elements: Vec<PatternSplit<'p>> = elements.iter().map(|element| element.split_or_patterns()).collect();
+                let mut no_split_at_all = true;
+                let splitted_elements: Vec<PatternSplit<'p>> = elements.iter().map(
+                    |element| {
+                        let r = element.split_or_patterns();
 
-                if splitted_elements.iter().all(|e| matches!(e, PatternSplit::NoSplit(_))) {
+                        if let PatternSplit::Split(_) = r {
+                            no_split_at_all = false;
+                        }
+
+                        r
+                    }
+                ).collect();
+
+                if no_split_at_all {
                     PatternSplit::NoSplit(self)
                 }
 
@@ -113,8 +149,40 @@ impl Pattern {
             PatternKind::Regex { .. } => false,
 
             // an enum variant without payload must be grouped!
-            PatternKind::Struct { .. } |
-            PatternKind::TupleStruct { .. } => todo!(),
+            PatternKind::Struct { fields, .. } => {
+                let mut all_wildcards = true;
+
+                for field in fields.iter() {
+                    if let PatternKind::Wildcard(_) = field.pattern.kind {
+                        //
+                    }
+
+                    else {
+                        all_wildcards = false;
+                        break;
+                    }
+                }
+
+                all_wildcards
+            },
+
+            // an enum variant without payload must be grouped!
+            PatternKind::TupleStruct { elements, .. } => {
+                let mut all_wildcards = true;
+
+                for element in elements.iter() {
+                    if let PatternKind::Wildcard(_) = element.kind {
+                        //
+                    }
+
+                    else {
+                        all_wildcards = false;
+                        break;
+                    }
+                }
+
+                all_wildcards
+            },
 
             PatternKind::Tuple { .. } => false,
             PatternKind::List { .. } => false,

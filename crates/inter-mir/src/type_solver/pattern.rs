@@ -1,4 +1,4 @@
-use crate::{ErrorContext, Session, Type, TypeError};
+use crate::{ErrorContext, LogId, Session, Type, TypeError, write_log};
 use sodigy_error::TypeVarInfo;
 use sodigy_hir::{Path, Pattern, PatternKind};
 use sodigy_mir::get_def_span_from_id;
@@ -7,9 +7,37 @@ use sodigy_span::Span;
 use sodigy_token::Constant;
 use std::collections::{HashMap, HashSet};
 
+#[cfg(feature = "log")]
+use crate::log::LogEntry;
+
 impl Session {
-    // TODO: I don't want to raise errors if the compiler fails to infer type of name bindings in patterns.
     pub fn solve_pattern(&mut self, pattern: &Pattern) -> (Option<Type>, bool /* has_error */) {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::SolvePatternStart {
+            id: _id.unwrap(),
+            pattern: pattern.clone(),
+        });
+
+        let (result, has_error) = self.solve_pattern_(pattern);
+
+        write_log!(self, LogEntry::SolvePatternEnd {
+            id: _id.unwrap(),
+            infered_type: result.clone(),
+            type_vars: if let Some(r#type) = &result { self.collect_type_var_info(r#type) } else { HashMap::new() },
+            has_error,
+            last_errors: self.last_errors(),
+        });
+
+        (result, has_error)
+    }
+
+    // TODO: I don't want to raise errors if the compiler fails to infer type of name bindings in patterns.
+    fn solve_pattern_(&mut self, pattern: &Pattern) -> (Option<Type>, bool /* has_error */) {
         let (pattern_type, mut has_error) = self.solve_pattern_kind(&pattern.kind);
 
         match (&pattern_type, &pattern.name, &pattern.name_span) {

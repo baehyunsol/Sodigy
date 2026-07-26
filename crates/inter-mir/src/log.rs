@@ -8,7 +8,7 @@ use crate::{
     TypeError,
 };
 use sodigy_error::Error;
-use sodigy_hir::{EnumShape, Poly, StructShape};
+use sodigy_hir::{EnumShape, Pattern, Poly, StructShape};
 use sodigy_mir::{Assert, Expr, Func, Let, Type};
 use sodigy_parse::Field;
 use sodigy_span::Span;
@@ -110,6 +110,17 @@ pub enum LogEntry {
         has_error: bool,
         last_errors: Vec<(TypeError, Error)>,
     },
+    SolvePatternStart {
+        id: LogId,
+        pattern: Pattern,
+    },
+    SolvePatternEnd {
+        id: LogId,
+        infered_type: Option<Type>,
+        type_vars: HashMap<Type, Option<Type>>,
+        has_error: bool,
+        last_errors: Vec<(TypeError, Error)>,
+    },
     GetTypeOfFieldStart {
         id: LogId,
         r#type: Type,
@@ -201,6 +212,8 @@ impl LogEntry {
             LogEntry::SolveAssertEnd { id, .. } |
             LogEntry::SolveExprStart { id, .. } |
             LogEntry::SolveExprEnd { id, .. } |
+            LogEntry::SolvePatternStart { id, .. } |
+            LogEntry::SolvePatternEnd { id, .. } |
             LogEntry::GetTypeOfFieldStart { id, .. } |
             LogEntry::GetTypeOfFieldEnd { id, .. } |
             LogEntry::GetItemShapeStart { id, .. } |

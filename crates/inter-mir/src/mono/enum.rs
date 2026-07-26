@@ -49,7 +49,7 @@ impl Session {
         EnumShape {
             name: enum_shape.name,
             variant_index: new_variants.iter().enumerate().map(
-                |(index, variant)| (variant.name_span.clone(), index)
+                |(index, variant)| (variant.name_span.id().unwrap(), index)
             ).collect(),
             variants: new_variants,
 

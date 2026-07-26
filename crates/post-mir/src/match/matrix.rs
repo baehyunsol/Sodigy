@@ -157,6 +157,26 @@ pub fn get_matrix(
                 ]
             }
 
+            else if let Some(struct_shape) = session.global_context.struct_shapes.unwrap().get(&real_def_span) {
+                let mut result = vec![MatrixRow {
+                    field: vec![PatternField::Constructor],
+                    constructor: MatrixConstructor::DefSpan(real_def_span),
+                }];
+
+                for field in struct_shape.fields.iter() {
+                    let field_type = session.global_context.get_type(&field.name_span).unwrap();
+                    let mut field_matrix = get_matrix(&field_type, session);
+
+                    for row in field_matrix.iter_mut() {
+                        row.field.insert(0, PatternField::StructField(field.name));
+                    }
+
+                    result.extend(field_matrix);
+                }
+
+                result
+            }
+
             else if let Some(enum_shape) = session.global_context.enum_shapes.unwrap().get(&real_def_span) {
                 vec![
                     MatrixRow {
@@ -184,7 +204,7 @@ pub fn get_matrix(
         Type::GenericParam { .. } |
         Type::Var { .. } |
         Type::GenericArg { .. } |
-        Type::Blocked { .. } => panic!("Internal Compiler Error: Type-infer is complete, but I found a type variable!"),
+        Type::Blocked { .. } => panic!("Internal Compiler Error: Type-infer is complete, but I found a type variable: {type:?}"),
     }
 }
 
@@ -233,7 +253,7 @@ pub fn get_enum_variant_sub_matrix(
             let mut result = vec![];
             let enum_def_span = session.global_context.variant_to_enum_span.unwrap().get(s).unwrap();
             let enum_shape = session.global_context.enum_shapes.unwrap().get(enum_def_span).unwrap();
-            let variant_index = *enum_shape.variant_index.get(s).unwrap();
+            let variant_index = *enum_shape.variant_index.get(&s.id().unwrap()).unwrap();
             let enum_variant = enum_shape.variants[variant_index].clone();
 
             match enum_variant.fields {
@@ -241,7 +261,7 @@ pub fn get_enum_variant_sub_matrix(
 
                 // If the variant is `Ok(Int)`, when you query with the def_span of `Ok`,
                 // you'll get `Fn(Int) -> Result`.
-                EnumVariantFields::Tuple(_) => match session.global_context.get_type(s) {
+                EnumVariantFields::Tuple(_) => match session.global_context.get_type(&enum_variant.name_span) {
                     Some(Type::Func { params, .. }) => {
                         for (i, param) in params.iter().enumerate() {
                             let mut arg_matrix = get_matrix(param, session);

@@ -12,7 +12,7 @@ use crate::{
 use sodigy_error::{EnumFieldKind, Error, ErrorKind, ItemKind};
 use sodigy_name_analysis::{Namespace, NameKind, UseCount};
 use sodigy_parse::{self as ast, Generic};
-use sodigy_span::Span;
+use sodigy_span::{Span, SpanId};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
@@ -52,7 +52,7 @@ pub struct EnumShape {
 
     // variants[variant_index[def_span]] will give you an EnumVariant with the def_span
     pub variants: Vec<EnumVariant>,
-    pub variant_index: HashMap<Span, usize>,
+    pub variant_index: HashMap<SpanId, usize>,
 
     pub representation: EnumRepr,
     pub generics: Vec<Generic>,
@@ -189,8 +189,8 @@ impl Enum {
                 variant
             }
         ).collect();
-        let variant_index: HashMap<Span, usize> = variants.iter().enumerate().map(
-            |(index, variant)| (variant.name_span.clone(), index)
+        let variant_index: HashMap<SpanId, usize> = variants.iter().enumerate().map(
+            |(index, variant)| (variant.name_span.id().unwrap(), index)
         ).collect();
 
         EnumShape {
@@ -326,8 +326,8 @@ impl EnumShape {
     // For example, variant-index of `Option.Some(_)` is always 1, regardless of niche optimization.
     // If `EnumRepr::Scalar`, the runtime representation of the enum is the same as variant-index.
     // If `EnumRepr::Compound`, the first element of the compound value is the same as variant-index.
-    pub fn get_variant_index(&self, variant: &Span) -> Option<u32> {
-        self.variant_index.get(variant).map(|i| *i as u32)
+    pub fn get_variant_index(&self, variant: SpanId) -> Option<u32> {
+        self.variant_index.get(&variant).map(|i| *i as u32)
     }
 }
 

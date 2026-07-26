@@ -583,7 +583,8 @@ impl Expr {
                 }
 
                 else if let Some(enum_def_span) = &enum_def_span && let Some(enum_shape) = session.global_context.enum_shapes.unwrap().get(enum_def_span) {
-                    let variant = &enum_shape.variants[*enum_shape.variant_index.get(&def_span).unwrap()];
+                    let variant_index = *enum_shape.variant_index.get(&def_span.id().unwrap()).unwrap();
+                    let variant = &enum_shape.variants[variant_index];
                     let fields = match &variant.fields {
                         EnumVariantFields::Struct(fields) => fields,
                         f => {

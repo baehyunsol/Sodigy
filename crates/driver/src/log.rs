@@ -428,6 +428,21 @@ pub fn log_inter_mir(session: &InterMirSession, mir_session: &MirSession) -> Res
 
                 ("solve_expr", *id)
             },
+            LogEntry::SolvePatternStart { id, pattern } => {
+                input.push(Value {
+                    name: String::from("pattern"),
+                    short: String::from("(...)"),  // TODO: dump_pattern?
+                    long: Some(String::from_utf8(prettify(format!("{pattern:?}").into_bytes())).unwrap()),
+                });
+
+                spans.push(RenderableSpan {
+                    span: pattern.error_span_wide(),
+                    auxiliary: false,
+                    note: Some(String::from("pattern")),
+                });
+
+                ("solve_pattern", *id)
+            },
             LogEntry::GetTypeOfFieldStart { id, r#type, field } => {
                 input.push(Value {
                     name: String::from("type"),
@@ -633,7 +648,8 @@ pub fn log_inter_mir(session: &InterMirSession, mir_session: &MirSession) -> Res
                 (*has_error, last_errors.clone())
             },
             LogEntry::SolveAssertEnd { has_error, last_errors, .. } => (*has_error, last_errors.clone()),
-            LogEntry::SolveExprEnd { infered_type, type_vars, has_error, last_errors, .. } => {
+            LogEntry::SolveExprEnd { infered_type, type_vars, has_error, last_errors, .. } |
+            LogEntry::SolvePatternEnd { infered_type, type_vars, has_error, last_errors, .. } => {
                 output.push(Value::from_optional_type("infered_type", infered_type, session));
 
                 if !type_vars.is_empty() {

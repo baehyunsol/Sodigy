@@ -100,6 +100,8 @@ CannotAliasLocalValue/411/Error
 UnexpectedType/415/Error
 WrongNumberOfArgs/416/Error
 WrongNumberOfGenericArgs/417/Error
+UnnecessaryGenericArgs/418/Error
+MissingGenericArgs/419/Error
 CannotInferType/420/Error
 PartiallyInferedType/425/Error
 CannotInferGenericType/430/Error

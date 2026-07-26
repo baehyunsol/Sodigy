@@ -1,0 +1,27 @@
+let enum_shape = Some(EnumShape {
+    name: ShortString(b"Option"),
+    variants: [
+        EnumVariant {
+            name: ShortString(b"Some"),
+            name_span: Monomorphize { id: 13557454709858168079, span: Range(SpanId { file: File("@std/option.sdg"), start: 72, end: 76, id: 61389279664895591868862038092 }) }, fields: Tuple([Wildcard(None)]),
+        },
+        EnumVariant {
+            name: ShortString(b"None"),
+            name_span: Monomorphize { id: 13557454709858168079, span: Range(SpanId { file: File("@std/option.sdg"), start: 85, end: 89, id: 61389279664895591924696612953 }) }, fields: None,
+        },
+    ],
+    variant_index: {
+        Monomorphize { id: 13557454709858168079, span: Range(SpanId { file: File("@std/option.sdg"), start: 72, end: 76, id: 61389279664895591868862038092 }) }: 0,
+        Monomorphize { id: 13557454709858168079, span: Range(SpanId { file: File("@std/option.sdg"), start: 85, end: 89, id: 61389279664895591924696612953 }) }: 1,
+    },
+    representation: Compound,
+    generics: [],
+    generic_group_span: None,
+    associated_funcs: {
+        ShortString(b"unwrap"): AssociatedFunc { name: ShortString(b"unwrap"), name_spans: [Range(SpanId { file: File("@std/option.sdg"), start: 122, end: 128, id: 61389279664895592083610402944 })], params: 1, is_pure: true },
+    },
+    associated_lets: {},
+});
+let parent_span = Monomorphize { id: 13557454709858168079, span: Range(SpanId { file: File("@std/option.sdg"), start: 54, end: 60, id: 61389279664895591791552626748 }) };
+let variant_span = Range(SpanId { file: File("@std/option.sdg"), start: 85, end: 89, id: 61389279664895591924696612953 });
+let result = Some(None);

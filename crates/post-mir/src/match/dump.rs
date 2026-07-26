@@ -111,7 +111,6 @@ impl Session<'_, '_> {
     fn render_pattern_field(&self, field: &PatternField) -> String {
         match field {
             PatternField::Constructor => String::from(".constructor()"),
-            PatternField::Name { name, .. } => format!(".{}", name.unintern_or_default(&self.intermediate_dir)),
             PatternField::Index(n) => format!("._{n}"),
             PatternField::ListIndex(n) => format!("[{n}]"),
             PatternField::EnumPayload => String::from(".enum_payload()"),

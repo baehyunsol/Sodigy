@@ -60,7 +60,8 @@
     { id: Option<IdentWithOrigin> }, CannotAliasLocalValue(InternedString),
     UnexpectedType { expected: String, got: String }, WrongNumberOfArgs
     { expected: usize, got: usize }, WrongNumberOfGenericArgs
-    { expected: usize, got: usize }, CannotInferType
+    { expected: usize, got: usize }, UnnecessaryGenericArgs,
+    MissingGenericArgs, CannotInferType
     { info: Option<TypeVarInfo>, is_return: bool }, PartiallyInferedType
     { info: Option<TypeVarInfo>, r#type: String, is_return: bool },
     CannotInferGenericType { id: Option<String> }, PartiallyInferedGenericType
@@ -171,9 +172,10 @@
             CannotAliasLocalValue(_,) => 411u16, ErrorKind :: UnexpectedType
             { .. } => 415u16, ErrorKind :: WrongNumberOfArgs { .. } => 416u16,
             ErrorKind :: WrongNumberOfGenericArgs { .. } => 417u16, ErrorKind
-            :: CannotInferType { .. } => 420u16, ErrorKind ::
-            PartiallyInferedType { .. } => 425u16, ErrorKind ::
-            CannotInferGenericType { .. } => 430u16, ErrorKind ::
+            :: UnnecessaryGenericArgs => 418u16, ErrorKind ::
+            MissingGenericArgs => 419u16, ErrorKind :: CannotInferType { .. }
+            => 420u16, ErrorKind :: PartiallyInferedType { .. } => 425u16,
+            ErrorKind :: CannotInferGenericType { .. } => 430u16, ErrorKind ::
             PartiallyInferedGenericType { .. } => 435u16, ErrorKind ::
             UnknownField { .. } => 436u16, ErrorKind ::
             CannotUpdateAssociatedFunc { .. } => 439u16, ErrorKind ::
@@ -307,7 +309,9 @@
             UnexpectedType { .. } => ErrorLevel :: Error, ErrorKind ::
             WrongNumberOfArgs { .. } => ErrorLevel :: Error, ErrorKind ::
             WrongNumberOfGenericArgs { .. } => ErrorLevel :: Error, ErrorKind
-            :: CannotInferType { .. } => ErrorLevel :: Error, ErrorKind ::
+            :: UnnecessaryGenericArgs => ErrorLevel :: Error, ErrorKind ::
+            MissingGenericArgs => ErrorLevel :: Error, ErrorKind ::
+            CannotInferType { .. } => ErrorLevel :: Error, ErrorKind ::
             PartiallyInferedType { .. } => ErrorLevel :: Error, ErrorKind ::
             CannotInferGenericType { .. } => ErrorLevel :: Error, ErrorKind ::
             PartiallyInferedGenericType { .. } => ErrorLevel :: Error,
@@ -593,7 +597,10 @@
             {
                 buffer.push(1u8); buffer.push(161u8);
                 r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
-            }, ErrorKind :: CannotInferType { r#info, r#is_return, } =>
+            }, ErrorKind :: UnnecessaryGenericArgs =>
+            { buffer.push(1u8); buffer.push(162u8); }, ErrorKind ::
+            MissingGenericArgs => { buffer.push(1u8); buffer.push(163u8); },
+            ErrorKind :: CannotInferType { r#info, r#is_return, } =>
             {
                 buffer.push(1u8); buffer.push(164u8);
                 r#info.encode_impl(buffer); r#is_return.encode_impl(buffer);
@@ -1018,7 +1025,8 @@
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: WrongNumberOfGenericArgs
                 { r#expected, r#got, }, cursor))
-            }, 420u16 =>
+            }, 418u16 => Ok((ErrorKind :: UnnecessaryGenericArgs, cursor)),
+            419u16 => Ok((ErrorKind :: MissingGenericArgs, cursor)), 420u16 =>
             {
                 let (r#info, cursor) = Option :: < TypeVarInfo >::
                 decode_impl(buffer, cursor) ? ; let (r#is_return, cursor) =

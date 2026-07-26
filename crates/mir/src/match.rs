@@ -1,9 +1,3 @@
-// `hir::Match` is first lowered to `mir::Match`. They're almost identical, except
-// that `hir::Expr`s are lowered to `mir::Expr`s.
-//
-// After type-checking, we can lower `mir::Match` to `mir::MatchFsm`, which knows
-// how to destructure patterns. It also does exhaustiveness checking.
-
 use crate::{Expr, Pattern, Session};
 use sodigy_hir::{self as hir, PatternSplit};
 use sodigy_span::Span;

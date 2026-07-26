@@ -283,7 +283,7 @@ pub fn lower_expr(
                 },
                 Callable::EnumInit { enum_def_span, variant_def_span, .. } => {
                     let enum_shape = session.global_context.enum_shapes.unwrap().get(enum_def_span).unwrap();
-                    let variant_index = *enum_shape.variant_index.get(variant_def_span).unwrap();
+                    let variant_index = *enum_shape.variant_index.get(&variant_def_span.id().unwrap()).unwrap();
 
                     match enum_shape.representation {
                         EnumRepr::Scalar => {

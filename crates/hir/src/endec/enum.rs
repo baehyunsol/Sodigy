@@ -11,7 +11,7 @@ use crate::{
 };
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_parse::Generic;
-use sodigy_span::Span;
+use sodigy_span::{Span, SpanId};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
@@ -125,7 +125,7 @@ impl Endec for EnumShape {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (variants, cursor) = Vec::<EnumVariant>::decode_impl(buffer, cursor)?;
-        let (variant_index, cursor) = HashMap::<Span, usize>::decode_impl(buffer, cursor)?;
+        let (variant_index, cursor) = HashMap::<SpanId, usize>::decode_impl(buffer, cursor)?;
         let (representation, cursor) = EnumRepr::decode_impl(buffer, cursor)?;
         let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
         let (generic_group_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;

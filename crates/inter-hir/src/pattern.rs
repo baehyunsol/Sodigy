@@ -143,7 +143,8 @@ impl Session {
                         NameKind::EnumVariant => {
                             let enum_def_span = self.variant_to_enum_span.get(&p.id.def_span).unwrap();
                             let enum_shape = self.enum_shapes.get(enum_def_span).unwrap();
-                            let variant: &EnumVariant = &enum_shape.variants[*enum_shape.variant_index.get(&p.id.def_span).unwrap()];
+                            let variant_index = *enum_shape.variant_index.get(&p.id.def_span.id().unwrap()).unwrap();
+                            let variant: &EnumVariant = &enum_shape.variants[variant_index];
 
                             match EnumFieldKind::from(&variant.fields) {
                                 EnumFieldKind::None => {
@@ -311,7 +312,8 @@ impl Session {
                 NameKind::EnumVariant => {
                     let enum_def_span = self.variant_to_enum_span.get(&path.id.def_span).unwrap();
                     let enum_shape = self.enum_shapes.get(enum_def_span).unwrap();
-                    let variant: &EnumVariant = &enum_shape.variants[*enum_shape.variant_index.get(&path.id.def_span).unwrap()];
+                    let variant_index = *enum_shape.variant_index.get(&path.id.def_span.id().unwrap()).unwrap();
+                    let variant: &EnumVariant = &enum_shape.variants[variant_index];
 
                     match (EnumFieldKind::from(&variant.fields), field_kind) {
                         (EnumFieldKind::Struct, EnumFieldKind::Struct) => Ok(()),

@@ -899,7 +899,7 @@ pub(crate) fn build_tree(
             let mut branches = Vec::with_capacity(arms_by_variant.len() + 1);
 
             for (variant_def_span, arms) in arms_by_variant.iter() {
-                let variant_index = InternedNumber::from_u32(session.get_variant_index(enum_def_span, variant_def_span).unwrap(), true);
+                let variant_index = InternedNumber::from_u32(session.get_variant_index(enum_def_span, variant_def_span.id().unwrap()).unwrap(), true);
                 branches.push(DecisionTreeBranch {
                     condition: ExprConstructor::Range(Range {
                         r#type: LiteralType::Scalar,

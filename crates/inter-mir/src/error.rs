@@ -47,6 +47,18 @@ pub enum TypeError {
         param_group_span: Span,
         arg_group_span: Span,
     },
+    UnnecessaryGenericArgs {
+        def_span: Span,
+        num_generic_args: usize,
+        r#type: Type,
+        call_span: Option<Span>,
+    },
+    MissingGenericArgs {
+        def_span: Span,
+        num_generic_params: usize,
+        r#type: Type,
+        call_span: Option<Span>,
+    },
     CannotInferType {
         info: Option<TypeVarInfo>,
         span: Span,
@@ -465,6 +477,64 @@ impl Session {
                     },
                 ],
                 note: None,
+            },
+            TypeError::UnnecessaryGenericArgs {
+                def_span,
+                num_generic_args,
+                r#type,
+                call_span,
+            } => {
+                let mut spans = vec![
+                    RenderableSpan {
+                        span: def_span,
+                        auxiliary: true,
+                        note: Some(String::from("This is the definition. There are no generic parameters, right?")),
+                    },
+                ];
+
+                if let Some(call_span) = call_span {
+                    spans.push(RenderableSpan {
+                        span: call_span,
+                        auxiliary: false,
+                        note: Some(format!(
+                            "This has type `{}`, which has {num_generic_args} generic argument{}.",
+                            self.render_type(&r#type),
+                            if num_generic_args == 1 { "" } else { "s" },
+                        )),
+                    });
+                }
+
+                Error { kind: ErrorKind::UnnecessaryGenericArgs, spans, note: None }
+            },
+            TypeError::MissingGenericArgs {
+                def_span,
+                num_generic_params,
+                r#type,
+                call_span,
+            } => {
+                let mut spans = vec![
+                    RenderableSpan {
+                        span: def_span,
+                        auxiliary: true,
+                        note: Some(format!(
+                            "This is the definition. Do see {num_generic_params} generic parameter{} here?",
+                            if num_generic_params == 1 { "" } else { "s" },
+                        )),
+                    },
+                ];
+
+                if let Some(call_span) = call_span {
+                    spans.push(RenderableSpan {
+                        span: call_span,
+                        auxiliary: false,
+                        note: Some(format!(
+                            "This has type `{}`, which has no generic arguments.",
+                            self.render_type(&r#type),
+                        )),
+                    });
+                }
+
+                Error { kind: ErrorKind::MissingGenericArgs, spans, note: None }
             },
             TypeError::CannotInferType { info, span, is_return } => Error {
                 kind: ErrorKind::CannotInferType { info, is_return },

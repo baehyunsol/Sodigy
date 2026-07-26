@@ -212,16 +212,11 @@ use tree::{
 #[derive(Clone, Debug)]
 pub enum PatternField {
     Constructor,
-    Name {
-        name: InternedString,
-        name_span: Span,
-        dot_span: Span,
-        is_from_alias: bool,
-    },
     Index(i64),
     Range(i64, i64),
     ListIndex(i64),
     ListRange(i64, i64),
+    StructField(InternedString),
     EnumDiscriminant,
 
     // When you only know the type, you can't use `EnumPayloadIndex`, but can use
@@ -397,7 +392,6 @@ fn read_field_of_pattern(
                 PatternField::Constructor |
                 PatternField::ListElements |
                 PatternField::EnumPayload => {},
-                PatternField::Name { .. } => todo!(),
                 PatternField::Index(i) => match &curr_pattern.kind {
                     // hir must have lowered this variant to `PatternKind::List`.
                     PatternKind::Constant(Constant::String { .. }) => unreachable!(),
@@ -449,9 +443,31 @@ fn read_field_of_pattern(
                 },
                 PatternField::Range(_, _) => todo!(),
                 PatternField::ListRange(_, _) => todo!(),
+                PatternField::StructField(field_name) => match &curr_pattern.kind {
+                    PatternKind::Struct { fields, .. } => {
+                        curr_pattern = &wildcard;
+
+                        for field in fields.iter() {
+                            if field.name == *field_name {
+                                curr_pattern = &field.pattern;
+                                break;
+                            }
+                        }
+                    },
+                    PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => {
+                        curr_pattern = &wildcard;
+                    },
+                    p => panic!("TODO: {p:?}, {f:?}"),
+                },
                 PatternField::EnumPayloadIndex { payload, .. } => match &curr_pattern.kind {
-                    PatternKind::TupleStruct { elements, .. } => {
-                        curr_pattern = &elements[*payload];
+                    PatternKind::TupleStruct { elements, rest, .. } => {
+                        if let Some(_) = rest {
+                            todo!()
+                        }
+
+                        else {
+                            curr_pattern = &elements[*payload];
+                        }
                     },
                     PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => {
                         curr_pattern = &wildcard;
@@ -800,12 +816,6 @@ fn to_field_expr(expr: &Expr, fields: &[PatternField], session: &Session) -> Exp
     let fields: Vec<Field> = fields.iter().filter_map(
         |field| match field {
             PatternField::Constructor | PatternField::EnumPayload | PatternField::ListElements => None,
-            PatternField::Name { name, name_span, dot_span, is_from_alias } => Some(Field::Name {
-                name: *name,
-                name_span: name_span.clone(),
-                dot_span: dot_span.clone(),
-                is_from_alias: *is_from_alias,
-            }),
             PatternField::Index(i) => Some(Field::Index(*i)),
             PatternField::Range(a, b) => Some(Field::Range(*a, *b)),
             PatternField::EnumPayloadIndex { variant, payload } => Some(Field::EnumPayload { variant: *variant, payload: *payload }),

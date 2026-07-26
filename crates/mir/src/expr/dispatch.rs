@@ -35,7 +35,7 @@ impl Expr {
                         guard.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
                     }
 
-                    arm.pattern.dispatch(dispatch_map);  // TODO
+                    arm.pattern.dispatch(dispatch_map);
                     arm.value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
                 }
             },

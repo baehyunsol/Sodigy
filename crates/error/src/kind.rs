@@ -158,6 +158,8 @@ error_kinds!(
     (WrongNumberOfArgs { expected: usize, got: usize },                  416,    Error),
 
     (WrongNumberOfGenericArgs { expected: usize, got: usize },           417,    Error),
+    (UnnecessaryGenericArgs,                                             418,    Error),
+    (MissingGenericArgs,                                                 419,    Error),
     (CannotInferType { info: Option<TypeVarInfo>, is_return: bool },     420,    Error),
     (PartiallyInferedType { info: Option<TypeVarInfo>, r#type: String, is_return: bool }, 425,    Error),
     (CannotInferGenericType { id: Option<String> },                      430,    Error),

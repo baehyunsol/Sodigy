@@ -406,7 +406,73 @@ impl Session {
                         }
                     },
                     (None, None) => Ok(lhs.clone()),
-                    _ => Err(()),
+
+                    // This is when the user tries to compare `Result` and `Result<Int, Int>`
+                    // -> one has no type arguments at all, while the other has.
+                    //
+                    // It's more likely that there's an ICE.
+                    (args1, args2) => {
+                        let def_span = Span::Range(*constructor1);
+
+                        match self.get_item_shape(&def_span) {
+                            Some(item_shape) => match (item_shape.generics().len(), args1, args2) {
+                                (0, Some(a), _) => {
+                                    self.type_errors.push(TypeError::UnnecessaryGenericArgs {
+                                        def_span,
+                                        num_generic_args: a.len(),
+                                        r#type: lhs.clone(),
+                                        call_span: lhs_span.cloned(),
+                                    });
+                                },
+                                (0, _, Some(b)) => {
+                                    self.type_errors.push(TypeError::UnnecessaryGenericArgs {
+                                        def_span,
+                                        num_generic_args: b.len(),
+                                        r#type: rhs.clone(),
+                                        call_span: rhs_span.cloned(),
+                                    });
+                                },
+                                (i, None, _) => {
+                                    self.type_errors.push(TypeError::MissingGenericArgs {
+                                        def_span,
+                                        num_generic_params: i,
+                                        r#type: lhs.clone(),
+                                        call_span: lhs_span.cloned(),
+                                    });
+                                },
+                                (i, _, None) => {
+                                    self.type_errors.push(TypeError::MissingGenericArgs {
+                                        def_span,
+                                        num_generic_params: i,
+                                        r#type: rhs.clone(),
+                                        call_span: rhs_span.cloned(),
+                                    });
+                                },
+                                _ => unreachable!(),
+                            },
+                            None => match (args1, args2) {
+                                (Some(a), _) => {
+                                    self.type_errors.push(TypeError::UnnecessaryGenericArgs {
+                                        def_span,
+                                        num_generic_args: a.len(),
+                                        r#type: lhs.clone(),
+                                        call_span: lhs_span.cloned(),
+                                    });
+                                },
+                                (_, Some(b)) => {
+                                    self.type_errors.push(TypeError::UnnecessaryGenericArgs {
+                                        def_span,
+                                        num_generic_args: b.len(),
+                                        r#type: rhs.clone(),
+                                        call_span: rhs_span.cloned(),
+                                    });
+                                },
+                                _ => unreachable!(),
+                            },
+                        }
+
+                        Err(())
+                    },
                 }
             },
             (Type::Func { r#return: return1, params: args1, purity: p1, .. }, Type::Func { r#return: return2, params: args2, purity: p2, .. }) => {

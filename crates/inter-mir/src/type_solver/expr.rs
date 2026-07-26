@@ -719,7 +719,8 @@ impl Session {
                         Some(enum_shape) => {
                             self.call_to_variant_span.insert(span.clone(), variant_def_span.clone());
                             let enum_shape = enum_shape.clone();
-                            let variant_shape: &hir::EnumVariant = enum_shape.variants.get(*enum_shape.variant_index.get(variant_def_span).unwrap()).unwrap();
+                            let variant_index = *enum_shape.variant_index.get(&variant_def_span.id().unwrap()).unwrap();
+                            let variant_shape = &enum_shape.variants[variant_index];
                             let generic_params: Vec<Span> = enum_shape.generics.iter().map(
                                 |generic| generic.name_span.clone()
                             ).collect();
