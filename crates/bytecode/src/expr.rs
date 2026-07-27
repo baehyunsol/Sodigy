@@ -165,7 +165,8 @@ pub fn lower_expr(
                     Field::Index(i) => {
                         bytecodes.push(Bytecode::Move {
                             src: Memory::Heap {
-                                ptr: Box::new(Memory::SSA(curr_ssa_reg)),
+                                ptr: curr_ssa_reg,
+
                                 // NOTE: There are no negative index because post-mir already lowered them
                                 offset: Offset::Static(*i as u32),
                             },
@@ -175,7 +176,7 @@ pub fn lower_expr(
                     Field::EnumPayload { payload, .. } => {
                         bytecodes.push(Bytecode::Move {
                             src: Memory::Heap {
-                                ptr: Box::new(Memory::SSA(curr_ssa_reg)),
+                                ptr: curr_ssa_reg,
 
                                 // Without the niche optimization, an enum is a tuple, where the first element
                                 // is the variant discriminant, and the other elements are the payload.
@@ -278,13 +279,19 @@ pub fn lower_expr(
                         debug_info,
                     });
 
+                    let dst_ssa = if args.is_empty() {
+                        None
+                    } else {
+                        Some(session.move_to_ssa(&dst, bytecodes))
+                    };
+
                     for (i, arg) in args.iter().enumerate() {
                         lower_expr(
                             arg,
                             session,
                             bytecodes,
                             Memory::Heap {
-                                ptr: Box::new(dst.clone()),
+                                ptr: dst_ssa.unwrap(),
                                 offset: Offset::Static(i as u32),
                             },
                             /* is_tail_call: */ false,
@@ -310,6 +317,7 @@ pub fn lower_expr(
                             });
                         },
                         EnumRepr::Compound => {
+                            let dst_ssa = session.move_to_ssa(&dst, bytecodes);
                             bytecodes.push(Bytecode::InitTuple {
                                 elements: args.len() + 1,
                                 dst: dst.clone(),
@@ -318,7 +326,7 @@ pub fn lower_expr(
                             bytecodes.push(Bytecode::Const {
                                 value: Value::Scalar(variant_index as u32),
                                 dst: Memory::Heap {
-                                    ptr: Box::new(dst.clone()),
+                                    ptr: dst_ssa,
                                     offset: Offset::Static(variant_index as u32),
                                 },
                                 debug_info: None,
@@ -330,7 +338,7 @@ pub fn lower_expr(
                                     session,
                                     bytecodes,
                                     Memory::Heap {
-                                        ptr: Box::new(dst.clone()),
+                                        ptr: dst_ssa,
                                         offset: Offset::Static(i as u32 + 1),
                                     },
                                     /* is_tail_call: */ false,
@@ -352,13 +360,19 @@ pub fn lower_expr(
                         debug_info: if session.debug_info { Some(Box::new(group_span.clone())) } else { None },
                     });
 
+                    let dst_ssa = if args.is_empty() {
+                        None
+                    } else {
+                        Some(session.move_to_ssa(&dst, bytecodes))
+                    };
+
                     for (i, arg) in args.iter().enumerate() {
                         lower_expr(
                             arg,
                             session,
                             bytecodes,
                             Memory::List {
-                                ptr: Box::new(dst.clone()),
+                                ptr: dst_ssa.unwrap(),
                                 offset: Offset::Static(i as u32),
                             },
                             /* is_tail_call: */ false,

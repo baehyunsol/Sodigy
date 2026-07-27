@@ -1,4 +1,4 @@
-use crate::{Bytecode, Memory, Session, lower_expr};
+use crate::{Bytecode, Memory, Session, SSA, lower_expr};
 use sodigy_mir as mir;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -22,7 +22,7 @@ impl Func {
         for (i, param) in mir_func.params.iter().enumerate() {
             session.ssa_map.insert(
                 param.name_span.clone(),
-                i as u32,
+                SSA::from_u32(i as u32),
             );
         }
 

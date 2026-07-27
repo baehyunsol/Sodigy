@@ -158,6 +158,7 @@ fn call(
                     }
                 }
             },
+            Bytecode::Label(_) => unreachable!(),
             Bytecode::Return(i) => {
                 return Ok(*stack.ssa.get(i).unwrap());
             },
@@ -377,7 +378,6 @@ fn call(
             Bytecode::PopDebugInfo => {
                 heap.debug_info.pop().unwrap();
             },
-            b => panic!("TODO: {b:?}"),
         }
 
         cursor += 1;
@@ -389,7 +389,7 @@ fn read(src: &Memory, stack: &Stack, heap: &Heap) -> u32 {
         Memory::Return => stack.r#return,
         Memory::SSA(i) => *stack.ssa.get(i).unwrap(),
         Memory::Heap { ptr, offset } => {
-            let ptr = read(ptr, stack, heap);
+            let ptr = *stack.ssa.get(ptr).unwrap();
             let offset = match offset {
                 Offset::Static(i) => *i,
                 Offset::Dynamic(p) => read(p, stack, heap),
@@ -410,7 +410,7 @@ fn update(dst: &Memory, value: u32, stack: &mut Stack, heap: &mut Heap) {
             stack.ssa.insert(*i, value);
         },
         Memory::Heap { ptr, offset } => {
-            let ptr = read(ptr, stack, heap);
+            let ptr = *stack.ssa.get(ptr).unwrap();
             let offset = match offset {
                 Offset::Static(i) => *i,
                 Offset::Dynamic(p) => read(p, stack, heap),
@@ -419,7 +419,7 @@ fn update(dst: &Memory, value: u32, stack: &mut Stack, heap: &mut Heap) {
             heap.data[(ptr + offset) as usize] = value;
         },
         Memory::List { ptr, offset } => {
-            let ptr = read(ptr, stack, heap) as usize;
+            let ptr = *stack.ssa.get(ptr).unwrap() as usize;
             let offset = match offset {
                 Offset::Static(i) => *i,
                 Offset::Dynamic(p) => read(p, stack, heap),

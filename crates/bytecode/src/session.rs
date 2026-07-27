@@ -6,6 +6,7 @@ use crate::{
     Label,
     Let,
     Memory,
+    SSA,
 };
 use sodigy_error::{Error, Warning};
 use sodigy_mir::{
@@ -21,7 +22,7 @@ pub struct Session<'hir, 'mir> {
     pub intermediate_dir: String,
     pub label_counter: u32,
     pub ssa_counter: u32,
-    pub ssa_map: HashMap<Span, u32>,
+    pub ssa_map: HashMap<Span, SSA>,
 
     pub funcs: Vec<Func>,
 
@@ -80,14 +81,14 @@ impl Session<'_, '_> {
         Label::Local(self.label_counter - 1)
     }
 
-    pub fn get_ssa(&mut self) -> u32 {
+    pub fn get_ssa(&mut self) -> SSA {
         self.ssa_counter += 1;
-        self.ssa_counter - 1
+        SSA(self.ssa_counter - 1)
     }
 
     // If `src` is already an ssa register, it returns the ssa index of `src`.
     // Otherwise, it moves `src` to an ssa register and returns the ssa index of the new register.
-    pub fn move_to_ssa(&mut self, src: &Memory, bytecodes: &mut Vec<Bytecode>) -> u32 {
+    pub fn move_to_ssa(&mut self, src: &Memory, bytecodes: &mut Vec<Bytecode>) -> SSA {
         match src {
             Memory::SSA(n) => *n,
             _ => {

@@ -4,6 +4,7 @@ use crate::{
     DropType,
     Label,
     Memory,
+    SSA,
     Value,
 };
 use sodigy_endec::{DecodeError, Endec};
@@ -111,7 +112,7 @@ impl Endec for Bytecode {
                 Ok((Bytecode::Move { src, dst }, cursor))
             },
             Some(2) => {
-                let (pair, cursor) = <(u32, u32)>::decode_impl(buffer, cursor + 1)?;
+                let (pair, cursor) = <(SSA, SSA)>::decode_impl(buffer, cursor + 1)?;
                 let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::Phi { pair, dst }, cursor))
             },
@@ -121,14 +122,14 @@ impl Endec for Bytecode {
             },
             Some(4) => {
                 let (func, cursor) = Label::decode_impl(buffer, cursor + 1)?;
-                let (args, cursor) = Vec::<u32>::decode_impl(buffer, cursor)?;
+                let (args, cursor) = Vec::<SSA>::decode_impl(buffer, cursor)?;
                 let (dst, cursor) = Option::<Memory>::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::Call { func, args, dst, debug_info }, cursor))
             },
             Some(5) => {
                 let (func, cursor) = Memory::decode_impl(buffer, cursor + 1)?;
-                let (args, cursor) = Vec::<u32>::decode_impl(buffer, cursor)?;
+                let (args, cursor) = Vec::<SSA>::decode_impl(buffer, cursor)?;
                 let (dst, cursor) = Option::<Memory>::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::CallDynamic { func, args, dst, debug_info }, cursor))
@@ -150,12 +151,12 @@ impl Endec for Bytecode {
                 Ok((Bytecode::Label(label), cursor))
             },
             Some(9) => {
-                let (ssa, cursor) = u32::decode_impl(buffer, cursor + 1)?;
+                let (ssa, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
                 Ok((Bytecode::Return(ssa), cursor))
             },
             Some(10) => {
                 let (intrinsic, cursor) = Intrinsic::decode_impl(buffer, cursor + 1)?;
-                let (args, cursor) = Vec::<u32>::decode_impl(buffer, cursor)?;
+                let (args, cursor) = Vec::<SSA>::decode_impl(buffer, cursor)?;
                 let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::Intrinsic { intrinsic, args, dst, debug_info }, cursor))

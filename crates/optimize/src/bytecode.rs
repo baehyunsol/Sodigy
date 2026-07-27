@@ -1,5 +1,5 @@
 use crate::OptimizeLevel;
-use sodigy_bytecode::{Bytecode, Label, Memory, Session, Value};
+use sodigy_bytecode::{Bytecode, Label, Memory, Session, SSA, Value};
 use sodigy_endec::Endec;
 use sodigy_mir::Intrinsic;
 use sodigy_string::hash;
@@ -12,29 +12,29 @@ struct LocalContext {
     // If there's `_5 = _7;`, we can replace all `_5` with `_7` and remove this bytecode.
     //
     // So, all `Bytecode::Move`s will be gone in the optimized bytecodes.
-    ssa_alias: HashMap<u32, u32>,
+    ssa_alias: HashMap<SSA, SSA>,
 
     // `*(_2 + 1) = _3; _5 = *(_2 + 1);` -> `_5 = _3;`
-    heap_ssa_alias: HashMap<(u32, u32), u32>,
+    heap_ssa_alias: HashMap<(SSA, u32), SSA>,
 
     // Let's say we have `*_2 = X; *(_2 + 1) = Y;` and `_2` is not used.
     // Then we'll apply sroa to this: `_100 = X; _101 = Y;`.
     // This map will remember: `(2, 0) -> 100` and `(2, 1) -> 101`.
-    sroa: HashMap<(u32, u32), u32>,
+    sroa: HashMap<(SSA, u32), SSA>,
 
-    use_counts: HashMap<u32, usize>,
+    use_counts: HashMap<SSA, usize>,
 
     // When `*(_2 + 1)` is used, indirect_use_count of `_2` is incremented!
-    indirect_use_counts: HashMap<u32, usize>,
+    indirect_use_counts: HashMap<SSA, usize>,
 
     // Let's say we have `*_2 = _3; *(_2 + 1) = _5;`, and `*_2` is used again but
     // `*(_2 + 1)` is not used again. Then we can remove `*(_2 + 1) = _5;`.
-    heap_use_counts: HashMap<(u32, u32), usize>,
+    heap_use_counts: HashMap<(SSA, u32), usize>,
 
     // It's a `expr -> SSA` map. Let's say there are `_x = expr1;` and `_y = expr2;`. If `expr1` and `expr2` are the same,
     // this map will remember the fact and will later remove `_y = expr2;` and replace all `_y` with `_x`.
-    common_expression: HashMap<ExprHash, Vec<u32>>,
-    free_ssa: u32,
+    common_expression: HashMap<ExprHash, Vec<SSA>>,
+    free_ssa: SSA,
 }
 
 impl LocalContext {
@@ -47,7 +47,7 @@ impl LocalContext {
             indirect_use_counts: HashMap::new(),
             heap_use_counts: HashMap::new(),
             common_expression: HashMap::new(),
-            free_ssa: 1000,
+            free_ssa: SSA::from_u32(1000),
         }
     }
 
@@ -84,7 +84,7 @@ impl LocalContext {
         }
     }
 
-    pub fn register_expression(&mut self, expr: ExprHash, ssa: u32) {
+    pub fn register_expression(&mut self, expr: ExprHash, ssa: SSA) {
         match self.common_expression.entry(expr) {
             Entry::Occupied(mut e) => {
                 e.get_mut().push(ssa);
@@ -128,7 +128,7 @@ impl LocalContext {
         for (a, b) in self.heap_use_counts.keys() {
             if let Some(0) | None = self.use_counts.get(a) {
                 sroa.insert((*a, *b), free_ssa);
-                free_ssa += 1;
+                free_ssa.increment();
             }
         }
 
@@ -147,7 +147,7 @@ impl ExprHash {
         ExprHash(hash(&encoded))
     }
 
-    pub fn from_func_call(f: &Label, args: &[u32]) -> ExprHash {
+    pub fn from_func_call(f: &Label, args: &[SSA]) -> ExprHash {
         let mut encoded = vec![1];
         f.encode_impl(&mut encoded);
 
@@ -158,7 +158,7 @@ impl ExprHash {
         ExprHash(hash(&encoded))
     }
 
-    pub fn from_dynamic_func_call(f: &Memory, args: &[u32]) -> ExprHash {
+    pub fn from_dynamic_func_call(f: &Memory, args: &[SSA]) -> ExprHash {
         let mut encoded = vec![2];
         f.encode_impl(&mut encoded);
 
@@ -169,7 +169,7 @@ impl ExprHash {
         ExprHash(hash(&encoded))
     }
 
-    pub fn from_intrinsic(f: Intrinsic, args: &[u32]) -> ExprHash {
+    pub fn from_intrinsic(f: Intrinsic, args: &[SSA]) -> ExprHash {
         let mut encoded = vec![3];
         f.encode_impl(&mut encoded);
 
@@ -183,7 +183,7 @@ impl ExprHash {
 
 fn optimize_local(bytecodes: &mut Vec<Bytecode>) {
     let mut context = LocalContext::new();
-    let mut max_ssa = 1000;
+    let mut max_ssa = SSA::from_u32(1000);
 
     for bytecode in bytecodes.iter() {
         match bytecode {

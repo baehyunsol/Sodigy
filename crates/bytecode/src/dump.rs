@@ -1,7 +1,13 @@
-use crate::{Bytecode, Label, Memory, Offset, Value};
+use crate::{Bytecode, Label, Memory, Offset, SSA, Value};
 use sodigy_number::bi_to_string;
 use sodigy_span::Span;
 use std::fmt::{Display, Error, Formatter};
+
+impl Display for SSA {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        write!(fmt, "{}", self.0)
+    }
+}
 
 impl Display for Bytecode {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {

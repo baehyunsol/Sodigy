@@ -24,6 +24,19 @@ pub use r#let::Let;
 pub use session::{LocalValue, Session};
 pub use value::Value;
 
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct SSA(u32);
+
+impl SSA {
+    pub fn from_u32(n: u32) -> SSA {
+        SSA(n)
+    }
+
+    pub fn increment(&mut self) {
+        self.0 += 1;
+    }
+}
+
 // `debug_info` fields are set only if the session's `debug_info` field is set.
 
 #[derive(Clone, Debug)]
@@ -38,7 +51,7 @@ pub enum Bytecode {
         dst: Memory,
     },
     Phi {
-        pair: (u32, u32),
+        pair: (SSA, SSA),
         dst: Memory,
     },
 
@@ -46,7 +59,7 @@ pub enum Bytecode {
 
     Call {
         func: Label,
-        args: Vec<u32>,  // list of SSA indexes
+        args: Vec<SSA>,
 
         // The returned value is stored here.
         // It's None iff it's a tail-call.
@@ -57,7 +70,7 @@ pub enum Bytecode {
 
     CallDynamic {
         func: Memory,    // function pointer
-        args: Vec<u32>,  // list of SSA indexes
+        args: Vec<SSA>,
 
         // The returned value is stored here.
         // It's None iff it's a tail-call.
@@ -84,11 +97,11 @@ pub enum Bytecode {
     // Definition of a label.
     Label(Label),
 
-    Return(u32 /* ssa reg */),
+    Return(SSA),
 
     Intrinsic {
         intrinsic: Intrinsic,
-        args: Vec<u32>,  // list of SSA indexes
+        args: Vec<SSA>,
 
         // The result of the intrinsic, if exists, will be stored here.
         dst: Memory,
@@ -142,10 +155,10 @@ pub enum Memory {
     // A register for a return value.
     // A return value maybe stored here or directly stored in a SSA register.
     Return,
-    SSA(u32),
+    SSA(SSA),
 
     Heap {
-        ptr: Box<Memory>,
+        ptr: SSA,
         offset: Offset,
     },
 
@@ -153,7 +166,7 @@ pub enum Memory {
     // It just gives more hints to the runtime so that the runtime can
     // do optimizations for lists.
     List {
-        ptr: Box<Memory>,
+        ptr: SSA,
         offset: Offset,
     },
 
@@ -162,10 +175,10 @@ pub enum Memory {
 }
 
 impl Memory {
-    pub fn get_heap_index(&self) -> Option<(u32, u32)> {
+    pub fn get_heap_index(&self) -> Option<(SSA, u32)> {
         match self {
-            Memory::Heap { ptr, offset: Offset::Static(b) } if let Memory::SSA(a) = &**ptr => Some((*a, *b)),
-            Memory::List { ptr, offset: Offset::Static(b) } if let Memory::SSA(a) = &**ptr => Some((*a, *b)),
+            Memory::Heap { ptr: a, offset: Offset::Static(b) } |
+            Memory::List { ptr: a, offset: Offset::Static(b) } => Some((*a, *b)),
             _ => None,
         }
     }
@@ -254,44 +267,42 @@ impl Bytecode {
         }
     }
 
-    pub fn apply_ssa_alias(&mut self, ssa_alias: &HashMap<u32, u32>, heap_ssa_alias: &HashMap<(u32, u32), u32>) {
-        fn apply_ssa_alias(src: &mut Memory, ssa_alias: &HashMap<u32, u32>, heap_ssa_alias: &HashMap<(u32, u32), u32>) {
+    pub fn apply_ssa_alias(&mut self, ssa_alias: &HashMap<SSA, SSA>, heap_ssa_alias: &HashMap<(SSA, u32), SSA>) {
+        fn apply_ssa_alias(src: &mut Memory, ssa_alias: &HashMap<SSA, SSA>, heap_ssa_alias: &HashMap<(SSA, u32), SSA>) {
             match src {
                 Memory::Return => {},
                 Memory::SSA(i) => {
                     *i = *ssa_alias.get(i).unwrap_or(i);
                 },
-                Memory::Heap { ptr, offset: Offset::Static(b) } if let Memory::SSA(a) = &**ptr => {
+                Memory::Heap { ptr: a, offset: Offset::Static(b) } => {
                     if let Some(c) = heap_ssa_alias.get(&(*a, *b)) {
                         *src = Memory::SSA(*ssa_alias.get(c).unwrap_or(c));
                     }
 
                     else {
-                        **ptr = Memory::SSA(*ssa_alias.get(a).unwrap_or(a));
+                        *a = *ssa_alias.get(a).unwrap_or(a);
                     }
                 },
-                Memory::Heap { ptr, .. } if let Memory::SSA(a) = &**ptr => {
-                    **ptr = Memory::SSA(*ssa_alias.get(a).unwrap_or(a));
+                Memory::Heap { ptr, .. } => {
+                    *ptr = *ssa_alias.get(ptr).unwrap_or(ptr);
                 },
-                Memory::Heap { .. } => {},
-                Memory::List { ptr, offset: Offset::Static(b) } if let Memory::SSA(a) = &**ptr => {
+                Memory::List { ptr: a, offset: Offset::Static(b) } => {
                     if let Some(c) = heap_ssa_alias.get(&(*a, *b)) {
                         *src = Memory::SSA(*ssa_alias.get(c).unwrap_or(c));
                     }
 
                     else {
-                        **ptr = Memory::SSA(*ssa_alias.get(a).unwrap_or(a));
+                        *a = *ssa_alias.get(a).unwrap_or(a);
                     }
                 },
-                Memory::List { ptr, .. } if let Memory::SSA(a) = &**ptr => {
-                    **ptr = Memory::SSA(*ssa_alias.get(a).unwrap_or(a));
+                Memory::List { ptr, .. } => {
+                    *ptr = *ssa_alias.get(ptr).unwrap_or(ptr);
                 },
-                Memory::List { .. } => {},
                 Memory::Global(_) => {},
             }
         }
 
-        fn apply_ssa_alias_args(args: &mut Vec<u32>, ssa_alias: &HashMap<u32, u32>, heap_ssa_alias: &HashMap<(u32, u32), u32>) {
+        fn apply_ssa_alias_args(args: &mut Vec<SSA>, ssa_alias: &HashMap<SSA, SSA>, heap_ssa_alias: &HashMap<(SSA, u32), SSA>) {
             *args = args.iter().map(|i| *ssa_alias.get(i).unwrap_or(i)).collect();
         }
 
@@ -351,8 +362,8 @@ impl Bytecode {
         }
     }
 
-    pub fn used_ssa_indexes(&self) -> Vec<u32> {
-        let mut indexes: Vec<u32> = vec![];
+    pub fn used_ssa_indexes(&self) -> Vec<SSA> {
+        let mut indexes: Vec<SSA> = vec![];
         let mut memories: Vec<Memory> = vec![];
 
         match self {
@@ -396,7 +407,7 @@ impl Bytecode {
                 },
                 Memory::Heap { ptr, .. } |
                 Memory::List { ptr, .. } => {
-                    memories.push(*ptr.clone());
+                    memories.push(Memory::SSA(ptr));
                 },
                 Memory::Return | Memory::Global(_) => {},
             }

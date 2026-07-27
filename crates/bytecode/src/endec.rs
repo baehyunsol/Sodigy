@@ -1,4 +1,4 @@
-use crate::{DebugInfoKind, Label, Memory, Offset};
+use crate::{DebugInfoKind, Label, Memory, Offset, SSA};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::Span;
 
@@ -9,6 +9,17 @@ mod func;
 mod r#let;
 mod session;
 mod value;
+
+impl Endec for SSA {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.0.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (ssa, cursor) = u32::decode_impl(buffer, cursor)?;
+        Ok((SSA(ssa), cursor))
+    }
+}
 
 impl Endec for Memory {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
@@ -41,16 +52,16 @@ impl Endec for Memory {
         match buffer.get(cursor) {
             Some(0) => Ok((Memory::Return, cursor + 1)),
             Some(1) => {
-                let (i, cursor) = u32::decode_impl(buffer, cursor + 1)?;
+                let (i, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
                 Ok((Memory::SSA(i), cursor))
             },
             Some(2) => {
-                let (ptr, cursor) = Box::<Memory>::decode_impl(buffer, cursor + 1)?;
+                let (ptr, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
                 let (offset, cursor) = Offset::decode_impl(buffer, cursor)?;
                 Ok((Memory::Heap { ptr, offset }, cursor))
             },
             Some(3) => {
-                let (ptr, cursor) = Box::<Memory>::decode_impl(buffer, cursor + 1)?;
+                let (ptr, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
                 let (offset, cursor) = Offset::decode_impl(buffer, cursor)?;
                 Ok((Memory::List { ptr, offset }, cursor))
             },
