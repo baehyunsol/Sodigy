@@ -5,6 +5,7 @@ use crate::{
     Memory,
     Offset,
     Session,
+    SSA,
     Value,
 };
 use sodigy_hir::EnumRepr;
@@ -160,34 +161,7 @@ pub fn lower_expr(
 
             for field in fields.iter() {
                 let ssa_reg = session.get_ssa();
-
-                match field {
-                    Field::Index(i) => {
-                        bytecodes.push(Bytecode::Move {
-                            src: Memory::Heap {
-                                ptr: curr_ssa_reg,
-
-                                // NOTE: There are no negative index because post-mir already lowered them
-                                offset: Offset::Static(*i as u32),
-                            },
-                            dst: Memory::SSA(ssa_reg),
-                        });
-                    },
-                    Field::EnumPayload { payload, .. } => {
-                        bytecodes.push(Bytecode::Move {
-                            src: Memory::Heap {
-                                ptr: curr_ssa_reg,
-
-                                // Without the niche optimization, an enum is a tuple, where the first element
-                                // is the variant discriminant, and the other elements are the payload.
-                                offset: Offset::Static(*payload as u32 + 1),
-                            },
-                            dst: Memory::SSA(ssa_reg),
-                        });
-                    },
-                    _ => panic!("TODO: {field:?}"),
-                }
-
+                lower_field_read(curr_ssa_reg, field, ssa_reg, bytecodes);
                 curr_ssa_reg = ssa_reg;
             }
 
@@ -201,9 +175,69 @@ pub fn lower_expr(
                 bytecodes.push(Bytecode::Return(return_ssa));
             }
         },
-        // How should I implement this...
-        // I'm gonna need a new kind of bytecode, right?
-        Expr::FieldUpdate { fields, lhs, rhs } => panic!("TODO: {fields:?}\n{lhs:?}\n{rhs:?}"),
+        // Let's say we lower `` foo `x.y.z bar ``.
+        // The result would be
+        // ```
+        // _t1 = foo;
+        // _t2 = bar;
+        // _t3 = _t1.x;
+        // _t4 = _t3.y;
+        // _t5 = Bytecode::Update { src: _t4, index: z, value: _t2 };
+        // _t6 = Bytecode::Update { src: _t3, index: y, value: _t5 };
+        // 
+        // // this is the result
+        // _t7 = Bytecode::Update { src: _t1, index: x, value: _t6 };
+        // ```
+        Expr::FieldUpdate { fields, lhs, rhs } => {
+            let lhs_ssa = session.get_ssa();
+            lower_expr(
+                lhs,
+                session,
+                bytecodes,
+                Memory::SSA(lhs_ssa),
+                false,
+            );
+
+            let rhs_ssa = session.get_ssa();
+            lower_expr(
+                rhs,
+                session,
+                bytecodes,
+                Memory::SSA(rhs_ssa),
+                false,
+            );
+
+            let mut curr_ssa_reg = lhs_ssa;
+            let mut sources = vec![lhs_ssa];
+
+            for (i, field) in fields.iter().enumerate() {
+                if i == fields.len() - 1 {
+                    break;
+                }
+
+                let ssa_reg = session.get_ssa();
+                lower_field_read(curr_ssa_reg, field, ssa_reg, bytecodes);
+                sources.push(ssa_reg);
+                curr_ssa_reg = ssa_reg;
+            }
+
+            for ((i, field), src) in fields.iter().enumerate().zip(sources.into_iter()).rev() {
+                let ssa_reg = session.get_ssa();
+                lower_field_update(
+                    src,
+                    field,
+                    if i == fields.len() - 1 { rhs_ssa } else { curr_ssa_reg },
+                    if i == 0 { dst.clone() } else { Memory::SSA(ssa_reg) },
+                    bytecodes,
+                );
+                curr_ssa_reg = ssa_reg;
+            }
+
+            if is_tail_call {
+                let return_ssa = session.move_to_ssa(&dst, bytecodes);
+                bytecodes.push(Bytecode::Return(return_ssa));
+            }
+        },
         Expr::Call { func, args, .. } => {
             match func {
                 Callable::Static { .. } | Callable::Dynamic(_) => {
@@ -386,5 +420,69 @@ pub fn lower_expr(
                 },
             }
         },
+    }
+}
+
+fn lower_field_read(
+    src: SSA,
+    field: &Field,
+    dst: SSA,
+    bytecodes: &mut Vec<Bytecode>,
+) {
+    match field {
+        Field::Index(i) => {
+            bytecodes.push(Bytecode::Move {
+                src: Memory::Heap {
+                    ptr: src,
+
+                    // NOTE: There are no negative index because post-mir already lowered them
+                    offset: Offset::Static(*i as u32),
+                },
+                dst: Memory::SSA(dst),
+            });
+        },
+        Field::EnumPayload { payload, .. } => {
+            bytecodes.push(Bytecode::Move {
+                src: Memory::Heap {
+                    ptr: src,
+
+                    // Without the niche optimization, an enum is a tuple, where the first element
+                    // is the variant discriminant, and the other elements are the payload.
+                    offset: Offset::Static(*payload as u32 + 1),
+                },
+                dst: Memory::SSA(dst),
+            });
+        },
+        _ => panic!("TODO: {field:?}"),
+    }
+}
+
+fn lower_field_update(
+    src: SSA,
+    field: &Field,
+    value: SSA,
+    dst: Memory,
+    bytecodes: &mut Vec<Bytecode>,
+) {
+    match field {
+        Field::Index(i) => {
+            bytecodes.push(Bytecode::Update {
+                src,
+                size: 100,  // TODO: I'm too lazy to calc the size, so I'm just giving a big enough number
+                index: *i as usize,
+                value,
+                dst,
+            });
+        },
+        Field::EnumPayload { payload, .. } => {
+            bytecodes.push(Bytecode::Update {
+                src,
+                size: 100,  // TODO: I'm too lazy to calc the size, so I'm just giving a big enough number
+                index: *payload as usize + 1,
+                value,
+                dst,
+            });
+        },
+        _ => panic!("TODO: {field:?}"),
     }
 }

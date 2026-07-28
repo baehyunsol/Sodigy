@@ -162,6 +162,17 @@ fn call(
             Bytecode::Return(i) => {
                 return Ok(*stack.ssa.get(i).unwrap());
             },
+            Bytecode::Update { src, size, index, value, dst } => {
+                let ptr = *stack.ssa.get(src).unwrap() as usize;
+                let new_tuple = heap.alloc(*size);
+
+                for (i, v) in heap.data[ptr..(ptr + size)].to_vec().iter().enumerate() {
+                    heap.data[new_tuple + i] = *v;
+                }
+
+                heap.data[new_tuple + index] = *stack.ssa.get(value).unwrap();
+                update(dst, new_tuple as u32, &mut stack, heap);
+            },
             Bytecode::Intrinsic { intrinsic, args, dst, debug_info: _ } => match intrinsic {
                 Intrinsic::NegInt => {
                     let rhs_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;

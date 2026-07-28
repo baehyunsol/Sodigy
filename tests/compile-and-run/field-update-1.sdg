@@ -1,0 +1,89 @@
+struct S1 = {
+    x: S2,
+    y: S2,
+    z: S2,
+};
+
+struct S2 = {
+    a: S3,
+    b: S3,
+    c: S3,
+};
+
+struct S3 = {
+    v1: Int,
+    v2: Int,
+    v3: Int,
+};
+
+let s1_0 = S1 {
+    x: S2 {
+        a: S3 {
+            v1: 0,
+            v2: 0,
+            v3: 0,
+        },
+        b: S3 {
+            v1: 0,
+            v2: 0,
+            v3: 0,
+        },
+        c: S3 {
+            v1: 0,
+            v2: 0,
+            v3: 0,
+        },
+    },
+    y: S2 {
+        a: S3 {
+            v1: 0,
+            v2: 0,
+            v3: 0,
+        },
+        b: S3 {
+            v1: 0,
+            v2: 0,
+            v3: 0,
+        },
+        c: S3 {
+            v1: 0,
+            v2: 0,
+            v3: 0,
+        },
+    },
+    z: S2 {
+        a: S3 {
+            v1: 0,
+            v2: 0,
+            v3: 0,
+        },
+        b: S3 {
+            v1: 0,
+            v2: 0,
+            v3: 0,
+        },
+        c: S3 {
+            v1: 0,
+            v2: 0,
+            v3: 0,
+        },
+    },
+};
+
+let s2_1 = {
+    let s3_1 = S3 { v1: 1, v2: 1, v3: 1 };
+    S2 { a: s3_1, b: s3_1, c: s3_1 }
+};
+
+let t1 = s1_0 `x.a.v1 2;
+let t2 = s1_0 `x.b.v3 3;
+let t3 = s1_0 `y s2_1;
+
+assert t1.x.a.v1 == 2;
+assert t1.x.a.v2 == 0;
+
+assert t2.x.a.v3 == 0;
+assert t2.x.b.v3 == 3;
+
+assert t3.x.a.v1 == 0;
+assert t3.y.a.v1 == 1;

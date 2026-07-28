@@ -5,7 +5,7 @@ use std::fmt::{Display, Error, Formatter};
 
 impl Display for SSA {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        write!(fmt, "{}", self.0)
+        write!(fmt, "_{}", self.0)
     }
 }
 
@@ -26,14 +26,14 @@ impl Display for Bytecode {
                 dump_debug_info(debug_info),
             ),
             Bytecode::Move { dst, src } => write!(fmt, "{dst} = {src};"),
-            Bytecode::Phi { pair: (x, y), dst } => write!(fmt, "{dst} = phi(_{x}, _{y});"),
+            Bytecode::Phi { pair: (x, y), dst } => write!(fmt, "{dst} = phi({x}, {y});"),
             Bytecode::Jump(label) => write!(fmt, "jump {label};"),
             Bytecode::Call { func, args, dst, debug_info } => write!(
                 fmt,
                 "{}call {func}({});{}",
                 if let Some(dst) = dst { format!("{dst} = ") } else { String::from("return ") },
                 args.iter().map(
-                    |i| format!("_{i}")
+                    |i| format!("{i}")
                 ).collect::<Vec<_>>().join(", "),
                 dump_debug_info(debug_info),
             ),
@@ -42,7 +42,7 @@ impl Display for Bytecode {
                 "{}dyn_call ({func})({});{}",
                 if let Some(dst) = dst { format!("{dst} = ") } else { String::from("return ") },
                 args.iter().map(
-                    |i| format!("_{i}")
+                    |i| format!("{i}")
                 ).collect::<Vec<_>>().join(", "),
                 dump_debug_info(debug_info),
             ),
@@ -57,12 +57,16 @@ impl Display for Bytecode {
                 def_span.hash() & 0xfff_fff_fff,
             ),
             Bytecode::Label(label) => write!(fmt, "label {label}:"),
-            Bytecode::Return(ssa) => write!(fmt, "return _{ssa};"),
+            Bytecode::Return(ssa) => write!(fmt, "return {ssa};"),
+            Bytecode::Update { src, size, index, value, dst } => write!(
+                fmt,
+                "{dst} = {src} `{index} {value};",
+            ),
             Bytecode::Intrinsic { intrinsic, args, dst, debug_info } => write!(
                 fmt,
                 "{dst} = intrinsic {intrinsic:?}({});{}",
                 args.iter().map(
-                    |i| format!("_{i}")
+                    |i| format!("{i}")
                 ).collect::<Vec<_>>().join(", "),
                 dump_debug_info(debug_info),
             ),
@@ -85,7 +89,7 @@ impl Display for Memory {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         match self {
             Memory::Return => write!(fmt, "_ret"),
-            Memory::SSA(i) => write!(fmt, "_{i}"),
+            Memory::SSA(i) => write!(fmt, "{i}"),
             Memory::Heap { ptr, offset } => match offset {
                 Offset::Static(0) => write!(fmt, "*{ptr}"),
                 Offset::Static(i) => write!(fmt, "*({ptr} + {i})"),

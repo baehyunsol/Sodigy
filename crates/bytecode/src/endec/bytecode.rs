@@ -68,32 +68,40 @@ impl Endec for Bytecode {
                 buffer.push(9);
                 ssa.encode_impl(buffer);
             },
-            Bytecode::Intrinsic { intrinsic, args, dst, debug_info } => {
+            Bytecode::Update { src, size, index, value, dst } => {
                 buffer.push(10);
+                src.encode_impl(buffer);
+                size.encode_impl(buffer);
+                index.encode_impl(buffer);
+                value.encode_impl(buffer);
+                dst.encode_impl(buffer);
+            },
+            Bytecode::Intrinsic { intrinsic, args, dst, debug_info } => {
+                buffer.push(11);
                 intrinsic.encode_impl(buffer);
                 args.encode_impl(buffer);
                 dst.encode_impl(buffer);
                 debug_info.encode_impl(buffer);
             },
             Bytecode::InitTuple { elements, dst, debug_info } => {
-                buffer.push(11);
-                elements.encode_impl(buffer);
-                dst.encode_impl(buffer);
-                debug_info.encode_impl(buffer);
-            },
-            Bytecode::InitList { elements, dst, debug_info } => {
                 buffer.push(12);
                 elements.encode_impl(buffer);
                 dst.encode_impl(buffer);
                 debug_info.encode_impl(buffer);
             },
-            Bytecode::PushDebugInfo { kind, src } => {
+            Bytecode::InitList { elements, dst, debug_info } => {
                 buffer.push(13);
+                elements.encode_impl(buffer);
+                dst.encode_impl(buffer);
+                debug_info.encode_impl(buffer);
+            },
+            Bytecode::PushDebugInfo { kind, src } => {
+                buffer.push(14);
                 kind.encode_impl(buffer);
                 src.encode_impl(buffer);
             },
             Bytecode::PopDebugInfo => {
-                buffer.push(14);
+                buffer.push(15);
             },
         }
     }
@@ -155,31 +163,39 @@ impl Endec for Bytecode {
                 Ok((Bytecode::Return(ssa), cursor))
             },
             Some(10) => {
+                let (src, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
+                let (size, cursor) = usize::decode_impl(buffer, cursor)?;
+                let (index, cursor) = usize::decode_impl(buffer, cursor)?;
+                let (value, cursor) = SSA::decode_impl(buffer, cursor)?;
+                let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
+                Ok((Bytecode::Update { src, size, index, value, dst }, cursor))
+            },
+            Some(11) => {
                 let (intrinsic, cursor) = Intrinsic::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<SSA>::decode_impl(buffer, cursor)?;
                 let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::Intrinsic { intrinsic, args, dst, debug_info }, cursor))
             },
-            Some(11) => {
+            Some(12) => {
                 let (elements, cursor) = usize::decode_impl(buffer, cursor + 1)?;
                 let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::InitTuple { elements, dst, debug_info }, cursor))
             },
-            Some(12) => {
+            Some(13) => {
                 let (elements, cursor) = usize::decode_impl(buffer, cursor + 1)?;
                 let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::InitList { elements, dst, debug_info }, cursor))
             },
-            Some(13) => {
+            Some(14) => {
                 let (kind, cursor) = DebugInfoKind::decode_impl(buffer, cursor + 1)?;
                 let (src, cursor) = Memory::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::PushDebugInfo { kind, src }, cursor))
             },
-            Some(14) => Ok((Bytecode::PopDebugInfo, cursor + 1)),
-            Some(n @ 15..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(15) => Ok((Bytecode::PopDebugInfo, cursor + 1)),
+            Some(n @ 16..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

@@ -99,6 +99,20 @@ pub enum Bytecode {
 
     Return(SSA),
 
+    Update {
+        // pointer to a tuple
+        src: SSA,
+
+        // of the tuple, so that we know how many elements fo clone
+        size: usize,
+
+        // of the element to update
+        index: usize,
+
+        value: SSA,
+        dst: Memory,
+    },
+
     Intrinsic {
         intrinsic: Intrinsic,
         args: Vec<SSA>,
@@ -236,6 +250,7 @@ impl Bytecode {
             Bytecode::Const { dst, .. } |
             Bytecode::Move { dst, .. } |
             Bytecode::Phi { dst, .. } |
+            Bytecode::Update { dst, .. } |
             Bytecode::Intrinsic { dst, .. } |
             Bytecode::InitTuple { dst, .. } |
             Bytecode::InitList { dst, .. } => Some(dst),
@@ -306,6 +321,7 @@ impl Bytecode {
             *args = args.iter().map(|i| *ssa_alias.get(i).unwrap_or(i)).collect();
         }
 
+        // TODO: isn't it supposed to update all the `dst`s?
         match self {
             Bytecode::Const { .. } => {},
             Bytecode::Move { src, dst } => {
@@ -337,6 +353,7 @@ impl Bytecode {
             Bytecode::Return(a) => {
                 *a = *ssa_alias.get(a).unwrap_or(a);
             },
+            Bytecode::Update { src, value, .. } => todo!(),
             Bytecode::Intrinsic { args, .. } => {
                 apply_ssa_alias_args(args, ssa_alias, heap_ssa_alias);
             },
@@ -389,6 +406,11 @@ impl Bytecode {
             },
             Bytecode::Return(n) => {
                 indexes.push(*n);
+            },
+            Bytecode::Update { src, value, dst, .. } => {
+                indexes.push(*src);
+                indexes.push(*value);
+                memories.push(dst.clone());
             },
             Bytecode::Intrinsic { args, dst, .. } => {
                 indexes.extend(args.to_vec());

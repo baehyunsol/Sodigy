@@ -247,6 +247,7 @@ fn optimize_local(bytecodes: &mut Vec<Bytecode>) {
             Bytecode::Return(a) => {
                 context.count_use(&Memory::SSA(*a));
             },
+            Bytecode::Update { .. } => todo!(),
             Bytecode::Intrinsic { intrinsic, args, dst, .. } => {
                 for arg in args.iter() {
                     context.count_use(&Memory::SSA(*arg));

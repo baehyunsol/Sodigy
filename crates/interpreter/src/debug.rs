@@ -1,5 +1,5 @@
 use crate::{Heap, Stack};
-use sodigy_bytecode::Bytecode;
+use sodigy_bytecode::{Bytecode, SSA};
 use sodigy_number::bi_to_string;
 use sodigy_span::{RenderableSpan, RenderSpanOption, RenderSpanSession, render_spans};
 use std::collections::HashSet;
@@ -11,7 +11,7 @@ pub fn debug(
     cursor: usize,
     render_span_session: &mut RenderSpanSession,
 ) {
-    let mut stack_preview: Vec<&u32> = stack.ssa.keys().collect();
+    let mut stack_preview: Vec<&SSA> = stack.ssa.keys().collect();
     let mut total_stack_size = stack_preview.len();
     let mut too_many_ssas = None;
     stack_preview.sort();
