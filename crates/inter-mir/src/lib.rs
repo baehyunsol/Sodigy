@@ -211,6 +211,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
 
                 if !plan.dispatch_map.is_empty() {
                     let mut generic_args = HashMap::new();
+                    let mut solved_dotfish = vec![];
                     mir_session.dispatch(
                         &plan.dispatch_map,
                         &session.associated_funcs.iter().map(
@@ -221,12 +222,37 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                         ).collect(),
                         &session.func_shapes,
                         &mut generic_args,
+                        &mut solved_dotfish,
                     );
                     session.associated_funcs.clear();
 
                     for ((call, generic), r#type) in generic_args.into_iter() {
                         session.add_type_var(r#type.clone(), None);
                         session.generic_args.insert((call, generic), r#type);
+                    }
+
+                    // Read the comments in the definition of `MonomorphizePlan`.
+                    for (types, call_span) in solved_dotfish.into_iter() {
+                        let generic_args = plan.generic_args_map.get(&call_span).unwrap();
+                        assert_eq!(types.len(), generic_args.len());
+
+                        for (dotfish, generic_arg) in types.iter().zip(generic_args.iter()) {
+                            if let Type::GenericParam { .. } = generic_arg {
+                                continue;
+                            }
+
+                            if let Err(()) = session.solve_supertype(
+                                dotfish,
+                                generic_arg,
+                                false,
+                                None,
+                                None,
+                                ErrorContext::Deep,
+                                false,
+                            ) {
+                                has_error = true;
+                            }
+                        }
                     }
 
                     write_log!(session, LogEntry::TypeSolveLoopEnd(i));

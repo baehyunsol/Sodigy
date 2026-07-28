@@ -34,6 +34,16 @@ pub struct MonomorphizePlan {
     // key: call span
     // value: def_span of the monomorphized function
     pub dispatch_map: HashMap<Span, Span>,
+
+    // Let's say there's `x.try_convert.<_, Scalar, _>()`.
+    // There are 2 type-variables in the dotfish. I'll call them var-1 and var-2.
+    // Let's say the poly-solved solved `try_convert` and it got `foo`.
+    // Let's say `foo` equals to `try_convert<Int, Scalr, Char>`. Then we have to
+    // use the information var-1=Int and var-2=Char. This map remembers the information.
+    // The `Span` (key of the hashmap) is the call_span of `try_convert` and `Vec<Type>`
+    // is `[Int, Scalar, Char]`.
+    pub generic_args_map: HashMap<Span, Vec<Type>>,
+
     pub monomorphizations: Vec<Monomorphization>,
 
     // extra types to monomorphize
@@ -111,6 +121,10 @@ impl Session {
         // Its key is the call span,
         // and the value is the def_span of the monomorphized function.
         let mut dispatch_map: HashMap<Span, Span> = HashMap::new();
+
+        // Read the comments in the definition of `MonomorphizePlan`.
+        let mut generic_args_map: HashMap<Span, Vec<Type>> = HashMap::new();
+
         let mut monomorphizations = vec![];
         let mut intermediate_types = vec![];
 
@@ -171,8 +185,9 @@ impl Session {
                         num_candidates: 0,
                     });
                 },
-                SolvePolyResult::OneCandidate(p) => {
+                SolvePolyResult::OneCandidate(p, ga) => {
                     dispatch_map.insert(generic_call.call.clone(), p);
+                    generic_args_map.insert(generic_call.call.clone(), ga);
 
                     for generic in generic_call.generics.keys() {
                         self.solved_generic_args.insert((generic_call.call.clone(), generic.clone()));
@@ -198,6 +213,7 @@ impl Session {
         else {
             Ok(MonomorphizePlan {
                 dispatch_map,
+                generic_args_map,
                 monomorphizations,
                 intermediate_types,
             })

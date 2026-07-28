@@ -775,7 +775,7 @@ pub fn log_inter_mir(session: &InterMirSession, mir_session: &MirSession) -> Res
                         SolvePolyResult::NotPoly => String::from("not-poly"),
                         SolvePolyResult::DefaultImpl(_) => String::from("default-impl"),
                         SolvePolyResult::NoCandidates => String::from("no-candidates"),
-                        SolvePolyResult::OneCandidate(_) => String::from("one-candidate"),
+                        SolvePolyResult::OneCandidate(_, _) => String::from("one-candidate"),
                         SolvePolyResult::MultiCandidates(cs) => format!("multi-candidates ({})", cs.len()),
                     },
                     long: Some(String::from_utf8(prettify(format!("{result:?}").into_bytes())).unwrap()),
@@ -789,7 +789,7 @@ pub fn log_inter_mir(session: &InterMirSession, mir_session: &MirSession) -> Res
                             note: Some(String::from("default-impl")),
                         });
                     },
-                    SolvePolyResult::OneCandidate(s) => {
+                    SolvePolyResult::OneCandidate(s, _) => {
                         spans.push(RenderableSpan {
                             span: s.clone(),
                             auxiliary: true,

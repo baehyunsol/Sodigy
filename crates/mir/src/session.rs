@@ -124,20 +124,21 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
         associated_funcs: &HashMap<Span, Span>,
         func_shapes: &HashMap<Span, FuncShape>,
         generic_args: &mut HashMap<(Span, Span), Type>,
+        solved_dotfish: &mut Vec<(Vec<Type>, Span)>,
     ) {
         for r#let in self.lets.iter_mut() {
-            r#let.value.dispatch(generics, associated_funcs, func_shapes, generic_args);
+            r#let.value.dispatch(generics, associated_funcs, func_shapes, generic_args, solved_dotfish);
         }
 
         for func in self.funcs.iter_mut() {
-            func.value.dispatch(generics, associated_funcs, func_shapes, generic_args);
+            func.value.dispatch(generics, associated_funcs, func_shapes, generic_args, solved_dotfish);
         }
 
         for assert in self.asserts.iter_mut() {
-            assert.value.dispatch(generics, associated_funcs, func_shapes, generic_args);
+            assert.value.dispatch(generics, associated_funcs, func_shapes, generic_args, solved_dotfish);
 
             if let Some(note) = &mut assert.note {
-                note.dispatch(generics, associated_funcs, func_shapes, generic_args);
+                note.dispatch(generics, associated_funcs, func_shapes, generic_args, solved_dotfish);
             }
         }
     }

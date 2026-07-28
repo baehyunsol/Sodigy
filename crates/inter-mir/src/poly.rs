@@ -64,7 +64,7 @@ impl Session {
         let r = match self.polys.get(&generic_call.def) {
             Some(poly) => {
                 let solver = solvers.get(&poly.name_span).unwrap();
-                let candidates = solver.solve(&generic_call.generics, self);
+                let mut candidates = solver.solve(&generic_call.generics, self);
 
                 match candidates.len() {
                     0 => {
@@ -76,8 +76,15 @@ impl Session {
                             SolvePolyResult::NoCandidates
                         }
                     },
-                    1 => SolvePolyResult::OneCandidate(candidates[0].clone()),
-                    2.. => SolvePolyResult::MultiCandidates(candidates),
+                    1 => {
+                        let (poly, types) = candidates.drain(..).next().unwrap();
+                        let mut types: Vec<(Span, Type)> = types.clone().into_iter().collect();
+                        types.sort_by_key(|(s, _)| s.clone());
+                        let types = types.drain(..).map(|(_, t)| t).collect();
+
+                        SolvePolyResult::OneCandidate(poly, types)
+                    },
+                    2.. => SolvePolyResult::MultiCandidates(candidates.drain(..).map(|(p, _)| p).collect()),
                 }
             },
             None => SolvePolyResult::NotPoly,
@@ -447,13 +454,13 @@ impl PolySolver {
         }
     }
 
-    pub fn solve(
-        &self,
-        generics: &HashMap<Span, Type>,
+    pub fn solve<'a, 'b, 'c>(
+        &'a self,
+        generics: &'b HashMap<Span, Type>,
 
         // It's for a tmp-session.
-        session: &Session,
-    ) -> Vec<Span> {
+        session: &'c Session,
+    ) -> Vec<(Span, &'a HashMap<Span, Type>)> {
         let mut matched = vec![];
         let impls = self.impls.keys().cloned().collect::<Vec<_>>();
 
@@ -485,7 +492,7 @@ impl PolySolver {
                 }
             }
 
-            matched.push(candidate.clone());
+            matched.push((candidate.clone(), candidate_types));
         }
 
         matched
@@ -860,7 +867,7 @@ pub enum SolvePolyResult {
     NotPoly,
     DefaultImpl(Span),
     NoCandidates,
-    OneCandidate(Span),
+    OneCandidate(Span, Vec<Type>),
     MultiCandidates(Vec<Span>),
 }
 

@@ -1,5 +1,5 @@
 use super::Expr;
-use crate::{Callable, Type};
+use crate::{Callable, Dotfish, Type};
 use sodigy_hir::FuncShape;
 use sodigy_parse::Field;
 use sodigy_span::Span;
@@ -12,6 +12,15 @@ impl Expr {
         associated_funcs: &HashMap<Span, Span>,
         func_shapes: &HashMap<Span, FuncShape>,
         generic_args: &mut HashMap<(Span, Span), Type>,
+
+        // Let's say there's `x.y.<_, _>()`, we found `y` and dispatched it: `y(x)`.
+        // There were 2 type-vars in the original expr (the wildcards in the dotfish),
+        // but they're gone. We have to remember the type-vars and solve them later,
+        // so that the compiler doesn't throw `CannotInferType` error.
+        //
+        // `(Vec<Type>, Span)`: `Vec<Type>` is the dotfish and `Span` is the call_span
+        // of the dispatched function.
+        solved_dotfish: &mut Vec<(Vec<Type>, Span)>,
     ) {
         match self {
             Expr::Ident { id, dotfish } => match dispatch_map.get(&id.span) {
@@ -23,39 +32,39 @@ impl Expr {
             },
             Expr::Constant(_) => {},
             Expr::If(r#if) => {
-                r#if.cond.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
-                r#if.true_value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
-                r#if.false_value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+                r#if.cond.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
+                r#if.true_value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
+                r#if.false_value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
             },
             Expr::Match(r#match) => {
-                r#match.scrutinee.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+                r#match.scrutinee.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
 
                 for arm in r#match.arms.iter_mut() {
                     if let Some(guard) = &mut arm.guard {
-                        guard.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+                        guard.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
                     }
 
                     arm.pattern.dispatch(dispatch_map);
-                    arm.value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+                    arm.value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
                 }
             },
             Expr::Block(block) => {
                 for r#let in block.lets.iter_mut() {
-                    r#let.value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+                    r#let.value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
                 }
 
                 for assert in block.asserts.iter_mut() {
-                    assert.value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+                    assert.value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
 
                     if let Some(note) = &mut assert.note {
-                        note.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+                        note.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
                     }
                 }
 
-                block.value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+                block.value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
             },
             Expr::Field { lhs, fields, dotfish } => {
-                lhs.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+                lhs.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
 
                 // `x.y.push` -> `\(z) => associated_func::push(x.y, z)`
                 if let Some(Field::Name { name_span, .. }) = fields.last() && let Some(poly_def_span) = associated_funcs.get(name_span) {
@@ -64,8 +73,8 @@ impl Expr {
                 }
             },
             Expr::FieldUpdate { lhs, rhs, .. } => {
-                lhs.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
-                rhs.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+                lhs.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
+                rhs.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
             },
             Expr::Call { func, args, arg_group_span, types, given_keyword_args } => {
                 let dispatch = match func {
@@ -88,13 +97,13 @@ impl Expr {
                                         dotfish: dotfish[..(dotfish.len() - 1)].to_vec(),
                                     }
                                 };
-                                new_lhs.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+                                new_lhs.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
 
                                 let mut new_args = vec![new_lhs];
                                 new_args.extend(args.to_vec());
 
                                 for arg in args.iter_mut() {
-                                    arg.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+                                    arg.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
                                 }
 
                                 *self = Expr::Call {
@@ -111,13 +120,17 @@ impl Expr {
                             }
                         }
 
-                        f.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+                        f.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
                         None
                     },
                     _ => None,
                 };
 
                 if let Some((def_span, span)) = &dispatch {
+                    if let Some(Dotfish { types, .. }) = types {
+                        solved_dotfish.push((types.clone(), span.clone()));
+                    }
+
                     *func = Callable::Static { def_span: def_span.clone(), span: span.clone() };
                     *types = None;
 
@@ -139,7 +152,7 @@ impl Expr {
                 }
 
                 for arg in args.iter_mut() {
-                    arg.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args);
+                    arg.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
                 }
             },
         }

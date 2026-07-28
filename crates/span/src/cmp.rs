@@ -42,7 +42,7 @@ impl Ord for Span {
             (None, None, None, None) => match (self, other) {
                 (Span::None, Span::None) => Ordering::Equal,
                 (Span::Poly { name: name1, kind: kind1 }, Span::Poly { name: name2, kind: kind2 }) => match name1.cmp(name2) {
-                    Ordering::Equal => todo!(),
+                    Ordering::Equal => kind1.cmp(kind2),
                     o => o,
                 },
                 p => panic!("TODO: {p:?}"),
