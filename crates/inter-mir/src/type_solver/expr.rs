@@ -1,7 +1,7 @@
 use crate::{AssociatedFuncInstance, Expr, LogId, Session, Type, write_log};
 use crate::error::{ErrorContext, TypeError};
 use sodigy_error::{EnumFieldKind, Error, ErrorKind, TypeVarInfo};
-use sodigy_hir::{self as hir, AssociatedFunc, FuncPurity};
+use sodigy_hir::{AssociatedFunc, FuncPurity};
 use sodigy_inter_hir::get_associated_func_name;
 use sodigy_mir::{Callable, Dotfish, ShortCircuitKind, get_def_span_from_id};
 use sodigy_parse::{Field, merge_field_spans};

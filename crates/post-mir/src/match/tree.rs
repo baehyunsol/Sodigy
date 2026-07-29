@@ -1028,8 +1028,8 @@ pub enum ExprConstructor {
 impl fmt::Display for ExprConstructor {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let s = match self {
-            ExprConstructor::Range(r) => format!("{r}"),
-            ExprConstructor::Or(cs) => format!("{}", cs.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(" | ")),
+            ExprConstructor::Range(r) => r.to_string(),
+            ExprConstructor::Or(cs) => cs.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(" | "),
             ExprConstructor::Wildcard => String::from("_"),
         };
 

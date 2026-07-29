@@ -1,5 +1,5 @@
 use super::optimize_local;
-use sodigy_bytecode::{Bytecode, Memory, Offset};
+use sodigy_bytecode::{Bytecode, Memory, Offset, SSA};
 
 #[test]
 fn t1() {
@@ -7,31 +7,31 @@ fn t1() {
     let unoptimized: Vec<Bytecode> = vec![
         Bytecode::InitTuple {
             elements: 2,
-            dst: Memory::SSA(2),
+            dst: Memory::SSA(SSA::from_u32(2)),
             debug_info: None,
         },
         Bytecode::Move {
-            src: Memory::SSA(0),
+            src: Memory::SSA(SSA::from_u32(0)),
             dst: Memory::Heap {
-                ptr: Box::new(Memory::SSA(2)),
+                ptr: SSA::from_u32(2),
                 offset: Offset::Static(0),
             },
         },
         Bytecode::Move {
-            src: Memory::SSA(1),
+            src: Memory::SSA(SSA::from_u32(1)),
             dst: Memory::Heap {
-                ptr: Box::new(Memory::SSA(2)),
+                ptr: SSA::from_u32(2),
                 offset: Offset::Static(1),
             },
         },
         Bytecode::Move {
             src: Memory::Heap {
-                ptr: Box::new(Memory::SSA(2)),
+                ptr: SSA::from_u32(2),
                 offset: Offset::Static(0),
             },
-            dst: Memory::SSA(7),
+            dst: Memory::SSA(SSA::from_u32(7)),
         },
-        Bytecode::Return(7),
+        Bytecode::Return(SSA::from_u32(7)),
     ];
     let mut optimized = unoptimized.clone();
 
@@ -40,7 +40,7 @@ fn t1() {
     }
 
     let expected: Vec<Bytecode> = vec![
-        Bytecode::Return(0),
+        Bytecode::Return(SSA::from_u32(0)),
     ];
 
     let unoptimized = unoptimized.iter().map(|b| b.to_string()).collect::<Vec<_>>().join("\n");

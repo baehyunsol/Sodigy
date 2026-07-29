@@ -64,11 +64,11 @@ impl<'t, 's> Tokens<'t, 's> {
             },
             (Some(Token { kind: TokenKind::Punct(Punct::Backslash), span }), _) => {
                 let backslash_span = span.clone();
-                let mut param_group_span_start = span.clone();
+                let param_group_span_start = span.clone();
                 let mut arrow_span = None;
                 self.cursor += 1;
 
-                let mut param_tokens_start_index = self.cursor;
+                let param_tokens_start_index = self.cursor;
                 let mut param_tokens_end_index = None;
 
                 for (i, token) in self.enumerate_forward() {

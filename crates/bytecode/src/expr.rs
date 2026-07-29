@@ -221,7 +221,7 @@ pub fn lower_expr(
                 curr_ssa_reg = ssa_reg;
             }
 
-            for ((i, field), src) in fields.iter().enumerate().zip(sources.into_iter()).rev() {
+            for ((i, field), src) in fields.iter().enumerate().zip(sources).rev() {
                 let ssa_reg = session.get_ssa();
                 lower_field_update(
                     src,
