@@ -1,0 +1,11 @@
+fn simple_result(r: Result<Int, Bool>) -> String = match r {
+    Ok(1 | 3 | 5) => "odd",
+    Ok(_) => "even",
+    Error(True) => "true",
+    Error(False) => "false",
+};
+
+assert simple_result(Ok(1)) == "odd";
+assert simple_result(Ok(2)) == "even";
+assert simple_result(Error(True)) == "true";
+assert simple_result(Error(False)) == "false";

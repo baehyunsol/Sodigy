@@ -649,6 +649,14 @@ fn read_field_of_pattern(
             PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => PatternConstructor::Wildcard,
             _ => todo!(),
         },
+        PatternField::EnumDiscriminant => match &curr_pattern.kind {
+            PatternKind::Path(variant) |
+            PatternKind::Struct { r#struct: variant, .. } |
+            PatternKind::TupleStruct { r#struct: variant, .. } => PatternConstructor::DefSpan(variant.id.def_span.clone()),
+            PatternKind::NameBinding { .. } |
+            PatternKind::Wildcard(_) => PatternConstructor::Wildcard,
+            _ => panic!("TODO: {curr_pattern:?}"),
+        },
         PatternField::EnumPayload => match &curr_pattern.kind {
             PatternKind::Path(_) |  // `Option.None` has no payload
             PatternKind::NameBinding { .. } |
@@ -819,6 +827,7 @@ fn to_field_expr(expr: &Expr, fields: &[PatternField], session: &Session) -> Exp
             PatternField::Index(i) => Some(Field::Index(*i)),
             PatternField::Range(a, b) => Some(Field::Range(*a, *b)),
             PatternField::StructField { index, .. } => Some(Field::Index(*index as i64)),
+            PatternField::EnumDiscriminant => Some(Field::EnumDiscriminant),
             PatternField::EnumPayloadIndex { variant, payload } => Some(Field::EnumPayload { variant: *variant, payload: *payload }),
             PatternField::ListLength => Some(Field::ListLength),
             _ => panic!("TODO: {field:?}"),

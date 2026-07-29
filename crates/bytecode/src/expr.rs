@@ -361,7 +361,7 @@ pub fn lower_expr(
                                 value: Value::Scalar(variant_index as u32),
                                 dst: Memory::Heap {
                                     ptr: dst_ssa,
-                                    offset: Offset::Static(variant_index as u32),
+                                    offset: Offset::Static(0),
                                 },
                                 debug_info: None,
                             });
@@ -452,6 +452,14 @@ fn lower_field_read(
                 },
                 dst: Memory::SSA(dst),
             });
+        },
+        Field::SelfAsScalar => {
+            if src != dst {
+                bytecodes.push(Bytecode::Move {
+                    src: Memory::SSA(src),
+                    dst: Memory::SSA(dst),
+                });
+            }
         },
         _ => panic!("TODO: {field:?}"),
     }

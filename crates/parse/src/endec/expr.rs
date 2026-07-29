@@ -69,6 +69,9 @@ impl Endec for Field {
             Field::ListLength => {
                 buffer.push(5);
             },
+            Field::SelfAsScalar => {
+                buffer.push(6);
+            },
         }
     }
 
@@ -105,7 +108,8 @@ impl Endec for Field {
                 Ok((Field::EnumPayload { variant, payload }, cursor))
             },
             Some(5) => Ok((Field::ListLength, cursor + 1)),
-            Some(n @ 6..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(6) => Ok((Field::SelfAsScalar, cursor + 1)),
+            Some(n @ 7..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

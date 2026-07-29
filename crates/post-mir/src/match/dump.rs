@@ -113,6 +113,14 @@ impl Session<'_, '_> {
             PatternField::Constructor => String::from(".constructor()"),
             PatternField::Index(n) => format!("._{n}"),
             PatternField::ListIndex(n) => format!("[{n}]"),
+            PatternField::StructField { index, name } => match name.try_unintern_short_string() {
+                Some(name) => match String::from_utf8(name) {
+                    Ok(name) => format!(".{name}"),
+                    Err(_) => format!(".{index}"),
+                },
+                None => format!(".{index}"),
+            },
+            PatternField::EnumDiscriminant => String::from(".enum_discriminant()"),
             PatternField::EnumPayload => String::from(".enum_payload()"),
             PatternField::EnumPayloadIndex { variant, payload } => format!(".enum_payload_index({variant}, {payload})"),
             PatternField::ListLength => String::from(".len()"),

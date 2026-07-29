@@ -336,6 +336,9 @@ pub fn dump_field<S: SodigySession>(fields: &[Field], dotfish: &[Option<Dotfish>
             Field::ListLength => {
                 lines.push("__LIST_LENGTH__");
             },
+            Field::SelfAsScalar => {
+                lines.push("__SELF_AS_SCALAR__");
+            },
         }
 
         if let Some(dotfish) = dotfish {

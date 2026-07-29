@@ -180,7 +180,7 @@ pub fn get_matrix(
             else if let Some(enum_shape) = session.global_context.enum_shapes.unwrap().get(&real_def_span) {
                 vec![
                     MatrixRow {
-                        field: vec![PatternField::Constructor],
+                        field: vec![PatternField::EnumDiscriminant],
                         constructor: MatrixConstructor::EnumVariants {
                             enum_def_span: real_def_span,
                             variants: enum_shape.variants.iter().map(

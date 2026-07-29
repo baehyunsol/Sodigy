@@ -1,4 +1,5 @@
 use crate::Session;
+use sodigy_hir::EnumRepr;
 use sodigy_mir::{Expr, Type, get_def_span_from_id, type_of, type_of_field};
 use sodigy_parse::Field;
 use sodigy_string::InternedString;
@@ -54,6 +55,17 @@ pub(crate) fn lower_fields(lhs: &Expr, fields: &mut Vec<Field>, session: &mut Se
 
                 else if let Some(enum_shape) = session.global_context.enum_shapes.unwrap().get(&real_def_span) {
                     match field {
+                        Field::EnumDiscriminant => match enum_shape.representation {
+                            EnumRepr::Scalar => {
+                                *field = Field::SelfAsScalar;
+                            },
+                            EnumRepr::Compound => {
+                                *field = Field::Index(0);
+                            },
+                            EnumRepr::Niche => todo!(),
+                        },
+
+                        // TODO: respect niche optimization
                         Field::EnumPayload { .. } => {
                             // We're not gonna lower this:
                             //   1. We can use the payload index like `Field::Index`.

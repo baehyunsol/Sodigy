@@ -92,6 +92,10 @@ pub enum Field {
     },
 
     ListLength,
+
+    // `x.self_as_scalar` is `transmute.<_, Scalar>(x)`.
+    // We need this field for `Field::EnumDiscriminant` of `EnumRepr::Scalar`.
+    SelfAsScalar,
 }
 
 impl Field {
@@ -102,7 +106,8 @@ impl Field {
             Field::Range(_, _) |
             Field::EnumDiscriminant |
             Field::EnumPayload { .. } |
-            Field::ListLength => None,
+            Field::ListLength |
+            Field::SelfAsScalar => None,
         }
     }
 
