@@ -15,8 +15,8 @@ impl CnrContext {
             &["test", "--release", "--emit-irs"],
             &self.project_dir,
             30.0,
-            false,
-            false,
+            false,  // dump_output
+            false,  // check_nonzero_status
         ) {
             Ok(output) => {
                 if output.code() != Some(0) {

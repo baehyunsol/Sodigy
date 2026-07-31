@@ -772,20 +772,22 @@ fn init_ir_dir(
 
     if !exists(&ir_dir) {
         create_dir_all(&ir_dir)?;
+    }
 
-        for stage in COMPILE_STAGES {
-            let dir_path = &join(&ir_dir, &format!("{stage:?}").to_lowercase())?;
+    for stage in COMPILE_STAGES {
+        let dir_path = &join(&ir_dir, &format!("{stage:?}").to_lowercase())?;
 
-            // We have to reuse irs from previous compilations -> incremental compilation.
-            // But we should not use Mirs from previous ones, because mirs are generated
-            // after inter-hir.
-            // TODO: We have to reuse everything if nothing's changed.
-            if stage > CompileStage::Hir || !incremental_compilation {
-                if exists(dir_path) {
-                    remove_dir(dir_path)?;
-                }
+        // We have to reuse irs from previous compilations -> incremental compilation.
+        // But we should not use Mirs from previous ones, because mirs are generated
+        // after inter-hir.
+        // TODO: We have to reuse everything if nothing's changed.
+        if stage > CompileStage::Hir || !incremental_compilation {
+            if exists(dir_path) {
+                remove_dir_all(dir_path)?;
             }
+        }
 
+        if !exists(dir_path) {
             create_dir(dir_path)?;
         }
     }
