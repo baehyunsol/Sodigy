@@ -29,6 +29,7 @@ pub enum Command {
         emit_ir_options: Vec<EmitIrOption>,
         dump_matches: bool,
         stop_after: CompileStage,
+        validate_token_spans: ValidateTokenSpans,
     },
     // Collects HIRs and runs InterHir stage.
     InterHir {
@@ -56,4 +57,23 @@ pub enum Command {
     LoadMirGlobalContext {
         intermediate_dir: String,
     },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd)]
+pub enum ValidateTokenSpans {
+    Never,
+    OnlyStd,
+    ExceptStd,
+    Always,
+}
+
+impl ValidateTokenSpans {
+    pub fn to_boolean(&self, is_std: bool) -> bool {
+        match self {
+            ValidateTokenSpans::Never => false,
+            ValidateTokenSpans::OnlyStd => is_std,
+            ValidateTokenSpans::ExceptStd => !is_std,
+            ValidateTokenSpans::Always => true,
+        }
+    }
 }

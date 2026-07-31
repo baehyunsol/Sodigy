@@ -1,4 +1,4 @@
-use crate::Profile;
+use crate::{Profile, ValidateTokenSpans};
 use sodigy_cli::{
     ArgCount,
     ArgParser,
@@ -21,6 +21,7 @@ pub enum CliCommand {
         profile: Profile,
         emit_irs: bool,
         graceful_shutdown: u32,  // in millis
+        validate_token_spans: ValidateTokenSpans,
         jobs: usize,
         color: ColorWhen,
         log_post_mir: bool,
@@ -31,6 +32,7 @@ pub enum CliCommand {
         custom_error_levels: HashMap<u16, CustomErrorLevel>,
         emit_irs: bool,
         graceful_shutdown: u32,  // in millis
+        validate_token_spans: ValidateTokenSpans,
         jobs: usize,
         color: ColorWhen,
         log_post_mir: bool,
@@ -41,6 +43,7 @@ pub enum CliCommand {
         custom_error_levels: HashMap<u16, CustomErrorLevel>,
         emit_irs: bool,
         graceful_shutdown: u32,  // in millis
+        validate_token_spans: ValidateTokenSpans,
         jobs: usize,
         color: ColorWhen,
         log_post_mir: bool,
@@ -76,6 +79,12 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_flag(&["--emit-irs"])
                 .optional_flag(&["--no-std"])
                 .optional_flag(&["--log-post-mir"])
+                .flag_with_default(&[
+                    "--no-validate-token-spans",
+                    "--validate-token-spans",
+                    "--validate-std-token-spans",
+                    "--validate-lib-token-spans",
+                ])
                 .alias("-O", "--release")
                 .short_flag(&["--output", "--jobs"])
                 .args(ArgType::String, ArgCount::None)
@@ -124,6 +133,14 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             let import_std = parsed_args.get_flag(3).is_none();
             let log_post_mir = parsed_args.get_flag(4).is_some();
 
+            let validate_token_spans = match parsed_args.get_flag(5).as_ref().map(|s| s.as_str()) {
+                Some("--no-validate-token-spans") => ValidateTokenSpans::Never,
+                Some("--validate-token-spans") => ValidateTokenSpans::Always,
+                Some("--validate-std-token-spans") => ValidateTokenSpans::OnlyStd,
+                Some("--validate-lib-token-spans") => ValidateTokenSpans::ExceptStd,
+                _ => unreachable!(),
+            };
+
             let output_path = match output_path {
                 Some(output_path) => output_path,
                 None => String::from("out.sdgbc"),
@@ -136,6 +153,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 import_std,
                 custom_error_levels: HashMap::new(),  // TODO: make it configurable
                 graceful_shutdown: 300,  // TODO: make it configurable
+                validate_token_spans,
                 profile,
                 emit_irs,
                 jobs,
@@ -206,6 +224,12 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_flag(&["--emit-irs"])
                 .optional_flag(&["--no-std"])
                 .optional_flag(&["--log-post-mir"])
+                .flag_with_default(&[
+                    "--no-validate-token-spans",
+                    "--validate-token-spans",
+                    "--validate-std-token-spans",
+                    "--validate-lib-token-spans",
+                ])
                 .alias("-O", "--release")
                 .short_flag(&["--jobs"])
                 .args(ArgType::String, ArgCount::None)
@@ -236,11 +260,20 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             let import_std = parsed_args.get_flag(2).is_none();
             let log_post_mir = parsed_args.get_flag(3).is_some();
 
+            let validate_token_spans = match parsed_args.get_flag(4).as_ref().map(|s| s.as_str()) {
+                Some("--no-validate-token-spans") => ValidateTokenSpans::Never,
+                Some("--validate-token-spans") => ValidateTokenSpans::Always,
+                Some("--validate-std-token-spans") => ValidateTokenSpans::OnlyStd,
+                Some("--validate-lib-token-spans") => ValidateTokenSpans::ExceptStd,
+                _ => unreachable!(),
+            };
+
             Ok(CliCommand::Run {
                 optimize_level,
                 import_std,
                 custom_error_levels: HashMap::new(),  // TODO: make it configurable
                 graceful_shutdown: 300,  // TODO: make it configurable
+                validate_token_spans,
                 emit_irs,
                 jobs,
                 color,
@@ -255,6 +288,12 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_flag(&["--emit-irs"])
                 .optional_flag(&["--no-std"])
                 .optional_flag(&["--log-post-mir"])
+                .flag_with_default(&[
+                    "--no-validate-token-spans",
+                    "--validate-token-spans",
+                    "--validate-std-token-spans",
+                    "--validate-lib-token-spans",
+                ])
                 .alias("-O", "--release")
                 .short_flag(&["--jobs"])
                 .args(ArgType::String, ArgCount::None)
@@ -285,11 +324,20 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             let import_std = parsed_args.get_flag(2).is_none();
             let log_post_mir = parsed_args.get_flag(3).is_some();
 
+            let validate_token_spans = match parsed_args.get_flag(4).as_ref().map(|s| s.as_str()) {
+                Some("--no-validate-token-spans") => ValidateTokenSpans::Never,
+                Some("--validate-token-spans") => ValidateTokenSpans::Always,
+                Some("--validate-std-token-spans") => ValidateTokenSpans::OnlyStd,
+                Some("--validate-lib-token-spans") => ValidateTokenSpans::ExceptStd,
+                _ => unreachable!(),
+            };
+
             Ok(CliCommand::Test {
                 optimize_level,
                 import_std,
                 custom_error_levels: HashMap::new(),  // TODO: make it configurable
                 graceful_shutdown: 300,  // TODO: make it configurable
+                validate_token_spans,
                 emit_irs,
                 jobs,
                 color,

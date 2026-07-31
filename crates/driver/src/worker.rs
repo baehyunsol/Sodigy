@@ -207,6 +207,7 @@ impl Worker {
                 emit_ir_options,
                 dump_matches,
                 stop_after,
+                validate_token_spans,
             } => {
                 let (is_std, file) = match &input_file_path {
                     FileOrStd::File(path) => (
@@ -249,6 +250,7 @@ impl Worker {
                             bytes,
                             intermediate_dir.clone(),
                             is_std,
+                            validate_token_spans.to_boolean(is_std),
                         );
                         let file_span = lex_session.file_span();
                         self.stage_end(!lex_session.errors.is_empty());

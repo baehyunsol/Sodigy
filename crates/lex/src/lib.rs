@@ -11,6 +11,7 @@ use std::num::IntErrorKind;
 
 mod endec;
 mod session;
+mod validate;
 
 pub use session::Session;
 
@@ -66,6 +67,7 @@ pub fn lex(
     input: Vec<u8>,
     intermediate_dir: String,
     is_std: bool,
+    validate_spans: bool,
 ) -> Session {
     let mut session = Session {
         file,
@@ -98,6 +100,10 @@ pub fn lex(
 
     if session.errors.is_empty() {
         session.group_tokens();
+    }
+
+    if validate_spans {
+        session.validate_spans();
     }
 
     session
@@ -2006,6 +2012,7 @@ impl Session {
             self.input_bytes[(self.cursor + 1)..value_end].to_vec(),
             self.intermediate_dir.clone(),
             self.is_std,
+            false,  // will validate later
         );
         tmp_session.offset_spans(self.cursor as u32 + 1);
 

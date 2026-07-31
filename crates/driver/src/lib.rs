@@ -38,7 +38,7 @@ mod timings;
 mod worker;
 
 pub use cli::{CliCommand, ColorWhen};
-pub use command::Command;
+pub use command::{Command, ValidateTokenSpans};
 pub use compile_stage::CompileStage;
 pub use error::Error;
 pub use ir_store::{EmitIrOption, StoreIrAt};
@@ -135,9 +135,9 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             Ok(())
         },
         cli_command @ (
-            CliCommand::Build { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, jobs, color, log_post_mir, .. } |
-            CliCommand::Run { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, jobs, color, log_post_mir } |
-            CliCommand::Test { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, jobs, color, log_post_mir }
+            CliCommand::Build { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, log_post_mir, .. } |
+            CliCommand::Run { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, log_post_mir } |
+            CliCommand::Test { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, log_post_mir }
         ) => {
             // I want `log_post_mir` to enable more flags! What else can I dump/log?
             let dump_matches = *log_post_mir;
@@ -174,6 +174,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                 *jobs,
                 *color,
                 true,  // TODO: make it configurable
+                *validate_token_spans,
                 interpret_with_profile,
                 false,  // TODO: make it configurable
             )
@@ -210,6 +211,7 @@ pub fn init_workers_and_compile(
     jobs: usize,
     color: ColorWhen,
     incremental_compilation: bool,
+    validate_token_spans: ValidateTokenSpans,
     interpret_with_profile: Option<Profile>,
     quiet: bool,
 ) -> Result<(), Error> {
@@ -231,6 +233,7 @@ pub fn init_workers_and_compile(
         dump_matches,
         graceful_shutdown,
         incremental_compilation,
+        validate_token_spans,
         quiet,
         &channels,
         &mut errors,
@@ -317,6 +320,7 @@ fn compile(
     dump_matches: bool,
     graceful_shutdown: u32,  // in milliseconds
     incremental_compilation: bool,
+    validate_token_spans: ValidateTokenSpans,
     quiet: bool,
     workers: &[Channel],
     errors: &mut Vec<SodigyError>,
@@ -423,6 +427,7 @@ fn compile(
                         ),
                         dump_matches,
                         stop_after: CompileStage::Hir,
+                        validate_token_spans,
                     },
                 )) {
                     every_hir_complete = false;
@@ -601,6 +606,7 @@ fn compile(
                                             ),
                                             dump_matches,
                                             stop_after: CompileStage::Mir,
+                                            validate_token_spans,
                                         },
                                     ))?;
                                     round_robin += 1;
@@ -633,6 +639,7 @@ fn compile(
                                             ),
                                             dump_matches,
                                             stop_after: CompileStage::BytecodeOptimize,
+                                            validate_token_spans,
                                         },
                                     ))?;
                                     round_robin += 1;

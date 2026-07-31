@@ -74,6 +74,20 @@ impl CnrContext {
             args.push("--log-post-mir");
         }
 
+        // The cnr test runner has to validate the spans of the tokens. But it doesn't
+        // have to validate the tokens in std, because they're the same!
+        // Ideally, we have to run `--validate-token-spans` only when `self.cnr_seq == 0`,
+        // but there might be a lexer error in the first cnr, no one knows. So we run
+        // `--validate-token-spans` for the first 5 cases.
+        match self.cnr_seq {
+            ..5 => {
+                args.push("--validate-token-spans");
+            },
+            _ => {
+                args.push("--validate-lib-token-spans");
+            },
+        }
+
         let compile_started_at = Instant::now();
         let output = match subprocess::run(
             &self.sodigy_path,

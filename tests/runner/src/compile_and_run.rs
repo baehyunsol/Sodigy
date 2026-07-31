@@ -102,6 +102,9 @@ struct CnrContext {
     // If this flag is set, it doesn't check the output.
     // It just launches an interactive interpreter and quit.
     pub debug_bytecode: bool,
+
+    pub cnr_seq: usize,
+    pub total_cnr: usize,
 }
 
 pub fn run_cases(
@@ -169,8 +172,8 @@ pub fn run_cases(
     let mut pass = 0;
     let mut fail = 0;
 
-    for case in cases.iter() {
-        let case_result = run_cnr(case, root, sodigy_path, filter.is_some(), log_post_mir, debug_bytecode);
+    for (i, case) in cases.iter().enumerate() {
+        let case_result = run_cnr(case, root, sodigy_path, filter.is_some(), log_post_mir, debug_bytecode, i, cases.len());
         let (color, status) = if case_result.error.is_none() {
             pass += 1;
             (32, "pass")
@@ -200,8 +203,10 @@ fn run_cnr(
     dump_output: bool,
     log_post_mir: bool,
     debug_bytecode: bool,
+    cnr_seq: usize,
+    total_cnr: usize,
 ) -> CompileAndRun {
-    let cnr_context = prepare_cnr(name, root, sodigy_path, dump_output, log_post_mir, debug_bytecode);
+    let cnr_context = prepare_cnr(name, root, sodigy_path, dump_output, log_post_mir, debug_bytecode, cnr_seq, total_cnr);
     let mut result = cnr_context.main_test();
     cnr_context.extra_tests(&mut result);
     result
@@ -214,6 +219,8 @@ fn prepare_cnr(
     dump_output: bool,
     log_post_mir: bool,
     debug_bytecode: bool,
+    cnr_seq: usize,
+    total_cnr: usize,
 ) -> CnrContext {
     let test_dir = join3(root, "tests", "compile-and-run").unwrap();
     let base_path = join(&test_dir, name).unwrap();
@@ -254,6 +261,8 @@ fn prepare_cnr(
         dump_output,
         log_post_mir,
         debug_bytecode,
+        cnr_seq,
+        total_cnr,
     }
 }
 
