@@ -17,7 +17,6 @@ use sodigy_fs_api::{
     exists,
     join,
     read_bytes,
-    remove_dir,
     remove_dir_all,
     write_string,
 };
