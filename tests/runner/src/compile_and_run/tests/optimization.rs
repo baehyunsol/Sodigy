@@ -3,8 +3,12 @@ use crate::subprocess;
 
 impl CnrContext {
     pub fn optimization_test(&self, result: &CompileAndRun) -> Result<(), String> {
-        // TODO: I want some cases to be cleaned, and not the others.
-        self.clean()?;
+        // We have to test both cases: with/without `sodigy clean` before
+        // compiling the sample with optimization.
+        // So, half of the samples are run with `sodigy clean` and the others are not.
+        if self.cnr_seq % 2 == 0 {
+            self.clean()?;
+        }
 
         match subprocess::run(
             &self.sodigy_path,

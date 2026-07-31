@@ -171,9 +171,10 @@ pub fn run_cases(
     let mut result = vec![];
     let mut pass = 0;
     let mut fail = 0;
+    let dump_output = cases.len() < 5;
 
     for (i, case) in cases.iter().enumerate() {
-        let case_result = run_cnr(case, root, sodigy_path, filter.is_some(), log_post_mir, debug_bytecode, i, cases.len());
+        let case_result = run_cnr(case, root, sodigy_path, dump_output, log_post_mir, debug_bytecode, i, cases.len());
         let (color, status) = if case_result.error.is_none() {
             pass += 1;
             (32, "pass")
@@ -184,7 +185,7 @@ pub fn run_cases(
 
         println!("{case}: \x1b[{color}m{status}\x1b[0m");
 
-        if filter.is_some() && let Some(error) = &case_result.error {
+        if dump_output && let Some(error) = &case_result.error {
             eprintln!("{error}");
         }
 

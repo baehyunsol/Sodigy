@@ -90,6 +90,8 @@ TODO: If an assertion's name starts with "must-fail", it must fail.
 
 It runs `cargo test`, `cargo test --release` and `cargo doc` in every crates in `crates/`.
 
+It also runs `cargo clippy` with curated flags.
+
 ### Full test suite
 
 By running `cargo run -- all`, it runs all the test suites. It'll dump the result in a json format. It'll create a json file in the current working directory (where you run `cargo`). It'll create a copy in the `tests/log/`.
