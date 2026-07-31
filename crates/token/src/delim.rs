@@ -13,7 +13,6 @@ impl Delim {
         match self {
             Delim::Parenthesis => ("(", ")"),
             Delim::Bracket => ("[", "]"),
-            Delim::Bracket => ("[", "]"),
             Delim::Brace => ("{", "}"),
             Delim::Lambda => ("\\(", ")"),
             Delim::Decorator => ("#[", "]"),
