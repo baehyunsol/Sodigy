@@ -219,8 +219,8 @@ fn render_close_spans(
         let mut curr_byte_color = None;
 
         for s in spans.iter() {
-            if let Some((start, end)) = s.span.get_bounds() {
-                let (start, end) = (start as usize, end as usize);
+            if let Some((offset, length)) = s.span.get_offset_and_length() {
+                let (start, end) = (offset as usize, (offset + length) as usize);
                 let curr_span_color = if s.auxiliary { auxiliary_color } else { primary_color };
 
                 if i == start {

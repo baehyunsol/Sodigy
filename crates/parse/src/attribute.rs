@@ -50,9 +50,9 @@ pub struct DocCommentLine {
 impl DocCommentLine {
     pub fn new(content: InternedString, entire_span: Span) -> Self {
         let (marker_span, content_span) = {
-            let (file, (start, end)) = (entire_span.file().unwrap(), entire_span.get_bounds().unwrap());
-            assert!(start + 3 <= end);
-            (Span::range(file, start, start + 3), Span::range(file, start + 3, end))
+            let (file, (offset, length)) = (entire_span.file().unwrap(), entire_span.get_offset_and_length().unwrap());
+            assert!(3 <= length);
+            (Span::range(file, offset, 3), Span::range(file, offset + 3, length - 3))
         };
 
         DocCommentLine {

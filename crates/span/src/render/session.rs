@@ -60,8 +60,8 @@ impl Session {
 
     // rect: [left, top, right, bottom] -> all inclusive
     pub fn get_rect(&mut self, span: &Span) -> Option<(usize, usize, usize, usize)> {
-        match (span.file(), span.get_bounds()) {
-            (Some(file), Some((start, end))) => {
+        match (span.file(), span.get_offset_and_length()) {
+            (Some(file), Some((offset, length))) => {
                 let line_breaks = match self.line_breaks.entry(file) {
                     Entry::Occupied(e) => e.get().to_vec(),
                     Entry::Vacant(e) => match file.read_bytes(&self.intermediate_dir) {
@@ -80,7 +80,7 @@ impl Session {
                     },
                 };
 
-                Some(get_rect(&line_breaks, start as usize, end as usize))
+                Some(get_rect(&line_breaks, offset as usize, (offset + length) as usize))
             },
             _ => None,
         }

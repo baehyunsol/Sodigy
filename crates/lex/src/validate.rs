@@ -15,8 +15,8 @@ fn validate_spans_worker(
     intermediate_dir: &str,
 ) {
     for Token { kind, span } in tokens.iter() {
-        let (start, end) = span.get_bounds().unwrap();
-        let span_code = &file_content[(start as usize)..(end as usize)];
+        let (offset, length) = span.get_offset_and_length().unwrap();
+        let span_code = &file_content[(offset as usize)..((offset + length) as usize)];
 
         match kind {
             TokenKind::Keyword(k) => {
@@ -85,15 +85,15 @@ fn validate_spans_worker(
                 for element in elements.iter() {
                     match element {
                         TokensOrString::Tokens { tokens, span } => {
-                            let (start, end) = span.get_bounds().unwrap();
-                            assert_eq!(file_content[start as usize], b'{');
-                            assert_eq!(file_content[end as usize], b'}');
+                            let (offset, length) = span.get_offset_and_length().unwrap();
+                            assert_eq!(file_content[offset as usize], b'{');
+                            assert_eq!(file_content[(offset + length) as usize - 1], b'}');
 
                             validate_spans_worker(file_content, tokens, intermediate_dir);
                         },
                         TokensOrString::String { s, span } => {
-                            let (start, end) = span.get_bounds().unwrap();
-                            let span_code = file_content[(start as usize)..(end as usize)].to_vec();
+                            let (offset, length) = span.get_offset_and_length().unwrap();
+                            let span_code = file_content[(offset as usize)..((offset + length) as usize)].to_vec();
                             let mut span_code_processed = Vec::with_capacity(span_code.len());
                             let mut i = 0;
 
@@ -128,13 +128,13 @@ fn validate_spans_worker(
                 }
             },
             TokenKind::FieldUpdate { field, backtick_span, field_span } => {
-                let (start, end) = backtick_span.get_bounds().unwrap();
-                assert_eq!(&file_content[(start as usize)..(end as usize)], b"`");
+                let (offset, length) = backtick_span.get_offset_and_length().unwrap();
+                assert_eq!(&file_content[(offset as usize)..((offset + length) as usize)], b"`");
 
-                let (start, end) = field_span.get_bounds().unwrap();
+                let (offset, length) = field_span.get_offset_and_length().unwrap();
                 assert_eq!(
                     unintern_string(*field, intermediate_dir).unwrap().unwrap(),
-                    &file_content[(start as usize)..(end as usize)],
+                    &file_content[(offset as usize)..((offset + length) as usize)],
                 );
             },
             TokenKind::DocComment { top_level, .. } => {
@@ -144,7 +144,7 @@ fn validate_spans_worker(
                     assert_eq!(&span_code[0..3], b"///");
                 }
 
-                match file_content.get(end as usize) {
+                match file_content.get((offset + length) as usize) {
                     None | Some(b'\n') => {},
                     _ => panic!("{span_code:?}"),
                 }

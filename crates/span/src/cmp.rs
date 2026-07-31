@@ -3,10 +3,10 @@ use std::cmp::Ordering;
 
 impl Ord for Span {
     fn cmp(&self, other: &Self) -> Ordering {
-        match (self.file(), self.get_bounds(), other.file(), other.get_bounds()) {
-            (Some(f1), Some((s1, e1)), Some(f2), Some((s2, e2))) => match f1.cmp(&f2) {
-                Ordering::Equal => match s1.cmp(&s2) {
-                    Ordering::Equal => match e1.cmp(&e2) {
+        match (self.file(), self.get_offset_and_length(), other.file(), other.get_offset_and_length()) {
+            (Some(f1), Some((o1, l1)), Some(f2), Some((o2, l2))) => match f1.cmp(&f2) {
+                Ordering::Equal => match o1.cmp(&o2) {
+                    Ordering::Equal => match l1.cmp(&l2) {
                         Ordering::Equal => match (self, other) {
                             (Span::Range(_), Span::Range(_)) => Ordering::Equal,
 

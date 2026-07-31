@@ -27,12 +27,12 @@ pub struct SpanId(pub u128);
 impl fmt::Debug for SpanId {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let file = File(((self.0 >> 64) & 0xffff_ffff) as u32);
-        let start = (self.0 >> 32) & 0xffff_ffff;
-        let end = self.0 & 0xffff_ffff;
+        let offset = (self.0 >> 32) & 0xffff_ffff;
+        let length = self.0 & 0xffff_ffff;
 
         write!(
             fmt,
-            "{{ file: {file:?}, start: {start}, end: {end}, id: {} }}",
+            "{{ file: {file:?}, offset: {offset}, length: {length}, id: {} }}",
             self.0,
         )
     }
@@ -68,20 +68,16 @@ pub enum Span {
 }
 
 impl Span {
-    pub fn range(file: File, start: u32, end: u32) -> Self {
+    pub fn range(file: File, offset: u32, length: u32) -> Self {
         Span::Range(SpanId(
             ((file.0 as u128) << 64) |
-            ((start as u128) << 32) |
-            end as u128
+            ((offset as u128) << 32) |
+            length as u128
         ))
     }
 
     pub fn single(file: File, offset: u32) -> Self {
-        Span::Range(SpanId(
-            ((file.0 as u128) << 64) |
-            ((offset as u128) << 32) |
-            (offset as u128 + 1)
-        ))
+        Span::Range(SpanId(((file.0 as u128) << 64) | ((offset as u128) << 32) | 1))
     }
 
     #[must_use = "method returns a new span and does not mutate the original span"]
@@ -90,13 +86,16 @@ impl Span {
             (Span::None, _) => other.clone(),
             (_, Span::None) => self.clone(),
             (Span::Range(_), Span::Range(_)) => {
-                let (f1, (s1, e1)) = (self.file().unwrap(), self.get_bounds().unwrap());
-                let (f2, (s2, e2)) = (other.file().unwrap(), other.get_bounds().unwrap());
+                let (file1, (offset1, length1)) = (self.file().unwrap(), self.get_offset_and_length().unwrap());
+                let (file2, (offset2, length2)) = (other.file().unwrap(), other.get_offset_and_length().unwrap());
 
-                if f1 != f2 {
-                    todo!()
+                if file1 != file2 {
+                    panic!("ICE: {self:?}.merge({other:?})")
                 } else {
-                    Span::range(f1, s1.min(s2), e1.max(e2))
+                    let offset = offset1.min(offset2);
+                    let end = (offset1 + length1).max(offset2 + length2);
+                    let length = end - offset;
+                    Span::range(file1, offset, length)
                 }
             },
             (Span::Monomorphize { id, span }, s) |
@@ -116,8 +115,8 @@ impl Span {
     pub fn start(&self) -> Self {
         match self {
             Span::Range(_) => {
-                let (start, _) = self.get_bounds().unwrap();
-                Span::range(self.file().unwrap(), start, start + 1)
+                let (offset, _) = self.get_offset_and_length().unwrap();
+                Span::range(self.file().unwrap(), offset, 1)
             },
             Span::Monomorphize { id, span } => Span::Monomorphize {
                 id: *id,
@@ -139,8 +138,8 @@ impl Span {
     pub fn end(&self) -> Self {
         match self {
             Span::Range(_) => {
-                let (_, end) = self.get_bounds().unwrap();
-                Span::range(self.file().unwrap(), end.max(1) - 1, end)
+                let (offset, length) = self.get_offset_and_length().unwrap();
+                Span::range(self.file().unwrap(), (offset + length).max(1) - 1, 1)
             },
             Span::Monomorphize { id, span } => Span::Monomorphize {
                 id: *id,
@@ -175,7 +174,6 @@ impl Span {
     pub fn offset(&mut self, offset: u32) {
         match self {
             Span::Range(SpanId(n)) => {
-                *n += offset as u128;
                 *n += (offset as u128) << 32;
             },
             Span::Monomorphize { span, .. } |
@@ -191,14 +189,14 @@ impl Span {
         }
     }
 
-    pub fn get_bounds(&self) -> Option<(u32, u32)> {
+    pub fn get_offset_and_length(&self) -> Option<(u32, u32)> {
         match self {
             Span::Range(SpanId(n)) => Some((
                 ((*n >> 32) & 0xffff_ffff) as u32,
                 (*n & 0xffff_ffff) as u32,
             )),
             Span::Monomorphize { span, .. } |
-            Span::Derived { span, .. } => span.get_bounds(),
+            Span::Derived { span, .. } => span.get_offset_and_length(),
             Span::Prelude(_) |
             Span::Poly { .. } |
             Span::IntermediateTypeVar(_) |

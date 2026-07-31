@@ -145,22 +145,14 @@ impl Session {
                     if let Some(b'.') = self.input_bytes.get(self.cursor + 3) {
                         return Err(Error {
                             kind: ErrorKind::DotDotDot,
-                            spans: Span::range(
-                                self.file,
-                                self.cursor as u32 + 1,
-                                self.cursor as u32 + 4,
-                            ).simple_error(),
+                            spans: Span::range(self.file, self.cursor as u32 + 1, 3).simple_error(),
                             note: None,
                         });
                     }
 
                     self.tokens.push(Token {
                         kind: TokenKind::Number(InternedNumber::from_u32((*x - b'0') as u32, true /* is_integer */)),
-                        span: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 1,
-                        ),
+                        span: Span::range(self.file, self.cursor as u32, 1),
                     });
                     self.cursor += 1;
                 },
@@ -181,11 +173,7 @@ impl Session {
                 (Some(b'0'..=b'9'), Some(y @ (b'a'..=b'z' | b'A'..=b'Z')), _) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidNumberLiteral,
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32 + 1,
-                            self.cursor as u32 + 2,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32 + 1, 1).simple_error(),
                         note: Some(format!("`{}` is not a valid prefix. Valid ones are `x`, `X`, `o`, `O`, `b` and `B`.", *y as char)),
                     });
                 },
@@ -200,22 +188,14 @@ impl Session {
                 (Some(b'0'), Some(b'0'..=b'9'), _) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidNumberLiteral,
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 1,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                         note: Some(String::from("Leading zeros in decimal literals are not permitted.")),
                     });
                 },
                 (Some(b'0'), _, _) => {
                     self.tokens.push(Token {
                         kind: TokenKind::Number(InternedNumber::from_u32(0, true /* is_integer */)),
-                        span: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 1,
-                        ),
+                        span: Span::range(self.file, self.cursor as u32, 1),
                     });
                     self.cursor += 1;
                 },
@@ -229,11 +209,7 @@ impl Session {
                     self.cursor += 1;
                 },
                 (Some(b'#'), Some(b'['), _) => {
-                    let opening_span = Span::range(
-                        self.file,
-                        self.cursor as u32,
-                        self.cursor as u32 + 2,
-                    );
+                    let opening_span = Span::range(self.file, self.cursor as u32, 2);
                     self.group_stack.push((b']', opening_span.clone()));
                     self.tokens.push(Token {
                         kind: TokenKind::GroupDelim {
@@ -245,11 +221,7 @@ impl Session {
                     self.cursor += 2;
                 },
                 (Some(b'#'), Some(b'!'), Some(b'[')) => {
-                    let opening_span = Span::range(
-                        self.file,
-                        self.cursor as u32,
-                        self.cursor as u32 + 3,
-                    );
+                    let opening_span = Span::range(self.file, self.cursor as u32, 3);
                     self.group_stack.push((b']', opening_span.clone()));
                     self.tokens.push(Token {
                         kind: TokenKind::GroupDelim {
@@ -285,11 +257,7 @@ impl Session {
                                 if !base.is_valid_digit(*x) {
                                     return Err(Error {
                                         kind: ErrorKind::InvalidByteLiteral,
-                                        spans: Span::range(
-                                            self.file,
-                                            self.cursor as u32,
-                                            self.cursor as u32 + 1,
-                                        ).simple_error(),
+                                        spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                                         note: Some(base.invalid_digit_error_message(*x)),
                                     });
                                 }
@@ -312,7 +280,7 @@ impl Session {
                             spans: Span::range(
                                 self.file,
                                 token_start as u32,
-                                self.cursor as u32,
+                                (self.cursor - token_start) as u32,
                             ).simple_error(),
                             note: None,
                         });
@@ -334,7 +302,7 @@ impl Session {
                                 span: Span::range(
                                     self.file,
                                     token_start as u32,
-                                    self.cursor as u32,
+                                    (self.cursor - token_start) as u32,
                                 ),
                             });
                         },
@@ -344,7 +312,7 @@ impl Session {
                                 spans: Span::range(
                                     self.file,
                                     token_start as u32,
-                                    self.cursor as u32,
+                                    (self.cursor - token_start) as u32,
                                 ).simple_error(),
                                 note: Some(String::from("A byte must be in range #0..=#255.")),
                             });
@@ -376,11 +344,7 @@ impl Session {
                         b'(' => (Delim::Parenthesis, b')'),
                         _ => unreachable!(),
                     };
-                    let opening_span = Span::range(
-                        self.file,
-                        self.cursor as u32,
-                        self.cursor as u32 + 1,
-                    );
+                    let opening_span = Span::range(self.file, self.cursor as u32, 1);
                     self.group_stack.push((closing_delim, opening_span.clone()));
                     self.tokens.push(Token {
                         kind: TokenKind::GroupDelim {
@@ -392,11 +356,7 @@ impl Session {
                     self.cursor += 1;
                 },
                 (Some(b'\\'), Some(b'('), _) => {
-                    let opening_span = Span::range(
-                        self.file,
-                        self.cursor as u32,
-                        self.cursor as u32 + 2,
-                    );
+                    let opening_span = Span::range(self.file, self.cursor as u32, 2);
                     self.group_stack.push((b')', opening_span.clone()));
                     self.tokens.push(Token {
                         kind: TokenKind::GroupDelim {
@@ -414,11 +374,7 @@ impl Session {
                                 delim: None,
                                 id: span,
                             },
-                            span: Span::range(
-                                self.file,
-                                self.cursor as u32,
-                                self.cursor as u32 + 1,
-                            ),
+                            span: Span::range(self.file, self.cursor as u32, 1),
                         });
                         self.cursor += 1;
                     },
@@ -435,11 +391,7 @@ impl Session {
                                     note: Some(format!("It expects `{}`.", delim as char)),
                                 },
                                 RenderableSpan {
-                                    span: Span::range(
-                                        self.file,
-                                        self.cursor as u32,
-                                        self.cursor as u32 + 1,
-                                    ),
+                                    span: Span::range(self.file, self.cursor as u32, 1),
                                     auxiliary: false,
                                     note: Some(format!("But it got `{}`.", *x as char)),
                                 },
@@ -453,11 +405,7 @@ impl Session {
                                 expected: ErrorToken::Any,
                                 got: ErrorToken::Character(*x),
                             },
-                            spans: Span::range(
-                                self.file,
-                                self.cursor as u32,
-                                self.cursor as u32 + 1,
-                            ).simple_error(),
+                            spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                             note: None,
                         });
                     },
@@ -468,22 +416,14 @@ impl Session {
                     Some(b'>') => {
                         self.tokens.push(Token {
                             kind: TokenKind::Punct(Punct::DotDot),
-                            span: Span::range(
-                                self.file,
-                                self.cursor as u32,
-                                self.cursor as u32 + 2,
-                            ),
+                            span: Span::range(self.file, self.cursor as u32, 2),
                         });
                         self.cursor += 2;
                     },
                     _ => {
                         self.tokens.push(Token {
                             kind: TokenKind::Punct(Punct::DotDotEq),
-                            span: Span::range(
-                                self.file,
-                                self.cursor as u32,
-                                self.cursor as u32 + 3,
-                            ),
+                            span: Span::range(self.file, self.cursor as u32, 3),
                         });
                         self.cursor += 3;
                     },
@@ -516,11 +456,7 @@ impl Session {
                         Some(p) => {
                             self.tokens.push(Token {
                                 kind: TokenKind::Punct(p),
-                                span: Span::range(
-                                    self.file,
-                                    self.cursor as u32,
-                                    self.cursor as u32 + 2,
-                                ),
+                                span: Span::range(self.file, self.cursor as u32, 2),
                             });
                             self.cursor += 2;
                         },
@@ -528,19 +464,11 @@ impl Session {
                             // It'd be 99.9% parse error, but lexer doesn't care about that.
                             self.tokens.push(Token {
                                 kind: TokenKind::Punct((*x).into()),
-                                span: Span::range(
-                                    self.file,
-                                    self.cursor as u32,
-                                    self.cursor as u32 + 1,
-                                ),
+                                span: Span::range(self.file, self.cursor as u32, 1),
                             });
                             self.tokens.push(Token {
                                 kind: TokenKind::Punct((*y).into()),
-                                span: Span::range(
-                                    self.file,
-                                    self.cursor as u32 + 1,
-                                    self.cursor as u32 + 2,
-                                ),
+                                span: Span::range(self.file, self.cursor as u32 + 1, 1),
                             });
                             self.cursor += 2;
                         },
@@ -554,11 +482,7 @@ impl Session {
                 )), _, _) => {
                     self.tokens.push(Token {
                         kind: TokenKind::Punct((*x).into()),
-                        span: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 1,
-                        ),
+                        span: Span::range(self.file, self.cursor as u32, 1),
                     });
                     self.cursor += 1;
                 },
@@ -571,11 +495,7 @@ impl Session {
                 (Some(x), _, _) => {
                     return Err(Error {
                         kind: ErrorKind::UnexpectedByte(*x),
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 1,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                         note: None,
                     });
                 },
@@ -609,11 +529,7 @@ impl Session {
                         } else {
                             ErrorKind::InvalidCharLiteralPrefix(vec![*x, *y])
                         },
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 2,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32, 2).simple_error(),
                         note: None,
                     });
                 },
@@ -625,11 +541,7 @@ impl Session {
                         } else {
                             ErrorKind::InvalidCharLiteralPrefix(vec![*x, *y])
                         },
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 2,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32, 2).simple_error(),
                         note: None,
                     });
                 },
@@ -647,17 +559,9 @@ impl Session {
                 (Some(x @ b'b'), Some(y @ b'r'), Some(b'\'')) |
                 (Some(x @ b'r'), Some(y @ b'b'), Some(b'\'')) => {
                     let error_span = if *x == b'b' {
-                        Span::range(
-                            self.file,
-                            self.cursor as u32 + 1,
-                            self.cursor as u32 + 2,
-                        )
+                        Span::range(self.file, self.cursor as u32 + 1, 1)
                     } else {
-                        Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 1,
-                        )
+                        Span::range(self.file, self.cursor as u32, 1)
                     };
                     return Err(Error {
                         kind: ErrorKind::InvalidCharLiteralPrefix(vec![*x, *y]),
@@ -680,11 +584,7 @@ impl Session {
                 (Some(x @ b'r'), Some(y @ b'f'), Some(b'\'')) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidCharLiteralPrefix(vec![*x, *y]),
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 2,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32, 2).simple_error(),
                         note: None,
                     });
                 },
@@ -701,11 +601,7 @@ impl Session {
                 (Some(b'r'), Some(b'e'), Some(b'\'')) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidCharLiteralPrefix(vec![b'r', b'e']),
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 2,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32, 2).simple_error(),
                         note: None,
                     });
                 },
@@ -730,11 +626,7 @@ impl Session {
                 (Some(x @ (b'f' | b'r')), Some(b'\''), _) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidCharLiteralPrefix(vec![*x]),
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 1,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                         note: None,
                     });
                 },
@@ -753,11 +645,7 @@ impl Session {
                         } else {
                             ErrorKind::InvalidCharLiteralPrefix(vec![*x, *y])
                         },
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 2,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32, 2).simple_error(),
                         note: None,
                     });
                 },
@@ -768,11 +656,7 @@ impl Session {
                         } else {
                             ErrorKind::InvalidCharLiteralPrefix(vec![*x])
                         },
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 1,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                         note: None,
                     });
                 },
@@ -791,12 +675,10 @@ impl Session {
                     if quote_count % 2 == 0 && quote_count > 254 || quote_count % 2 == 1 && quote_count > 127 {
                         return Err(Error {
                             kind: ErrorKind::TooManyQuotes,
-                            spans: Span::range(
-                                self.file,
-                                // I don't want to highlight all the quotes... it's *TooMany*Quotes
-                                self.cursor as u32,
-                                self.cursor as u32 + 1,
-                            ).simple_error(),
+
+                            // I don't want to highlight all the quotes... it's *TooMany*Quotes
+                            spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
+
                             note: None,
                         });
                     }
@@ -823,7 +705,7 @@ impl Session {
                                 span: Span::range(
                                     self.file,
                                     self.cursor as u32,
-                                    (self.cursor + quote_count) as u32,
+                                    quote_count as u32,
                                 ),
                             });
                             self.state = LexState::Init;
@@ -838,7 +720,7 @@ impl Session {
                                 spans: Span::range(
                                     self.file,
                                     self.cursor as u32,
-                                    (self.cursor + quote_count) as u32,
+                                    quote_count as u32,
                                 ).simple_error(),
                                 note: None,
                             });
@@ -875,11 +757,7 @@ impl Session {
                     };
                     self.tokens.push(Token {
                         kind: token_kind,
-                        span: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 2,
-                        ),
+                        span: Span::range(self.file, self.cursor as u32, 2),
                     });
                     self.state = LexState::Init;
                     self.cursor += 2;
@@ -888,11 +766,7 @@ impl Session {
                 (Some(b'\''), Some(b'\''), _) => {
                     return Err(Error {
                         kind: ErrorKind::EmptyCharLiteral,
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 2,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32, 2).simple_error(),
                         note: None,
                     });
                 },
@@ -933,7 +807,7 @@ impl Session {
                         span: Span::range(
                             self.file,
                             self.fstring_cursor as u32,
-                            self.cursor as u32,
+                            (self.cursor - self.fstring_cursor) as u32,
                         ),
                     });
                     self.lex_formatted_string()?;
@@ -942,11 +816,7 @@ impl Session {
                 (Some(b'}'), _, _) if format => {
                     return Err(Error {
                         kind: ErrorKind::UnmatchedBraceInFormattedString,
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 1,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                         note: None,
                     });
                 },
@@ -960,7 +830,7 @@ impl Session {
                             span: Span::range(
                                 self.file,
                                 self.fstring_cursor as u32,
-                                self.cursor as u32,
+                                (self.cursor - self.fstring_cursor) as u32,
                             ),
                         });
 
@@ -977,7 +847,7 @@ impl Session {
                             span: Span::range(
                                 self.file,
                                 self.token_start as u32,
-                                self.cursor as u32 + 1,
+                                (self.cursor + 1 - self.token_start) as u32,
                             ),
                         });
                     }
@@ -993,7 +863,7 @@ impl Session {
                             span: Span::range(
                                 self.file,
                                 self.token_start as u32,
-                                self.cursor as u32 + 1,
+                                (self.cursor + 1 - self.token_start) as u32,
                             ),
                         });
                     }
@@ -1032,7 +902,7 @@ impl Session {
                         spans: Span::range(
                             self.file,
                             self.token_start as u32,
-                            (self.token_start + quote_count) as u32,
+                            quote_count as u32,
                         ).simple_error(),
                         note: None,
                     });
@@ -1059,7 +929,7 @@ impl Session {
                         span: Span::range(
                             self.file,
                             self.fstring_cursor as u32,
-                            self.cursor as u32,
+                            (self.cursor - self.fstring_cursor) as u32,
                         ),
                     });
                     self.lex_formatted_string()?;
@@ -1068,11 +938,7 @@ impl Session {
                 (Some(b'}'), _, _, _) if format => {
                     return Err(Error {
                         kind: ErrorKind::UnmatchedBraceInFormattedString,
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 1,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                         note: None,
                     });
                 },
@@ -1096,11 +962,7 @@ impl Session {
                 (Some(b'\\'), Some(_), _, _) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidEscape,
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32 + 1,
-                            self.cursor as u32 + 2,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32 + 1, 1).simple_error(),
                         note: None,
                     });
                 },
@@ -1113,7 +975,7 @@ impl Session {
                             span: Span::range(
                                 self.file,
                                 self.fstring_cursor as u32,
-                                self.cursor as u32,
+                                (self.cursor - self.fstring_cursor) as u32,
                             ),
                         });
                         self.tokens.push(Token {
@@ -1129,7 +991,7 @@ impl Session {
                             span: Span::range(
                                 self.file,
                                 self.token_start as u32,
-                                self.cursor as u32,
+                                (self.cursor - self.token_start) as u32,
                             ),
                         });
                     }
@@ -1145,7 +1007,7 @@ impl Session {
                             span: Span::range(
                                 self.file,
                                 self.token_start as u32,
-                                self.cursor as u32 + 1,
+                                (self.cursor + 1 - self.token_start) as u32,
                             ),
                         });
                     }
@@ -1180,11 +1042,7 @@ impl Session {
                 (Some(_), _, _, _) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidUtf8,
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 1,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                         note: None,
                     });
                 },
@@ -1194,7 +1052,7 @@ impl Session {
                         spans: Span::range(
                             self.file,
                             self.token_start as u32,
-                            (self.token_start + quote_count) as u32,
+                            quote_count as u32,
                         ).simple_error(),
                         note: None,
                     });
@@ -1229,7 +1087,7 @@ impl Session {
                             span: Span::range(
                                 self.file,
                                 self.token_start as u32,
-                                self.cursor as u32 + 3,
+                                (self.cursor + 3 - self.token_start) as u32,
                             ),
                         });
                     }
@@ -1240,7 +1098,7 @@ impl Session {
                             span: Span::range(
                                 self.file,
                                 self.token_start as u32,
-                                self.cursor as u32 + 3,
+                                (self.cursor + 3 - self.token_start) as u32,
                             ),
                         });
                     }
@@ -1271,7 +1129,7 @@ impl Session {
                                 span: Span::range(
                                     self.file,
                                     self.token_start as u32,
-                                    self.cursor as u32 + 5,
+                                    (self.cursor + 5 - self.token_start) as u32,
                                 ),
                             });
                         }
@@ -1282,7 +1140,7 @@ impl Session {
                                 spans: Span::range(
                                     self.file,
                                     self.token_start as u32,
-                                    self.cursor as u32 + 5,
+                                    (self.cursor + 5 - self.token_start) as u32,
                                 ).simple_error(),
                                 note: Some(format!("A byte char literal must be an ascii char. Perhaps you mean `#{}`?", n1 * 16 + n2)),
                             });
@@ -1295,7 +1153,7 @@ impl Session {
                             span: Span::range(
                                 self.file,
                                 self.token_start as u32,
-                                self.cursor as u32 + 5,
+                                (self.cursor + 5 - self.token_start) as u32,
                             ),
                         });
                     }
@@ -1326,11 +1184,7 @@ impl Session {
                                 if n > 0x10ffff {
                                     return Err(Error {
                                         kind: ErrorKind::InvalidUnicodeCharacter,
-                                        spans: Span::range(
-                                            self.file,
-                                            escape_start as u32,
-                                            escape_start as u32 + 1,
-                                        ).simple_error(),
+                                        spans: Span::range(self.file, escape_start as u32, 1).simple_error(),
                                         note: None,
                                     });
                                 }
@@ -1342,22 +1196,14 @@ impl Session {
                             Some(_) => {
                                 return Err(Error {
                                     kind: ErrorKind::InvalidUnicodeEscape,
-                                    spans: Span::range(
-                                        self.file,
-                                        self.cursor as u32,
-                                        self.cursor as u32 + 1,
-                                    ).simple_error(),
+                                    spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                                     note: None,
                                 });
                             },
                             None => {
                                 return Err(Error {
                                     kind: ErrorKind::UnclosedDelimiter(b'}'),
-                                    spans: Span::range(
-                                        self.file,
-                                        delimiter_start as u32,
-                                        delimiter_start as u32 + 1,
-                                    ).simple_error(),
+                                    spans: Span::range(self.file, delimiter_start as u32, 1).simple_error(),
                                     note: None,
                                 });
                             },
@@ -1381,7 +1227,7 @@ impl Session {
                                 span: Span::range(
                                     self.file,
                                     self.token_start as u32,
-                                    self.cursor as u32,
+                                    (self.cursor - self.token_start) as u32,
                                 ),
                             });
                         }
@@ -1398,7 +1244,7 @@ impl Session {
                                 spans: Span::range(
                                     self.file,
                                     self.token_start as u32,
-                                    self.cursor as u32,
+                                    (self.cursor - self.token_start) as u32,
                                 ).simple_error(),
                                 note: Some(error_note),
                             });
@@ -1411,7 +1257,7 @@ impl Session {
                             span: Span::range(
                                 self.file,
                                 self.token_start as u32,
-                                self.cursor as u32,
+                                (self.cursor - self.token_start) as u32,
                             ),
                         });
                     }
@@ -1419,22 +1265,14 @@ impl Session {
                 (Some(b'\\'), Some(_), _, _, _) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidEscape,
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32 + 1,
-                            self.cursor as u32 + 2,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32 + 1, 1).simple_error(),
                         note: None,
                     });
                 },
                 (Some(b'\r' | b'\n' | b'\t' | b'\''), _, _, _, _) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidCharLiteral,
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 1,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                         note: None,
                     });
                 },
@@ -1477,7 +1315,7 @@ impl Session {
                                         span: Span::range(
                                             self.file,
                                             self.token_start as u32,
-                                            (self.cursor + l) as u32 + 1,
+                                            (self.cursor + l + 1 - self.token_start) as u32,
                                         ),
                                     });
                                 }
@@ -1494,7 +1332,7 @@ impl Session {
                                         spans: Span::range(
                                             self.file,
                                             self.token_start as u32,
-                                            (self.cursor + l) as u32 + 1,
+                                            (self.cursor + l + 1 - self.token_start) as u32,
                                         ).simple_error(),
                                         note: Some(error_note),
                                     });
@@ -1507,7 +1345,7 @@ impl Session {
                                     span: Span::range(
                                         self.file,
                                         self.token_start as u32,
-                                        (self.cursor + l) as u32 + 1,
+                                        (self.cursor + l + 1 - self.token_start) as u32,
                                     ),
                                 });
                             }
@@ -1518,12 +1356,10 @@ impl Session {
                         None => {
                             return Err(Error {
                                 kind: ErrorKind::InvalidUnicodeCharacter,
+
                                 // It points to the quote character because it doesn't know which byte is erroneous.
-                                spans: Span::range(
-                                    self.file,
-                                    self.cursor as u32,
-                                    self.cursor as u32 + 1,
-                                ).simple_error(),
+                                spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
+
                                 note: None,
                             });
                         },
@@ -1533,11 +1369,7 @@ impl Session {
                 (Some(128..), _, _, _, _) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidUtf8,
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 1,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                         note: None,
                     });
                 },
@@ -1545,22 +1377,14 @@ impl Session {
                 (Some(_), _, _, _, _) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidCharLiteral,
-                        spans: Span::range(
-                            self.file,
-                            self.token_start as u32,
-                            self.token_start as u32 + 1,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.token_start as u32, 1).simple_error(),
                         note: None,
                     });
                 },
                 (None, _, _, _, _) => {
                     return Err(Error {
                         kind: ErrorKind::UnterminatedCharLiteral,
-                        spans: Span::range(
-                            self.file,
-                            self.token_start as u32,
-                            self.token_start as u32 + 1,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.token_start as u32, 1).simple_error(),
                         note: None,
                     });
                 },
@@ -1596,11 +1420,7 @@ impl Session {
                 (Some(128..), _, _, _) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidUtf8,
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 1,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                         note: None,
                     });
                 },
@@ -1628,7 +1448,7 @@ impl Session {
                                 spans: Span::range(
                                     self.file,
                                     self.token_start as u32,
-                                    self.cursor as u32,
+                                    (self.cursor - self.token_start) as u32,
                                 ).simple_error(),
                                 note: None,
                             });
@@ -1651,11 +1471,8 @@ impl Session {
                                             kind: ErrorKind::InvalidCharacterInIdent(ch),
 
                                             // It'd be lovely to calc the exact span of the character, but I'm too lazy to do that.
-                                            spans: Span::range(
-                                                self.file,
-                                                self.token_start as u32,
-                                                self.token_start as u32 + 1,
-                                            ).simple_error(),
+                                            spans: Span::range(self.file, self.token_start as u32, 1).simple_error(),
+
                                             note: None,
                                         });
                                     },
@@ -1672,7 +1489,7 @@ impl Session {
                         span: Span::range(
                             self.file,
                             self.token_start as u32,
-                            self.cursor as u32,
+                            (self.cursor - self.token_start) as u32,
                         ),
                     });
                     self.state = LexState::Init;
@@ -1693,13 +1510,13 @@ impl Session {
                             field_span: Span::range(
                                 self.file,
                                 self.token_start as u32 + 1,
-                                self.cursor as u32,
+                                (self.cursor - self.token_start - 1) as u32,
                             ),
                         },
                         span: Span::range(
                             self.file,
                             self.token_start as u32,
-                            self.cursor as u32,
+                            (self.cursor - self.token_start) as u32,
                         ),
                     });
                     self.state = LexState::Init;
@@ -1722,11 +1539,7 @@ impl Session {
                     if !base.is_valid_digit(*x) {
                         return Err(Error {
                             kind: ErrorKind::InvalidNumberLiteral,
-                            spans: Span::range(
-                                self.file,
-                                self.cursor as u32,
-                                self.cursor as u32 + 1,
-                            ).simple_error(),
+                            spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                             note: Some(base.invalid_digit_error_message(*x)),
                         });
                     }
@@ -1737,16 +1550,13 @@ impl Session {
                 (Some(b'_'), _, _) => {
                     self.cursor += 1;
                 },
+
                 // perhaps the user intends decimal point (the first dot) + range (2nd and 3rd dots),
                 // but it's an ambiguous syntax, so we just reject this
                 (Some(b'.'), Some(b'.'), Some(b'.')) => {
                     return Err(Error {
                         kind: ErrorKind::DotDotDot,
-                        spans: Span::range(
-                            self.file,
-                            self.cursor as u32,
-                            self.cursor as u32 + 3,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.cursor as u32, 3).simple_error(),
                         note: None,
                     });
                 },
@@ -1767,7 +1577,7 @@ impl Session {
                         span: Span::range(
                             self.file,
                             self.token_start as u32,
-                            self.cursor as u32,
+                            (self.cursor - self.token_start) as u32,
                         ),
                     });
                     self.state = LexState::Init;
@@ -1781,11 +1591,7 @@ impl Session {
                     Base::Hexadecimal | Base::Octal | Base::Binary => {
                         return Err(Error {
                             kind: ErrorKind::InvalidNumberLiteral,
-                            spans: Span::range(
-                                self.file,
-                                self.cursor as u32,
-                                self.cursor as u32 + 1,
-                            ).simple_error(),
+                            spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                             note: None,
                         });
                     },
@@ -1805,7 +1611,7 @@ impl Session {
                         span: Span::range(
                             self.file,
                             self.token_start as u32,
-                            self.cursor as u32,
+                            (self.cursor - self.token_start) as u32,
                         ),
                     });
                     self.state = LexState::Init;
@@ -1839,7 +1645,7 @@ impl Session {
                         span: Span::range(
                             self.file,
                             self.token_start as u32,
-                            self.cursor as u32,
+                            (self.cursor - self.token_start) as u32,
                         ),
                     });
                     self.state = LexState::Init;
@@ -1901,7 +1707,7 @@ impl Session {
                     span: Span::range(
                         self.file,
                         self.token_start as u32,
-                        self.cursor as u32,
+                        (self.cursor - self.token_start) as u32,
                     ),
                 });
                 self.state = LexState::Init;
@@ -1930,7 +1736,7 @@ impl Session {
                         span: Span::range(
                             self.file,
                             self.token_start as u32,
-                            self.cursor as u32,
+                            (self.cursor - self.token_start) as u32,
                         ),
                     });
                     self.state = LexState::Init;
@@ -1954,11 +1760,8 @@ impl Session {
                         kind: ErrorKind::UnterminatedBlockComment,
 
                         // opening of the block comment
-                        spans: Span::range(
-                            self.file,
-                            self.token_start as u32,
-                            self.token_start as u32 + 2,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.token_start as u32, 2).simple_error(),
+
                         note: None,
                     });
                 },
@@ -1977,11 +1780,7 @@ impl Session {
                 Some(x @ (b'{' | b'\\' | b'"')) => {
                     return Err(Error {
                         kind: ErrorKind::NotAllowedCharInFormattedString(*x),
-                        spans: Span::range(
-                            self.file,
-                            i as u32,
-                            i as u32 + 1,
-                        ).simple_error(),
+                        spans: Span::range(self.file, i as u32, 1).simple_error(),
                         note: None,
                     });
                 },
@@ -1996,11 +1795,7 @@ impl Session {
                 None => {
                     return Err(Error {
                         kind: ErrorKind::UnterminatedStringLiteral,
-                        spans: Span::range(
-                            self.file,
-                            self.token_start as u32,
-                            self.token_start as u32 + 1,
-                        ).simple_error(),
+                        spans: Span::range(self.file, self.token_start as u32, 1).simple_error(),
                         note: None,
                     });
                 },
@@ -2026,7 +1821,7 @@ impl Session {
                 spans: Span::range(
                     self.file,
                     self.cursor as u32,
-                    value_end as u32 + 1,
+                    (value_end + 1 - self.cursor) as u32,
                 ).simple_error(),
                 note: None,
             });
@@ -2037,7 +1832,7 @@ impl Session {
             span: Span::range(
                 self.file,
                 self.cursor as u32,
-                value_end as u32,
+                (value_end + 1 - self.cursor) as u32,
             ),
         });
 
