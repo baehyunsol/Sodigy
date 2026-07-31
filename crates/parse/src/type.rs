@@ -317,11 +317,25 @@ impl<'t, 's> Tokens<'t, 's> {
                             }]);
                         }
 
-                        let r#type = Box::new(r#type[0].clone());
-                        Ok(Type::List {
-                            r#type,
-                            group_span,
-                        })
+                        match r#type.get(0) {
+                            Some(r#type) => {
+                                let r#type = Box::new(r#type.clone());
+                                Ok(Type::List {
+                                    r#type,
+                                    group_span,
+                                })
+                            },
+                            None => {
+                                Err(vec![Error {
+                                    kind: ErrorKind::WrongNumberOfGenericArgs {
+                                        expected: 1,
+                                        got: 0,
+                                    },
+                                    spans: group_span.simple_error(),
+                                    note: Some(String::from("Please specify the type of the elements of the list. If you don't want to specify, write `[_]`.")),
+                                }])
+                            },
+                        }
                     },
                     d => Err(vec![Error {
                         kind: ErrorKind::UnexpectedToken {

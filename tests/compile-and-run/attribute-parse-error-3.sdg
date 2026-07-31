@@ -1,2 +1,4 @@
+//% compile-error == 1
+
 #[assert_type(Fn())]
 fn foo() = 100;
