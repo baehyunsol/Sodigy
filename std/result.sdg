@@ -11,6 +11,18 @@ fn unwrap<T, E>(self) -> T = match self {
     Result.Error($e) => std.panic(f"attempt to unwrap {e}"),
 };
 
+#[associate(Result<T, E>)]
+fn is_ok<T, E>(self) -> Bool = match self {
+    Result.Ok(_) => True,
+    Result.Error(_) => False,
+};
+
+#[associate(Result<T, E>)]
+fn is_error<T, E>(self) -> Bool = match self {
+    Result.Ok(_) => False,
+    Result.Error(_) => True,
+};
+
 #[impl(std.op.eq)]
 fn eq_result<T, E>(a: Result<T, E>, b: Result<T, E>) -> Bool = match (a, b) {
     (Result.Ok($a), Result.Ok($b)) => a == b,

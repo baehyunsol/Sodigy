@@ -1,11 +1,22 @@
 use std.bool.Bool;
+use std.byte.Byte;
+use std.convert.ConversionError;
 use std.int.Int;
+use std.result.{Result, Result.{Error, Ok}};
 
 // TODO: It has to be private and used only inside std.
 //       It has to be impossible in user code to generate this value.
 #[built_in]
 #[lang_item("type.Scalar")]
 struct Scalar;
+
+#[built_in]
+#[lang_item("built_in.bit_and_scalar")]
+fn bit_and_scalar(a: Scalar, b: Scalar) -> Scalar;
+
+#[built_in]
+#[lang_item("built_in.bit_or_scalar")]
+fn bit_or_scalar(a: Scalar, b: Scalar) -> Scalar;
 
 #[built_in]
 #[lang_item("built_in.lt_scalar")]
@@ -28,9 +39,18 @@ fn neq_scalar(a: Scalar, b: Scalar) -> Bool = !eq_scalar(a, b);
 #[lang_item("fn.geq_scalar")]
 fn geq_scalar(a: Scalar, b: Scalar) -> Bool = !lt_scalar(a, b);
 
-#[impl(std.convert.convert)]
 fn scalar_to_int(s: Scalar) -> Int = scalar_to_int_built_in(s);
 
 #[built_in]
+#[impl(std.convert.convert)]
 #[lang_item("built_in.scalar_to_int")]
 fn scalar_to_int_built_in(s: Scalar) -> Int;
+
+// TODO: I want to pattern-match a scalar, but there's no way to do so.
+//       So I'm converting the scalar to an integer for pattern-matching,
+//       which is very inefficient.
+#[impl(std.convert.try_convert)]
+fn scalar_to_byte(s: Scalar) -> Result<Byte, ConversionError<Scalar, Byte>> = match s as <Int> {
+    0..=255 => Ok(std.transmute(s)),
+    _ => Error(ConversionError { value: s }),
+};

@@ -1,5 +1,9 @@
 use std.result.Result;
 
+struct ConversionError<From, To> = {
+    value: From,
+};
+
 #[poly]
 #[lang_item("fn.convert")]
 #[lang_item_generics("fn.convert.generic.0", "fn.convert.generic.1")]

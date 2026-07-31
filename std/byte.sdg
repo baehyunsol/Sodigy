@@ -1,12 +1,31 @@
 use std.bool.Bool;
+use std.char.Char;
+use std.convert.ConversionError;
+use std.int.Int;
+use std.result.{Result, Result.{Error, Ok}};
 use std.scalar.Scalar;
 
 #[built_in]
 #[lang_item("type.Byte")]
 pub enum Byte;
 
+#[impl(std.op.bit_and)]
+fn bit_and_byte(a: Byte, b: Byte) -> Byte = std.scalar.bit_and_scalar(a as <Scalar>, b as <Scalar>) as! <Byte>;
+
+#[impl(std.op.bit_or)]
+fn bit_or_byte(a: Byte, b: Byte) -> Byte = std.scalar.bit_or_scalar(a as <Scalar>, b as <Scalar>) as! <Byte>;
+
 #[impl(std.op.eq)]
 fn eq_byte(a: Byte, b: Byte) -> Bool = std.scalar.eq_scalar(a as <Scalar>, b as <Scalar>);
 
 #[impl(std.convert.convert)]
 fn byte_to_scalar(b: Byte) -> Scalar = std.transmute(b);
+
+#[impl(std.convert.try_convert)]
+fn byte_to_char(b: Byte) -> Result<Char, ConversionError<Byte, Char>> = match b {
+    #0..=#127 => Ok(std.transmute(b)),
+    _ => Error(ConversionError { value: b }),
+};
+
+#[impl(std.convert.convert)]
+fn byte_to_int(b: Byte) -> Int = (b as <Scalar>) as <Int>;

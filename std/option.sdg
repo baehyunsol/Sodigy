@@ -11,6 +11,18 @@ fn unwrap<T>(self) -> T = match self {
     Option.None => std.panic("attempt to unwrap None"),
 };
 
+#[associate(Option<T, E>)]
+fn is_some<T, E>(self) -> Bool = match self {
+    Option.Some(_) => True,
+    Option.None => False,
+};
+
+#[associate(Option<T, E>)]
+fn is_none<T, E>(self) -> Bool = match self {
+    Option.Some(_) => False,
+    Option.None => True,
+};
+
 #[impl(std.op.eq)]
 fn eq_option<T>(a: Option<T>, b: Option<T>) -> Bool = match (a, b) {
     (Option.Some($a), Option.Some($b)) => a == b,
