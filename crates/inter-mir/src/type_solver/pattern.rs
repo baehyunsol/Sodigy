@@ -173,6 +173,8 @@ impl Session {
                     }
 
                     if let Some(struct_shape) = self.struct_shapes.get(&struct_def_span) {
+                        let mut missing_fields = vec![];
+
                         for field in struct_shape.fields.clone().iter() {
                             match field_types.get(&field.name) {
                                 Some((pattern_span, infered_type)) => {
@@ -204,8 +206,20 @@ impl Session {
                                     }
                                 },
                                 None if rest.is_some() => {},
-                                None => todo!(),  // error
+                                None => {
+                                    missing_fields.push(field.name);
+                                },
                             }
+                        }
+
+                        if !missing_fields.is_empty() {
+                            has_error = true;
+                            self.type_errors.push(TypeError::MissingStructFields {
+                                span: r#struct.id.span.clone(),
+                                struct_name: r#struct.id.id,
+                                is_enum_variant: false,  // TODO: there's no way to check this...
+                                missing_fields,
+                            });
                         }
                     }
 

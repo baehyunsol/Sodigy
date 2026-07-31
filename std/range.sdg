@@ -19,7 +19,7 @@ fn map<T, U>(self, f: Fn(T) -> U) -> [U] = match self {
     Range { start: None, .. } | Range { end: None, .. } => std.panic("infinite map"),
 
     Range { start: Some($start), start_inclusive: True, end: Some($end), $step, .. } if start < end => [f(start)] ++ (self `start Some(start + step)).map(f),
-    _ => std.panic("TODO"),
+    _ => std.panic("TODO: map range"),
 };
 
 #[impl(std.convert.convert)]
@@ -28,8 +28,8 @@ fn to_list<T>(self) -> [T] = match self {
     // TODO: maybe we can implement a Haskell-ish lazy evaluation?
     Range { start: None, .. } | Range { end: None, .. } => std.panic("infinite list"),
 
-    Range { start: Some($start), start_inclusive: True, end: Some($end), $step, .. } if start < end => [start] ++ (self `start Some(start + step)).list(),
-    _ => std.panic("TODO"),
+    Range { start: Some($start), start_inclusive: True, end: Some($end), $step, .. } if start < end => [start] ++ (self `start Some(start + step)).to_list(),
+    _ => std.panic("TODO: range to list"),
 };
 
 #[impl(std.op.index)]
@@ -40,18 +40,18 @@ fn as_index<T>(ls: [T], i: Range<Int>) -> [T] = match i {
         let start = i + !start_inclusive as <Int>;
 
         if start < ls.len() {
-            slice_right_list(ls, start as <Scalar>)
+            slice_right_list(ls, start as! <Scalar>)
         }
 
         else {
             []
         }
     },
-    _ => std.panic("TODO"),
+    _ => std.panic("TODO: range as index"),
 };
 
 #[impl(std.op.index)]
 fn index<T>(r: Range<T>, i: Int) -> T = match (r, i) {
-    (Range { start: Some($start), end: None, $step }, 0..) => start + i * step,
-    _ => std.panic("TODO"),
+    (Range { start: Some($start), end: None, $step, .. }, 0..) => start + i * step,
+    _ => std.panic("TODO: index range"),
 };

@@ -15,6 +15,9 @@ impl Session {
                 assert!(matches!(&p.dotfish[..], [None]));
                 self.monomorphize_id(&mut p.id, monomorphization);
             },
+            PatternKind::Constant(c) => {
+                *c = c.monomorphize(monomorphization.id);
+            },
             PatternKind::NameBinding { span, .. } => {
                 *span = span.monomorphize(monomorphization.id);
             },
@@ -66,6 +69,17 @@ impl Session {
                 }
 
                 *group_span = group_span.monomorphize(monomorphization.id);
+            },
+            PatternKind::Range { lhs, rhs, op_span, .. } => {
+                if let Some(lhs) = lhs {
+                    self.monomorphize_pattern(lhs, monomorphization);
+                }
+
+                if let Some(rhs) = rhs {
+                    self.monomorphize_pattern(rhs, monomorphization);
+                }
+
+                *op_span = op_span.monomorphize(monomorphization.id);
             },
             PatternKind::Or { lhs, rhs, op_span } => {
                 self.monomorphize_pattern(lhs, monomorphization);

@@ -57,7 +57,7 @@ fn check_isqrt(n: Int) -> Bool = {
     s * s <= n && n < (s + 1) * (s + 1)
 };
 
-fn assert_isqrt_multi(ns: [Int]) = match ns.find(\(n) => !check_isqrt(n)) {
+fn assert_isqrt_multi(ns: [Int]) = match ns.find(\n => !check_isqrt(n)) {
     Some($w) => std.panic(f"isqrt({w}) is wrong!! (got {isqrt(w)})"),
     None => True,
 };

@@ -148,6 +148,12 @@ pub enum TypeError {
         poly_def: Span,
         candidates: Vec<Span>,
     },
+    MissingStructFields {
+        span: Span,
+        struct_name: InternedString,
+        is_enum_variant: bool,
+        missing_fields: Vec<InternedString>,
+    },
     ImpureCallInPureContext {
         call_spans: Vec<Span>,
         keyword_span: Span,
@@ -820,6 +826,19 @@ impl Session {
                     spans,
                     note: None,
                 }
+            },
+            TypeError::MissingStructFields { span, struct_name, is_enum_variant, missing_fields } => Error {
+                kind: ErrorKind::MissingStructFields {
+                    struct_name,
+                    is_enum_variant,
+                    missing_fields,
+                },
+                spans: vec![RenderableSpan {
+                    span,
+                    auxiliary: false,
+                    note: None,
+                }],
+                note: None,
             },
             TypeError::ImpureCallInPureContext { call_spans, keyword_span, context } => {
                 let mut spans = vec![];
