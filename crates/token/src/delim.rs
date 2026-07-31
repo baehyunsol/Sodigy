@@ -9,14 +9,29 @@ pub enum Delim {
 }
 
 impl Delim {
-    pub fn markers(&self) -> (&'static str, &'static str) {
+    pub fn open(&self) -> &'static str {
         match self {
-            Delim::Parenthesis => ("(", ")"),
-            Delim::Bracket => ("[", "]"),
-            Delim::Brace => ("{", "}"),
-            Delim::Lambda => ("\\(", ")"),
-            Delim::Decorator => ("#[", "]"),
-            Delim::ModuleDecorator => ("#![", "]"),
+            Delim::Parenthesis => "(",
+            Delim::Bracket => "[",
+            Delim::Brace => "{",
+            Delim::Lambda => "\\(",
+            Delim::Decorator => "#[",
+            Delim::ModuleDecorator => "#![",
         }
+    }
+
+    pub fn close(&self) -> &'static str {
+        match self {
+            Delim::Parenthesis => ")",
+            Delim::Bracket => "]",
+            Delim::Brace => "}",
+            Delim::Lambda => ")",
+            Delim::Decorator => "]",
+            Delim::ModuleDecorator => "]",
+        }
+    }
+
+    pub fn markers(&self) -> (&'static str, &'static str) {
+        (self.open(), self.close())
     }
 }

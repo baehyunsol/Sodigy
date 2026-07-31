@@ -152,7 +152,14 @@ fn validate_spans_worker(
             TokenKind::Punct(p) => {
                 assert_eq!(span_code, p.render_error().as_bytes());
             },
-            TokenKind::GroupDelim { .. } => unreachable!(),
+            TokenKind::GroupDelim { delim, .. } => match delim {
+                Some(d) => {
+                    assert_eq!(span_code, d.open().as_bytes());
+                },
+                None => {
+                    assert!(matches!(span_code, b"]" | b"}" | b")"));
+                },
+            },
             TokenKind::Group { delim, tokens } => {
                 let (open, close) = delim.markers();
                 assert!(span_code.starts_with(open.as_bytes()));
