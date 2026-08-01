@@ -179,7 +179,7 @@ let x = "3";
 assert x as? <Int> == Ok(3);
 ```
 
-Let's say types A and B implements `try_convert` but not `convert` (e.g. `String` to `Int`). In many cases, you already did the safety check and you can just unwrap the result. Instead of writing `(value as? <type>).unwrap()`, you can use `as!` operator. `x as! <T>` is a shorthand for `(x as! <T>).unwrap()`.
+Let's say types A and B implements `try_convert` but not `convert` (e.g. `String` to `Int`). In many cases, you already did the safety check and you can just unwrap the result. Instead of writing `(value as? <type>).unwrap()`, you can use `as!` operator. `x as! <T>` is a shorthand for `(x as? <T>).unwrap()`.
 
 ```sodigy
 let x = "3";
@@ -201,7 +201,7 @@ assert three() == 3;
 fn three() = 3;
 ```
 
-In sodigy, type annotations are always optional. Adding a type annotation might make your code more readable. Use `->` to state the return type of the function.
+In sodigy, type annotations are (almost) always optional. Adding a type annotation might make your code more readable. Use `->` to state the return type of the function.
 
 ```sodigy
 fn add(x: Int, y: Int) -> Int = x + y;
@@ -356,7 +356,7 @@ assert to_string(100) == "very large number";
 fn greet(name: String) -> String = match name {
     "Bae" => "Hi, Bae",
 
-    // There's a dollar-sign (`$`) for a name binding.
+    // You have to use a dollar-sign (`$`) for a name binding.
     $name @ ("John" | "Jane") => f"Good to see you, {name}",
     $other => f"Hello, {other}",
 };
@@ -427,7 +427,7 @@ Since `greet` has type `Fn(T) -> String`, all its impls must return `String`. Th
 
 For example, below does not compile because `first` expects the return type and the first argument's type to be the same, but `first_int` takes `(Int, String)` as inputs and returns `String`.
 
-```sodigy, assert_compile_error
+```sodigy, compile_error
 #[poly]
 fn first<T, U>(x: T, y: U) -> T;
 
@@ -435,9 +435,62 @@ fn first<T, U>(x: T, y: U) -> T;
 fn first_int(x: Int, y: String) -> String = y;
 ```
 
+## Associated functions
+
 ## Tests
 
-TODO: documentation
+You can use `assert` keyword to make assertions. When you run `sodigy test`, it'll run all the top-level assertions in the source code.
+
+```sodigy
+let x = 3;
+let y = 4;
+
+// Run `sodigy test` to run this assertion.
+assert x + y == 7;
+```
+
+If `assert` is inside a block, the assertion is run whenever the block is evaluated.
+
+```sodigy
+// Everytime you call `foo`, it'll check if `x` is greater than 0.
+fn foo(x) = {
+    assert x > 0;
+    x + 1
+};
+```
+
+You can add a name and a note to an assertion using `#[name]` and `#[note]` decorator.
+
+`#[name]` is evaluated at compile time, so it must be a string literal. `#[note]` is evaluated at runtime, so it can be any string expression.
+
+```sodigy, run_error
+fn foo(x) = {
+    #[name("foo-x-greater-than-0")]
+    #[note(f"expected `x` to be greater than 0, but `x` is {x}.")]
+    assert x > 0;
+
+    x + 1
+};
+
+assert foo(-1) == 0;
+```
+
+By default, assertions are run only in the test mode (`sodigy test`). If you build the program (`sodigy run` or `sodigy build`), the assertions are all gone.
+
+If there's an important assertion that has to be run in production, use `#[always]` decorator.
+
+```sodigy, compile_error
+fn foo(x, y) = {
+    // This will run only in the test mode.
+    assert less_important_check(x, y);
+
+    // This will always run, even in production.
+    #[always]
+    assert very_important_check(x, y);
+
+    x + y
+};
+```
 
 ## Decorators
 
