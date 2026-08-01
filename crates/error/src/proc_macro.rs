@@ -35,15 +35,17 @@
     { name: InternedString, kind: NameCollisionKind }, CyclicLet
     { names: Vec<InternedString> }, CyclicAlias
     { names: Vec<InternedString> }, DollarOutsidePipeline,
-    DisconnectedPipeline, UndefinedName(InternedString),
-    EnumVariantInTypeAnnot, KeywordArgRepeated(InternedString),
-    KeywordArgNotAllowed, AliasResolveRecursionLimitReached,
-    MissingTypeParameter { expected: usize, got: usize },
-    UnexpectedTypeParameter { expected: usize, got: usize },
-    MissingKeywordArg(InternedString), InvalidKeywordArg(InternedString),
-    MissingFunctionParameter { expected: usize, got: usize },
-    UnexpectedFunctionParameter { expected: usize, got: usize },
-    StructFieldRepeated(InternedString), MissingStructFields
+    DisconnectedPipeline, GenericFuncWithoutTypeAnnot,
+    GenericStructWithoutTypeAnnot, GenericEnumVariantWithoutTypeAnnot,
+    UndefinedName(InternedString), EnumVariantInTypeAnnot,
+    KeywordArgRepeated(InternedString), KeywordArgNotAllowed,
+    AliasResolveRecursionLimitReached, MissingTypeParameter
+    { expected: usize, got: usize }, UnexpectedTypeParameter
+    { expected: usize, got: usize }, MissingKeywordArg(InternedString),
+    InvalidKeywordArg(InternedString), MissingFunctionParameter
+    { expected: usize, got: usize }, UnexpectedFunctionParameter
+    { expected: usize, got: usize }, StructFieldRepeated(InternedString),
+    MissingStructFields
     {
         struct_name: InternedString, is_enum_variant: bool, missing_fields:
         Vec<InternedString>
@@ -82,8 +84,9 @@
     MultiplePolyCandidates(usize), UnusedNames
     { names: Vec<InternedString>, kind: NameKind }, UnreachableMatchArm,
     UnreachableOrPattern, NoImpureCallInImpureContext, FuncWithoutTypeAnnot,
-    LetWithoutTypeAnnot, FieldWithoutTypeAnnot, SelfParamNotNamedSelf, Todo
-    { id: u32, message: String }, InternalCompilerError { id: u32 },
+    LetWithoutTypeAnnot, StructWithoutTypeAnnot, EnumVariantWithoutTypeAnnot,
+    SelfParamNotNamedSelf, Todo { id: u32, message: String },
+    InternalCompilerError { id: u32 },
 } impl ErrorKind {
     pub fn index(& self) -> u16
     {
@@ -149,10 +152,12 @@
             NameCollision { .. } => 305u16, ErrorKind :: CyclicLet { .. } =>
             310u16, ErrorKind :: CyclicAlias { .. } => 315u16, ErrorKind ::
             DollarOutsidePipeline => 320u16, ErrorKind :: DisconnectedPipeline
-            => 325u16, ErrorKind :: UndefinedName(_,) => 330u16, ErrorKind ::
-            EnumVariantInTypeAnnot => 335u16, ErrorKind ::
-            KeywordArgRepeated(_,) => 340u16, ErrorKind ::
-            KeywordArgNotAllowed => 345u16, ErrorKind ::
+            => 325u16, ErrorKind :: GenericFuncWithoutTypeAnnot => 326u16,
+            ErrorKind :: GenericStructWithoutTypeAnnot => 327u16, ErrorKind ::
+            GenericEnumVariantWithoutTypeAnnot => 328u16, ErrorKind ::
+            UndefinedName(_,) => 330u16, ErrorKind :: EnumVariantInTypeAnnot
+            => 335u16, ErrorKind :: KeywordArgRepeated(_,) => 340u16,
+            ErrorKind :: KeywordArgNotAllowed => 345u16, ErrorKind ::
             AliasResolveRecursionLimitReached => 350u16, ErrorKind ::
             MissingTypeParameter { .. } => 355u16, ErrorKind ::
             UnexpectedTypeParameter { .. } => 360u16, ErrorKind ::
@@ -196,10 +201,10 @@
             ErrorKind :: UnreachableOrPattern => 5006u16, ErrorKind ::
             NoImpureCallInImpureContext => 5010u16, ErrorKind ::
             FuncWithoutTypeAnnot => 8000u16, ErrorKind :: LetWithoutTypeAnnot
-            => 8005u16, ErrorKind :: FieldWithoutTypeAnnot => 8010u16,
-            ErrorKind :: SelfParamNotNamedSelf => 8015u16, ErrorKind :: Todo
-            { .. } => 9998u16, ErrorKind :: InternalCompilerError { .. } =>
-            9999u16,
+            => 8005u16, ErrorKind :: StructWithoutTypeAnnot => 8010u16,
+            ErrorKind :: EnumVariantWithoutTypeAnnot => 8011u16, ErrorKind ::
+            SelfParamNotNamedSelf => 8015u16, ErrorKind :: Todo { .. } =>
+            9998u16, ErrorKind :: InternalCompilerError { .. } => 9999u16,
         }
     }
 } impl ErrorLevel {
@@ -283,8 +288,11 @@
             ErrorKind :: CyclicAlias { .. } => ErrorLevel :: Error, ErrorKind
             :: DollarOutsidePipeline => ErrorLevel :: Error, ErrorKind ::
             DisconnectedPipeline => ErrorLevel :: Error, ErrorKind ::
-            UndefinedName(_,) => ErrorLevel :: Error, ErrorKind ::
-            EnumVariantInTypeAnnot => ErrorLevel :: Error, ErrorKind ::
+            GenericFuncWithoutTypeAnnot => ErrorLevel :: Error, ErrorKind ::
+            GenericStructWithoutTypeAnnot => ErrorLevel :: Error, ErrorKind ::
+            GenericEnumVariantWithoutTypeAnnot => ErrorLevel :: Error,
+            ErrorKind :: UndefinedName(_,) => ErrorLevel :: Error, ErrorKind
+            :: EnumVariantInTypeAnnot => ErrorLevel :: Error, ErrorKind ::
             KeywordArgRepeated(_,) => ErrorLevel :: Error, ErrorKind ::
             KeywordArgNotAllowed => ErrorLevel :: Error, ErrorKind ::
             AliasResolveRecursionLimitReached => ErrorLevel :: Error,
@@ -338,7 +346,8 @@
             Warning, ErrorKind :: NoImpureCallInImpureContext => ErrorLevel ::
             Warning, ErrorKind :: FuncWithoutTypeAnnot => ErrorLevel :: Lint,
             ErrorKind :: LetWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind
-            :: FieldWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
+            :: StructWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
+            EnumVariantWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
             SelfParamNotNamedSelf => ErrorLevel :: Lint, ErrorKind :: Todo
             { .. } => ErrorLevel :: Error, ErrorKind :: InternalCompilerError
             { .. } => ErrorLevel :: Error,
@@ -507,7 +516,13 @@
             }, ErrorKind :: DollarOutsidePipeline =>
             { buffer.push(1u8); buffer.push(64u8); }, ErrorKind ::
             DisconnectedPipeline => { buffer.push(1u8); buffer.push(69u8); },
-            ErrorKind :: UndefinedName(t0,) =>
+            ErrorKind :: GenericFuncWithoutTypeAnnot =>
+            { buffer.push(1u8); buffer.push(70u8); }, ErrorKind ::
+            GenericStructWithoutTypeAnnot =>
+            { buffer.push(1u8); buffer.push(71u8); }, ErrorKind ::
+            GenericEnumVariantWithoutTypeAnnot =>
+            { buffer.push(1u8); buffer.push(72u8); }, ErrorKind ::
+            UndefinedName(t0,) =>
             { buffer.push(1u8); buffer.push(74u8); t0.encode_impl(buffer); },
             ErrorKind :: EnumVariantInTypeAnnot =>
             { buffer.push(1u8); buffer.push(79u8); }, ErrorKind ::
@@ -692,8 +707,10 @@
             FuncWithoutTypeAnnot => { buffer.push(31u8); buffer.push(64u8); },
             ErrorKind :: LetWithoutTypeAnnot =>
             { buffer.push(31u8); buffer.push(69u8); }, ErrorKind ::
-            FieldWithoutTypeAnnot =>
+            StructWithoutTypeAnnot =>
             { buffer.push(31u8); buffer.push(74u8); }, ErrorKind ::
+            EnumVariantWithoutTypeAnnot =>
+            { buffer.push(31u8); buffer.push(75u8); }, ErrorKind ::
             SelfParamNotNamedSelf =>
             { buffer.push(31u8); buffer.push(79u8); }, ErrorKind :: Todo
             { r#id, r#message, } =>
@@ -883,8 +900,12 @@
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: CyclicAlias { r#names, }, cursor))
             }, 320u16 => Ok((ErrorKind :: DollarOutsidePipeline, cursor)),
-            325u16 => Ok((ErrorKind :: DisconnectedPipeline, cursor)), 330u16
-            =>
+            325u16 => Ok((ErrorKind :: DisconnectedPipeline, cursor)), 326u16
+            => Ok((ErrorKind :: GenericFuncWithoutTypeAnnot, cursor)), 327u16
+            => Ok((ErrorKind :: GenericStructWithoutTypeAnnot, cursor)),
+            328u16 =>
+            Ok((ErrorKind :: GenericEnumVariantWithoutTypeAnnot, cursor)),
+            330u16 =>
             {
                 let (t0, cursor) = InternedString ::
                 decode_impl(buffer, cursor) ? ;
@@ -1141,7 +1162,8 @@
             5010u16 => Ok((ErrorKind :: NoImpureCallInImpureContext, cursor)),
             8000u16 => Ok((ErrorKind :: FuncWithoutTypeAnnot, cursor)),
             8005u16 => Ok((ErrorKind :: LetWithoutTypeAnnot, cursor)), 8010u16
-            => Ok((ErrorKind :: FieldWithoutTypeAnnot, cursor)), 8015u16 =>
+            => Ok((ErrorKind :: StructWithoutTypeAnnot, cursor)), 8011u16 =>
+            Ok((ErrorKind :: EnumVariantWithoutTypeAnnot, cursor)), 8015u16 =>
             Ok((ErrorKind :: SelfParamNotNamedSelf, cursor)), 9998u16 =>
             {
                 let (r#id, cursor) = u32 :: decode_impl(buffer, cursor) ? ;

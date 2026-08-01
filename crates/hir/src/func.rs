@@ -269,16 +269,29 @@ impl Func {
         // 2. A param's default value should not reference other params.
         let mut params = Vec::with_capacity(ast_func.params.len());
         let mut missing_type_annots = vec![];
+        let mut wildcard_spans = vec![];
 
         for (i, ast_param) in ast_func.params.iter().enumerate() {
-            if !(i == 0 && is_associated_func) && ast_param.type_annot.is_none() {
-                missing_type_annots.push(i as i64);
-            }
-
             match FuncParam::from_ast(ast_param, session) {
                 Ok(mut param) => {
                     if i == 0 && is_associated_func {
                         param.type_annot = associated_type.clone();
+                    }
+
+                    else {
+                        match &param.type_annot {
+                            Some(r#type) => {
+                                let w = r#type.get_wildcard_spans();
+
+                                if !w.is_empty() {
+                                    missing_type_annots.push(i as i64);
+                                    wildcard_spans.extend(w);
+                                }
+                            },
+                            None => {
+                                missing_type_annots.push(i as i64);
+                            },
+                        }
                     }
 
                     params.push(param);
@@ -298,8 +311,15 @@ impl Func {
 
         if let Some(ast_type) = &ast_func.type_annot {
             match Type::from_ast(ast_type, session) {
-                Ok(ty) => {
-                    type_annot = Some(ty);
+                Ok(r#type) => {
+                    let w = r#type.get_wildcard_spans();
+
+                    if !w.is_empty() {
+                        missing_type_annots.push(-1);
+                        wildcard_spans.extend(w);
+                    }
+
+                    type_annot = Some(r#type);
                 },
                 Err(()) => {
                     has_error = true;
@@ -315,23 +335,42 @@ impl Func {
             let mut missing_params = missing_type_annots.iter().filter(
                 |i| **i >= 0
             ).map(
-                |i| format!("{} parameter", to_ordinal((i + 1) as usize))
+                |i| format!("the {} parameter", to_ordinal((i + 1) as usize))
             ).collect::<Vec<_>>();
 
             if missing_type_annots.contains(&-1) {
-                missing_params.push(String::from("return type"));
+                missing_params.push(String::from("the return type"));
             }
 
-            session.warnings.push(Lint {
-                kind: LintKind::FuncWithoutTypeAnnot,
-                spans: ast_func.name_span.simple_error(),
-                note: Some(format!(
-                    "Type annotation{} for {} {} missing.",
-                    if missing_params.len() == 1 { "" } else { "s" },
-                    comma_list_strs(&missing_params, "", "", "and"),
-                    if missing_params.len() == 1 { "is" } else { "are" },
-                )),
-            });
+            let help_message = format!(
+                "Type annotation{} for {} {} missing.",
+                if missing_params.len() == 1 { "" } else { "s" },
+                comma_list_strs(&missing_params, "", "", "and"),
+                if missing_params.len() == 1 { "is" } else { "are" },
+            );
+            let mut error_spans = ast_func.name_span.simple_error();
+            error_spans.extend(wildcard_spans.drain(..).map(
+                |span| RenderableSpan {
+                    span,
+                    auxiliary: true,
+                    note: Some(String::from("This is an incomplete type annotation.")),
+                }
+            ));
+
+            if ast_func.generics.is_empty() {
+                session.warnings.push(Lint {
+                    kind: LintKind::FuncWithoutTypeAnnot,
+                    spans: error_spans,
+                    note: Some(help_message),
+                });
+            } else {
+                has_error = true;
+                session.errors.push(Error {
+                    kind: LintKind::GenericFuncWithoutTypeAnnot,
+                    spans: error_spans,
+                    note: Some(format!("A generic function needs type annotations because the compiler cannot infer the types otherwise.\n{help_message}")),
+                });
+            }
         }
 
         let value = match &ast_func.value {

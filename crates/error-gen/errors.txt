@@ -74,6 +74,9 @@ CyclicLet/310/Error
 CyclicAlias/315/Error
 DollarOutsidePipeline/320/Error
 DisconnectedPipeline/325/Error
+GenericFuncWithoutTypeAnnot/326/Error
+GenericStructWithoutTypeAnnot/327/Error
+GenericEnumVariantWithoutTypeAnnot/328/Error
 UndefinedName/330/Error
 EnumVariantInTypeAnnot/335/Error
 KeywordArgRepeated/340/Error
@@ -129,7 +132,8 @@ UnreachableOrPattern/5006/Warning
 NoImpureCallInImpureContext/5010/Warning
 FuncWithoutTypeAnnot/8000/Lint
 LetWithoutTypeAnnot/8005/Lint
-FieldWithoutTypeAnnot/8010/Lint
+StructWithoutTypeAnnot/8010/Lint
+EnumVariantWithoutTypeAnnot/8011/Lint
 SelfParamNotNamedSelf/8015/Lint
 Todo/9998/Error
 InternalCompilerError/9999/Error

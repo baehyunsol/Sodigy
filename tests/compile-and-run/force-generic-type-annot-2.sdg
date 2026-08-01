@@ -1,0 +1,5 @@
+//% compile-error == 2
+
+struct Foo<T> = { f1, f2 };
+struct Bar<T> = { f1: _, f2: [_] };
+struct Baz = { f1, f2 };

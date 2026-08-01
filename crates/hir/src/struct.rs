@@ -10,10 +10,10 @@ use crate::{
     Visibility,
     get_decorator_error_notes,
 };
-use sodigy_error::{Error, ErrorKind, ItemKind};
+use sodigy_error::{Error, ErrorKind, ItemKind, Lint, LintKind, comma_list_strs};
 use sodigy_name_analysis::{Namespace, NameKind, UseCount};
 use sodigy_parse as ast;
-use sodigy_span::Span;
+use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
@@ -92,10 +92,27 @@ impl Struct {
             has_error = true;
         }
 
+        let mut missing_type_annots = vec![];
+        let mut wildcard_spans = vec![];
+
         if let Some(ast_fields) = &ast_struct.fields {
-            for field in ast_fields.iter() {
-                match StructField::from_ast(field, session) {
+            for ast_field in ast_fields.iter() {
+                match StructField::from_ast(ast_field, session) {
                     Ok(field) => {
+                        match &field.type_annot {
+                            Some(r#type) => {
+                                let w = r#type.get_wildcard_spans();
+
+                                if !w.is_empty() {
+                                    missing_type_annots.push(field.name);
+                                    wildcard_spans.extend(w);
+                                }
+                            },
+                            None => {
+                                missing_type_annots.push(field.name);
+                            },
+                        }
+
                         fields.push(field);
                     },
                     Err(()) => {
@@ -112,6 +129,44 @@ impl Struct {
                 note: None,
             });
             has_error = true;
+        }
+
+        if !missing_type_annots.is_empty() {
+            let help_message = format!(
+                "Type annotation{} for the field{} {} {} missing.",
+                if missing_type_annots.len() == 1 { "" } else { "s" },
+                if missing_type_annots.len() == 1 { "" } else { "s" },
+                comma_list_strs(
+                    &missing_type_annots.iter().map(|name| name.unintern_or_default(&session.intermediate_dir)).collect::<Vec<_>>(),
+                    "`",
+                    "`",
+                    "and",
+                ),
+                if missing_type_annots.len() == 1 { "is" } else { "are" },
+            );
+            let mut error_spans = ast_struct.name_span.simple_error();
+            error_spans.extend(wildcard_spans.drain(..).map(
+                |span| RenderableSpan {
+                    span,
+                    auxiliary: true,
+                    note: Some(String::from("This is an incomplete type annotation.")),
+                }
+            ));
+
+            if ast_struct.generics.is_empty() {
+                session.warnings.push(Lint {
+                    kind: LintKind::StructWithoutTypeAnnot,
+                    spans: error_spans,
+                    note: Some(help_message),
+                });
+            } else {
+                has_error = true;
+                session.errors.push(Error {
+                    kind: ErrorKind::GenericStructWithoutTypeAnnot,
+                    spans: error_spans,
+                    note: Some(format!("A generic struct needs type annotations because the compiler cannot infer the types otherwise.\n{help_message}")),
+                });
+            }
         }
 
         let Some(Namespace::GenericParam { names, .. }) = session.name_stack.pop() else { unreachable!() };

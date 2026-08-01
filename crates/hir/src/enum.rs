@@ -9,10 +9,10 @@ use crate::{
     Visibility,
     get_decorator_error_notes,
 };
-use sodigy_error::{EnumFieldKind, Error, ErrorKind, ItemKind};
+use sodigy_error::{EnumFieldKind, Error, ErrorKind, ItemKind, Lint, LintKind, comma_list_strs};
 use sodigy_name_analysis::{Namespace, NameKind, UseCount};
 use sodigy_parse::{self as ast, Generic};
-use sodigy_span::{Span, SpanId};
+use sodigy_span::{RenderableSpan, Span, SpanId};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
@@ -120,7 +120,7 @@ impl Enum {
 
         if let Some(ast_variants) = &ast_enum.variants {
             for ast_variant in ast_variants.iter() {
-                match EnumVariant::from_ast(ast_variant, session) {
+                match EnumVariant::from_ast(ast_variant, !ast_enum.generics.is_empty(), session) {
                     Ok(variant) => {
                         if !matches!(&variant.fields, EnumVariantFields::None) {
                             has_payload = true;
@@ -207,7 +207,7 @@ impl Enum {
 }
 
 impl EnumVariant {
-    pub fn from_ast(ast_variant: &ast::EnumVariant, session: &mut Session) -> Result<EnumVariant, ()> {
+    pub fn from_ast(ast_variant: &ast::EnumVariant, has_generics: bool, session: &mut Session) -> Result<EnumVariant, ()> {
         let mut has_error = false;
 
         let attribute = match session.lower_attribute(
@@ -236,12 +236,19 @@ impl EnumVariant {
         let fields = match &ast_variant.fields {
             ast::EnumVariantFields::None => EnumVariantFields::None,
             ast::EnumVariantFields::Tuple(ast_types) => {
+                let mut wildcard_spans = vec![];
                 let mut types = Vec::with_capacity(ast_types.len());
 
                 // TODO: attribute
                 for (ast_type, _) in ast_types.iter() {
                     match Type::from_ast(ast_type, session) {
                         Ok(r#type) => {
+                            let w = r#type.get_wildcard_spans();
+
+                            if !w.is_empty() {
+                                wildcard_spans.extend(w);
+                            }
+
                             types.push(r#type);
                         },
                         Err(()) => {
@@ -250,20 +257,99 @@ impl EnumVariant {
                     }
                 }
 
+                if !wildcard_spans.is_empty() {
+                    let mut error_spans = ast_variant.name_span.simple_error();
+                    error_spans.extend(wildcard_spans.drain(..).map(
+                        |span| RenderableSpan {
+                            span,
+                            auxiliary: true,
+                            note: Some(String::from("This is an incomplete type annotation.")),
+                        }
+                    ));
+
+                    if has_generics {
+                        has_error = true;
+                        session.errors.push(Error {
+                            kind: ErrorKind::GenericEnumVariantWithoutTypeAnnot,
+                            spans: error_spans,
+                            note: Some(String::from("A variant of a generic enum needs type annotations because the compiler cannot infer the type otherwise.")),
+                        });
+                    } else {
+                        session.warnings.push(Lint {
+                            kind: LintKind::EnumVariantWithoutTypeAnnot,
+                            spans: error_spans,
+                            note: None,
+                        });
+                    }
+                }
                 EnumVariantFields::Tuple(types)
             },
             ast::EnumVariantFields::Struct(ast_fields) => {
                 let mut fields = Vec::with_capacity(ast_fields.len());
+                let mut missing_type_annots = vec![];
+                let mut wildcard_spans = vec![];
 
                 // TODO: attribute
                 for ast_field in ast_fields.iter() {
                     match StructField::from_ast(ast_field, session) {
                         Ok(field) => {
+                            match &field.type_annot {
+                                Some(r#type) => {
+                                    let w = r#type.get_wildcard_spans();
+
+                                    if !w.is_empty() {
+                                        missing_type_annots.push(field.name);
+                                        wildcard_spans.extend(w);
+                                    }
+                                },
+                                None => {
+                                    missing_type_annots.push(field.name);
+                                },
+                            }
+
                             fields.push(field);
                         },
                         Err(()) => {
                             has_error = true;
                         },
+                    }
+                }
+
+                if !missing_type_annots.is_empty() {
+                    let help_message = format!(
+                        "Type annotation{} for the field{} {} {} missing.",
+                        if missing_type_annots.len() == 1 { "" } else { "s" },
+                        if missing_type_annots.len() == 1 { "" } else { "s" },
+                        comma_list_strs(
+                            &missing_type_annots.iter().map(|name| name.unintern_or_default(&session.intermediate_dir)).collect::<Vec<_>>(),
+                            "`",
+                            "`",
+                            "and",
+                        ),
+                        if missing_type_annots.len() == 1 { "is" } else { "are" },
+                    );
+                    let mut error_spans = ast_variant.name_span.simple_error();
+                    error_spans.extend(wildcard_spans.drain(..).map(
+                        |span| RenderableSpan {
+                            span,
+                            auxiliary: true,
+                            note: Some(String::from("This is an incomplete type annotation.")),
+                        }
+                    ));
+
+                    if has_generics {
+                        has_error = true;
+                        session.errors.push(Error {
+                            kind: ErrorKind::GenericEnumVariantWithoutTypeAnnot,
+                            spans: error_spans,
+                            note: Some(format!("A variant of a generic enum needs type annotations because the compiler cannot infer the type otherwise.\n{help_message}")),
+                        });
+                    } else {
+                        session.warnings.push(Lint {
+                            kind: LintKind::EnumVariantWithoutTypeAnnot,
+                            spans: error_spans,
+                            note: Some(help_message),
+                        });
                     }
                 }
 

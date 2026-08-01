@@ -115,6 +115,9 @@ error_kinds!(
     (CyclicAlias { names: Vec<InternedString> },                     315,    Error),
     (DollarOutsidePipeline,                                          320,    Error),
     (DisconnectedPipeline,                                           325,    Error),
+    (GenericFuncWithoutTypeAnnot,                                    326,    Error),
+    (GenericStructWithoutTypeAnnot,                                  327,    Error),
+    (GenericEnumVariantWithoutTypeAnnot,                             328,    Error),
 
     // TODO: more context!
     // TODO: suggest similar names
@@ -199,7 +202,8 @@ error_kinds!(
     // Lints from here
     (FuncWithoutTypeAnnot,                                          8000,  Lint),
     (LetWithoutTypeAnnot,                                           8005,  Lint),
-    (FieldWithoutTypeAnnot,                                         8010,  Lint),
+    (StructWithoutTypeAnnot,                                        8010,  Lint),
+    (EnumVariantWithoutTypeAnnot,                                   8011,  Lint),
     (SelfParamNotNamedSelf,                                         8015,  Lint),
 
     // These are very special kinds of errors.

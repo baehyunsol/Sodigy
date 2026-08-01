@@ -211,6 +211,35 @@ impl Type {
             _ => todo!(),
         }
     }
+
+    pub fn get_wildcard_spans(&self) -> Vec<Span> {
+        let mut result = vec![];
+        self.get_wildcard_spans_worker(&mut result);
+        result
+    }
+
+    fn get_wildcard_spans_worker(&self, buffer: &mut Vec<Span>) {
+        match self {
+            Type::Path(_) |
+            Type::Never(_) => {},
+            Type::Param { args: types, .. } |
+            Type::Tuple { types, .. }=> {
+                for r#type in types.iter() {
+                    r#type.get_wildcard_spans_worker(buffer);
+                }
+            },
+            Type::Func { params, r#return, .. } => {
+                for param in params.iter() {
+                    param.get_wildcard_spans_worker(buffer);
+                }
+
+                r#return.get_wildcard_spans_worker(buffer);
+            },
+            Type::Wildcard(s) => {
+                buffer.push(s.clone());
+            },
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

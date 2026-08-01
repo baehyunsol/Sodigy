@@ -1,0 +1,7 @@
+//% compile-error == 2
+
+enum Foo<T> = {
+    None,
+    Tuple(_),
+    Struct { f1, f2: _ },
+};

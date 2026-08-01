@@ -1,0 +1,11 @@
+//% compile-error == 2
+
+fn foo<T>(x: T) = x;
+
+assert foo(30) == 30;
+assert foo(()) == ();
+
+fn bar<T>(x: _) -> _ = x;
+
+assert bar(30) == 30;
+assert bar(()) == ();
