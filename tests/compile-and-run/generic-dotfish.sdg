@@ -1,0 +1,8 @@
+fn foo<T>(x: T) -> T = {
+    let y: Result<_, String> = Ok(x);
+    y.unwrap()
+};
+
+assert foo(30) == 30;
+assert foo("asdf") == "asdf";
+assert foo(()) == ();
