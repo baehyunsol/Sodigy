@@ -4,6 +4,7 @@ use crate::{
     GenericCall,
     Monomorphization,
     PolySolver,
+    Session,
     SolvePolyResult,
     TypeError,
 };
@@ -153,6 +154,7 @@ pub enum LogEntry {
     InitPolySolverEnd {
         id: LogId,
         solver: Option<PolySolver>,
+        state_machine: Option<String>,
         has_error: bool,
         last_errors: Vec<(TypeError, Error)>,
     },
@@ -230,6 +232,25 @@ impl LogEntry {
             LogEntry::CheckAllTypesInferedEnd { id, .. } => Some(*id),
             LogEntry::Monomorphization(_) |
             LogEntry::BlockedTypeVar { .. } => None,
+        }
+    }
+}
+
+#[cfg(feature = "log")]
+impl Session {
+    pub fn render_poly_solver_state_machines(&mut self) {
+        let mut rendered: HashMap<usize, String> = HashMap::new();
+
+        for (i, entry) in self.log.iter().enumerate() {
+            if let LogEntry::InitPolySolverEnd { solver: Some(PolySolver { state_machine: Some(state_machine), .. }), state_machine: None, .. } = entry {
+                rendered.insert(i, self.render_state_machine(state_machine, &HashMap::new()));
+            }
+        }
+
+        for (i, entry) in self.log.iter_mut().enumerate() {
+            if let LogEntry::InitPolySolverEnd { state_machine, .. } = entry && let Some(r) = rendered.remove(&i) {
+                *state_machine = Some(r);
+            }
         }
     }
 }

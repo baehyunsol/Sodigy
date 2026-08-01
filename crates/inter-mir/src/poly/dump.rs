@@ -12,11 +12,25 @@ impl Session {
 pub(crate) trait RenderStateMachine {
     fn span_to_string_impl(&self, span: &Span) -> Option<String>;
 
-    fn render_state_machine_inner(&self, state_machine: &StateMachine, name_map: &HashMap<Span, String>, indent: usize) -> String {
-        fn render_leaves(l: &[Span], name_map: &HashMap<Span, String>) -> String {
-            format!("[{}]", l.iter().map(|s| name_map.get(s).unwrap().to_string()).collect::<Vec<_>>().join(", "))
-        }
+    fn render_leaves(
+        &self,
+        l: &[Span],
 
+        // for `inter-mir/src/poly/tests.rs`
+        name_map: &HashMap<Span, String>,
+    ) -> String {
+        format!(
+            "[{}]",
+            l.iter().map(
+                |s| match name_map.get(s) {
+                    Some(s) => s.to_string(),
+                    None => self.span_to_string_impl(s).unwrap(),
+                }
+            ).collect::<Vec<_>>().join(", "),
+        )
+    }
+
+    fn render_state_machine_inner(&self, state_machine: &StateMachine, name_map: &HashMap<Span, String>, indent: usize) -> String {
         let mut arms = vec![];
         let indent_p = "    ".repeat(indent - 1);
         let indent_s = "    ".repeat(indent);
@@ -27,7 +41,7 @@ pub(crate) trait RenderStateMachine {
                 self.render_simple_type(condition),
                 match branch {
                     StateMachineOrLeaves::StateMachine(s) => self.render_state_machine_inner(s, name_map, indent + 1),
-                    StateMachineOrLeaves::Leaves(leaves) => render_leaves(leaves, name_map),
+                    StateMachineOrLeaves::Leaves(leaves) => self.render_leaves(leaves, name_map),
                 },
             ));
         }
@@ -36,7 +50,7 @@ pub(crate) trait RenderStateMachine {
             "\n{indent_s}_ => {},",
             match &*state_machine.default {
                 StateMachineOrLeaves::StateMachine(s) => self.render_state_machine_inner(s, name_map, indent + 1),
-                StateMachineOrLeaves::Leaves(leaves) => render_leaves(leaves, name_map),
+                StateMachineOrLeaves::Leaves(leaves) => self.render_leaves(leaves, name_map),
             },
         ));
         let arms = arms.concat();

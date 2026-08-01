@@ -2,7 +2,6 @@ use super::PolySolver;
 use crate::RenderStateMachine;
 use sodigy_mir::Type;
 use sodigy_span::{Span, SpanId};
-use sodigy_string::InternedString;
 use std::collections::{HashMap, HashSet};
 
 #[test]
@@ -103,6 +102,9 @@ fn poly_solvers() {
             vec![
                 (60, vec![int(), int(), number()], vec![poly_impl(1)], true),
                 (61, vec![byte(), number(), byte()], vec![poly_impl(2)], true),
+                (62, vec![int(), int(), int()], vec![poly_impl(1), poly_impl(2), poly_impl(3), poly_impl(4)], false),
+                (63, vec![byte(), byte(), byte()], vec![poly_impl(1), poly_impl(2), poly_impl(3), poly_impl(4)], false),
+                (64, vec![number(), number(), number()], vec![poly_impl(1), poly_impl(2), poly_impl(3), poly_impl(4)], false),
             ],
         ),
     ] {

@@ -149,6 +149,7 @@ impl Session {
                 write_log!(self, LogEntry::InitPolySolverEnd {
                     id: _id.unwrap(),
                     solver: None,
+                    state_machine: None,
                     has_error,
                     last_errors: self.last_errors(),
                 });
@@ -209,6 +210,10 @@ impl Session {
                 write_log!(self, LogEntry::InitPolySolverEnd {
                     id: _id.unwrap(),
                     solver: Some(solver.clone()),
+
+                    // will be rendered later because it requires a span_string_map.
+                    state_machine: None,
+
                     has_error,
                     last_errors: self.last_errors(),
                 });
@@ -220,6 +225,7 @@ impl Session {
                 write_log!(self, LogEntry::InitPolySolverEnd {
                     id: _id.unwrap(),
                     solver: None,
+                    state_machine: None,
                     has_error,
                     last_errors: self.last_errors(),
                 });
@@ -499,6 +505,11 @@ impl PolySolver {
     }
 }
 
+// Let's say there's a poly-def `convert<T, U>(T) -> U` and
+// 2 poly-impls `convert_self<T0>(T0) -> T0` and `int_to_number(Int) -> Number`.
+//
+// impl_def_span: convert_self
+// generic_def_spans: [T, U]   // because `T` and `U` of `convert_self` are the same.
 fn apply_same_generic_params(
     state_machine: &mut StateMachine,
     impl_def_span: &Span,
@@ -536,9 +547,9 @@ fn apply_same_generic_params(
                     },
                     (t @ SimpleType::Data { .. }, StateMachineOrLeaves::Leaves(leaves), _) => {
                         if t != target_type {
-                            *leaves = leaves.iter().filter(
-                                |span| *span != impl_def_span
-                            ).cloned().collect();
+                            *leaves = leaves.drain(..).filter(
+                                |span| span != impl_def_span
+                            ).collect();
                         }
                     },
                     (_, StateMachineOrLeaves::Leaves(_), false) => {},
@@ -550,6 +561,22 @@ fn apply_same_generic_params(
                         apply_same_generic_params(s, impl_def_span, generic_def_spans, Some(target_type), unreachable);
                     },
                 }
+            }
+
+            if let (
+                Entry::Vacant(e),
+                StateMachineOrLeaves::Leaves(leaves),
+            ) = (
+                state_machine.branches.entry(target_type),
+                &*state_machine.default,
+            ) {
+                e.insert(StateMachineOrLeaves::Leaves(leaves.clone()));
+            }
+
+            if let StateMachineOrLeaves::Leaves(leaves) = &mut *state_machine.default {
+                *leaves = leaves.drain(..).filter(
+                    |span| span != impl_def_span
+                ).collect();
             }
         },
         (false, _) => {

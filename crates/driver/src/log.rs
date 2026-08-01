@@ -747,7 +747,7 @@ pub fn log_inter_mir(session: &InterMirSession, mir_session: &MirSession) -> Res
 
                 (false, vec![])
             },
-            LogEntry::InitPolySolverEnd { solver, has_error, last_errors, .. } => {
+            LogEntry::InitPolySolverEnd { solver, state_machine, has_error, last_errors, .. } => {
                 match solver {
                     Some(s) => {
                         output.push(Value {
@@ -759,6 +759,23 @@ pub fn log_inter_mir(session: &InterMirSession, mir_session: &MirSession) -> Res
                     None => {
                         output.push(Value {
                             name: String::from("solver"),
+                            short: String::from("N/A"),
+                            long: None,
+                        });
+                    },
+                }
+
+                match state_machine {
+                    Some(s) => {
+                        output.push(Value {
+                            name: String::from("state_machine"),
+                            short: String::from("(...)"),
+                            long: Some(s.to_string()),
+                        });
+                    },
+                    None => {
+                        output.push(Value {
+                            name: String::from("state_machine"),
                             short: String::from("N/A"),
                             long: None,
                         });

@@ -329,6 +329,9 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
         &mir_session.aliases,
     );
 
+    #[cfg(feature = "log")]
+    session.render_poly_solver_state_machines();
+
     let type_warnings: Vec<TypeWarning> = session.type_warnings.drain(..).collect();
     let type_warnings: Vec<Warning> = type_warnings.into_iter().map(
         |w| session.type_error_to_general_error(w)
