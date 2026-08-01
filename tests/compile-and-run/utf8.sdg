@@ -2,9 +2,9 @@ fn decode(bs: Bytes, buffer="") -> Result<String, ()> = match bs {
     [] => Ok(buffer),
     [$x @ #0..=#127] ++ $bs => decode(bs, buffer ++ [x as! <Char>]),
     [$x @ #192..=#223, $y @ #128..=#191] ++ $bs => decode(bs, buffer ++ [((x as <Int> & 31) << 6 | y as <Int> & 63) as! <Char>]),
-    [$x @ #224..=#239, $y @ #128..=#191, $z @ #128..=#191] ++ $bs => decode(bs, buffer ++ [((x as <Int> & 15) << 12 | (y as <Int> & 63) << 6 | z as <Int> & 63) as <Char>]),
+    [$x @ #224..=#239, $y @ #128..=#191, $z @ #128..=#191] ++ $bs => decode(bs, buffer ++ [(((x as <Int> & 15) << 12) | ((y as <Int> & 63) << 6) | (z as <Int> & 63)) as! <Char>]),
     [$x @ #240..=#247, $y @ #128..=#191, $z @ #128..=#191, $w @ #128..=#191]
-        => decode(bs, buffer ++ [((x as <Int> & 7) << 18 | (y as <Int> & 63) << 12 | (z as <Int> & 63) << 6 | w as <Int> & 63) as <Char>]),
+        => decode(bs, buffer ++ [(((x as <Int> & 7) << 18) | ((y as <Int> & 63) << 12) | ((z as <Int> & 63) << 6) | (w as <Int> & 63)) as! <Char>]),
     _ => Error(()),
 };
 
@@ -19,13 +19,13 @@ assert decode([#200, #200]).is_error();
 fn encode(s: String) -> Bytes = match s {
     "" => b"",
     [$x @ '\x00'..='\x7f'] ++ $s => [x as! <Byte>] ++ encode(s),
-    [$x @ '\x80'..='\u{7ff}'] ++ $s => [(x as <Int> >> 6) as <Byte> | #192, (x as <Int> & 63) as <Byte> | #128] ++ encode(s),
-    [$x @ '\u{800}'..='\u{ffff}'] ++ $s => [(x as <Int> >> 12) as <Byte> | #224, ((x as <Int> >> 6) & 63) as <Byte> | #128, (x as <Int> & 63) as <Byte> | #128] ++ encode(s),
+    [$x @ '\x80'..='\u{7ff}'] ++ $s => [(x as <Int> >> 6) as! <Byte> | #192, (x as <Int> & 63) as! <Byte> | #128] ++ encode(s),
+    [$x @ '\u{800}'..='\u{ffff}'] ++ $s => [(x as <Int> >> 12) as! <Byte> | #224, ((x as <Int> >> 6) & 63) as! <Byte> | #128, (x as <Int> & 63) as! <Byte> | #128] ++ encode(s),
     [$x] ++ $s => [
-        (x as <Int> >> 18) as <Byte> | #240,
-        ((x as <Int> >> 12) & 63) as <Byte> | #128,
-        ((x as <Int> >> 6) & 63) as <Byte> | #128,
-        (x as <Int> & 63) as <Byte> | #128,
+        (x as <Int> >> 18) as! <Byte> | #240,
+        ((x as <Int> >> 12) & 63) as! <Byte> | #128,
+        ((x as <Int> >> 6) & 63) as! <Byte> | #128,
+        (x as <Int> & 63) as! <Byte> | #128,
     ] ++ encode(s),
 };
 

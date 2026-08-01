@@ -42,12 +42,11 @@ fn validate_spans_worker(
 
                 for c in span_code.iter() {
                     match c {
-                        b'0'..=b'9' => {},
+                        b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F' | b'x' | b'X' | b'o' | b'O' | b'-' | b'_' => {},
                         b'.' => {
                             assert!(!has_dot);
                             has_dot = true;
                         },
-                        b'-' | b'_' | b'x' | b'X' | b'o' | b'O' | b'b' | b'B' | b'e' => {},
                         _ => panic!("{span_code:?}"),
                     }
                 }

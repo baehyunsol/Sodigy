@@ -1167,8 +1167,8 @@ if (closeButton) {{
     }
 
     let render_span_option = RenderSpanOption {
-        max_height: 16,
-        max_width: 120,
+        max_height: 20,
+        max_width: 160,
         context: 8,
         render_source: true,
         color: Some(ColorOption {
