@@ -1,20 +1,16 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use shev::{
-    Entries,
-    Entry,
-    EntryFlag,
-    Filter,
-    Transition,
-};
 use sodigy_compiler_test::{TestHarness, find_root, git};
 use sodigy_fs_api::{
     basename,
+    create_dir_all,
+    exists,
     join,
     join3,
     parent,
     read_dir,
     read_string,
+    remove_dir_all,
     set_extension,
     write_string,
     WriteMode,
@@ -23,11 +19,9 @@ use std::collections::hash_map::{Entry as HashMapEntry, HashMap};
 
 mod html;
 mod index;
-mod render;
 
 use html::{single_harness};
 use index::{CnrDiff, calc_cnr_diffs, load_test_files};
-use render::{render_cnr, render_harness};
 
 fn help_message(bin: &str) -> String {
     format!(r#"
@@ -55,45 +49,17 @@ fn main() {
         None => {},
     }
 
-    // new html version from here
     let root = find_root().unwrap();
     let test_results_at = join3(&root, "tests", "log").unwrap();
     let rendered_htmls_at = join(&parent(&test_results_at).unwrap(), "html").unwrap();
     let (test_results, total_count) = collect_test_result_names(&test_results_at);
 
-    for (commit_hash, test_results) in test_results.into_iter() {
-        for test_result in test_results.into_iter() {
-            let path = join(&test_results_at, &test_result).unwrap();
-            let s = read_string(&path).unwrap();
-            let j: TestHarness = serde_json::from_str(&s).unwrap();
-            let html_name = set_extension(&j.meta.get_result_file_name(), "html").unwrap();
-
-            let html = single_harness(&j);
-            write_string(
-                &join3(
-                    &rendered_htmls_at,
-                    "cnrs",
-                    &html_name,
-                ).unwrap(),
-                &html,
-                WriteMode::CreateOrTruncate,
-            ).unwrap();
-        }
-    }
-    // new html version till here (discard from here)
-
-    let root = find_root().unwrap();
-    let test_results_at = join3(&root, "tests", "log").unwrap();
-    let (test_results, total_count) = collect_test_result_names(&test_results_at);
-    let diff_files_at = join(&test_results_at, "diffs").unwrap();
-    let diff_files = collect_diff_files(&diff_files_at);
-
     // recent_test_results[0] is the most recent one, and the results are sorted by commit order
-    // it collects the most recent 100 results
+    // it collects the most recent 500 results
     let mut recent_test_results = vec![];
     let mut curr_commit = git::get_curr_commit();
 
-    while recent_test_results.len() < 100 {
+    while recent_test_results.len() < 500 {
         let curr_commit_info = git::get_commit_info(&curr_commit);
 
         if let Some(results) = test_results.get(&curr_commit) {
@@ -112,138 +78,41 @@ fn main() {
         }
     }
 
-    let mut harnesses = vec![];
-    let mut entries_map = HashMap::new();
+    if exists(&rendered_htmls_at) {
+        remove_dir_all(&rendered_htmls_at).unwrap();
+    }
 
-    for recent_test_result in recent_test_results.into_iter() {
-        let path = join(&test_results_at, &recent_test_result).unwrap();
-        let s = read_string(&path).unwrap();
-        let j: TestHarness = match serde_json::from_str(&s) {
-            Ok(j) => j,
-            Err(_) => {
-                eprintln!("{path:?} is incompatible with the current test schema!");
-                continue;
-            },
+    create_dir_all(&rendered_htmls_at).unwrap();
+    create_dir_all(&join(&rendered_htmls_at, "cnrs").unwrap()).unwrap();
+
+    for (i, test_result) in recent_test_results.iter().enumerate() {
+        let (prev, next) = match i {
+            0 => (
+                None,
+                recent_test_results.get(i + 1).map(|c| c.to_string()),
+            ),
+            _ => (
+                recent_test_results.get(i - 1).map(|c| c.to_string()),
+                recent_test_results.get(i + 1).map(|c| c.to_string()),
+            ),
         };
 
-        let summ = summary(&j);
-        let transition2 = diff_files.get(recent_test_result).map(
-            |diff_file| Transition {
-                id: diff_file.to_string(),
-                description: Some(String::from("See changes")),
-            }
-        );
+        let path = join(&test_results_at, test_result).unwrap();
+        let s = read_string(&path).unwrap();
+        let j: TestHarness = serde_json::from_str(&s).unwrap();
+        let html_name = set_extension(&j.meta.get_result_file_name(), "html").unwrap();
 
-        harnesses.push(Entry {
-            name: recent_test_result.to_string(),
-            content: Some(serde_json::to_string(&summ).unwrap()),
-            search_corpus: None,
-            categories: vec![],
-            transition1: Some(Transition {
-                id: recent_test_result.to_string(),
-                description: Some(String::from("See details")),
-            }),
-            transition2,
-            flag: EntryFlag::None,
-        });
-
-        let mut cnr_results = vec![];
-
-        for cnr in j.compile_and_run.as_ref().unwrap_or(&vec![]).iter() {
-            cnr_results.push(Entry {
-                name: cnr.name.to_string(),
-                content: Some(serde_json::to_string(cnr).unwrap()),
-                search_corpus: None,
-                categories: vec![],
-                transition1: None,
-                transition2: None,
-                flag: if cnr.error.is_some() { EntryFlag::Red } else { EntryFlag::Green },
-            });
-        }
-
-        entries_map.insert(
-            recent_test_result.to_string(),
-            Entries {
-                id: recent_test_result.to_string(),
-                title: Some(recent_test_result.to_string()),
-                entries: cnr_results,
-                entry_state_count: 2,
-                transition: Some(Transition {
-                    id: String::from("index"),
-                    description: Some(String::from("Back to harnesses")),
-                }),
-                filters: vec![
-                    Filter {
-                        name: String::from("pass-only"),
-                        cond: |entry| entry.flag == EntryFlag::Green
-                    },
-                    Filter {
-                        name: String::from("fail-only"),
-                        cond: |entry| entry.flag == EntryFlag::Red
-                    },
-                ],
-                render_canvas: render_cnr,
-                ..Entries::default()
-            },
-        );
+        let html = single_harness(&j, prev, next);
+        write_string(
+            &join3(
+                &rendered_htmls_at,
+                "cnrs",
+                &html_name,
+            ).unwrap(),
+            &html,
+            WriteMode::CreateOrTruncate,
+        ).unwrap();
     }
-
-    for diff_file in diff_files.values() {
-        let diff = read_string(&join(&diff_files_at, diff_file).unwrap()).unwrap();
-        let diff: CnrDiff = serde_json::from_str(&diff).unwrap();
-        let mut cnrs = vec![];
-
-        for (_, next_cnr) in diff.new_fails.iter() {
-            // TODO: show more contents!
-            cnrs.push(Entry {
-                name: next_cnr.name.to_string(),
-                flag: EntryFlag::Red,
-                ..Entry::default()
-            });
-        }
-
-        for (_, next_cnr) in diff.new_passes.iter() {
-            // TODO: show more contents!
-            cnrs.push(Entry {
-                name: next_cnr.name.to_string(),
-                flag: EntryFlag::Green,
-                ..Entry::default()
-            });
-        }
-
-        cnrs.sort_by_key(|entry| entry.name.to_string());
-        entries_map.insert(
-            diff_file.to_string(),
-            Entries {
-                id: diff_file.to_string(),
-                title: Some(diff_file.replace(".json-sodigy", ".json vs sodigy")),
-                entries: cnrs,
-                entry_state_count: 1,
-                transition: Some(Transition {
-                    id: String::from("index"),
-                    description: Some(String::from("Back to harnesses")),
-                }),
-                ..Entries::default()
-            },
-        );
-    }
-
-    entries_map.insert(
-        String::from("index"),
-        Entries {
-            id: String::from("index"),
-            title: Some(String::from("Sodigy-compiler-test")),
-            entries: harnesses,
-            render_canvas: render_harness,
-            ..Entries::default()
-        },
-    );
-    shev::run(
-        shev::Config::default(),
-        entries_map,
-        String::from("index"),
-        None,
-    );
 }
 
 // commit hash to file names map

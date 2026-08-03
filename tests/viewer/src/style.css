@@ -3,9 +3,83 @@ body {
     color: rgb(224, 244, 244);
 }
 
+summary {
+    cursor: pointer;
+}
+
 .code-block {
     padding: 8px;
     background-color: rgb(0, 0, 0);
     color: rgb(255, 255, 255);
     overflow: auto;
+}
+
+a:link {
+    border-bottom: 4px solid rgba(64, 192, 255, 0.5);
+    color: rgb(64, 192, 255);
+    text-decoration: none;
+    transition: border 0.3s;
+}
+
+a:visited {
+    color: rgb(64, 192, 255);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: none;
+    border-bottom: 4px solid rgb(64, 192, 255);
+}
+
+a::selection {
+    color: rgb(192, 64, 0);
+}
+
+.red {
+    color: rgb(192, 32, 32);
+}
+
+.green {
+    color: rgb(32, 192, 32);
+}
+
+.blue {
+    color: rgb(32, 32, 192);
+}
+
+.yellow {
+    color: rgb(192, 192, 32);
+}
+
+.circle-red {
+    background-color: rgb(192, 32, 32);
+}
+
+.circle-green {
+    background-color: rgb(32, 192, 32);
+}
+
+.circle-blue {
+    background-color: rgb(32, 32, 192);
+}
+
+.circle-yellow {
+    background-color: rgb(192, 192, 32);
+}
+
+.circle-small {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.circle-medium {
+    padding: 16px;
+    border-radius: 40px;
+}
+
+.circle-big {
+    padding: 40px;
+    border-radius: 60px;
 }

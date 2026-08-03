@@ -1,7 +1,12 @@
 use sodigy_compiler_test::{CrateTestResult, TestHarness};
+use sodigy_fs_api::set_extension;
 
 // renders an html and returns the result
-pub fn single_harness(harness: &TestHarness) -> String {
+pub fn single_harness(
+    harness: &TestHarness,
+    prev: Option<String>,
+    next: Option<String>,
+) -> String {
     let meta = {
         let commit_hash = &harness.meta.commit.commit_hash;
         let cargo_version = &harness.meta.cargo_version;
@@ -57,7 +62,13 @@ pub fn single_harness(harness: &TestHarness) -> String {
                 fn each_crate(title: &str, result: &CrateTestResult) -> String {
                     let elapsed_time = render_elapsed_ms(result.elapsed_ms);
                     let result = match &result.error {
-                        Some(error) => format!("<pre><code>{}</code></pre>", render_ansi_term(error)),
+                        Some(error) => format!(r#"
+<details>
+    <summary><span class="red">stderr</span></summary>
+    <pre class="code-block"><code>{}</code></pre>
+</details>
+"#,
+                            escape_html(error)),
                         None => String::from("Successful"),
                     };
 
@@ -116,8 +127,8 @@ N/A
         let cnrs = cnrs.iter().map(
             |cnr| {
                 let name = &cnr.name;
-                let stdout = render_ansi_term(&cnr.stdout_colored);
-                let stderr = render_ansi_term(&cnr.stderr_colored);
+                let stdout = escape_html(&cnr.stdout_colored);
+                let stderr = escape_html(&cnr.stderr_colored);
                 let compile_elapsed = render_elapsed_ms(cnr.compile_elapsed_ms);
                 let run_elapsed = match cnr.run_elapsed_ms {
                     Some(ms) => render_elapsed_ms(ms),
@@ -132,11 +143,11 @@ format!(r#"
 
 <h4>stdout</h4>
 
-<pre><code>{stdout}</code></pre>
+<pre class="code-block"><code>{stdout}</code></pre>
 
 <h4>stderr</h4>
 
-<pre><code>{stderr}</code></pre>
+<pre class="code-block"><code>{stderr}</code></pre>
 "#)
             }
         ).collect::<Vec<_>>().join("\n");
@@ -157,11 +168,24 @@ N/A
     };
 
     let title = harness.meta.get_result_file_name();
+    let prev = match prev {
+        Some(prev) => format!(r#"<a href="{}">&lt;&lt; prev</a>"#, set_extension(&prev, "html").unwrap()),
+        None => String::new(),
+    };
+    let next = match next {
+        Some(next) => format!(r#"<a href="{}">next &gt;&gt;</a>"#, set_extension(&next, "html").unwrap()),
+        None => String::new(),
+    };
 
     html_template(
         &format!(
 r#"
 <h1>{title}</h1>
+
+<p>
+    {prev}
+    {next}
+</p>
 
 {meta}
 
@@ -173,7 +197,7 @@ r#"
 }
 
 fn circle(color: &str, size: &str) -> String {
-    format!(r#"<span class="circle-{color} {size}"></span>"#)
+    format!(r#"<span class="circle-{color} circle-{size}"></span>"#)
 }
 
 fn render_elapsed_ms(ms: u64) -> String {
@@ -183,10 +207,6 @@ fn render_elapsed_ms(ms: u64) -> String {
         20_000..60_000 => format!("{}s", ms / 1000),
         60_000.. => format!("{}m {}s", ms / 60_000, ms / 1_000 % 60),
     }
-}
-
-fn render_ansi_term(c: &str) -> String {
-    c.to_string()  // TODO
 }
 
 const STYLE: &str = include_str!("style.css");
@@ -208,4 +228,79 @@ fn html_template(body: &str) -> String {
 
 </html>
 "#)
+}
+
+// TODO: these (escape_html, apply_ansi_term_color) are direct copy-paste from crates/driver/src/log.rs
+//       I want an independent crate like `html-render`, but I'm not sure if that's worth it
+fn escape_html(s: &str) -> String {
+    let s = s
+        .replace("&", "&amp;")
+        .replace(">", "&gt;")
+        .replace("<", "&lt;");
+
+    apply_ansi_term_color(&s)
+}
+
+#[derive(Clone, Copy)]
+enum TermColorParseState {
+    Text,
+    Control,
+}
+
+fn apply_ansi_term_color(s: &str) -> String {
+    let mut state = TermColorParseState::Text;
+    let mut content_buffer: Vec<char> = vec![];
+    let mut digits_buffer: Vec<char> = vec![];
+    let mut result: Vec<String> = vec![String::from("<span>")];
+
+    for ch in s.chars() {
+        match state {
+            TermColorParseState::Text => match ch {
+                '\u{1b}' => {
+                    digits_buffer = vec![];
+                    result.push(content_buffer.drain(..).collect());
+                    result.push(String::from("</span>"));
+                    state = TermColorParseState::Control;
+                },
+                _ => {
+                    content_buffer.push(ch);
+                },
+            },
+            TermColorParseState::Control => match ch {
+                '0'..='9' => {
+                    digits_buffer.push(ch);
+                },
+                'm' => {
+                    match digits_buffer.iter().collect::<String>().parse::<u32>() {
+                        Ok(0) => {
+                            result.push(String::from(r#"<span>"#));
+                        },
+                        Ok(31) => {
+                            result.push(String::from(r#"<span class="red">"#));
+                        },
+                        Ok(32) => {
+                            result.push(String::from(r#"<span class="green">"#));
+                        },
+                        Ok(33) => {
+                            result.push(String::from(r#"<span class="yellow">"#));
+                        },
+                        Ok(34) => {
+                            result.push(String::from(r#"<span class="blue">"#));
+                        },
+                        _ => unreachable!(),
+                    };
+
+                    state = TermColorParseState::Text;
+                },
+                _ => {},
+            },
+        }
+    }
+
+    if !content_buffer.is_empty() {
+        result.push(content_buffer.drain(..).collect());
+        result.push(String::from("</span>"));
+    }
+
+    result.concat()
 }
