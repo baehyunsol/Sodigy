@@ -8,12 +8,24 @@ use shev::{
     Transition,
 };
 use sodigy_compiler_test::{TestHarness, find_root, git};
-use sodigy_fs_api::{basename, join, join3, read_dir, read_string};
+use sodigy_fs_api::{
+    basename,
+    join,
+    join3,
+    parent,
+    read_dir,
+    read_string,
+    set_extension,
+    write_string,
+    WriteMode,
+};
 use std::collections::hash_map::{Entry as HashMapEntry, HashMap};
 
+mod html;
 mod index;
 mod render;
 
+use html::{single_harness};
 use index::{CnrDiff, calc_cnr_diffs, load_test_files};
 use render::{render_cnr, render_harness};
 
@@ -42,6 +54,33 @@ fn main() {
         },
         None => {},
     }
+
+    // new html version from here
+    let root = find_root().unwrap();
+    let test_results_at = join3(&root, "tests", "log").unwrap();
+    let rendered_htmls_at = join(&parent(&test_results_at).unwrap(), "html").unwrap();
+    let (test_results, total_count) = collect_test_result_names(&test_results_at);
+
+    for (commit_hash, test_results) in test_results.into_iter() {
+        for test_result in test_results.into_iter() {
+            let path = join(&test_results_at, &test_result).unwrap();
+            let s = read_string(&path).unwrap();
+            let j: TestHarness = serde_json::from_str(&s).unwrap();
+            let html_name = set_extension(&j.meta.get_result_file_name(), "html").unwrap();
+
+            let html = single_harness(&j);
+            write_string(
+                &join3(
+                    &rendered_htmls_at,
+                    "cnrs",
+                    &html_name,
+                ).unwrap(),
+                &html,
+                WriteMode::CreateOrTruncate,
+            ).unwrap();
+        }
+    }
+    // new html version till here (discard from here)
 
     let root = find_root().unwrap();
     let test_results_at = join3(&root, "tests", "log").unwrap();

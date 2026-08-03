@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct TestHarness {
     pub meta: Meta,
 
-    // suitees that have run
+    // suites that have run
     pub suites: Vec<TestSuite>,
 
     pub crates: Option<Vec<CrateTest>>,
