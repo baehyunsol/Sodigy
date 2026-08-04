@@ -22,7 +22,7 @@ pub struct Fuzzer {
     corpus_dir: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct FuzzResult {
     pub target: FuzzTarget,
     pub elapsed_ms: u64,

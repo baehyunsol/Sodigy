@@ -1,32 +1,55 @@
 use sodigy_compiler_test::{CrateTestResult, TestHarness};
-use sodigy_fs_api::set_extension;
+use sodigy_compiler_test::meta::git::CommitInfo;
+use sodigy_fs_api::{file_name, set_extension};
+use std::collections::HashMap;
 
-// renders an html and returns the result
-pub fn single_harness(
+pub fn render_index(
+    harnesses: &HashMap<String, Vec<String>>,
+    harnesses_by_name: &HashMap<String, TestHarness>,
+    commits: &[CommitInfo],
+) -> String {
+    let commits = commits.iter().map(
+        |commit| {
+            let abbrev_hash = commit.commit_hash.get(0..9).unwrap().to_string();
+            let data = match harnesses.get(&abbrev_hash) {
+                Some(harnesses) if !harnesses.is_empty() => format!(
+                    "<ul>{}</ul>",
+                    harnesses.iter().map(
+                        |h| {
+                            let harness = harnesses_by_name.get(h).unwrap();
+                            let url = set_extension(h, "html").unwrap();
+                            let base = file_name(h).unwrap();
+                            format!(
+                                r#"<li><a href="harnesses/{url}">{base}</a> ({})</li>"#,
+                                harness.meta.started_at,
+                            )
+                        }
+                    ).collect::<Vec<_>>().concat(),
+                ),
+                _ => String::new(),
+            };
+
+            format!(
+                r#"<li><a href=commits/{abbrev_hash}.html>{abbrev_hash}</a>{data}</li>"#,
+            )
+        }
+    ).collect::<Vec<_>>().join("\n");
+
+    html_template(
+        &format!(r#"
+<ul>
+{commits}
+</ul>
+"#),
+        false,
+    )
+}
+
+pub fn render_harness(
     harness: &TestHarness,
     prev: Option<String>,
     next: Option<String>,
 ) -> String {
-    let meta = {
-        let commit_hash = &harness.meta.commit.commit_hash;
-        let cargo_version = &harness.meta.cargo_version;
-        let rustc_version = &harness.meta.rustc_version;
-        let os = format!("{:?}", harness.meta.os).to_ascii_lowercase();
-        let started_at = &harness.meta.started_at;
-
-        format!(r#"
-<pre class="meta"><code>
-- commit
-  - hash: {commit_hash}
-  - <a href="../commit/{commit_hash}.html">more info</a>
-- cargo version: {cargo_version}
-- rustc version: {rustc_version}
-- os: {os}
-- started at: {started_at}
-</code></pre>
-"#)
-    };
-
     fn render_toc(list: Vec<(String, String, Option<bool>)>) -> String {
         format!(r#"
 <div class="toc">
@@ -48,7 +71,57 @@ pub fn single_harness(
         )
     }
 
+    let toc = render_toc(vec![
+        (
+            String::from("Crate tests"),
+            String::from("tt-crates"),
+            harness.crates.as_ref().map(
+                |crates| crates.iter().filter(|c| c.has_error()).count() == 0
+            ),
+        ),
+        (
+            String::from("Compile-And-Run"),
+            String::from("tt-cnr"),
+            harness.compile_and_run.as_ref().map(
+                |cnrs| cnrs.iter().filter(|cnr| cnr.error.is_some()).count() == 0
+            ),
+        ),
+        (
+            String::from("Fuzz"),
+            String::from("tt-fuzz"),
+            harness.fuzz.as_ref().map(
+                |fuzz| fuzz.iter().filter(|f| f.artifact.is_some()).count() == 0
+            ),
+        ),
+    ]);
+
+    let meta = {
+        let commit_hash = &harness.meta.commit.commit_hash;
+        let cargo_version = &harness.meta.cargo_version;
+        let rustc_version = &harness.meta.rustc_version;
+        let os = format!("{:?}", harness.meta.os).to_ascii_lowercase();
+        let started_at = &harness.meta.started_at;
+
+        format!(r#"
+<pre class="code-block"><code>
+- commit
+  - hash: {commit_hash}
+  - <a href="../commits/{commit_hash}.html">more info</a>
+- cargo version: {cargo_version}
+- rustc version: {rustc_version}
+- os: {os}
+- started at: {started_at}
+</code></pre>
+"#)
+    };
+
     let crates = if let Some(crates) = &harness.crates && !crates.is_empty() {
+        let summary = format!(
+            "{}/{}",
+            crates.iter().filter(|c| !c.has_error()).count(),
+            crates.len(),
+        );
+
         let toc = render_toc(crates.iter().map(
             |c| (
                 c.name.to_string(),
@@ -81,13 +154,18 @@ pub fn single_harness(
                 }
 
                 let name = &c.name;
+                let marker = if c.has_error() {
+                    circle("red", "medium")
+                } else {
+                    circle("green", "medium")
+                };
                 let clippy = each_crate("cargo clippy", &c.clippy);
                 let doc = each_crate("cargo doc", &c.clippy);
                 let debug = each_crate("cargo test", &c.clippy);
                 let release = each_crate("cargo test --release", &c.clippy);
 
                 format!(r#"
-<h3 id="crt-{name}">{name}</h3>
+<h3 id="crt-{name}">{name} {marker}</h3>
 
 {clippy}
 
@@ -101,7 +179,7 @@ pub fn single_harness(
         ).collect::<Vec<_>>().join("\n");
 
         format!(r#"
-<h2>Crate tests</h2>
+<h2 id="tt-crates">Crate tests ({summary})</h2>
 
 {toc}
 
@@ -109,13 +187,19 @@ pub fn single_harness(
 "#)
     } else {
         String::from(r#"
-<h2>Crate tests</h2>
+<h2 id="tt-crates">Crate tests</h2>
 
 N/A
 "#)
     };
 
     let cnrs = if let Some(cnrs) = &harness.compile_and_run && !cnrs.is_empty() {
+        let summary = format!(
+            "{}/{}",
+            cnrs.iter().filter(|cnr| cnr.error.is_none()).count(),
+            cnrs.len(),
+        );
+
         let toc = render_toc(cnrs.iter().map(
             |cnr| (
                 cnr.name.to_string(),
@@ -127,6 +211,27 @@ N/A
         let cnrs = cnrs.iter().map(
             |cnr| {
                 let name = &cnr.name;
+                let marker = if cnr.error.is_some() {
+                    circle("red", "medium")
+                } else {
+                    circle("green", "medium")
+                };
+                let code = format!(r#"
+<a href="../blobs/{}.html">code</a>
+"#,
+                    cnr.hash,
+                );
+                let error = match &cnr.error {
+                    Some(error) => format!(r#"
+<details>
+    <summary><span class="red">error</span></summary>
+    <pre class="code-block"><code>{}</code></pre>
+</details>
+"#,
+                        escape_html(error),
+                    ),
+                    None => String::new(),
+                };
                 let stdout = escape_html(&cnr.stdout_colored);
                 let stderr = escape_html(&cnr.stderr_colored);
                 let compile_elapsed = render_elapsed_ms(cnr.compile_elapsed_ms);
@@ -135,25 +240,32 @@ N/A
                     None => String::from("N/A"),
                 };
 
-format!(r#"
-<h3 id="cnr-{name}">{name}</h3>
+                format!(r#"
+<h3 id="cnr-{name}">{name} {marker}</h3>
+
+{code}
 
 <p>compile: {compile_elapsed}</p>
 <p>run: {run_elapsed}</p>
 
-<h4>stdout</h4>
+{error}
 
-<pre class="code-block"><code>{stdout}</code></pre>
+<details>
+    <summary>stdout</summary>
+    <pre class="code-block"><code>{stdout}</code></pre>
+</details>
 
-<h4>stderr</h4>
+<details>
+    <summary>stderr</summary>
+    <pre class="code-block"><code>{stderr}</code></pre>
+</details>
 
-<pre class="code-block"><code>{stderr}</code></pre>
 "#)
             }
         ).collect::<Vec<_>>().join("\n");
 
         format!(r#"
-<h2>Compile-And-Run tests</h2>
+<h2 id="tt-cnr">Compile-And-Run tests ({summary})</h2>
 
 {toc}
 
@@ -161,7 +273,63 @@ format!(r#"
 "#)
     } else {
         String::from(r#"
-<h2>Compile-And-Run tests</h2>
+<h2 id="tt-cnr">Compile-And-Run tests</h2>
+
+N/A
+"#)
+    };
+
+    let fuzz = if let Some(fuzz) = &harness.fuzz && !fuzz.is_empty() {
+        let summary = format!(
+            "{}/{}",
+            fuzz.iter().filter(|fuzz| fuzz.artifact.is_none()).count(),
+            fuzz.len(),
+        );
+
+        let toc = render_toc(fuzz.iter().map(
+            |f| (
+                f.target.name().to_string(),
+                format!("fuzz-{}", f.target.name()),
+                Some(f.artifact.is_none()),
+            )
+        ).collect());
+
+        let fuzz = fuzz.iter().map(
+            |f| {
+                let name = f.target.name();
+                let elapsed = render_elapsed_ms(f.elapsed_ms);
+                let result = match &f.artifact {
+                    Some(artifact) => format!(r#"
+<details>
+    <summary>artifact</summary>
+    <pre class="code-block"><code>{}</code></pre>
+</details>
+"#,
+                        String::from_utf8_lossy(artifact),
+                    ),
+                    None => String::new(),
+                };
+
+                format!(r#"
+<h3 id="fuzz-{name}">{name}</h3>
+
+<p>elapsed: {elapsed}</p>
+
+<p>{result}</p>
+"#)
+            }
+        ).collect::<Vec<_>>().join("\n");
+
+        format!(r#"
+<h2 id="tt-fuzz">Fuzz ({summary})</h2>
+
+{toc}
+
+{fuzz}
+"#)
+    } else {
+        String::from(r#"
+<h2 id="tt-cnr">Compile-And-Run tests</h2>
 
 N/A
 "#)
@@ -170,11 +338,11 @@ N/A
     let title = harness.meta.get_result_file_name();
     let prev = match prev {
         Some(prev) => format!(r#"<a href="{}">&lt;&lt; prev</a>"#, set_extension(&prev, "html").unwrap()),
-        None => String::new(),
+        None => String::from("&lt;&lt; prev"),
     };
     let next = match next {
         Some(next) => format!(r#"<a href="{}">next &gt;&gt;</a>"#, set_extension(&next, "html").unwrap()),
-        None => String::new(),
+        None => String::from("next &gt;&gt;"),
     };
 
     html_template(
@@ -189,11 +357,68 @@ r#"
 
 {meta}
 
+{toc}
+
 {crates}
 
 {cnrs}
+
+{fuzz}
 "#,
-        ))
+        ),
+        true,
+    )
+}
+
+pub fn render_blob(blob_hash: &str, blobs: &HashMap<String, Vec<u8>>) -> Option<String> {
+    let blob = blobs.get(blob_hash)?;
+
+    Some(html_template(
+        &format!(r#"
+<pre class="code-block"><code>{}</code></pre>
+"#,
+            escape_html(&String::from_utf8_lossy(blob)),
+        ),
+        true,
+    ))
+}
+
+pub fn render_commit(commit: &CommitInfo) -> String {
+    let abbrev_hash = commit.commit_hash.get(0..9).unwrap().to_string();
+
+    let title = &commit.title;
+    let body = match &commit.body {
+        Some(body) => format!(r#"<pre class="code-block"><code>{body}</code></pre>"#),
+        None => String::new(),
+    };
+    let author = &commit.author;
+    let author_email = &commit.author_email;
+    let parent = match &commit.parent_hash {
+        Some(parent) => {
+            let abbrev_hash = parent.get(0..9).unwrap().to_string();
+            format!(r#"<li><a href="{abbrev_hash}.html">parent</a></li>"#)
+        },
+        None => String::new(),
+    };
+
+    // TODO: `git diff -U5 --color=always --diff-algorithm=patience <hash1> <hash2>`
+
+    html_template(
+        &format!(r#"
+<h1>{abbrev_hash}</h1>
+
+<h2>{title}</h2>
+
+<ul>
+    <li>author: {author}</li>
+    <li>author_email: {author_email}</li>
+    {parent}
+</ul>
+
+{body}
+"#),
+        true,
+    )
 }
 
 fn circle(color: &str, size: &str) -> String {
@@ -211,7 +436,13 @@ fn render_elapsed_ms(ms: u64) -> String {
 
 const STYLE: &str = include_str!("style.css");
 
-fn html_template(body: &str) -> String {
+fn html_template(body: &str, show_top_bar: bool) -> String {
+    let top_bar = if show_top_bar {
+        String::from(r#"<p><a href="../index.html">Home</a></p>"#)
+    } else {
+        String::new()
+    };
+
     format!(r#"
 <!DOCTYPE html>
 <html>
@@ -223,6 +454,8 @@ fn html_template(body: &str) -> String {
 </head>
 
 <body>
+{top_bar}
+
 {body}
 </body>
 

@@ -1,5 +1,4 @@
 use regex::Regex;
-use serde::{Deserialize, Serialize};
 use sodigy_compiler_test::{TestHarness, find_root, git};
 use sodigy_fs_api::{
     basename,
@@ -16,51 +15,30 @@ use sodigy_fs_api::{
     WriteMode,
 };
 use std::collections::hash_map::{Entry as HashMapEntry, HashMap};
+use std::collections::hash_set::HashSet;
 
 mod html;
 mod index;
 
-use html::{single_harness};
-use index::{CnrDiff, calc_cnr_diffs, load_test_files};
-
-fn help_message(bin: &str) -> String {
-    format!(r#"
-{bin} create-index
-    Creates index and quit
-
-{bin}
-    Launch the viewer
-"#)
-}
+use html::{render_blob, render_commit, render_harness, render_index};
+use index::load_test_files;
 
 fn main() {
-    let args = std::env::args().collect::<Vec<_>>();
-
-    match args.get(1).map(|arg| arg.as_str()) {
-        Some("create-index") => {
-            calc_cnr_diffs().unwrap();
-            load_test_files().unwrap();
-            return;
-        },
-        Some(_) => {
-            println!("{}", help_message(&args[0]));
-            return;
-        },
-        None => {},
-    }
-
     let root = find_root().unwrap();
     let test_results_at = join3(&root, "tests", "log").unwrap();
     let rendered_htmls_at = join(&parent(&test_results_at).unwrap(), "html").unwrap();
     let (test_results, total_count) = collect_test_result_names(&test_results_at);
 
-    // recent_test_results[0] is the most recent one, and the results are sorted by commit order
-    // it collects the most recent 500 results
+    // `recent_test_results[0]` is the most recent one, and the results are sorted by commit order.
     let mut recent_test_results = vec![];
+    let mut harnesses_by_name = HashMap::new();
+    let mut commits = vec![];
+    let mut blobs_to_read = HashSet::new();
     let mut curr_commit = git::get_curr_commit();
 
-    while recent_test_results.len() < 500 {
+    while recent_test_results.len() < 200 && commits.len() < 500 {
         let curr_commit_info = git::get_commit_info(&curr_commit);
+        commits.push(curr_commit_info.clone());
 
         if let Some(results) = test_results.get(&curr_commit) {
             recent_test_results.extend(results);
@@ -83,7 +61,9 @@ fn main() {
     }
 
     create_dir_all(&rendered_htmls_at).unwrap();
-    create_dir_all(&join(&rendered_htmls_at, "cnrs").unwrap()).unwrap();
+    create_dir_all(&join(&rendered_htmls_at, "harnesses").unwrap()).unwrap();
+    create_dir_all(&join(&rendered_htmls_at, "commits").unwrap()).unwrap();
+    create_dir_all(&join(&rendered_htmls_at, "blobs").unwrap()).unwrap();
 
     for (i, test_result) in recent_test_results.iter().enumerate() {
         let (prev, next) = match i {
@@ -100,17 +80,60 @@ fn main() {
         let path = join(&test_results_at, test_result).unwrap();
         let s = read_string(&path).unwrap();
         let j: TestHarness = serde_json::from_str(&s).unwrap();
+        harnesses_by_name.insert(test_result.to_string(), j.clone());
+        blobs_to_read.extend(j.get_cnr_blobs());
         let html_name = set_extension(&j.meta.get_result_file_name(), "html").unwrap();
 
-        let html = single_harness(&j, prev, next);
+        let html = render_harness(&j, prev, next);
         write_string(
             &join3(
                 &rendered_htmls_at,
-                "cnrs",
+                "harnesses",
                 &html_name,
             ).unwrap(),
             &html,
-            WriteMode::CreateOrTruncate,
+            WriteMode::AlwaysCreate,
+        ).unwrap();
+    }
+
+    let blobs = load_test_files().unwrap();
+
+    for blob_hash in blobs_to_read.iter() {
+        let Some(html) = render_blob(blob_hash, &blobs) else { continue };
+
+        write_string(
+            &join3(
+                &rendered_htmls_at,
+                "blobs",
+                &set_extension(blob_hash, "html").unwrap(),
+            ).unwrap(),
+            &html,
+            WriteMode::AlwaysCreate,
+        ).unwrap();
+    }
+
+    write_string(
+        &join(&rendered_htmls_at, "index.html").unwrap(),
+        &render_index(
+            &test_results,
+            &harnesses_by_name,
+            &commits,
+        ),
+        WriteMode::AlwaysCreate,
+    ).unwrap();
+
+    // It takes the longest time, so we do this at the end.
+    for commit in commits.iter() {
+        let abbrev_hash = commit.commit_hash.get(0..9).unwrap().to_string();
+
+        write_string(
+            &join3(
+                &rendered_htmls_at,
+                "commits",
+                &set_extension(&abbrev_hash, "html").unwrap(),
+            ).unwrap(),
+            &render_commit(commit),
+            WriteMode::AlwaysCreate,
         ).unwrap();
     }
 }
@@ -142,76 +165,4 @@ fn collect_test_result_names(dir: &str) -> (HashMap<String, Vec<String>>, usize)
     }
 
     (result, total_count)
-}
-
-fn collect_diff_files(dir: &str) -> HashMap<String, String> {
-    let diff_file_re = Regex::new(r"json-(.+)").unwrap();
-    let mut result = HashMap::new();
-
-    for file in read_dir(dir, false).unwrap_or(vec![]) {
-        let name = basename(&file).unwrap();
-
-        if let Some(c) = diff_file_re.captures(&name) {
-            result.insert(c.get(1).unwrap().as_str().to_string(), name.to_string());
-        }
-    }
-
-    result
-}
-
-fn summary(test_harness: &TestHarness) -> TestHarnessSummary {
-    let mut crate_errors = vec![];
-
-    for crate_test in test_harness.crates.as_ref().unwrap_or(&vec![]).iter() {
-        if crate_test.has_error() {
-            let mut errors = vec![];
-
-            if crate_test.clippy.has_error() {
-                errors.push(String::from("clippy"));
-            }
-
-            if crate_test.doc.has_error() {
-                errors.push(String::from("doc"));
-            }
-
-            if crate_test.debug.has_error() {
-                errors.push(String::from("debug"));
-            }
-
-            if crate_test.release.has_error() {
-                errors.push(String::from("release"));
-            }
-
-            crate_errors.push(format!("  * {}: {}", crate_test.name, errors.join(", ")));
-        }
-    }
-
-    let crate_errors = if crate_errors.is_empty() { None } else { Some(crate_errors.join("\n")) };
-
-    TestHarnessSummary {
-        started_at: test_harness.meta.started_at.to_string(),
-        crates_pass: test_harness.crates.as_ref().map(|crates| crates.iter().filter(
-            |cr| !cr.has_error()
-        ).count()).unwrap_or(0),
-        crates_fail: test_harness.crates.as_ref().map(|crates| crates.iter().filter(
-            |cr| cr.has_error()
-        ).count()).unwrap_or(0),
-        crate_errors,
-        cnr_pass: test_harness.compile_and_run.as_ref().map(|cnrs| cnrs.iter().filter(
-            |cnr| cnr.error.is_none()
-        ).count()).unwrap_or(0),
-        cnr_fail: test_harness.compile_and_run.as_ref().map(|cnrs| cnrs.iter().filter(
-            |cnr| cnr.error.is_some()
-        ).count()).unwrap_or(0),
-    }
-}
-
-#[derive(Deserialize, Serialize)]
-struct TestHarnessSummary {
-    started_at: String,
-    crates_pass: usize,
-    crates_fail: usize,
-    crate_errors: Option<String>,
-    cnr_pass: usize,
-    cnr_fail: usize,
 }

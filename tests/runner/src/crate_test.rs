@@ -3,7 +3,7 @@ use sodigy_fs_api::{file_name, read_dir};
 use std::process::{Command, Output};
 use std::time::Instant;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct CrateTest {
     pub name: String,
     pub clippy: CrateTestResult,
@@ -12,7 +12,7 @@ pub struct CrateTest {
     pub release: CrateTestResult,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct CrateTestResult {
     // If there's an error, it stores the stderr of the test.
     pub error: Option<String>,
