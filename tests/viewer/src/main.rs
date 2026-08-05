@@ -17,11 +17,17 @@ use sodigy_fs_api::{
 use std::collections::hash_map::{Entry as HashMapEntry, HashMap};
 use std::collections::hash_set::HashSet;
 
-mod html;
+mod blob;
+mod commit;
+mod harness;
 mod index;
+mod utils;
 
-use html::{render_blob, render_commit, render_harness, render_index};
-use index::load_test_files;
+use blob::{load_test_files, render_blob};
+use commit::render_commit;
+use harness::render_harness;
+use index::render_index;
+use utils::{circle, escape_html, html_template, render_elapsed_ms};
 
 fn main() {
     let root = find_root().unwrap();

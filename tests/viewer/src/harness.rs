@@ -1,76 +1,12 @@
+use crate::{circle, escape_html, html_template, render_elapsed_ms};
 use sodigy_compiler_test::{CrateTestResult, TestHarness};
-use sodigy_compiler_test::meta::git::CommitInfo;
-use sodigy_fs_api::{file_name, set_extension};
-use std::collections::HashMap;
-
-pub fn render_index(
-    harnesses: &HashMap<String, Vec<String>>,
-    harnesses_by_name: &HashMap<String, TestHarness>,
-    commits: &[CommitInfo],
-) -> String {
-    let commits = commits.iter().map(
-        |commit| {
-            let abbrev_hash = commit.commit_hash.get(0..9).unwrap().to_string();
-            let data = match harnesses.get(&abbrev_hash) {
-                Some(harnesses) if !harnesses.is_empty() => format!(
-                    "<ul>{}</ul>",
-                    harnesses.iter().map(
-                        |h| {
-                            let harness = harnesses_by_name.get(h).unwrap();
-                            let url = set_extension(h, "html").unwrap();
-                            let base = file_name(h).unwrap();
-                            format!(
-                                r#"<li><a href="harnesses/{url}">{base}</a> ({})</li>"#,
-                                harness.meta.started_at,
-                            )
-                        }
-                    ).collect::<Vec<_>>().concat(),
-                ),
-                _ => String::new(),
-            };
-
-            format!(
-                r#"<li><a href=commits/{abbrev_hash}.html>{abbrev_hash}</a>{data}</li>"#,
-            )
-        }
-    ).collect::<Vec<_>>().join("\n");
-
-    html_template(
-        &format!(r#"
-<ul>
-{commits}
-</ul>
-"#),
-        false,
-    )
-}
+use sodigy_fs_api::set_extension;
 
 pub fn render_harness(
     harness: &TestHarness,
     prev: Option<String>,
     next: Option<String>,
 ) -> String {
-    fn render_toc(list: Vec<(String, String, Option<bool>)>) -> String {
-        format!(r#"
-<div class="toc">
-<ol>
-{}
-</ol>
-</div>
-"#,
-            list.iter().map(
-                |(title, anchor, success)| format!(
-                    r##"<li><a href="#{anchor}">{title}</a> {}</li>"##,
-                    match success {
-                        Some(true) => circle("green", "small"),
-                        Some(false) => circle("red", "small"),
-                        None => circle("white", "small"),
-                    },
-                )
-            ).collect::<Vec<_>>().join("\n"),
-        )
-    }
-
     let toc = render_toc(vec![
         (
             String::from("Crate tests"),
@@ -204,7 +140,7 @@ N/A
             |cnr| (
                 cnr.name.to_string(),
                 format!("cnr-{}", cnr.name),
-                Some(cnr.error.is_some()),
+                Some(cnr.error.is_none()),
             )
         ).collect());
 
@@ -370,170 +306,24 @@ r#"
     )
 }
 
-pub fn render_blob(blob_hash: &str, blobs: &HashMap<String, Vec<u8>>) -> Option<String> {
-    let blob = blobs.get(blob_hash)?;
 
-    Some(html_template(
-        &format!(r#"
-<pre class="code-block"><code>{}</code></pre>
-"#,
-            escape_html(&String::from_utf8_lossy(blob)),
-        ),
-        true,
-    ))
-}
-
-pub fn render_commit(commit: &CommitInfo) -> String {
-    let abbrev_hash = commit.commit_hash.get(0..9).unwrap().to_string();
-
-    let title = &commit.title;
-    let body = match &commit.body {
-        Some(body) => format!(r#"<pre class="code-block"><code>{body}</code></pre>"#),
-        None => String::new(),
-    };
-    let author = &commit.author;
-    let author_email = &commit.author_email;
-    let parent = match &commit.parent_hash {
-        Some(parent) => {
-            let abbrev_hash = parent.get(0..9).unwrap().to_string();
-            format!(r#"<li><a href="{abbrev_hash}.html">parent</a></li>"#)
-        },
-        None => String::new(),
-    };
-
-    // TODO: `git diff -U5 --color=always --diff-algorithm=patience <hash1> <hash2>`
-
-    html_template(
-        &format!(r#"
-<h1>{abbrev_hash}</h1>
-
-<h2>{title}</h2>
-
-<ul>
-    <li>author: {author}</li>
-    <li>author_email: {author_email}</li>
-    {parent}
-</ul>
-
-{body}
-"#),
-        true,
-    )
-}
-
-fn circle(color: &str, size: &str) -> String {
-    format!(r#"<span class="circle-{color} circle-{size}"></span>"#)
-}
-
-fn render_elapsed_ms(ms: u64) -> String {
-    match ms {
-        0..1000 => format!("0.{ms:03}s"),
-        1_000..20_000 => format!("{}.{:03}s", ms / 1000, ms % 1000),
-        20_000..60_000 => format!("{}s", ms / 1000),
-        60_000.. => format!("{}m {}s", ms / 60_000, ms / 1_000 % 60),
-    }
-}
-
-const STYLE: &str = include_str!("style.css");
-
-fn html_template(body: &str, show_top_bar: bool) -> String {
-    let top_bar = if show_top_bar {
-        String::from(r#"<p><a href="../index.html">Home</a></p>"#)
-    } else {
-        String::new()
-    };
-
+fn render_toc(list: Vec<(String, String, Option<bool>)>) -> String {
     format!(r#"
-<!DOCTYPE html>
-<html>
-
-<head>
-<style>
-{STYLE}
-</style>
-</head>
-
-<body>
-{top_bar}
-
-{body}
-</body>
-
-</html>
-"#)
-}
-
-// TODO: these (escape_html, apply_ansi_term_color) are direct copy-paste from crates/driver/src/log.rs
-//       I want an independent crate like `html-render`, but I'm not sure if that's worth it
-fn escape_html(s: &str) -> String {
-    let s = s
-        .replace("&", "&amp;")
-        .replace(">", "&gt;")
-        .replace("<", "&lt;");
-
-    apply_ansi_term_color(&s)
-}
-
-#[derive(Clone, Copy)]
-enum TermColorParseState {
-    Text,
-    Control,
-}
-
-fn apply_ansi_term_color(s: &str) -> String {
-    let mut state = TermColorParseState::Text;
-    let mut content_buffer: Vec<char> = vec![];
-    let mut digits_buffer: Vec<char> = vec![];
-    let mut result: Vec<String> = vec![String::from("<span>")];
-
-    for ch in s.chars() {
-        match state {
-            TermColorParseState::Text => match ch {
-                '\u{1b}' => {
-                    digits_buffer = vec![];
-                    result.push(content_buffer.drain(..).collect());
-                    result.push(String::from("</span>"));
-                    state = TermColorParseState::Control;
+<div class="toc">
+<ol>
+{}
+</ol>
+</div>
+"#,
+        list.iter().map(
+            |(title, anchor, success)| format!(
+                r##"<li><a href="#{anchor}">{title}</a> {}</li>"##,
+                match success {
+                    Some(true) => circle("green", "small"),
+                    Some(false) => circle("red", "small"),
+                    None => circle("white", "small"),
                 },
-                _ => {
-                    content_buffer.push(ch);
-                },
-            },
-            TermColorParseState::Control => match ch {
-                '0'..='9' => {
-                    digits_buffer.push(ch);
-                },
-                'm' => {
-                    match digits_buffer.iter().collect::<String>().parse::<u32>() {
-                        Ok(0) => {
-                            result.push(String::from(r#"<span>"#));
-                        },
-                        Ok(31) => {
-                            result.push(String::from(r#"<span class="red">"#));
-                        },
-                        Ok(32) => {
-                            result.push(String::from(r#"<span class="green">"#));
-                        },
-                        Ok(33) => {
-                            result.push(String::from(r#"<span class="yellow">"#));
-                        },
-                        Ok(34) => {
-                            result.push(String::from(r#"<span class="blue">"#));
-                        },
-                        _ => unreachable!(),
-                    };
-
-                    state = TermColorParseState::Text;
-                },
-                _ => {},
-            },
-        }
-    }
-
-    if !content_buffer.is_empty() {
-        result.push(content_buffer.drain(..).collect());
-        result.push(String::from("</span>"));
-    }
-
-    result.concat()
+            )
+        ).collect::<Vec<_>>().join("\n"),
+    )
 }
