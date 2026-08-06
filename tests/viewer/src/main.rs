@@ -120,11 +120,7 @@ fn main() {
 
     write_string(
         &join(&rendered_htmls_at, "index.html").unwrap(),
-        &render_index(
-            &test_results,
-            &harnesses_by_name,
-            &commits,
-        ),
+        &render_index(&test_results, &commits),
         WriteMode::AlwaysCreate,
     ).unwrap();
 
