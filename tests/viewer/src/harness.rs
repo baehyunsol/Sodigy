@@ -271,15 +271,10 @@ N/A
 "#)
     };
 
+    let curr_commit_hash = harness.meta.commit.commit_hash.get(0..9).unwrap();
     let title = harness.meta.get_result_file_name();
-    let prev = match prev {
-        Some(prev) => format!(r#"<a href="{}">&lt;&lt; prev</a>"#, set_extension(&prev, "html").unwrap()),
-        None => String::from("&lt;&lt; prev"),
-    };
-    let next = match next {
-        Some(next) => format!(r#"<a href="{}">next &gt;&gt;</a>"#, set_extension(&next, "html").unwrap()),
-        None => String::from("next &gt;&gt;"),
-    };
+    let prev = render_nav(curr_commit_hash, prev, "<< prev");
+    let next = render_nav(curr_commit_hash, next, "next >>");
 
     html_template(
         &format!(
@@ -306,6 +301,41 @@ r#"
     )
 }
 
+fn render_nav(
+    src: &str,
+    dst: Option<String>,
+    title: &str,
+) -> String {
+    let diff = match &dst {
+        Some(dst) => {
+            let dst = dst.get(12..21).unwrap();
+            let src = u64::from_str_radix(src, 16).unwrap();
+            let dst = u64::from_str_radix(dst, 16).unwrap();
+            let diff_hash = format!("{:09x}", src ^ dst);
+
+            format!(r#"<a href="../diffs/{diff_hash}.html">diff</a>"#)
+        },
+        None => String::from("diff: N/A"),
+    };
+    let result = match &dst {
+        Some(dst) => format!(r#"<a href="{}">result</a>"#, set_extension(dst, "html").unwrap()),
+        None => String::from("result: N/A"),
+    };
+    let dst = match &dst {
+        Some(dst) => dst.to_string(),
+        None => String::from("N/A"),
+    };
+
+    let title = escape_html(title);
+
+    format!(r#"
+<div class="nav-box center-text">
+    <p>{title}</p>
+    <p>{dst}</p>
+    <p>{diff}, {result}</p>
+</div>
+"#)
+}
 
 fn render_toc(list: Vec<(String, String, Option<bool>)>) -> String {
     format!(r#"

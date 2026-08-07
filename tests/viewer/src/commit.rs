@@ -1,4 +1,4 @@
-use crate::{escape_html, html_template};
+use crate::{color_udiff, escape_html, html_template};
 use sodigy_compiler_test::meta::git::CommitInfo;
 use sodigy_compiler_test::subprocess;
 
@@ -64,25 +64,5 @@ fn diff_commits(prev: &str, next: &str) -> String {
         true,
     ).unwrap();
     let s = String::from_utf8_lossy(&o.stdout);
-    let mut colored = vec![];
-
-    for line in s.lines() {
-        if line.starts_with("+") {
-            colored.push(format!("\x1b[32m{line}\x1b[0m"));
-        }
-
-        else if line.starts_with("-") {
-            colored.push(format!("\x1b[31m{line}\x1b[0m"));
-        }
-
-        else if line.starts_with("@") {
-            colored.push(format!("\x1b[33m{line}\x1b[0m"));
-        }
-
-        else {
-            colored.push(line.to_string());
-        }
-    }
-
-    colored.join("\n")
+    color_udiff(&s)
 }

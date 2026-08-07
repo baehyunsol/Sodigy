@@ -114,3 +114,27 @@ fn apply_ansi_term_color(s: &str) -> String {
 
     result.concat()
 }
+
+pub fn color_udiff(s: &str) -> String {
+    let mut colored = vec![];
+
+    for line in s.lines() {
+        if line.starts_with("+") {
+            colored.push(format!("\x1b[32m{line}\x1b[0m"));
+        }
+
+        else if line.starts_with("-") {
+            colored.push(format!("\x1b[31m{line}\x1b[0m"));
+        }
+
+        else if line.starts_with("@") {
+            colored.push(format!("\x1b[33m{line}\x1b[0m"));
+        }
+
+        else {
+            colored.push(line.to_string());
+        }
+    }
+
+    colored.join("\n")
+}
