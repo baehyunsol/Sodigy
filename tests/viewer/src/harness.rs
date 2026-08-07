@@ -12,6 +12,13 @@ pub fn render_harness(
             String::from("Crate tests"),
             String::from("tt-crates"),
             harness.crates.as_ref().map(
+                |crates| format!(
+                    "{}/{}",
+                    crates.iter().filter(|c| !c.has_error()).count(),
+                    crates.len(),
+                )
+            ),
+            harness.crates.as_ref().map(
                 |crates| crates.iter().filter(|c| c.has_error()).count() == 0
             ),
         ),
@@ -19,12 +26,20 @@ pub fn render_harness(
             String::from("Compile-And-Run"),
             String::from("tt-cnr"),
             harness.compile_and_run.as_ref().map(
+                |cnrs| format!(
+                    "{}/{}",
+                    cnrs.iter().filter(|cnr| cnr.error.is_none()).count(),
+                    cnrs.len(),
+                )
+            ),
+            harness.compile_and_run.as_ref().map(
                 |cnrs| cnrs.iter().filter(|cnr| cnr.error.is_some()).count() == 0
             ),
         ),
         (
             String::from("Fuzz"),
             String::from("tt-fuzz"),
+            None,
             harness.fuzz.as_ref().map(
                 |fuzz| fuzz.iter().filter(|f| f.artifact.is_some()).count() == 0
             ),
@@ -62,6 +77,7 @@ pub fn render_harness(
             |c| (
                 c.name.to_string(),
                 format!("crt-{}", c.name),
+                None,
                 Some(!c.has_error()),
             )
         ).collect());
@@ -140,6 +156,7 @@ N/A
             |cnr| (
                 cnr.name.to_string(),
                 format!("cnr-{}", cnr.name),
+                None,
                 Some(cnr.error.is_none()),
             )
         ).collect());
@@ -226,6 +243,7 @@ N/A
             |f| (
                 f.target.name().to_string(),
                 format!("fuzz-{}", f.target.name()),
+                None,
                 Some(f.artifact.is_none()),
             )
         ).collect());
@@ -317,12 +335,8 @@ fn render_nav(
         },
         None => String::from("diff: N/A"),
     };
-    let result = match &dst {
-        Some(dst) => format!(r#"<a href="{}">result</a>"#, set_extension(dst, "html").unwrap()),
-        None => String::from("result: N/A"),
-    };
     let dst = match &dst {
-        Some(dst) => dst.to_string(),
+        Some(dst) => format!(r#"<a href="{}">{dst}</a>"#, set_extension(dst, "html").unwrap()),
         None => String::from("N/A"),
     };
 
@@ -332,12 +346,12 @@ fn render_nav(
 <div class="nav-box center-text">
     <p>{title}</p>
     <p>{dst}</p>
-    <p>{diff}, {result}</p>
+    <p>{diff}</p>
 </div>
 "#)
 }
 
-fn render_toc(list: Vec<(String, String, Option<bool>)>) -> String {
+fn render_toc(list: Vec<(String, String, Option<String>, Option<bool>)>) -> String {
     format!(r#"
 <div class="toc">
 <ol>
@@ -346,8 +360,12 @@ fn render_toc(list: Vec<(String, String, Option<bool>)>) -> String {
 </div>
 "#,
         list.iter().map(
-            |(title, anchor, success)| format!(
-                r##"<li><a href="#{anchor}">{title}</a> {}</li>"##,
+            |(title, anchor, extra, success)| format!(
+                r##"<li><a href="#{anchor}">{title}</a>{} {}</li>"##,
+                match extra {
+                    Some(extra) => format!(" ({extra})"),
+                    None => String::new(),
+                },
                 match success {
                     Some(true) => circle("green", "small"),
                     Some(false) => circle("red", "small"),

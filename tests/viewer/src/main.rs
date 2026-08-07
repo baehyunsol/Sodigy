@@ -46,7 +46,7 @@ fn main() {
     println!("collecting test results and commits...");
     let started_at = Instant::now();
 
-    // `recent_test_results[0]` is the most recent one, and the results are sorted by commit order.
+    // `recent_test_results[0]` is the oldest one, and the results are sorted by commit order.
     let mut recent_test_results = vec![];
     let mut commits = vec![];
     let mut blobs_to_read = HashSet::new();
@@ -68,6 +68,8 @@ fn main() {
             None => break,
         }
     }
+
+    recent_test_results = recent_test_results.into_iter().rev().collect();
 
     if exists(&rendered_htmls_at) {
         remove_dir_all(&rendered_htmls_at).unwrap();

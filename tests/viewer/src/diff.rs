@@ -3,6 +3,7 @@ use sodigy_compiler_test::{CompileAndRun, TestHarness, subprocess};
 use sodigy_fs_api::{
     WriteMode,
     remove_file,
+    set_extension,
     write_bytes,
 };
 use std::collections::{HashMap, HashSet};
@@ -134,22 +135,46 @@ pub fn render_diff(
 
             let different_errors_count = different_error_cnrs.len();
             let different_errors = different_error_cnrs.iter().map(
-                |cnr| {
-                    format!(r#""#)
-                }
-            ).collect::<Vec<_>>().join("\n");
+                |(cnr_name, content_link, prev_error, next_error)| {
+                    format!(r#"
+<h4>{cnr_name}</h4>
 
-            let removed_count = removed_cnrs.len();
-            let removed = removed_cnrs.iter().map(
-                |cnr| {
-                    format!(r#""#)
+<p><a href="../blobs/{content_link}.html">code</a></p>
+
+<h5>Old Error</h5>
+
+<pre class="code-block"><code>
+{prev_error}
+</code></pre>
+
+<h5>New Error</h5>
+
+<pre class="code-block"><code>
+{next_error}
+</code></pre>
+"#)
                 }
             ).collect::<Vec<_>>().join("\n");
 
             let added_count = added_cnrs.len();
             let added = added_cnrs.iter().map(
-                |cnr| {
-                    format!(r#""#)
+                |(cnr_name, content_link)| {
+                    format!(r#"
+<h4>{cnr_name}</h4>
+
+<p><a href="../blobs/{content_link}.html">code</a></p>
+"#)
+                }
+            ).collect::<Vec<_>>().join("\n");
+
+            let removed_count = removed_cnrs.len();
+            let removed = removed_cnrs.iter().map(
+                |(cnr_name, content_link)| {
+                    format!(r#"
+<h4>{cnr_name}</h4>
+
+<p><a href="../blobs/{content_link}.html">code</a></p>
+"#)
                 }
             ).collect::<Vec<_>>().join("\n");
 
@@ -182,6 +207,11 @@ pub fn render_diff(
         _ => String::from("<p>Cnr diff is not available!</p>"),
     };
 
+    let file1 = prev.meta.get_result_file_name();
+    let file2 = next.meta.get_result_file_name();
+    let title = format!("{file1} vs {file2}");
+    let link1 = format!(r#"<a href="../harnesses/{}">{file1}</a>"#, set_extension(&file1, "html").unwrap());
+    let link2 = format!(r#"<a href="../harnesses/{}">{file2}</a>"#, set_extension(&file2, "html").unwrap());
     let cnr_diff = format!(r#"
 <h1>{title}</h1>
 
