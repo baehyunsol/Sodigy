@@ -21,6 +21,9 @@ impl Endec for Session<'_, '_> {
         // changes everytime
         // self.intermediate_dir.encode_impl(buffer);
 
+        // tmp storage
+        // self.wildcard_spans.encode_impl(buffer);
+
         self.lets.encode_impl(buffer);
         self.funcs.encode_impl(buffer);
         self.enums.encode_impl(buffer);
@@ -54,6 +57,10 @@ impl Endec for Session<'_, '_> {
             Session {
                 // You have to set this after decoding it.
                 intermediate_dir: String::new(),
+
+                // tmp storage
+                wildcard_spans: vec![],
+
                 lets,
                 funcs,
                 enums,

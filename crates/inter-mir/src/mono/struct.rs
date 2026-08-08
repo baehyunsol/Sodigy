@@ -2,6 +2,7 @@ use super::Monomorphization;
 use crate::Session;
 use sodigy_hir::{self as hir, StructShape};
 use sodigy_mir::{Struct, StructField};
+use std::collections::HashSet;
 
 impl Session {
     pub fn monomorphize_struct(&mut self, r#struct: &Struct, monomorphization: &Monomorphization) -> Struct {
@@ -11,7 +12,7 @@ impl Session {
         for field in r#struct.fields.iter() {
             let new_field_span = field.name_span.monomorphize(monomorphization.id);
             let old_field_type = self.types.get(&field.name_span).unwrap();
-            let new_field_type = self.monomorphize_type(&old_field_type.clone(), monomorphization);
+            let new_field_type = self.monomorphize_type(&old_field_type.clone(), &HashSet::new(), monomorphization);
             self.types.insert(new_field_span.clone(), new_field_type);
 
             new_fields.push(StructField {

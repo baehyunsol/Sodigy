@@ -1,0 +1,7 @@
+fn foo<T>(x: T) -> T = {
+    let y: (_, Int) = (x, 3);
+    y._0
+};
+
+assert foo(30) == 30;
+assert foo("30") == "30";

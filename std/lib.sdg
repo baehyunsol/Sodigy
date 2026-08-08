@@ -17,6 +17,7 @@ mod result;
 mod scalar;
 mod string;
 mod tuple;
+mod r#type;
 
 use std.int.Int;
 use std.string.String;

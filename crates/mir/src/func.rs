@@ -17,10 +17,20 @@ pub struct Func {
     pub value: Expr,
     pub built_in: bool,
     pub origin: FuncOrigin,
+
+    // Spans of `hir::Type::Wildcard`. It has to be monomorphized later.
+    // Let's say there's an expression `foo.<_, Int>()`. The wildcard type
+    // in the dotfish will be lowered to `Type::Var { def_span, .. }`, and
+    // the def_span is the span of the wildcard token in the dotfish. When
+    // the function is monomorphized, the span of the wild token also has
+    // to be monomorphized!
+    pub wildcard_spans: Vec<Span>,
 }
 
 impl Func {
     pub fn from_hir(hir_func: &hir::Func, session: &mut Session) -> Result<Func, ()> {
+        session.wildcard_spans = vec![];
+
         let mut has_error = false;
         let mut params = Vec::with_capacity(hir_func.params.len());
         let mut param_types = Vec::with_capacity(hir_func.params.len());
@@ -121,6 +131,7 @@ impl Func {
                 value: value.unwrap(),
                 built_in: hir_func.built_in,
                 origin: hir_func.origin,
+                wildcard_spans: session.wildcard_spans.drain(..).collect(),
             })
         }
     }

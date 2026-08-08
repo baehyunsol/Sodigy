@@ -1,7 +1,7 @@
 use std.bool.{Bool, Bool.{False, True}};
 use std.byte.Byte;
 use std.char.Char;
-use std.convert.ConversionError;
+use std.convert.{ConversionError, conversion_error};
 use std.option.Option.{None, Some};
 use std.range.Range;
 use std.result.{Result, Result.{Error, Ok}};
@@ -138,21 +138,21 @@ fn ilog2(n) -> Int = match n {
 };
 
 #[impl(std.convert.try_convert)]
-fn int_to_scalar(n: Int) -> Result<Scalar, ConversionError<Int, Scalar>> = match n {
+fn int_to_scalar(n: Int) -> Result<Scalar, ConversionError<Int>> = match n {
     0..=4294967295 => Ok(int_to_scalar_built_in(n)),
-    _ => Error(ConversionError { value: n }),
+    _ => Error(conversion_error(n)),
 };
 
 #[impl(std.convert.try_convert)]
-fn int_to_byte(n: Int) -> Result<Byte, ConversionError<Int, Byte>> = match n {
+fn int_to_byte(n: Int) -> Result<Byte, ConversionError<Int>> = match n {
     0..=255 => Ok(std.transmute(int_to_scalar_built_in(n))),
-    _ => Error(ConversionError { value: n }),
+    _ => Error(conversion_error(n)),
 };
 
 #[impl(std.convert.try_convert)]
-fn int_to_char(n: Int) -> Result<Char, ConversionError<Int, Char>> = match n {
+fn int_to_char(n: Int) -> Result<Char, ConversionError<Int>> = match n {
     0..=0xd7ff | 0xe000..=0x10_ffff => Ok(std.transmute(int_to_scalar_built_in(n))),
-    _ => Error(ConversionError { value: n }),
+    _ => Error(conversion_error(n)),
 };
 
 #[built_in]

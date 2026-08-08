@@ -2,6 +2,7 @@ use super::Monomorphization;
 use crate::Session;
 use sodigy_hir::{self as hir, EnumShape};
 use sodigy_mir::{Enum, EnumVariant, EnumVariantFields};
+use std::collections::HashSet;
 
 impl Session {
     pub fn monomorphize_enum(&mut self, r#enum: &Enum, monomorphization: &Monomorphization) -> Enum {
@@ -11,7 +12,7 @@ impl Session {
         for variant in r#enum.variants.iter() {
             let new_variant_span = variant.name_span.monomorphize(monomorphization.id);
             let old_variant_type = self.types.get(&variant.name_span).unwrap();
-            let new_variant_type = self.monomorphize_type(&old_variant_type.clone(), monomorphization);
+            let new_variant_type = self.monomorphize_type(&old_variant_type.clone(), &HashSet::new(), monomorphization);
             self.types.insert(new_variant_span.clone(), new_variant_type);
 
             let new_fields = match &variant.fields {

@@ -237,7 +237,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                         assert_eq!(types.len(), generic_args.len());
 
                         for (dotfish, generic_arg) in types.iter().zip(generic_args.iter()) {
-                            if let Type::GenericParam { .. } = generic_arg {
+                            if generic_arg.has_generic_param() {
                                 continue;
                             }
 

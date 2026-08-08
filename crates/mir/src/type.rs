@@ -263,10 +263,14 @@ impl Type {
             },
 
             // it has to be infered
-            hir::Type::Wildcard(span) => Ok(Type::Var {
-                def_span: span.clone(),
-                is_return: false,
-            }),
+            hir::Type::Wildcard(span) => {
+                session.wildcard_spans.push(span.clone());
+
+                Ok(Type::Var {
+                    def_span: span.clone(),
+                    is_return: false,
+                })
+            },
             hir::Type::Never(span) => Ok(Type::Never(span.clone())),
         }
     }
@@ -297,6 +301,39 @@ impl Type {
                 result
             },
             Type::Var { .. } | Type::GenericArg { .. } => vec![self.clone()],
+        }
+    }
+
+    pub fn has_generic_param(&self) -> bool {
+        match self {
+            Type::Data { args: Some(args), .. } => {
+                for arg in args.iter() {
+                    if arg.has_generic_param() {
+                        return true;
+                    }
+                }
+
+                false
+            },
+            Type::Data { .. } => false,
+            Type::Func { params, r#return, .. } => {
+                if r#return.has_generic_param() {
+                    return true;
+                }
+
+                for param in params.iter() {
+                    if param.has_generic_param() {
+                        return true;
+                    }
+                }
+
+                false
+            },
+            Type::Never(_) |
+            Type::Var { .. } |
+            Type::GenericArg { .. } |
+            Type::Blocked { .. } => false,
+            Type::GenericParam { .. } => true,
         }
     }
 
@@ -407,6 +444,34 @@ impl Type {
                 r#return.get_intermediate_types_worker(result);
             },
             _ => {},
+        }
+    }
+
+    pub fn monomorphize_wildcards(&mut self, wildcards: &HashSet<Span>, mono_id: u64) {
+        match self {
+            Type::GenericParam { .. } |
+            Type::Never(_) |
+            Type::GenericArg { .. } |
+            Type::Blocked { .. } => {},
+            Type::Data { args, .. } => {
+                if let Some(args) = args {
+                    for arg in args.iter_mut() {
+                        arg.monomorphize_wildcards(wildcards, mono_id);
+                    }
+                }
+            },
+            Type::Func { r#return, params, .. } => {
+                for param in params.iter_mut() {
+                    param.monomorphize_wildcards(wildcards, mono_id);
+                }
+
+                r#return.monomorphize_wildcards(wildcards, mono_id);
+            },
+            Type::Var { def_span, .. } => {
+                if wildcards.contains(def_span) {
+                    *def_span = def_span.monomorphize(mono_id);
+                }
+            },
         }
     }
 

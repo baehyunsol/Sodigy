@@ -159,8 +159,19 @@ pub enum TypeError {
         keyword_span: Span,
         context: ExprContext,
     },
-    NoImpureCallInImpureContext {  // warning by default
+
+    // warning by default
+    NoImpureCallInImpureContext {
         proc_keyword_span: Span,
+    },
+
+    // This is an ICE.
+    TryToSolveGenericParam {
+        expected: Type,
+        expected_span: Option<Span>,
+        got: Type,
+        got_span: Option<Span>,
+        context: ErrorContext,
     },
 }
 
@@ -886,6 +897,40 @@ impl Session {
                     note: Some(String::from("This `proc` keyword makes this function impure.")),
                 }],
                 note: None,
+            },
+
+            TypeError::TryToSolveGenericParam {
+                expected,
+                expected_span,
+                got,
+                got_span,
+                context,
+            } => {
+                let mut spans = vec![];
+                let lhs = self.render_type(&expected);
+                let rhs = self.render_type(&got);
+
+                if let Some(span) = expected_span {
+                    spans.push(RenderableSpan {
+                        span,
+                        auxiliary: true,
+                        note: Some(String::from("lhs")),
+                    });
+                }
+
+                if let Some(span) = got_span {
+                    spans.push(RenderableSpan {
+                        span,
+                        auxiliary: true,
+                        note: Some(String::from("rhs")),
+                    });
+                }
+
+                Error {
+                    kind: ErrorKind::InternalCompilerError { id: 90962 },
+                    spans,
+                    note: Some(format!("(This is for debugging the compiler itself, not your program)\nThe compiler tried to solve type with `Type::GenericParam {{ .. }}`. All the `Type::GenericParam {{ .. }}`s must be lowered to `Type::GenericArg {{ .. }}` beforehand.\nlhs: {lhs}\nrhs: {rhs}")),
+                }
             },
         }
     }

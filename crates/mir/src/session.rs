@@ -13,6 +13,9 @@ mod item_map;
 pub struct Session<'hir, 'mir> {
     pub intermediate_dir: String,
 
+    // tmp storage for `mir::Func`'s `wildcard_spans`.
+    pub wildcard_spans: Vec<Span>,
+
     pub lets: Vec<Let>,
     pub funcs: Vec<Func>,
     pub enums: Vec<Enum>,
@@ -63,6 +66,7 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
     ) -> Session<'hir, 'static> {
         Session {
             intermediate_dir: hir_session.intermediate_dir.clone(),
+            wildcard_spans: vec![],
 
             // will be lowered soon
             lets: vec![],

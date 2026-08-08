@@ -488,7 +488,10 @@ impl Expr {
                                     arg_group_span: derived_span.clone(),
                                     types: Some(Dotfish {
                                         types: vec![
-                                            Type::Var { def_span: derived_span.clone(), is_return: false },
+                                            {
+                                                session.wildcard_spans.push(derived_span.clone());
+                                                Type::Var { def_span: derived_span.clone(), is_return: false }
+                                            },
                                             Type::Data {
                                                 constructor_def_span: session.get_lang_item_span_id("type.List"),
                                                 constructor_span: derived_span.clone(),
@@ -990,7 +993,10 @@ impl Expr {
                     types: Some(Dotfish {
                         // `3 as <String>` -> `std.convert.convert.<_, String>(3)`
                         types: vec![
-                            Type::Var { def_span: keyword_span.clone(), is_return: false },
+                            {
+                                session.wildcard_spans.push(keyword_span.clone());
+                                Type::Var { def_span: keyword_span.clone(), is_return: false }
+                            },
                             Type::from_hir(rhs, session)?,
                         ],
                         group_span: rhs.error_span_wide(),
@@ -1007,9 +1013,16 @@ impl Expr {
                     types: Some(Dotfish {
                         // `"3" as? <Int>` -> `std.convert.try_convert.<_, Int, _>("3")`
                         types: vec![
-                            Type::Var { def_span: keyword_span.clone(), is_return: false },
+                            {
+                                session.wildcard_spans.push(keyword_span.clone());
+                                Type::Var { def_span: keyword_span.clone(), is_return: false }
+                            },
                             Type::from_hir(rhs, session)?,
-                            Type::Var { def_span: keyword_span.derive(SpanDeriveKind::ConvertError), is_return: false },
+                            {
+                                let wildcard_span = keyword_span.derive(SpanDeriveKind::ConvertError);
+                                session.wildcard_spans.push(wildcard_span.clone());
+                                Type::Var { def_span: wildcard_span, is_return: false }
+                            },
                         ],
                         group_span: rhs.error_span_wide(),
                     }),

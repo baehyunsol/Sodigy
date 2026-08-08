@@ -41,6 +41,7 @@ pub static STD_FILES: LazyLock<Vec<StdFile>> = LazyLock::new(|| {
         (&["scalar"], include_bytes!("../../../std/scalar.sdg")),
         (&["string"], include_bytes!("../../../std/string.sdg")),
         (&["tuple"], include_bytes!("../../../std/tuple.sdg")),
+        (&["type"], include_bytes!("../../../std/type.sdg")),
     ];
 
     for (path, contents) in data.iter() {

@@ -3,6 +3,7 @@ use crate::{LogId, Session, write_log};
 use sodigy_hir::FuncOrigin;
 use sodigy_mir::{Func, Type};
 use sodigy_span::Span;
+use std::collections::HashSet;
 
 #[cfg(feature = "log")]
 use crate::LogEntry;
@@ -18,6 +19,8 @@ impl Session {
         // you have to monomorphize not only `[Char]`, but also `Bar<[Char]>`.
         intermediate_types: &mut Vec<(Type, Span)>,
     ) -> Func {
+        assert!(func.origin != FuncOrigin::Monomorphization);
+
         let _id = if cfg!(feature = "log") {
             Some(LogId::new())
         } else {
@@ -32,12 +35,16 @@ impl Session {
 
         let mut params = Vec::with_capacity(func.params.len());
 
+        // This is only for expressions in the body.
+        // There should be no `Type::Wildcard` in the type annotations of parameters and the return type.
+        let wildcard_spans: HashSet<Span> = func.wildcard_spans.clone().drain(..).collect();
+
         for param in func.params.iter() {
             let mut new_param = param.clone();
             new_param.name_span = new_param.name_span.monomorphize(monomorphization.id);
 
             let old_param_type = self.types.get(&param.name_span).unwrap().clone();
-            let new_param_type = self.monomorphize_type(&old_param_type, monomorphization);
+            let new_param_type = self.monomorphize_type(&old_param_type, &HashSet::new(), monomorphization);
 
             if new_param_type.has_to_be_monomorphized() {
                 intermediate_types.push((new_param_type.clone(), new_param.name_span.clone()));
@@ -50,13 +57,13 @@ impl Session {
         let new_name_span = func.name_span.monomorphize(monomorphization.id);
         let mut new_value = func.value.clone();
         let old_type = self.types.get(&func.name_span).unwrap().clone();
-        let new_type = self.monomorphize_type(&old_type, monomorphization);
+        let new_type = self.monomorphize_type(&old_type, &HashSet::new(), monomorphization);
 
         if new_type.has_to_be_monomorphized() {
             intermediate_types.push((new_type.clone(), new_name_span.clone()));
         }
 
-        self.monomorphize_expr(&mut new_value, monomorphization);
+        self.monomorphize_expr(&mut new_value, &wildcard_spans, monomorphization);
         self.types.insert(new_name_span.clone(), new_type);
 
         let result = Func {
@@ -69,8 +76,9 @@ impl Session {
             params,
             type_annot_span: func.type_annot_span.as_ref().map(|span| span.monomorphize(monomorphization.id)),
             value: new_value,
-            origin: FuncOrigin::Monomorphization,
             built_in: func.built_in,
+            origin: FuncOrigin::Monomorphization,
+            wildcard_spans: vec![],
         };
 
         write_log!(self, LogEntry::MonomorphizeFuncEnd {

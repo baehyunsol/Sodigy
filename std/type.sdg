@@ -1,0 +1,7 @@
+use std.string.String;
+
+#[poly]
+fn type_name<T>() -> String;
+
+#[impl(type_name)]
+fn type_name_int() -> String = "Int";

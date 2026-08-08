@@ -768,10 +768,19 @@ impl Session {
                 }
             },
             (Type::Blocked { .. }, t) | (t, Type::Blocked { .. }) => Ok(t.clone()),
+
+            // We'll only type check/infer monomorphized functions.
             (Type::GenericParam { .. }, _) | (_, Type::GenericParam { .. }) => {
-                // We'll only type check/infer monomorphized functions.
-                unreachable!()
+                self.type_errors.push(TypeError::TryToSolveGenericParam {
+                    expected: lhs.clone(),
+                    expected_span: lhs_span.cloned(),
+                    got: rhs.clone(),
+                    got_span: rhs_span.cloned(),
+                    context: context.clone(),
+                });
+                Err(())
             },
+
             (never @ Type::Never(_), concrete) | (concrete, never @ Type::Never(_)) => {
                 let never_type_expected = matches!(lhs, Type::Never(_));
 

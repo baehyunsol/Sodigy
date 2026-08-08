@@ -265,6 +265,8 @@ fn call(
                     };
                     update(dst, result as u32, &mut stack, heap);
                 },
+                Intrinsic::BitAndScalar => todo!(),
+                Intrinsic::BitOrScalar => todo!(),
                 Intrinsic::ScalarToInt => {
                     let lhs = *stack.ssa.get(&args[0]).unwrap();
                     let result = heap.alloc_int_from_u32(lhs);

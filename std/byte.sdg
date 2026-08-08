@@ -1,6 +1,6 @@
 use std.bool.Bool;
 use std.char.Char;
-use std.convert.ConversionError;
+use std.convert.{ConversionError, conversion_error};
 use std.int.Int;
 use std.result.{Result, Result.{Error, Ok}};
 use std.scalar.Scalar;
@@ -22,9 +22,9 @@ fn eq_byte(a: Byte, b: Byte) -> Bool = std.scalar.eq_scalar(a as <Scalar>, b as 
 fn byte_to_scalar(b: Byte) -> Scalar = std.transmute(b);
 
 #[impl(std.convert.try_convert)]
-fn byte_to_char(b: Byte) -> Result<Char, ConversionError<Byte, Char>> = match b {
+fn byte_to_char(b: Byte) -> Result<Char, ConversionError<Byte>> = match b {
     #0..=#127 => Ok(std.transmute(b)),
-    _ => Error(ConversionError { value: b }),
+    _ => Error(conversion_error(b)),
 };
 
 #[impl(std.convert.convert)]

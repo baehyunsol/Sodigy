@@ -1,8 +1,9 @@
 use std.bool.Bool;
 use std.byte.Byte;
-use std.convert.ConversionError;
+use std.convert.{ConversionError, conversion_error};
 use std.int.Int;
 use std.result.{Result, Result.{Error, Ok}};
+use std.string.String;
 
 // TODO: It has to be private and used only inside std.
 //       It has to be impossible in user code to generate this value.
@@ -50,7 +51,10 @@ fn scalar_to_int_built_in(s: Scalar) -> Int;
 //       So I'm converting the scalar to an integer for pattern-matching,
 //       which is very inefficient.
 #[impl(std.convert.try_convert)]
-fn scalar_to_byte(s: Scalar) -> Result<Byte, ConversionError<Scalar, Byte>> = match s as <Int> {
+fn scalar_to_byte(s: Scalar) -> Result<Byte, ConversionError<Scalar>> = match s as <Int> {
     0..=255 => Ok(std.transmute(s)),
-    _ => Error(ConversionError { value: s }),
+    _ => Error(conversion_error(s)),
 };
+
+#[impl(std.convert.convert)]
+fn scalar_to_string(s: Scalar) -> String = (s as <Int>) as <String>;
