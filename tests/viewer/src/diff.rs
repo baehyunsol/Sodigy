@@ -1,5 +1,5 @@
 use crate::{color_udiff, escape_html, html_template};
-use sodigy_compiler_test::{CompileAndRun, TestHarness, subprocess};
+use sodigy_compiler_test::{CompileAndRun, CrateTest, TestHarness, subprocess};
 use sodigy_fs_api::{
     WriteMode,
     remove_file,
@@ -13,6 +13,144 @@ pub fn render_diff(
     next: &TestHarness,
     blobs: &HashMap<String, Vec<u8>>,
 ) -> String {
+    let crate_diff = match (prev, next) {
+        (
+            TestHarness { crates: Some(prev), .. },
+            TestHarness { crates: Some(next), .. },
+        ) => {
+            let prev_by_name: HashMap<String, &CrateTest> = prev.iter().map(
+                |c| (c.name.to_string(), c)
+            ).collect();
+            let next_by_name: HashMap<String, &CrateTest> = next.iter().map(
+                |c| (c.name.to_string(), c)
+            ).collect();
+            let mut all_names: Vec<String> = prev.iter().chain(next.iter()).map(
+                |c| c.name.to_string()
+            ).collect::<HashSet<_>>().into_iter().collect();
+            all_names.sort();
+
+            // Vec<(crate_name, prev_summary)>
+            let mut fixed_crates: Vec<(String, String)> = vec![];
+
+            // Vec<(crate_name, next_summary)>
+            let mut regressed_crates: Vec<(String, String)> = vec![];
+
+            // Vec<(crate_name, prev_summary, next_summary)>
+            let mut different_error_crates: Vec<(String, String, String)> = vec![];
+
+            // Vec<crate_name>
+            let mut added_crates: Vec<String> = vec![];
+
+            // Vec<crate_name>
+            let mut removed_crates: Vec<String> = vec![];
+
+            for crate_name in all_names.iter() {
+                match (prev_by_name.get(crate_name), next_by_name.get(crate_name)) {
+                    (Some(prev), Some(next)) => {
+                        let prev_summary = prev.summary();
+                        let next_summary = next.summary();
+
+                        match (prev.has_error(), next.has_error()) {
+                            (true, true) if prev_summary != next_summary => {
+                                different_error_crates.push((crate_name.to_string(), prev_summary, next_summary));
+                            },
+                            (true, false) => {
+                                fixed_crates.push((crate_name.to_string(), prev_summary));
+                            },
+                            (false, true) => {
+                                regressed_crates.push((crate_name.to_string(), next_summary));
+                            },
+                            _ => {},
+                        }
+                    },
+                    (Some(prev), None) => {
+                        removed_crates.push(crate_name.to_string());
+                    },
+                    (None, Some(next)) => {
+                        added_crates.push(crate_name.to_string());
+                    },
+                    (None, None) => unreachable!(),
+                }
+            }
+
+            let fixed_count = fixed_crates.len();
+            let fixed = fixed_crates.iter().map(
+                |(crate_name, prev_summary)| {
+                    format!(r#"
+<h4>{crate_name}</h4>
+
+<h5>Previous Error</h5>
+
+<pre class="code-block"><code>{prev_summary}</code></pre>
+"#)
+                }
+            ).collect::<Vec<_>>().join("\n");
+
+            let regressed_count = regressed_crates.len();
+            let regressed = regressed_crates.iter().map(
+                |(crate_name, next_summary)| {
+                    format!(r#"
+<h4>{crate_name}</h4>
+
+<h5>Current Error</h5>
+
+<pre class="code-block"><code>{next_summary}</code></pre>
+"#)
+                }
+            ).collect::<Vec<_>>().join("\n");
+
+            let different_errors_count = different_error_crates.len();
+            let different_errors = different_error_crates.iter().map(
+                |(crate_name, prev_summary, next_summary)| {
+                    format!(r#"
+<h4>{crate_name}</h4>
+
+<h5>Previous Error</h5>
+
+<pre class="code-block"><code>{prev_summary}</code></pre>
+
+<h5>Current Error</h5>
+
+<pre class="code-block"><code>{next_summary}</code></pre>
+"#)
+                }
+            ).collect::<Vec<_>>().join("\n");
+
+            let added_count = added_crates.len();
+            let added = added_crates.iter().map(
+                |crate_name| format!("<h4>{crate_name}</h4>")
+            ).collect::<Vec<_>>().join("\n");
+
+            let removed_count = removed_crates.len();
+            let removed = removed_crates.iter().map(
+                |crate_name| format!("<h4>{crate_name}</h4>")
+            ).collect::<Vec<_>>().join("\n");
+
+            format!(r#"
+<h3>Fixed ({fixed_count})</h3>
+
+{fixed}
+
+<h3>Regressed ({regressed_count})</h3>
+
+{regressed}
+
+<h3>Different Errors ({different_errors_count})</h3>
+
+{different_errors}
+
+<h3>Added ({added_count})</h3>
+
+{added}
+
+<h3>Removed ({removed_count})</h3>
+
+{removed}
+"#)
+        },
+        _ => String::from("<p>Crate diff is not available!</p>"),
+    };
+
     let cnr_diff = match (prev, next) {
         (
             TestHarness { compile_and_run: Some(prev), .. },
@@ -212,18 +350,22 @@ pub fn render_diff(
     let title = format!("{file1} vs {file2}");
     let link1 = format!(r#"<a href="../harnesses/{}">{file1}</a>"#, set_extension(&file1, "html").unwrap());
     let link2 = format!(r#"<a href="../harnesses/{}">{file2}</a>"#, set_extension(&file2, "html").unwrap());
-    let cnr_diff = format!(r#"
+    let html = format!(r#"
 <h1>{title}</h1>
 
-<p>{link1}</p>
-<p>{link2}</p>
+<p>old: {link1}</p>
+<p>new: {link2}</p>
+
+<h2>Crate Diff</h2>
+
+{crate_diff}
 
 <h2>Cnr Diff</h2>
 
 {cnr_diff}
 "#);
 
-    html_template(&cnr_diff, true)
+    html_template(&html, true)
 }
 
 fn diff_blob(a: &[u8], b: &[u8]) -> String {

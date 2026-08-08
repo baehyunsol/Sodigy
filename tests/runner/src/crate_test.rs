@@ -26,6 +26,24 @@ impl CrateTest {
         self.debug.has_error() ||
         self.release.has_error()
     }
+
+    pub fn summary(&self) -> String {
+        fn passfail(b: bool) -> &'static str {
+            if b { "fail" } else { "pass" }
+        }
+
+        format!("
+clippy: {}
+doc: {}
+debug: {}
+release: {}
+",
+            passfail(self.clippy.has_error()),
+            passfail(self.doc.has_error()),
+            passfail(self.debug.has_error()),
+            passfail(self.release.has_error()),
+        ).trim().to_string()
+    }
 }
 
 impl CrateTestResult {

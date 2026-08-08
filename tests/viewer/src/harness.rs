@@ -1,4 +1,10 @@
-use crate::{circle, escape_html, html_template, render_elapsed_ms};
+use crate::{
+    circle,
+    escape_html,
+    html_template,
+    render_elapsed_ms,
+    render_toc,
+};
 use sodigy_compiler_test::{CrateTestResult, TestHarness};
 use sodigy_fs_api::set_extension;
 
@@ -141,7 +147,7 @@ pub fn render_harness(
         String::from(r#"
 <h2 id="tt-crates">Crate tests</h2>
 
-N/A
+<p>N/A</p>
 "#)
     };
 
@@ -228,7 +234,7 @@ N/A
         String::from(r#"
 <h2 id="tt-cnr">Compile-And-Run tests</h2>
 
-N/A
+<p>N/A</p>
 "#)
     };
 
@@ -285,7 +291,7 @@ N/A
         String::from(r#"
 <h2 id="tt-cnr">Compile-And-Run tests</h2>
 
-N/A
+<p>N/A</p>
 "#)
     };
 
@@ -349,29 +355,4 @@ fn render_nav(
     <p>{diff}</p>
 </div>
 "#)
-}
-
-fn render_toc(list: Vec<(String, String, Option<String>, Option<bool>)>) -> String {
-    format!(r#"
-<div class="toc">
-<ol>
-{}
-</ol>
-</div>
-"#,
-        list.iter().map(
-            |(title, anchor, extra, success)| format!(
-                r##"<li><a href="#{anchor}">{title}</a>{} {}</li>"##,
-                match extra {
-                    Some(extra) => format!(" ({extra})"),
-                    None => String::new(),
-                },
-                match success {
-                    Some(true) => circle("green", "small"),
-                    Some(false) => circle("red", "small"),
-                    None => circle("white", "small"),
-                },
-            )
-        ).collect::<Vec<_>>().join("\n"),
-    )
 }

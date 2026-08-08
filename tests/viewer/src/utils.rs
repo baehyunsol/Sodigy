@@ -40,6 +40,31 @@ pub fn html_template(body: &str, show_top_bar: bool) -> String {
 "#)
 }
 
+pub fn render_toc(list: Vec<(String, String, Option<String>, Option<bool>)>) -> String {
+    format!(r#"
+<div class="toc">
+<ol>
+{}
+</ol>
+</div>
+"#,
+        list.iter().map(
+            |(title, anchor, extra, success)| format!(
+                r##"<li><a href="#{anchor}">{title}</a>{} {}</li>"##,
+                match extra {
+                    Some(extra) => format!(" ({extra})"),
+                    None => String::new(),
+                },
+                match success {
+                    Some(true) => circle("green", "small"),
+                    Some(false) => circle("red", "small"),
+                    None => circle("white", "small"),
+                },
+            )
+        ).collect::<Vec<_>>().join("\n"),
+    )
+}
+
 // TODO: these (escape_html, apply_ansi_term_color) are direct copy-paste from crates/driver/src/log.rs
 //       I want an independent crate like `html-render`, but I'm not sure if that's worth it
 pub fn escape_html(s: &str) -> String {

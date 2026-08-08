@@ -36,6 +36,7 @@ use utils::{
     escape_html,
     html_template,
     render_elapsed_ms,
+    render_toc,
 };
 
 fn main() {
