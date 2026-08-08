@@ -1,4 +1,4 @@
-use crate::{color_udiff, escape_html, html_template};
+use crate::{color_udiff, escape_html, html_template, render_toc};
 use sodigy_compiler_test::{CompileAndRun, CrateTest, TestHarness, subprocess};
 use sodigy_fs_api::{
     WriteMode,
@@ -63,10 +63,10 @@ pub fn render_diff(
                             _ => {},
                         }
                     },
-                    (Some(prev), None) => {
+                    (Some(_), None) => {
                         removed_crates.push(crate_name.to_string());
                     },
-                    (None, Some(next)) => {
+                    (None, Some(_)) => {
                         added_crates.push(crate_name.to_string());
                     },
                     (None, None) => unreachable!(),
@@ -126,24 +126,34 @@ pub fn render_diff(
                 |crate_name| format!("<h4>{crate_name}</h4>")
             ).collect::<Vec<_>>().join("\n");
 
+            let toc = render_toc(vec![
+                (String::from("Fixed"), String::from("crt-fixed"), Some(fixed_count.to_string()), None),
+                (String::from("Regressed"), String::from("crt-regressed"), Some(regressed_count.to_string()), None),
+                (String::from("Different Errors"), String::from("crt-different-errors"), Some(different_errors_count.to_string()), None),
+                (String::from("Added"), String::from("crt-added"), Some(added_count.to_string()), None),
+                (String::from("Removed"), String::from("crt-removed"), Some(removed_count.to_string()), None),
+            ]);
+
             format!(r#"
-<h3>Fixed ({fixed_count})</h3>
+{toc}
+
+<h3 id="crt-fixed">Fixed ({fixed_count})</h3>
 
 {fixed}
 
-<h3>Regressed ({regressed_count})</h3>
+<h3 id="crt-regressed">Regressed ({regressed_count})</h3>
 
 {regressed}
 
-<h3>Different Errors ({different_errors_count})</h3>
+<h3 id="crt-different-errors">Different Errors ({different_errors_count})</h3>
 
 {different_errors}
 
-<h3>Added ({added_count})</h3>
+<h3 id="crt-added">Added ({added_count})</h3>
 
 {added}
 
-<h3>Removed ({removed_count})</h3>
+<h3 id="crt-removed">Removed ({removed_count})</h3>
 
 {removed}
 "#)
@@ -316,28 +326,39 @@ pub fn render_diff(
                 }
             ).collect::<Vec<_>>().join("\n");
 
+            let toc = render_toc(vec![
+                (String::from("Updated"), String::from("cnr-updated"), Some(updated_count.to_string()), None),
+                (String::from("Fixed"), String::from("cnr-fixed"), Some(fixed_count.to_string()), None),
+                (String::from("Regressed"), String::from("cnr-regressed"), Some(regressed_count.to_string()), None),
+                (String::from("Different Errors"), String::from("cnr-different-errors"), Some(different_errors_count.to_string()), None),
+                (String::from("Added"), String::from("cnr-added"), Some(added_count.to_string()), None),
+                (String::from("Removed"), String::from("cnr-removed"), Some(removed_count.to_string()), None),
+            ]);
+
             format!(r#"
-<h3>Updated ({updated_count})</h3>
+{toc}
+
+<h3 id="cnr-updated">Updated ({updated_count})</h3>
 
 {updated}
 
-<h3>Fixed ({fixed_count})</h3>
+<h3 id="cnr-fixed">Fixed ({fixed_count})</h3>
 
 {fixed}
 
-<h3>Regressed ({regressed_count})</h3>
+<h3 id="cnr-regressed">Regressed ({regressed_count})</h3>
 
 {regressed}
 
-<h3>Different Errors ({different_errors_count})</h3>
+<h3 id="cnr-different-errors">Different Errors ({different_errors_count})</h3>
 
 {different_errors}
 
-<h3>Added ({added_count})</h3>
+<h3 id="cnr-added">Added ({added_count})</h3>
 
 {added}
 
-<h3>Removed ({removed_count})</h3>
+<h3 id="cnr-removed">Removed ({removed_count})</h3>
 
 {removed}
 "#)

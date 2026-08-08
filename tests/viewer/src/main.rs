@@ -54,7 +54,7 @@ fn main() {
     let mut curr_commit = git::get_curr_commit();
     let test_results = collect_test_result_names(&test_results_at);
 
-    while recent_test_results.len() < 200 && commits.len() < 500 {
+    while recent_test_results.len() < 200 && commits.len() < 1000 {
         let curr_commit_info = git::get_commit_info(&curr_commit);
         commits.push(curr_commit_info.clone());
 
