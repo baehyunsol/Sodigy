@@ -118,9 +118,9 @@ pub fn render_harness(
                     circle("green", "medium")
                 };
                 let clippy = each_crate("cargo clippy", &c.clippy);
-                let doc = each_crate("cargo doc", &c.clippy);
-                let debug = each_crate("cargo test", &c.clippy);
-                let release = each_crate("cargo test --release", &c.clippy);
+                let doc = each_crate("cargo doc", &c.doc);
+                let debug = each_crate("cargo test", &c.debug);
+                let release = each_crate("cargo test --release", &c.release);
 
                 format!(r#"
 <h3 id="crt-{name}">{name} {marker}</h3>
