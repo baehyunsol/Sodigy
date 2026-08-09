@@ -1017,7 +1017,7 @@ pub fn log_inter_mir(session: &InterMirSession, mir_session: &MirSession) -> Res
             create_button("down", call.children.get(0).map(|c| c.call_index)),
         );
 
-        for (i, child) in call.children.iter().enumerate() {
+        for (i, _) in call.children.iter().enumerate() {
             render_page_and_save(
                 Some(call_index),
                 &call.children,

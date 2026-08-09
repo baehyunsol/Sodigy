@@ -25,8 +25,8 @@ impl<'t, 's> Tokens<'t, 's> {
     // If there's `proc` keyword before the backslash, its callee will take care of that.
     pub fn parse_lambda(&mut self) -> Result<Lambda, Vec<Error>> {
         match self.peek2() {
-            (Some(Token { kind: TokenKind::Punct(Punct::Backslash), .. }), Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span })) |
-            (Some(Token { kind: TokenKind::Group { delim: Delim::Lambda, tokens }, span }), _) => {
+            (Some(Token { kind: TokenKind::Punct(Punct::Backslash), .. }), Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. })) |
+            (Some(Token { kind: TokenKind::Group { delim: Delim::Lambda, tokens }, .. }), _) => {
                 let (backslash_span, param_group_span, jump) = match self.peek2() {
                     (Some(Token { kind: TokenKind::Punct(_), span: span1 }), Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, .. }, span: span2 })) => (span1.clone(), span1.merge(span2), 2),
                     (Some(Token { kind: TokenKind::Group { delim: Delim::Lambda, .. }, span }), _) => (span.start(), span.clone(), 1),

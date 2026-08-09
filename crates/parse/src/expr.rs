@@ -723,7 +723,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     continue;
                 },
                 Some(Token { kind: TokenKind::Keyword(Keyword::As), span }) => {
-                    let (l_bp, r_bp) = as_binding_power();
+                    let (l_bp, _) = as_binding_power();
                     let mut keyword_span = span.clone();
 
                     if l_bp < min_bp {

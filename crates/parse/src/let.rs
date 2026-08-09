@@ -165,7 +165,10 @@ impl<'t, 's> Tokens<'t, 's> {
                                     elements: names.iter().map(
                                         |(name, name_span)| Expr::Path(Path {
                                             id: *name,
+
+                                            // TODO: isn't it supposed to be `name_span.derive(..)`?
                                             id_span: keyword_span.derive(SpanDeriveKind::LetPattern(2)),
+
                                             fields: vec![],
                                             dotfish: vec![None],
                                         })

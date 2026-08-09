@@ -33,7 +33,7 @@ impl Session {
             // capture `x` because it's a constant. We can lower the closure to `\(y) => 3 + y`.
             let mut constants = vec![];
 
-            for (name, (origin, def_span)) in lambda.foreign_names.iter() {
+            for (_, (origin, def_span)) in lambda.foreign_names.iter() {
                 let (origin, def_span) = (*origin, def_span.clone());
 
                 match origin {

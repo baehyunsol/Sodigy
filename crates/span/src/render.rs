@@ -488,7 +488,7 @@ fn render_span_worker(
             };
 
             if !inline_note {
-                for (note_no, i, note, color) in notes.into_iter() {
+                for (note_no, _, note, color) in notes.into_iter() {
                     let line_max_width = (max_width.max(note_no.len()) - note_no.len()).max(20);
 
                     for (j, note_line) in break_lines(note, line_max_width).iter().enumerate() {

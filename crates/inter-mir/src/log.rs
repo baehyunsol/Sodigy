@@ -4,7 +4,6 @@ use crate::{
     GenericCall,
     Monomorphization,
     PolySolver,
-    Session,
     SolvePolyResult,
     TypeError,
 };
@@ -35,18 +34,6 @@ impl LogId {
     pub fn new() -> Self {
         LogId(NEXT_ID.fetch_add(1, Ordering::Relaxed))
     }
-}
-
-#[derive(Clone, Debug)]
-pub enum BlockedTypeVarKind {
-    CallingTypeVar {
-        expr: Expr,
-        type_var: Type,
-    },
-    FieldOfTypeVar {
-        field: Vec<Field>,
-        type_var: Type,
-    },
 }
 
 // Many functions return `Err(())` when there's an error. The actual error is

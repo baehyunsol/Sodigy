@@ -104,8 +104,8 @@ pub fn generate_decorator_docs(intermediate_dir: &str) -> String {
         }
     }
 
-    let mut decorators = decorators.into_iter().map(
-        |(name, decorator)| (
+    let mut decorators = decorators.into_values().map(
+        |decorator| (
             decorator.name.unintern_or_default(intermediate_dir),
             decorator,
         )

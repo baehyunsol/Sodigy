@@ -52,7 +52,7 @@ impl ModulePath {
         else if self.is_std {
             let module_path = self.to_string();
 
-            for (i, std_file) in STD_FILES.iter().enumerate() {
+            for std_file in STD_FILES.iter() {
                 if module_path == std_file.module_path_str {
                     return Ok(std_file.file_path.clone());
                 }

@@ -151,7 +151,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                         let r#enum = &mir_session.enums[*index];
 
                         for variant in r#enum.variants.iter() {
-                            if let EnumVariantFields::Struct(fields) = &variant.fields {
+                            if let EnumVariantFields::Struct(_) = &variant.fields {
                                 let struct_shape = session.struct_shapes.get(&variant.name_span).unwrap().clone();
                                 let new_name_span = variant.name_span.monomorphize(monomorphization.id);
                                 let new_struct_shape = session.monomorphize_struct_shape(&struct_shape, &monomorphization);
@@ -222,7 +222,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                             };
 
                             for variant in r#enum.variants.iter() {
-                                if let EnumVariantFields::Struct(fields) = &variant.fields {
+                                if let EnumVariantFields::Struct(_) = &variant.fields {
                                     let struct_shape = session.struct_shapes.get(&variant.name_span).unwrap().clone();
                                     let new_name_span = variant.name_span.monomorphize(monomorphization.id);
                                     let new_struct_shape = session.monomorphize_struct_shape(&struct_shape, &monomorphization);

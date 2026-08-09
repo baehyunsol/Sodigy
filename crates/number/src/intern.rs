@@ -50,7 +50,6 @@ use std::fmt;
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct InternedNumber(pub u128);
 
-const SMALL_INT: u128 = 0;
 const SMALL_INT_PAYLOAD_MASK: u128 = (1 << 125) - 1;
 const SMALL_RATIO: u128 = 1 << 126;
 const SMALL_RATIO_NUMER_PAYLOAD_MASK: u128 = (1 << 63) - 1;

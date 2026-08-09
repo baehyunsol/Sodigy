@@ -569,7 +569,6 @@ impl Session {
                                         },
                                         true,
                                     ) {
-                                        has_error = true;
                                         return (Some(return_type), true);
                                     }
                                 }
@@ -852,7 +851,7 @@ impl Session {
 
                             // It won't return an error. I just want to
                             // register the type-var.
-                            if let Err(e) = self.solve_supertype(
+                            if let Err(()) = self.solve_supertype(
                                 &elem_type,
                                 &type_var,
                                 false,

@@ -233,7 +233,6 @@ pub fn init_workers_and_compile(
         graceful_shutdown,
         incremental_compilation,
         validate_token_spans,
-        quiet,
         &channels,
         &mut errors,
         &mut warnings,
@@ -320,7 +319,6 @@ fn compile(
     graceful_shutdown: u32,  // in milliseconds
     incremental_compilation: bool,
     validate_token_spans: ValidateTokenSpans,
-    quiet: bool,
     workers: &[Channel],
     errors: &mut Vec<SodigyError>,
     warnings: &mut Vec<SodigyWarning>,

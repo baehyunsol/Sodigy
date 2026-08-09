@@ -49,7 +49,18 @@ pub fn dump_pattern_kind<S: SodigySession>(pattern_kind: &PatternKind, lines: &m
                 if i != fields.len() - 1 {
                     lines.break_line();
                 }
+
+                else {
+                    if rest.is_some() {
+                        lines.push("..");
+                        lines.break_line();
+                    }
+
+                    lines.dec_indent();
+                }
             }
+
+            lines.push("}");
         },
         PatternKind::TupleStruct { elements, rest, .. } |
         PatternKind::Tuple { elements, rest, .. } |
@@ -144,7 +155,7 @@ pub fn dump_pattern_kind<S: SodigySession>(pattern_kind: &PatternKind, lines: &m
         PatternKind::Or { lhs, rhs, .. } => {
             dump_pattern(lhs, lines, session);
             lines.push(" | ");
-            dump_pattern(lhs, lines, session);
+            dump_pattern(rhs, lines, session);
         },
         PatternKind::Wildcard(_) => {
             lines.push("_");

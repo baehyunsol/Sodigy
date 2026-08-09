@@ -165,16 +165,22 @@ impl Expr {
                             Callable::Dynamic(Box::new(Expr::Field { lhs, dotfish: vec![None; fields.len() + 1], fields })),
                         )
                     },
-                    Ok(Expr::Call { func: Callable::EnumInit { enum_def_span, variant_def_span, kind, span }, arg_group_span, types, .. }) => match kind {
-                        EnumFieldKind::None => (
-                            span.clone(),
-                            Callable::EnumInit {
-                                enum_def_span,
-                                variant_def_span,
-                                kind: EnumFieldKind::Tuple,
-                                span,
-                            },
-                        ),
+                    Ok(Expr::Call { func: Callable::EnumInit { enum_def_span, variant_def_span, kind, span }, types, .. }) => match kind {
+                        EnumFieldKind::None => {
+                            if types.is_some() {
+                                todo!();
+                            }
+
+                            (
+                                span.clone(),
+                                Callable::EnumInit {
+                                    enum_def_span,
+                                    variant_def_span,
+                                    kind: EnumFieldKind::Tuple,
+                                    span,
+                                },
+                            )
+                        },
                         _ => {
                             session.errors.push(todo!());
                             return Err(());
@@ -182,8 +188,6 @@ impl Expr {
                     },
                     Ok(func) => (func.error_span_wide(), Callable::Dynamic(Box::new(func))),
                     Err(()) => {
-                        has_error = true;
-
                         // It's already an error, but we want to find as many errors as possible.
                         for hir::CallArg { arg, .. } in hir_args.iter() {
                             let _ = Expr::from_hir(arg, session);

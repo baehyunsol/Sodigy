@@ -960,7 +960,7 @@ pub(crate) fn build_tree(
                             panic!("ICE: different variants in a node: {v:?} vs {c:?}");
                         },
                         (_, Some(_)) => {},
-                        (v, None) => {
+                        (_, None) => {
                             curr_variant_def_span = Some(variant_def_span.clone());
                         },
                     },

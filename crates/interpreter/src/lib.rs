@@ -296,7 +296,6 @@ fn call(
                     let slice_end = *stack.ssa.get(&args[2]).unwrap();
                     let buffer_ptr = heap.data[slice_ptr];
                     let start = heap.data[slice_ptr + 1];
-                    let length = heap.data[slice_ptr + 2];
 
                     let new_slice_ptr = heap.alloc(3);
                     heap.data[new_slice_ptr] = buffer_ptr as u32;

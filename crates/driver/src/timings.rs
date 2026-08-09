@@ -148,8 +148,6 @@ struct Stats {
     end: u64,
     longest_stage_frames: usize,
     longest_stage: Option<TimingsEntry>,
-    shortest_stage_frames: usize,
-    shortest_stage: Option<TimingsEntry>,
     total_stages: usize,
     total_modules: usize,
 }
@@ -362,9 +360,7 @@ fn into_rows(
     let mut start_min = u64::MAX;
     let mut end_max = 0;
     let mut longest_stage_frames = 0;
-    let mut shortest_stage_frames = usize::MAX;
     let mut longest_stage = None;
-    let mut shortest_stage = None;
     let mut total_stages = 0;
     let mut all_modules = HashSet::new();
 
@@ -412,11 +408,6 @@ fn into_rows(
                         longest_stage_frames = frame_end - frame_start;
                         longest_stage = Some(entry.clone());
                     }
-
-                    if frame_end - frame_start < shortest_stage_frames {
-                        shortest_stage_frames = frame_end - frame_start;
-                        shortest_stage = Some(entry.clone());
-                    }
                 }
             },
             None => {
@@ -434,8 +425,6 @@ fn into_rows(
             end: end_max,
             longest_stage_frames,
             longest_stage,
-            shortest_stage_frames,
-            shortest_stage,
             total_stages,
             total_modules: all_modules.len(),
         },

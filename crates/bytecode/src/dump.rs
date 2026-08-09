@@ -58,7 +58,7 @@ impl Display for Bytecode {
             ),
             Bytecode::Label(label) => write!(fmt, "label {label}:"),
             Bytecode::Return(ssa) => write!(fmt, "return {ssa};"),
-            Bytecode::Update { src, size, index, value, dst } => write!(
+            Bytecode::Update { src, size: _, index, value, dst } => write!(
                 fmt,
                 "{dst} = {src} `{index} {value};",
             ),

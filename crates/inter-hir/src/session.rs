@@ -9,7 +9,6 @@ use sodigy_hir::{
     FuncShape,
     ItemShapeMut,
     Poly,
-    StructField,
     StructShape,
     Use,
     remove_struct_fields_type_annot,

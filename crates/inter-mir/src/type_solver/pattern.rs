@@ -173,7 +173,7 @@ impl Session {
                         // An enum variant is solved to this type.
                         Type::Func { r#return, .. } => {
                             let variant_def_span = &r#struct.id.def_span;
-                            (*r#return.clone(), self.struct_shapes.get(&variant_def_span).unwrap())
+                            (*r#return.clone(), self.struct_shapes.get(variant_def_span).unwrap())
                         },
                         _ => unreachable!(),
                     };
@@ -186,7 +186,7 @@ impl Session {
                                 let mut annotated_type = self.types.get(&field.name_span).unwrap().clone();
                                 let mut substituted_generics = HashSet::new();
                                 let field_span = field.name_span.clone();
-                                annotated_type.substitute_generic_param_for_arg(&pattern_span, &mut substituted_generics);
+                                annotated_type.substitute_generic_param_for_arg(pattern_span, &mut substituted_generics);
 
                                 for def_span in substituted_generics.iter() {
                                     let type_var = Type::GenericArg { call: pattern_span.clone(), generic: def_span.clone() };
@@ -393,7 +393,7 @@ impl Session {
 
                     // It won't return an error. I just want to
                     // register the type-var.
-                    if let Err(e) = self.solve_supertype(
+                    if let Err(()) = self.solve_supertype(
                         &elem_type,
                         &type_var,
                         false,

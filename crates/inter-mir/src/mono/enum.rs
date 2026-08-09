@@ -21,7 +21,7 @@ impl Session {
                     for field in fields.iter() {
                         let new_name_span = field.name_span.monomorphize(monomorphization.id);
                         let old_type = self.types.get(&field.name_span).unwrap().clone();
-                        let new_type = self.monomorphize_type(&old_type, &HashSet::new(), &monomorphization);
+                        let new_type = self.monomorphize_type(&old_type, &HashSet::new(), monomorphization);
                         self.types.insert(new_name_span, new_type);
                     }
 
