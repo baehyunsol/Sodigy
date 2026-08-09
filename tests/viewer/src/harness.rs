@@ -91,15 +91,37 @@ pub fn render_harness(
         let crates = crates.iter().map(
             |c| {
                 fn each_crate(title: &str, result: &CrateTestResult) -> String {
+                    fn color_warnings_and_errors(e: &str) -> String {
+                        let mut result = vec![];
+
+                        for line in e.lines() {
+                            if line.starts_with("error: ") {
+                                result.push(format!("\x1b[31merror: \x1b[0m{}", line.get(7..).unwrap()));
+                            }
+
+                            else if line.starts_with("warning: ") {
+                                result.push(format!("\x1b[33mwarning: \x1b[0m{}", line.get(9..).unwrap()));
+                            }
+
+                            else {
+                                result.push(line.to_string());
+                            }
+                        }
+
+                        result.join("\n")
+                    }
+
                     let elapsed_time = render_elapsed_ms(result.elapsed_ms);
                     let result = match &result.error {
-                        Some(error) => format!(r#"
+                        Some(error) => {
+                            let error = escape_html(&color_warnings_and_errors(error));
+                            format!(r#"
 <details>
     <summary><span class="red">stderr</span></summary>
-    <pre class="code-block"><code>{}</code></pre>
+    <pre class="code-block"><code>{error}</code></pre>
 </details>
-"#,
-                            escape_html(error)),
+"#)
+                        },
                         None => String::from("Successful"),
                     };
 
