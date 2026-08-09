@@ -11,7 +11,7 @@ mod type_switch;
 pub use main_test::{Directive, ExpectedOutput};
 
 impl CnrContext {
-    pub fn extra_tests(&self, result: &mut CompileAndRun) {
+    pub fn extra_tests(&mut self, result: &mut CompileAndRun) {
         if result.error.is_none() && result.status == Status::RunPass && self.sdg_files >= 3 {
             if let Err(e) = self.incremental_compilation_test(&result) {
                 result.error = Some(format!("incremental compilation test fail\n\n{e}"));
@@ -24,11 +24,16 @@ impl CnrContext {
             }
         }
 
+        let old_emit_irs = self.emit_irs;
+        self.emit_irs = true;
+
         if result.error.is_none() && result.status == Status::RunPass {
             if let Err(e) = self.deterministic_output_test(&result) {
                 result.error = Some(format!("deterministic output test fail\n\n{e}"));
             }
         }
+
+        self.emit_irs = old_emit_irs;
 
         if result.error.is_none() && result.status == Status::RunPass {
             if let Err(e) = self.mir_interpreter_test(&result) {

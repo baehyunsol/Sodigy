@@ -208,7 +208,7 @@ fn run_cnr(
     cnr_seq: usize,
     total_cnr: usize,
 ) -> CompileAndRun {
-    let cnr_context = prepare_cnr(name, root, sodigy_path, dump_output, log_post_mir, debug_bytecode, cnr_seq, total_cnr);
+    let mut cnr_context = prepare_cnr(name, root, sodigy_path, dump_output, log_post_mir, debug_bytecode, cnr_seq, total_cnr);
     let mut result = cnr_context.main_test();
     cnr_context.extra_tests(&mut result);
     result
