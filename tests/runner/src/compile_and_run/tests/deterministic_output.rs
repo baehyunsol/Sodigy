@@ -1,4 +1,5 @@
 use super::{CnrContext, CompileAndRun, Status};
+use crate::diff_strings;
 use sodigy_fs_api::{FileError, exists, join4, read_string};
 
 impl CnrContext {
@@ -58,11 +59,11 @@ impl CnrContext {
 
         // TODO: show diffs!!
         if bytecode1 != bytecode2 {
-            return Err(String::from("bytecode1 != bytecode2"));
+            return Err(format!("bytecode1 != bytecode2\n{}", diff_strings(&bytecode1, &bytecode2)));
         }
 
         if bytecode2 != bytecode3 {
-            return Err(String::from("bytecode2 != bytecode3"));
+            return Err(format!("bytecode2 != bytecode3\n{}", diff_strings(&bytecode2, &bytecode3)));
         }
 
         // step 4. fresh-build with optimization
@@ -94,7 +95,7 @@ impl CnrContext {
         };
 
         if bytecode4 != bytecode5 {
-            return Err(String::from("bytecode4 != bytecode5"));
+            return Err(format!("bytecode4 != bytecode5\n{}", diff_strings(&bytecode4, &bytecode5)));
         }
 
         Ok(())

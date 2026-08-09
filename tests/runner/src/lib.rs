@@ -98,3 +98,8 @@ pub fn find_root() -> Result<String, FileError> {
 
     panic!()
 }
+
+pub fn diff_strings(a: &str, b: &str) -> String {
+    use similar::{Algorithm, udiff::unified_diff};
+    unified_diff(Algorithm::Patience, a, b, 5, None)
+}

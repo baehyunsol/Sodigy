@@ -896,6 +896,12 @@ pub(crate) fn build_tree(
                 arms.extend(wildcard_arms.clone());
             }
 
+            // I want the output to be deterministic!!
+            // TODO: instead of sorting the arms by span, we can implement a deterministic heuristic that
+            //       will make the output most efficient
+            let mut arms_by_variant: Vec<(Span, Vec<_>)> = arms_by_variant.drain().collect();
+            arms_by_variant.sort_by_key(|(s, _)| s.clone());
+
             let mut branches = Vec::with_capacity(arms_by_variant.len() + 1);
 
             for (variant_def_span, arms) in arms_by_variant.iter() {

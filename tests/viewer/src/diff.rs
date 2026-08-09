@@ -1,11 +1,11 @@
 use crate::{color_udiff, escape_html, html_template, render_toc};
-use sodigy_compiler_test::{CompileAndRun, CrateTest, TestHarness, subprocess};
-use sodigy_fs_api::{
-    WriteMode,
-    remove_file,
-    set_extension,
-    write_bytes,
+use sodigy_compiler_test::{
+    CompileAndRun,
+    CrateTest,
+    TestHarness,
+    diff_strings,
 };
+use sodigy_fs_api::set_extension;
 use std::collections::{HashMap, HashSet};
 
 pub fn render_diff(
@@ -390,43 +390,7 @@ pub fn render_diff(
 }
 
 fn diff_blob(a: &[u8], b: &[u8]) -> String {
-    write_bytes(
-        "tmp-blob-a",
-        a,
-        WriteMode::CreateOrTruncate,
-    ).unwrap();
-
-    write_bytes(
-        "tmp-blob-b",
-        b,
-        WriteMode::CreateOrTruncate,
-    ).unwrap();
-
-    let diff = subprocess::run(
-        "git",
-        &[
-            "diff",
-            "-U5",
-            "--diff-algorithm=patience",
-            "--color=never",
-            "--no-index",
-            "--",
-            "tmp-blob-a",
-            "tmp-blob-b",
-        ],
-        ".",
-        5.0,
-        false,
-
-        // I don't know why, but it always ends with nonzero-status.
-        false,
-    ).unwrap();
-
-    let s = String::from_utf8_lossy(&diff.stdout);
-    let s = color_udiff(&s);
-
-    remove_file("tmp-blob-a").unwrap();
-    remove_file("tmp-blob-b").unwrap();
-
-    s
+    let a = String::from_utf8_lossy(a);
+    let b = String::from_utf8_lossy(b);
+    color_udiff(&diff_strings(&a, &b))
 }
