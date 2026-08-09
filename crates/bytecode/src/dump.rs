@@ -1,7 +1,45 @@
 use crate::{Bytecode, Label, Memory, Offset, SSA, Value};
 use sodigy_number::bi_to_string;
 use sodigy_span::Span;
+use sodigy_string::InternedString;
 use std::fmt::{Display, Error, Formatter};
+
+pub fn dump_bytecodes(
+    name: InternedString,
+    span: &Span,
+    keyword: &str,
+    params: Option<usize>,
+    bytecodes: &[Bytecode],
+    indent: usize,
+    intermediate_dir: &str,
+) -> String {
+    let mut lines = vec![
+        format!("// name: {}", name.unintern_or_default(intermediate_dir)),
+        format!("// span: {span:?}"),
+        format!(
+            "{keyword} @G{:09x}{}:",
+            span.hash() & 0xfff_fff_fff,
+            match params {
+                Some(params) => format!("({})", (0..params).map(|i| format!("_{i}")).collect::<Vec<_>>().join(", ")),
+                None => String::new(),
+            },
+        ),
+        format!("{}label @start:", " ".repeat(indent)),
+    ];
+
+    for bytecode in bytecodes.iter() {
+        match bytecode {
+            Bytecode::Label(_) => {
+                lines.push(format!("{}{bytecode}", " ".repeat(indent)));
+            },
+            _ => {
+                lines.push(format!("{}{bytecode}", " ".repeat(indent * 2)));
+            },
+        }
+    }
+
+    lines.join("\n")
+}
 
 impl Display for SSA {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {

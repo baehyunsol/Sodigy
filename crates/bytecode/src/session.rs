@@ -7,6 +7,7 @@ use crate::{
     Let,
     Memory,
     SSA,
+    dump_bytecodes,
 };
 use sodigy_error::{Error, Warning};
 use sodigy_mir::{
@@ -109,5 +110,57 @@ impl Session<'_, '_> {
         // TODO: Does it have to merge `.intrinsics` and `.lang_items`?
         self.errors.extend(s.errors.drain(..));
         self.warnings.extend(s.warnings.drain(..));
+    }
+
+    pub fn dump_bytecodes(&self) -> String {
+        let mut dumps: Vec<(&Span, String)> = vec![];
+
+        for func in self.funcs.iter() {
+            dumps.push((
+                &func.name_span,
+                dump_bytecodes(
+                    func.name,
+                    &func.name_span,
+                    if func.is_pure { "fn" } else { "proc" },
+                    Some(func.params),
+                    &func.bytecodes,
+                    4,
+                    &self.intermediate_dir,
+                ),
+            ));
+        }
+
+        for r#let in self.lets.iter() {
+            dumps.push((
+                &r#let.name_span,
+                dump_bytecodes(
+                    r#let.name,
+                    &r#let.name_span,
+                    "data",
+                    None,
+                    &r#let.bytecodes,
+                    4,
+                    &self.intermediate_dir,
+                ),
+            ));
+        }
+
+        for assert in self.asserts.iter() {
+            dumps.push((
+                &assert.keyword_span,
+                dump_bytecodes(
+                    assert.name,
+                    &assert.keyword_span,
+                    "assertion",
+                    None,
+                    &assert.bytecodes,
+                    4,
+                    &self.intermediate_dir,
+                ),
+            ));
+        }
+
+        dumps.sort_by_key(|(span, _)| *span);
+        dumps.into_iter().map(|(_, dump)| dump).collect::<Vec<_>>().join("\n\n")
     }
 }

@@ -141,6 +141,9 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             // I want `log_post_mir` to enable more flags! What else can I dump/log?
             let dump_matches = *log_post_mir;
 
+            // maybe we need a finer control??
+            let dump_bytecodes = *emit_irs;
+
             let (output_path, backend, interpret_with_profile) = match cli_command {
                 CliCommand::Run { .. } => (
                     StoreIrAt::IntermediateDir,
@@ -169,6 +172,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                 custom_error_levels,
                 *emit_irs,
                 dump_matches,
+                dump_bytecodes,
                 *graceful_shutdown,
                 *jobs,
                 *color,
@@ -206,6 +210,7 @@ pub fn init_workers_and_compile(
     custom_error_levels: &HashMap<u16, CustomErrorLevel>,
     emit_irs: bool,
     dump_matches: bool,
+    dump_bytecodes: bool,
     graceful_shutdown: u32,  // in milliseconds
     jobs: usize,
     color: ColorWhen,
@@ -230,6 +235,7 @@ pub fn init_workers_and_compile(
         custom_error_levels,
         emit_irs,
         dump_matches,
+        dump_bytecodes,
         graceful_shutdown,
         incremental_compilation,
         validate_token_spans,
@@ -316,6 +322,7 @@ fn compile(
     custom_error_levels: &HashMap<u16, CustomErrorLevel>,
     emit_irs: bool,
     dump_matches: bool,
+    dump_bytecodes: bool,
     graceful_shutdown: u32,  // in milliseconds
     incremental_compilation: bool,
     validate_token_spans: ValidateTokenSpans,
@@ -507,6 +514,7 @@ fn compile(
                     ).collect(),
                     intermediate_dir: ir_dir.clone(),
                     backend,
+                    dump_bytecodes,
                     output_path: output_path.clone(),
                 },
             ))?;

@@ -68,7 +68,11 @@ impl CnrContext {
             }
         }
 
-        let mut args = vec!["build", "--test", "-o=target/run", "--emit-irs"];
+        let mut args = vec!["build", "--test", "-o=target/run"];
+
+        if self.emit_irs {
+            args.push("--emit-irs");
+        }
 
         if self.log_post_mir {
             args.push("--log-post-mir");

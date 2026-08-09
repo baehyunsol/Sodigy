@@ -1,4 +1,4 @@
-use crate::{Assert, Bytecode, Func, Let, Session};
+use crate::{Assert, Func, Let, Session};
 use sodigy_endec::{DecodeError, DumpSession, Endec};
 use sodigy_error::{Error, Warning};
 use sodigy_mir::{GlobalContext, Intrinsic};
@@ -61,73 +61,6 @@ impl Endec for Session<'_, '_> {
 
 impl DumpSession for Session<'_, '_> {
     fn dump_session(&self) -> Vec<u8> {
-        let mut lines = vec![];
-
-        for func in self.funcs.iter() {
-            lines.push(format!("// name: {}", func.name.unintern_or_default(&self.intermediate_dir)));
-            lines.push(format!("// name_span: {:?}", func.name_span));
-            lines.push(format!(
-                "{} @G{:09x}({}):",
-                if func.is_pure { "fn" } else { "proc" },
-                func.name_span.hash() & 0xfff_fff_fff,
-                (0..func.params).map(|i| format!("_{i}")).collect::<Vec<_>>().join(", "),
-            ));
-            lines.push(format!("    label @start:"));
-
-            for bytecode in func.bytecodes.iter() {
-                match bytecode {
-                    Bytecode::Label(_) => {
-                        lines.push(format!("    {bytecode}"));
-                    },
-                    _ => {
-                        lines.push(format!("        {bytecode}"));
-                    },
-                }
-            }
-
-            lines.push(String::new());
-        }
-
-        for r#let in self.lets.iter() {
-            lines.push(format!("// name: {}", r#let.name.unintern_or_default(&self.intermediate_dir)));
-            lines.push(format!("// name_span: {:?}", r#let.name_span));
-            lines.push(format!("data @G{:09x}():", r#let.name_span.hash() & 0xfff_fff_fff));
-            lines.push(format!("    label @start:"));
-
-            for bytecode in r#let.bytecodes.iter() {
-                match bytecode {
-                    Bytecode::Label(_) => {
-                        lines.push(format!("    {bytecode}"));
-                    },
-                    _ => {
-                        lines.push(format!("        {bytecode}"));
-                    },
-                }
-            }
-
-            lines.push(String::new());
-        }
-
-        for assert in self.asserts.iter() {
-            lines.push(format!("// name: {}", assert.name.unintern_or_default(&self.intermediate_dir)));
-            lines.push(format!("// keyword_span: {:?}", assert.keyword_span));
-            lines.push(format!("assert @G{:09x}():", assert.keyword_span.hash() & 0xfff_fff_fff));
-            lines.push(format!("    label @start:"));
-
-            for bytecode in assert.bytecodes.iter() {
-                match bytecode {
-                    Bytecode::Label(_) => {
-                        lines.push(format!("    {bytecode}"));
-                    },
-                    _ => {
-                        lines.push(format!("        {bytecode}"));
-                    },
-                }
-            }
-
-            lines.push(String::new());
-        }
-
         let s = format!(
             "{{ lets: {:?}, funcs: {:?}, asserts: {:?} }}",
             self.lets,
@@ -138,7 +71,7 @@ impl DumpSession for Session<'_, '_> {
         c.step_all();
 
         vec![
-            lines.join("\n").into_bytes(),
+            self.dump_bytecodes().into_bytes(),
             c.output().to_vec(),
         ].concat()
     }

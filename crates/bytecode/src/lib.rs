@@ -17,6 +17,7 @@ mod value;
 mod tests;
 
 pub use assert::Assert;
+pub(crate) use dump::dump_bytecodes;
 pub use executable::Executable;
 pub(crate) use expr::lower_expr;
 pub use func::Func;

@@ -98,6 +98,7 @@ struct CnrContext {
     pub sdg_files: usize,
     pub dump_output: bool,
     pub log_post_mir: bool,
+    pub emit_irs: bool,
 
     // If this flag is set, it doesn't check the output.
     // It just launches an interactive interpreter and quit.
@@ -261,6 +262,7 @@ fn prepare_cnr(
         sdg_files,
         dump_output,
         log_post_mir,
+        emit_irs: total_cnr < 2,
         debug_bytecode,
         cnr_seq,
         total_cnr,

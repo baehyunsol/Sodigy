@@ -49,6 +49,7 @@ pub enum Command {
         modules: HashMap<ModulePath, Span>,
         intermediate_dir: String,
         backend: Backend,
+        dump_bytecodes: bool,
         output_path: StoreIrAt,
     },
     LoadInterHirSession {

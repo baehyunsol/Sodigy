@@ -112,7 +112,7 @@ impl CnrContext {
         //
         // It should fail to compile, but should create caches for the other files.
         remove_file(test_file_1)?;
-        self.run_sodigy(Status::CompileFail).map_err(|e| format!("failed at step 1\n{e}"))?;
+        self.run_sodigy(false, Status::CompileFail).map_err(|e| format!("failed at step 1\n{e}"))?;
 
         // step 2. restore `test_file_1` and run
         //
@@ -123,7 +123,7 @@ impl CnrContext {
             test_file_1_content,
             WriteMode::AlwaysCreate,
         )?;
-        let run_result = self.run_sodigy(Status::RunPass).map_err(|e| format!("failed at step 2\n{e}"))?;
+        let run_result = self.run_sodigy(false, Status::RunPass).map_err(|e| format!("failed at step 2\n{e}"))?;
 
         // TODO: make sure that
         //   1. parsing `lib_file` is skipped
@@ -137,7 +137,7 @@ impl CnrContext {
             b"\n\nlet x = 100; let x = 100;",
             WriteMode::AlwaysAppend,
         )?;
-        let run_result = self.run_sodigy(Status::CompileFail).map_err(|e| format!("failed at step 3\n{e}"))?;
+        let run_result = self.run_sodigy(false, Status::CompileFail).map_err(|e| format!("failed at step 3\n{e}"))?;
 
         // TODO: make sure that
         //   1. parsing `lib_file` is skipped
@@ -148,7 +148,7 @@ impl CnrContext {
         //
         // Everything has to be cached.
         // Step 3 and step 4 must emit the same error.
-        let run_result = self.run_sodigy(Status::CompileFail).map_err(|e| format!("failed at step 4\n{e}"))?;
+        let run_result = self.run_sodigy(false, Status::CompileFail).map_err(|e| format!("failed at step 4\n{e}"))?;
 
         // TODO: make sure that
         //   1. parsing `lib_file` is skipped
@@ -163,7 +163,7 @@ impl CnrContext {
             test_file_2_content,
             WriteMode::CreateOrTruncate,
         )?;
-        let run_result = self.run_sodigy(Status::RunPass).map_err(|e| format!("failed at step 5\n{e}"))?;
+        let run_result = self.run_sodigy(false, Status::RunPass).map_err(|e| format!("failed at step 5\n{e}"))?;
 
         // TODO: make sure that
         //   1. parsing `lib_file` is skipped
@@ -171,7 +171,7 @@ impl CnrContext {
         //   3. parsing `test_file_2` is not skipped
 
         // step 6. don't touch anything and run again
-        let run_result = self.run_sodigy(Status::RunPass).map_err(|e| format!("failed at step 6\n{e}"))?;
+        let run_result = self.run_sodigy(false, Status::RunPass).map_err(|e| format!("failed at step 6\n{e}"))?;
 
         // TODO: make sure that
         //   1. parsing `lib_file` is skipped
@@ -189,7 +189,7 @@ impl CnrContext {
             b"\n\nmod a_very_long_name_that_is_not_likely_to_be_used_by_the_test_case;",
             WriteMode::AlwaysAppend,
         )?;
-        let run_result = self.run_sodigy(Status::RunPass).map_err(|e| format!("failed at step 7\n{e}"))?;
+        let run_result = self.run_sodigy(false, Status::RunPass).map_err(|e| format!("failed at step 7\n{e}"))?;
 
         // TODO: make sure that
         //   1. parsing `lib_file` is not skipped

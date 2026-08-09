@@ -1,6 +1,7 @@
 use super::{CnrContext, CompileAndRun, LineMatcher, Status, hash_dir, match_lines};
 use crate::subprocess;
 
+mod deterministic_output;
 mod incremental_compilation;
 mod main_test;
 mod mir_interpreter;
@@ -20,6 +21,12 @@ impl CnrContext {
         if result.error.is_none() && result.status == Status::RunPass {
             if let Err(e) = self.optimization_test(&result) {
                 result.error = Some(format!("optimization test fail\n\n{e}"));
+            }
+        }
+
+        if result.error.is_none() && result.status == Status::RunPass {
+            if let Err(e) = self.deterministic_output_test(&result) {
+                result.error = Some(format!("deterministic output test fail\n\n{e}"));
             }
         }
 
@@ -56,7 +63,7 @@ impl CnrContext {
         }
     }
 
-    pub fn run_sodigy(&self, expected_result: Status) -> Result<(), String> {
+    pub fn run_sodigy(&self, optimize: bool, expected_result: Status) -> Result<(), String> {
         assert!(
             expected_result == Status::RunPass ||
             expected_result == Status::CompilePass ||
@@ -71,6 +78,14 @@ impl CnrContext {
 
         if self.log_post_mir {
             args.push("--log-post-mir");
+        }
+
+        if self.emit_irs {
+            args.push("--emit-irs");
+        }
+
+        if optimize {
+            args.push("--release");
         }
 
         match subprocess::run(

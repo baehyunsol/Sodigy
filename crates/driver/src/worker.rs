@@ -13,7 +13,7 @@ use crate::{
 use sodigy_endec::Endec;
 use sodigy_error::{Error as SodigyError, Warning as SodigyWarning};
 use sodigy_file::{File, FileOrStd, ModulePath};
-use sodigy_fs_api::{WriteMode, write_bytes};
+use sodigy_fs_api::{WriteMode, join3, write_bytes, write_string};
 use sodigy_hir as hir;
 use sodigy_mir::{self as mir, GlobalContext as MirGlobalContext};
 use sodigy_post_mir::MatchDump;
@@ -668,6 +668,7 @@ impl Worker {
                 modules,
                 intermediate_dir,
                 backend,
+                dump_bytecodes,
                 output_path,
             } => {
                 self.stage_start(CompileStage::CodeGen, Some("load-bytecode-modules"), None);
@@ -699,6 +700,15 @@ impl Worker {
 
                 let bytecode_session = merged_bytecode_session.unwrap();
                 self.stage_end(false);
+
+                if dump_bytecodes {
+                    let dump_at = join3(&intermediate_dir, "irs", "bytecodes")?;
+                    write_string(
+                        &dump_at,
+                        &bytecode_session.dump_bytecodes(),
+                        WriteMode::CreateOrTruncate,
+                    )?;
+                }
 
                 self.stage_start(CompileStage::CodeGen, Some("code-gen"), None);
                 let (code, errors, warnings) = sodigy_code_gen::lower(bytecode_session, backend);

@@ -10,9 +10,15 @@ impl CnrContext {
             self.clean()?;
         }
 
+        let mut args = vec!["test", "--release"];
+
+        if self.emit_irs {
+            args.push("--emit-irs");
+        }
+
         match subprocess::run(
             &self.sodigy_path,
-            &["test", "--release", "--emit-irs"],
+            &args,
             &self.project_dir,
             30.0,
             false,  // dump_output
