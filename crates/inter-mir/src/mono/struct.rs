@@ -57,6 +57,7 @@ impl Session {
         ).collect();
 
         StructShape {
+            from_enum: struct_shape.from_enum.as_ref().map(|e| e.monomorphize(monomorphization.id)),
             name: struct_shape.name,
             fields: new_fields,
             generics: vec![],

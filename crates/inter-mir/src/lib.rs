@@ -4,7 +4,7 @@ mod log;
 use crate::log::write_log;
 use crate::mono::GenericCall;
 use sodigy_error::{Error, Warning};
-use sodigy_mir::{Expr, Session as MirSession, Type, get_monomorphization_id_owned};
+use sodigy_mir::{EnumVariantFields, Expr, Session as MirSession, Type, get_monomorphization_id_owned};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::{HashMap, HashSet};
@@ -149,6 +149,15 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
 
                     else if let Some(index) = session.enums_rev.get(&monomorphization.def_span) {
                         let r#enum = &mir_session.enums[*index];
+
+                        for variant in r#enum.variants.iter() {
+                            if let EnumVariantFields::Struct(_) = &variant.fields {
+                                // We have to monomorphize the struct_shape of the `EnumVariantFields::Struct`s.
+                                // We also have to monomorphize the fields of the struct in `session.types`.
+                                todo!()
+                            }
+                        }
+
                         let new_enum = session.monomorphize_enum(r#enum, &monomorphization);
                         let enum_shape = session.enum_shapes.get(&monomorphization.def_span).unwrap().clone();
                         let new_enum_shape = session.monomorphize_enum_shape(&enum_shape, &monomorphization);

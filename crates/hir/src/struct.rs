@@ -42,6 +42,9 @@ pub struct StructInitField {
 // `crates/hir/src/lib.rs` will tell you what's the difference between Struct vs StructShape
 #[derive(Clone, Debug)]
 pub struct StructShape {
+    // If it's a variant of an enum, this field has the def_span of the enum.
+    pub from_enum: Option<Span>,
+
     pub name: InternedString,
     pub fields: Vec<StructField>,
     pub generics: Vec<Generic>,
@@ -208,4 +211,32 @@ impl Struct {
 
         attribute_rule
     }
+
+    pub fn shape(&self) -> StructShape {
+        StructShape {
+            from_enum: None,
+            name: self.name,
+
+            // It's not gonna use this type annotation anymore.
+            // It'll use `types` in the mir-session or mir-global-context.
+            // Let's save some space by removing the type info.
+            fields: remove_struct_fields_type_annot(&self.fields),
+
+            generics: self.generics.clone(),
+            generic_group_span: self.generic_group_span.clone(),
+            associated_funcs: HashMap::new(),
+            associated_lets: HashMap::new(),
+        }
+    }
+}
+
+pub fn remove_struct_fields_type_annot(fields: &[StructField]) -> Vec<StructField> {
+    fields.iter().map(
+        |field| StructField {
+            name: field.name,
+            name_span: field.name_span.clone(),
+            default_value: field.default_value.clone(),
+            type_annot: None,
+        }
+    ).collect()
 }

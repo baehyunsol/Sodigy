@@ -702,7 +702,7 @@ impl Session {
 
                             (
                                 Some(Type::Data {
-                                    constructor_def_span: def_span.id().unwrap(),
+                                    constructor_def_span: struct_shape.from_enum.map(|e| e.id().unwrap()).unwrap_or_else(|| def_span.id().unwrap()),
                                     constructor_span: Span::None,
                                     args,
                                     group_span,

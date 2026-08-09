@@ -3,6 +3,7 @@ use sodigy_hir::{
     Alias,
     AssociatedItem,
     EnumShape,
+    EnumVariantFields,
     Expr,
     Func,
     FuncShape,
@@ -11,6 +12,7 @@ use sodigy_hir::{
     StructField,
     StructShape,
     Use,
+    remove_struct_fields_type_annot,
 };
 use sodigy_name_analysis::NameKind;
 use sodigy_span::Span;
@@ -110,35 +112,31 @@ impl Session {
             }
         }
 
-        for (def_span, struct_shape) in hir_session.structs.iter().map(
-            |r#struct| (
-                r#struct.name_span.clone(),
-                StructShape {
-                    name: r#struct.name,
-                    fields: r#struct.fields.iter().map(
-                        |field| StructField {
-                            name: field.name,
-                            name_span: field.name_span.clone(),
-                            default_value: field.default_value.clone(),
-
-                            // It's not gonna use this type annotation anymore.
-                            // It'll use `types` in the mir-session or mir-global-context.
-                            // Let's save some space by removing the type info.
-                            type_annot: None,
-                        }
-                    ).collect(),
-                    generics: r#struct.generics.clone(),
-                    generic_group_span: r#struct.generic_group_span.clone(),
-                    associated_funcs: HashMap::new(),
-                    associated_lets: HashMap::new(),
-                },
-            )
-        ) {
-            self.struct_shapes.insert(def_span.clone(), struct_shape);
+        for r#struct in hir_session.structs.iter() {
+            self.struct_shapes.insert(r#struct.name_span.clone(), r#struct.shape());
         }
 
         for r#enum in hir_session.enums.iter() {
             self.enum_shapes.insert(r#enum.name_span.clone(), r#enum.shape());
+
+            for variant in r#enum.variants.iter() {
+                if let EnumVariantFields::Struct(fields) = &variant.fields {
+                    self.struct_shapes.insert(
+                        variant.name_span.clone(),
+                        StructShape {
+                            from_enum: Some(r#enum.name_span.clone()),
+                            name: variant.name,
+                            fields: remove_struct_fields_type_annot(fields),
+                            generics: r#enum.generics.clone(),
+                            generic_group_span: r#enum.generic_group_span.clone(),
+
+                            // You can associate items to an enum, but not to a variant.
+                            associated_funcs: HashMap::new(),
+                            associated_lets: HashMap::new(),
+                        },
+                    );
+                }
+            }
         }
 
         let mut children = HashMap::new();

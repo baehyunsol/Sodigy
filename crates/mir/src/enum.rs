@@ -91,13 +91,21 @@ impl Enum {
 
                     for hir_field in hir_fields.iter() {
                         match hir_field.type_annot.as_ref().map(|hir_type| Type::from_hir(hir_type, session)) {
-                            Some(Ok(r#type)) => {
-                                param_types.push(r#type);
+                            Some(Ok(type_annot)) => {
+                                session.types.insert(hir_field.name_span.clone(), type_annot.clone());
+                                param_types.push(type_annot);
                             },
                             Some(Err(())) => {
                                 has_error = true;
                             },
                             None => {
+                                session.types.insert(
+                                    hir_field.name_span.clone(),
+                                    Type::Var {
+                                        def_span: hir_field.name_span.clone(),
+                                        is_return: false,
+                                    },
+                                );
                                 param_types.push(Type::Var {
                                     def_span: hir_field.name_span.clone(),
                                     is_return: false,

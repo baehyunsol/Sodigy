@@ -149,82 +149,82 @@ impl Session {
                 },
             },
             PatternKind::Struct { r#struct, fields, rest, .. } => {
-                if let (Some(struct_type), _) = self.solve_path(&r#struct.id, &None) {
-                    let struct_def_span = match &struct_type {
-                        Type::Data { constructor_def_span, args, .. } => get_def_span_from_id(*constructor_def_span, args),
+                let mut field_types = HashMap::with_capacity(fields.len());
+                let mut has_error = false;
 
-                        // TODO: I'm not sure whether it's reachable or not...
+                for field in fields.iter() {
+                    let (r#type, e) = self.solve_pattern(&field.pattern);
+                    has_error |= e;
+
+                    if let Some(r#type) = r#type {
+                        if let Some((prev_span, _)) = field_types.insert(field.name, (field.span.clone(), r#type)) {
+                            // This field appears twice in the pattern, hence an error.
+                            todo!();
+                        }
+                    }
+                }
+
+                if let (Some(struct_type), _) = self.solve_path(&r#struct.id, &None) {
+                    let (struct_type, struct_shape) = match &struct_type {
+                        ty @ Type::Data { constructor_def_span, args, .. } => {
+                            let struct_def_span = get_def_span_from_id(*constructor_def_span, args);
+                            (ty.clone(), self.struct_shapes.get(&struct_def_span).unwrap())
+                        },
+                        // An enum variant is solved to this type.
+                        Type::Func { r#return, .. } => {
+                            let variant_def_span = &r#struct.id.def_span;
+                            (*r#return.clone(), self.struct_shapes.get(&variant_def_span).unwrap())
+                        },
                         _ => unreachable!(),
                     };
-                    let mut field_types = HashMap::with_capacity(fields.len());
                     let mut type_vars_to_add = vec![];
-                    let mut has_error = false;
+                    let mut missing_fields = vec![];
 
-                    for field in fields.iter() {
-                        let (r#type, e) = self.solve_pattern(&field.pattern);
-                        has_error |= e;
+                    for field in struct_shape.fields.clone().iter() {
+                        match field_types.get(&field.name) {
+                            Some((pattern_span, infered_type)) => {
+                                let mut annotated_type = self.types.get(&field.name_span).unwrap().clone();
+                                let mut substituted_generics = HashSet::new();
+                                let field_span = field.name_span.clone();
+                                annotated_type.substitute_generic_param_for_arg(&field_span, &mut substituted_generics);
 
-                        if let Some(r#type) = r#type {
-                            if let Some((prev_span, _)) = field_types.insert(field.name, (field.span.clone(), r#type)) {
-                                // This field appears twice in the pattern, hence an error.
-                                todo!();
-                            }
+                                for def_span in substituted_generics.iter() {
+                                    let type_var = Type::GenericArg { call: field_span.clone(), generic: def_span.clone() };
+
+                                    if let Some(already_infered) = self.generic_args.get(&(field_span.clone(), def_span.clone())) {
+                                        annotated_type.substitute(&type_var, already_infered);
+                                    }
+
+                                    type_vars_to_add.push(type_var);
+                                }
+
+                                if let Err(()) = self.solve_supertype(
+                                    &annotated_type,
+                                    infered_type,
+                                    false,
+                                    Some(&field_span),
+                                    Some(pattern_span),
+                                    ErrorContext::StructFields,
+                                    false,
+                                ) {
+                                    has_error = true;
+                                }
+                            },
+                            None if rest.is_some() => {},
+                            None => {
+                                missing_fields.push(field.name);
+                            },
                         }
                     }
 
-                    if let Some(struct_shape) = self.struct_shapes.get(&struct_def_span) {
-                        let mut missing_fields = vec![];
-
-                        for field in struct_shape.fields.clone().iter() {
-                            match field_types.get(&field.name) {
-                                Some((pattern_span, infered_type)) => {
-                                    let mut annotated_type = self.types.get(&field.name_span).unwrap().clone();
-                                    let mut substituted_generics = HashSet::new();
-                                    let field_span = field.name_span.clone();
-                                    annotated_type.substitute_generic_param_for_arg(&field_span, &mut substituted_generics);
-
-                                    for def_span in substituted_generics.iter() {
-                                        let type_var = Type::GenericArg { call: field_span.clone(), generic: def_span.clone() };
-
-                                        if let Some(already_infered) = self.generic_args.get(&(field_span.clone(), def_span.clone())) {
-                                            annotated_type.substitute(&type_var, already_infered);
-                                        }
-
-                                        type_vars_to_add.push(type_var);
-                                    }
-
-                                    if let Err(()) = self.solve_supertype(
-                                        &annotated_type,
-                                        infered_type,
-                                        false,
-                                        Some(&field_span),
-                                        Some(pattern_span),
-                                        ErrorContext::StructFields,
-                                        false,
-                                    ) {
-                                        has_error = true;
-                                    }
-                                },
-                                None if rest.is_some() => {},
-                                None => {
-                                    missing_fields.push(field.name);
-                                },
-                            }
-                        }
-
-                        if !missing_fields.is_empty() {
-                            has_error = true;
-                            self.type_errors.push(TypeError::MissingStructFields {
-                                span: r#struct.id.span.clone(),
-                                struct_name: r#struct.id.id,
-                                is_enum_variant: false,  // TODO: there's no way to check this...
-                                missing_fields,
-                            });
-                        }
-                    }
-
-                    else {
-                        todo!()
+                    if !missing_fields.is_empty() {
+                        has_error = true;
+                        self.type_errors.push(TypeError::MissingStructFields {
+                            span: r#struct.id.span.clone(),
+                            struct_name: r#struct.id.id,
+                            is_enum_variant: false,  // TODO: there's no way to check this...
+                            missing_fields,
+                        });
                     }
 
                     for type_var in type_vars_to_add.into_iter() {
@@ -235,7 +235,8 @@ impl Session {
                 }
 
                 else {
-                    todo!()
+                    // HIR already checked this
+                    unreachable!()
                 }
             },
             // `Option.Some` has type `Fn(T) -> Option<T>` and the type must already be registered.

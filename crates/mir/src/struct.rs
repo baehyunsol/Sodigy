@@ -41,16 +41,16 @@ impl Struct {
             group_span: if hir_struct.generics.is_empty() { None } else { Some(Span::None) },
         };
 
-        for field in hir_struct.fields.iter() {
-            match field.type_annot.as_ref().map(|type_annot| Type::from_hir(type_annot, session)) {
+        for hir_field in hir_struct.fields.iter() {
+            match hir_field.type_annot.as_ref().map(|type_annot| Type::from_hir(type_annot, session)) {
                 Some(Ok(type_annot)) => {
-                    session.types.insert(field.name_span.clone(), type_annot);
+                    session.types.insert(hir_field.name_span.clone(), type_annot);
                 },
                 None => {
                     session.types.insert(
-                        field.name_span.clone(),
+                        hir_field.name_span.clone(),
                         Type::Var {
-                            def_span: field.name_span.clone(),
+                            def_span: hir_field.name_span.clone(),
                             is_return: false,
                         },
                     );
@@ -62,9 +62,9 @@ impl Struct {
             }
 
             fields.push(StructField {
-                name: field.name,
-                name_span: field.name_span.clone(),
-                default_value: field.default_value.clone(),
+                name: hir_field.name,
+                name_span: hir_field.name_span.clone(),
+                default_value: hir_field.default_value.clone(),
             });
         }
 
