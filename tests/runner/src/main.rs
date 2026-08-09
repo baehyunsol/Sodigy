@@ -60,6 +60,7 @@ fn main() {
 
                 log_inter_mir,
                 debug_bytecode,
+                true,  // debug-heap
             );
 
             compile_and_run::run_cases(
@@ -155,6 +156,7 @@ fn main() {
                 false,  // --release
                 false,  // log-inter-mir
                 false,  // debug-bytecode
+                true,   // debug-heap
             );
 
             let metadata = meta::get();

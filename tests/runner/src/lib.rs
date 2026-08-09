@@ -29,6 +29,7 @@ pub fn get_sodigy_path(
     release: bool,
     log_inter_mir: bool,
     debug_bytecode: bool,
+    debug_heap: bool,
 ) -> String {
     let mut args = vec!["build"];
 
@@ -36,14 +37,27 @@ pub fn get_sodigy_path(
         args.push("--release");
     }
 
-    if log_inter_mir || debug_bytecode {
-        let arg = match (log_inter_mir, debug_bytecode) {
-            (true, true) => "--features=log-inter-mir,debug-bytecode",
-            (true, false) => "--features=log-inter-mir",
-            (false, true) => "--features=debug-bytecode",
-            (false, false) => unreachable!(),
-        };
+    let features = if !(log_inter_mir || debug_bytecode || debug_heap) {
+        let mut features = vec![];
 
+        if log_inter_mir {
+            features.push("log-inter-mir");
+        }
+
+        if debug_bytecode {
+            features.push("debug-bytecode");
+        }
+
+        if debug_heap {
+            features.push("debug-heap");
+        }
+
+        Some(format!("--features={}", features.join(",")))
+    } else {
+        None
+    };
+
+    if let Some(arg) = &features {
         args.push(arg);
     }
 
