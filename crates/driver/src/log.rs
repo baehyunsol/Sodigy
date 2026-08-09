@@ -331,7 +331,7 @@ pub fn log_inter_mir(session: &InterMirSession, mir_session: &MirSession) -> Res
                     long: None,
                 });
 
-                ("type_solve_loop", e.id().unwrap())
+                ("type_solve_loop", e.id())
             },
             LogEntry::SolveSupertypeStart { id, lhs, rhs, lhs_span, rhs_span, context } => {
                 input.push(Value {
@@ -427,6 +427,60 @@ pub fn log_inter_mir(session: &InterMirSession, mir_session: &MirSession) -> Res
                 });
 
                 ("solve_expr", *id)
+            },
+            LogEntry::SolvePathStart { id, path, dotfish, prev_infered } => {
+                input.push(Value {
+                    name: String::from("id"),
+                    short: path.id.unintern_or_default(&session.intermediate_dir),
+                    long: Some(String::from_utf8(prettify(format!("{path:?}").into_bytes())).unwrap()),
+                });
+
+                match dotfish {
+                    Some(dotfish) => {
+                        input.push(Value {
+                            name: String::from("dotfish"),
+                            short: String::from("(...)"),
+                            long: Some(String::from_utf8(prettify(format!("{dotfish:?}").into_bytes())).unwrap()),
+                        });
+                    },
+                    None => {
+                        input.push(Value {
+                            name: String::from("dotfish"),
+                            short: String::from("N/A"),
+                            long: None,
+                        });
+                    },
+                }
+
+                match prev_infered {
+                    Some(r#type) => {
+                        input.push(Value {
+                            name: String::from("prev_infered"),
+                            short: escape_html(&session.render_type(r#type)),
+                            long: Some(String::from_utf8(prettify(format!("{type:?}").into_bytes())).unwrap()),
+                        });
+                    },
+                    None => {
+                        input.push(Value {
+                            name: String::from("prev_infered"),
+                            short: String::from("N/A"),
+                            long: None,
+                        });
+                    },
+                }
+
+                spans.push(RenderableSpan {
+                    span: path.def_span.clone(),
+                    auxiliary: false,
+                    note: Some(String::from("def-span")),
+                });
+                spans.push(RenderableSpan {
+                    span: path.span.clone(),
+                    auxiliary: false,
+                    note: Some(String::from("span")),
+                });
+
+                ("solve_path", *id)
             },
             LogEntry::SolvePatternStart { id, pattern } => {
                 input.push(Value {
@@ -612,7 +666,7 @@ pub fn log_inter_mir(session: &InterMirSession, mir_session: &MirSession) -> Res
         let mut children = vec![];
         index += 1;
 
-        while log[index].id() != Some(log_id) {
+        while log[index].id() != log_id {
             let (child, new_index) = to_func_call(log, index, session, mir_session);
             index = new_index;
 
@@ -649,6 +703,7 @@ pub fn log_inter_mir(session: &InterMirSession, mir_session: &MirSession) -> Res
             },
             LogEntry::SolveAssertEnd { has_error, last_errors, .. } => (*has_error, last_errors.clone()),
             LogEntry::SolveExprEnd { infered_type, type_vars, has_error, last_errors, .. } |
+            LogEntry::SolvePathEnd { infered_type, type_vars, has_error, last_errors, .. } |
             LogEntry::SolvePatternEnd { infered_type, type_vars, has_error, last_errors, .. } => {
                 output.push(Value::from_optional_type("infered_type", infered_type, session));
 

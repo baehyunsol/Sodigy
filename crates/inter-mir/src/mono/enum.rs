@@ -1,7 +1,7 @@
 use super::Monomorphization;
 use crate::Session;
 use sodigy_hir::{self as hir, EnumShape};
-use sodigy_mir::{Enum, EnumVariant, EnumVariantFields};
+use sodigy_mir::{Enum, EnumVariant, EnumVariantFields, StructField};
 use std::collections::HashSet;
 
 impl Session {
@@ -17,7 +17,22 @@ impl Session {
 
             let new_fields = match &variant.fields {
                 EnumVariantFields::None | EnumVariantFields::Tuple(_) => variant.fields.clone(),
-                EnumVariantFields::Struct(fields) => todo!(),  // monomorphize name_spans
+                EnumVariantFields::Struct(fields) => {
+                    for field in fields.iter() {
+                        let new_name_span = field.name_span.monomorphize(monomorphization.id);
+                        let old_type = self.types.get(&field.name_span).unwrap().clone();
+                        let new_type = self.monomorphize_type(&old_type, &HashSet::new(), &monomorphization);
+                        self.types.insert(new_name_span, new_type);
+                    }
+
+                    EnumVariantFields::Struct(fields.iter().map(
+                        |field| StructField {
+                            name: field.name,
+                            name_span: field.name_span.monomorphize(monomorphization.id),
+                            default_value: field.default_value.clone(),
+                        }
+                    ).collect())
+                },
             };
 
             new_variants.push(EnumVariant {
@@ -42,7 +57,14 @@ impl Session {
                 name_span: variant.name_span.monomorphize(monomorphization.id),
                 fields: match &variant.fields {
                     hir::EnumVariantFields::None | hir::EnumVariantFields::Tuple(_) => variant.fields.clone(),
-                    _ => todo!(),
+                    hir::EnumVariantFields::Struct(fields) => hir::EnumVariantFields::Struct(fields.iter().map(
+                        |field| hir::StructField {
+                            name: field.name,
+                            name_span: field.name_span.monomorphize(monomorphization.id),
+                            type_annot: None,  // it already should've been removed
+                            default_value: field.default_value.clone(),
+                        }
+                    ).collect()),
                 },
             }
         ).collect();

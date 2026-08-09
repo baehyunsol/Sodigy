@@ -1248,13 +1248,6 @@ impl Session {
             Type::Var { def_span: span, .. } |
             Type::GenericArg { call: span, .. } |
             Type::Blocked { origin: span } => {
-                write_log!(self, LogEntry::BlockedTypeVar {
-                    kind: BlockedTypeVarKind::FieldOfTypeVar {
-                        field: field.to_vec(),
-                        type_var: r#type.clone(),
-                    },
-                    span: span.clone(),
-                });
                 self.blocked_type_vars.insert(span.clone());
                 return (associated_func_instance, Ok(Type::Blocked { origin: span.clone() }));
             },

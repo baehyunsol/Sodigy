@@ -1,4 +1,4 @@
-use crate::Session;
+use crate::{LogId, Session, write_log};
 use crate::error::{ErrorContext, TypeError};
 use sodigy_error::TypeVarInfo;
 use sodigy_mir::{Dotfish, Type};
@@ -6,13 +6,32 @@ use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_span::Span;
 use std::collections::HashSet;
 
+#[cfg(feature = "log")]
+use crate::log::LogEntry;
+
+#[cfg(feature = "log")]
+use std::collections::HashMap;
+
 impl Session {
     pub fn solve_path(&mut self, id: &IdentWithOrigin, dotfish: &Option<Dotfish>) -> (Option<Type>, bool /* has_error */) {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::SolvePathStart {
+            id: _id.unwrap(),
+            path: id.clone(),
+            dotfish: dotfish.clone(),
+            prev_infered: self.types.get(&id.def_span).cloned(),
+        });
+
         if let NameOrigin::Local { kind: NameKind::EnumVariant } | NameOrigin::Foreign { kind: NameKind::EnumVariant } = &id.origin {
             self.call_to_variant_span.insert(id.span.clone(), id.def_span.clone());
         }
 
-        match self.types.get(&id.def_span) {
+        let (r#type, has_error) = match self.types.get(&id.def_span) {
             Some(r#type) => {
                 let mut r#type = r#type.clone();
                 let mut substituted_generics = HashSet::new();
@@ -166,6 +185,16 @@ impl Session {
                 self.add_type_var(type_var.clone(), Some(TypeVarInfo::Ident(id.id)));
                 (Some(type_var), false)
             },
-        }
+        };
+
+        write_log!(self, LogEntry::SolvePathEnd {
+            id: _id.unwrap(),
+            infered_type: r#type.clone(),
+            type_vars: if let Some(r#type) = &r#type { self.collect_type_var_info(r#type) } else { HashMap::new() },
+            has_error,
+            last_errors: self.last_errors(),
+        });
+
+        (r#type, has_error)
     }
 }

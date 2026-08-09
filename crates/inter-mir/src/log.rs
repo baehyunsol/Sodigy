@@ -10,7 +10,8 @@ use crate::{
 };
 use sodigy_error::Error;
 use sodigy_hir::{EnumShape, Pattern, Poly, StructShape};
-use sodigy_mir::{Assert, Expr, Func, Let, Type};
+use sodigy_mir::{Assert, Dotfish, Expr, Func, Let, Type};
+use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_parse::Field;
 use sodigy_span::Span;
 use std::collections::HashMap;
@@ -111,6 +112,19 @@ pub enum LogEntry {
         has_error: bool,
         last_errors: Vec<(TypeError, Error)>,
     },
+    SolvePathStart {
+        id: LogId,
+        path: IdentWithOrigin,
+        dotfish: Option<Dotfish>,
+        prev_infered: Option<Type>,
+    },
+    SolvePathEnd {
+        id: LogId,
+        infered_type: Option<Type>,
+        type_vars: HashMap<Type, Option<Type>>,
+        has_error: bool,
+        last_errors: Vec<(TypeError, Error)>,
+    },
     SolvePatternStart {
         id: LogId,
         pattern: Pattern,
@@ -193,17 +207,12 @@ pub enum LogEntry {
         has_error: bool,
         last_errors: Vec<(TypeError, Error)>,
     },
-    Monomorphization(Monomorphization),
-    BlockedTypeVar {
-        kind: BlockedTypeVarKind,
-        span: Span,
-    },
 }
 
 impl LogEntry {
-    pub fn id(&self) -> Option<LogId> {
+    pub fn id(&self) -> LogId {
         match self {
-            LogEntry::TypeSolveLoopStart(n) | LogEntry::TypeSolveLoopEnd(n) => Some(LogId(0x4_0000 | n)),
+            LogEntry::TypeSolveLoopStart(n) | LogEntry::TypeSolveLoopEnd(n) => LogId(0x4_0000 | n),
             LogEntry::SolveSupertypeStart { id, .. } |
             LogEntry::SolveSupertypeEnd { id, .. } |
             LogEntry::SolveFuncStart { id, .. } |
@@ -214,6 +223,8 @@ impl LogEntry {
             LogEntry::SolveAssertEnd { id, .. } |
             LogEntry::SolveExprStart { id, .. } |
             LogEntry::SolveExprEnd { id, .. } |
+            LogEntry::SolvePathStart { id, .. } |
+            LogEntry::SolvePathEnd { id, .. } |
             LogEntry::SolvePatternStart { id, .. } |
             LogEntry::SolvePatternEnd { id, .. } |
             LogEntry::GetTypeOfFieldStart { id, .. } |
@@ -229,9 +240,7 @@ impl LogEntry {
             LogEntry::MonomorphizeFuncStart { id, .. } |
             LogEntry::MonomorphizeFuncEnd { id, .. } |
             LogEntry::CheckAllTypesInferedStart { id, .. } |
-            LogEntry::CheckAllTypesInferedEnd { id, .. } => Some(*id),
-            LogEntry::Monomorphization(_) |
-            LogEntry::BlockedTypeVar { .. } => None,
+            LogEntry::CheckAllTypesInferedEnd { id, .. } => *id,
         }
     }
 }

@@ -186,12 +186,12 @@ impl Session {
                                 let mut annotated_type = self.types.get(&field.name_span).unwrap().clone();
                                 let mut substituted_generics = HashSet::new();
                                 let field_span = field.name_span.clone();
-                                annotated_type.substitute_generic_param_for_arg(&field_span, &mut substituted_generics);
+                                annotated_type.substitute_generic_param_for_arg(&pattern_span, &mut substituted_generics);
 
                                 for def_span in substituted_generics.iter() {
-                                    let type_var = Type::GenericArg { call: field_span.clone(), generic: def_span.clone() };
+                                    let type_var = Type::GenericArg { call: pattern_span.clone(), generic: def_span.clone() };
 
-                                    if let Some(already_infered) = self.generic_args.get(&(field_span.clone(), def_span.clone())) {
+                                    if let Some(already_infered) = self.generic_args.get(&(pattern_span.clone(), def_span.clone())) {
                                         annotated_type.substitute(&type_var, already_infered);
                                     }
 

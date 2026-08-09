@@ -151,10 +151,11 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                         let r#enum = &mir_session.enums[*index];
 
                         for variant in r#enum.variants.iter() {
-                            if let EnumVariantFields::Struct(_) = &variant.fields {
-                                // We have to monomorphize the struct_shape of the `EnumVariantFields::Struct`s.
-                                // We also have to monomorphize the fields of the struct in `session.types`.
-                                todo!()
+                            if let EnumVariantFields::Struct(fields) = &variant.fields {
+                                let struct_shape = session.struct_shapes.get(&variant.name_span).unwrap().clone();
+                                let new_name_span = variant.name_span.monomorphize(monomorphization.id);
+                                let new_struct_shape = session.monomorphize_struct_shape(&struct_shape, &monomorphization);
+                                session.struct_shapes.insert(new_name_span, new_struct_shape);
                             }
                         }
 
@@ -201,13 +202,38 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                             let new_struct = session.monomorphize_struct(r#struct, &monomorphization);
                             let struct_shape = session.struct_shapes.get(&monomorphization.def_span).unwrap().clone();
                             let new_struct_shape = session.monomorphize_struct_shape(&struct_shape, &monomorphization);
-                            register_monomorphized_struct(monomorphization, new_struct, new_struct_shape, &mut session, mir_session);
+                            register_monomorphized_struct(monomorphization.clone(), new_struct, new_struct_shape, &mut session, mir_session);
+                            session.monomorphizations.insert(monomorphization_id, monomorphization);
                         }
 
                         else if let Some(index) = session.enums_rev.get(&def_span) {
                             let r#enum = &mir_session.enums[*index];
-                            println!("{enum:?}");
-                            todo!()
+                            assert_eq!(r#enum.generics.len(), args.len());
+                            let generics = r#enum.generics.iter().zip(args).map(
+                                |(generic, r#type)| (generic.name_span.clone(), r#type)
+                            ).collect();
+
+                            let monomorphization = Monomorphization {
+                                id: monomorphization_id,
+                                def_span,
+                                call_span: call_span.clone(),
+                                is_intermediate: true,
+                                generics,
+                            };
+
+                            for variant in r#enum.variants.iter() {
+                                if let EnumVariantFields::Struct(fields) = &variant.fields {
+                                    let struct_shape = session.struct_shapes.get(&variant.name_span).unwrap().clone();
+                                    let new_name_span = variant.name_span.monomorphize(monomorphization.id);
+                                    let new_struct_shape = session.monomorphize_struct_shape(&struct_shape, &monomorphization);
+                                    session.struct_shapes.insert(new_name_span, new_struct_shape);
+                                }
+                            }
+
+                            let new_enum = session.monomorphize_enum(r#enum, &monomorphization);
+                            let enum_shape = session.enum_shapes.get(&monomorphization.def_span).unwrap().clone();
+                            let new_enum_shape = session.monomorphize_enum_shape(&enum_shape, &monomorphization);
+                            register_monomorphized_enum(monomorphization, new_enum, new_enum_shape, &mut session, mir_session);
                         }
 
                         else {
