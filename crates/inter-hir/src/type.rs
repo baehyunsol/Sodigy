@@ -1,13 +1,44 @@
-use crate::{Session, TypeStructExpr, not_x_but_y};
+use crate::{LogId, Session, TypeStructExpr, not_x_but_y, write_log};
 use sodigy_error::{Error, NotXBut};
 use sodigy_hir::{Path, Type};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::Span;
 
+#[cfg(feature = "log")]
+use crate::log::LogEntry;
+
 impl Session {
+    pub fn resolve_type(
+        &mut self,
+        r#type: &mut Type,
+        log: &mut Vec<Span>,
+    ) -> Result<(), ()> {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::ResolveTypeStart {
+            id: _id.unwrap(),
+            r#type: r#type.clone(),
+        });
+
+        let result = self.resolve_type_(r#type, log);
+
+        write_log!(self, LogEntry::ResolveTypeEnd {
+            id: _id.unwrap(),
+            r#type: r#type.clone(),
+            has_error: result.is_err(),
+            last_errors: self.last_errors(),
+        });
+
+        result
+    }
+
     // It resolves names in type annotations and type aliases.
     // See the comments in `resolve_use` for more information.
-    pub fn resolve_type(
+    fn resolve_type_(
         &mut self,
         r#type: &mut Type,
         log: &mut Vec<Span>,

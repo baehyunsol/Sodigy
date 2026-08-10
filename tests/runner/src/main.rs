@@ -35,6 +35,7 @@ fn main() {
     match args.get(1).map(|arg| arg.as_str()) {
         Some("cnr") => {
             let parsed_args = ArgParser::new()
+                .optional_flag(&["--log-inter-hir"])
                 .optional_flag(&["--log-inter-mir"])
                 .optional_flag(&["--log-post-mir"])
 
@@ -46,9 +47,10 @@ fn main() {
                 .map_err(|_| "cli error")
                 .unwrap();
 
-            let log_inter_mir = parsed_args.get_flag(0).is_some();
-            let log_post_mir = parsed_args.get_flag(1).is_some();
-            let debug_bytecode = parsed_args.get_flag(2).is_some();
+            let log_inter_hir = parsed_args.get_flag(0).is_some();
+            let log_inter_mir = parsed_args.get_flag(1).is_some();
+            let log_post_mir = parsed_args.get_flag(2).is_some();
+            let debug_bytecode = parsed_args.get_flag(3).is_some();
             let filter = parsed_args.get_args().get(0).map(|f| f.to_string());
             let sodigy_path = get_sodigy_path(
                 &root,
@@ -58,6 +60,7 @@ fn main() {
                 // have to turn this on.
                 log_inter_mir,
 
+                log_inter_hir,
                 log_inter_mir,
                 debug_bytecode,
                 true,  // debug-heap
@@ -154,6 +157,7 @@ fn main() {
             let sodigy_path = get_sodigy_path(
                 &root,
                 false,  // --release
+                false,  // log-inter-hir
                 false,  // log-inter-mir
                 false,  // debug-bytecode
                 true,   // debug-heap

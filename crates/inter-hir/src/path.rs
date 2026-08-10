@@ -1,4 +1,4 @@
-use crate::Session;
+use crate::{LogId, Session, write_log};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_hir::{
     Dotfish,
@@ -13,7 +13,40 @@ use sodigy_name_analysis::{
 use sodigy_parse::Field;
 use sodigy_span::Span;
 
+#[cfg(feature = "log")]
+use crate::log::LogEntry;
+
 impl Session {
+    pub fn resolve_path(
+        &mut self,
+        path: &mut Path,
+        type_args: Option<&[Type]>,
+        log: &mut Vec<Span>,
+    ) -> Result<(), ()> {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::ResolvePathStart {
+            id: _id.unwrap(),
+            path: path.clone(),
+            type_args: type_args.map(|args| args.to_vec()),
+        });
+
+        let result = self.resolve_path_(path, type_args, log);
+
+        write_log!(self, LogEntry::ResolvePathEnd {
+            id: _id.unwrap(),
+            path: path.clone(),
+            has_error: result.is_err(),
+            last_errors: self.last_errors(),
+        });
+
+        result
+    }
+
     // If there are complex aliases (alias of alias of alias of ...), this function
     // doesn't fully solve the path.
     // `resolve_alias` solves this issue by calling `resolve_use` and `resolve_type` over and
@@ -22,7 +55,7 @@ impl Session {
     //
     // The other resolvers (`resolve_expr`, `resolve_pattern`, ...) don't have such problem because
     // `resolve_alias` removes all the complex aliases.
-    pub fn resolve_path(
+    fn resolve_path_(
         &mut self,
 
         // `Path::types` is for dotfish operators, which are only for expressions.

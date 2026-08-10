@@ -1,12 +1,39 @@
-use crate::Session;
+use crate::{LogId, Session, write_log};
 use sodigy_error::{EnumFieldKind, Error, ErrorKind, NotXBut};
 use sodigy_hir::{CallArg, Expr, ExprOrString, Path, StructInitField, fold_exprs};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::{RenderableSpan, SpanDeriveKind};
 use sodigy_token::InfixOp;
 
+#[cfg(feature = "log")]
+use crate::log::LogEntry;
+
 impl Session {
     pub fn resolve_expr(&mut self, expr: &mut Expr) -> Result<(), ()> {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::ResolveExprStart {
+            id: _id.unwrap(),
+            expr: expr.clone(),
+        });
+
+        let result = self.resolve_expr_(expr);
+
+        write_log!(self, LogEntry::ResolveExprEnd {
+            id: _id.unwrap(),
+            expr: expr.clone(),
+            has_error: result.is_err(),
+            last_errors: self.last_errors(),
+        });
+
+        result
+    }
+
+    fn resolve_expr_(&mut self, expr: &mut Expr) -> Result<(), ()> {
         match expr {
             Expr::Path(p) | Expr::Closure { fp: p, .. } => {
                 self.resolve_path(p, None, &mut vec![])?;

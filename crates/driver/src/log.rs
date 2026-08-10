@@ -246,10 +246,10 @@ pub fn log_inter_mir(session: &InterMirSession, mir_session: &MirSession) -> Res
         output: Vec<Value>,
         spans: Vec<RenderableSpan>,
         has_error: bool,
+        last_errors: Vec<(TypeError, Error)>,
 
         // self.has_error || self.children.any(|c| c.has_inner_error)
         has_inner_error: bool,
-        last_errors: Vec<(TypeError, Error)>,
     }
 
     impl FuncCall {
@@ -906,8 +906,8 @@ pub fn log_inter_mir(session: &InterMirSession, mir_session: &MirSession) -> Res
                 output,
                 spans,
                 has_error,
-                has_inner_error,
                 last_errors,
+                has_inner_error,
             }),
             index + 1,
         )

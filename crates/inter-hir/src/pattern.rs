@@ -1,4 +1,4 @@
-use crate::{Session, TypeStructExpr, not_x_but_y};
+use crate::{LogId, Session, TypeStructExpr, not_x_but_y, write_log};
 use sodigy_error::{EnumFieldKind, Error, ErrorKind, NotXBut};
 use sodigy_hir::{
     EnumVariant,
@@ -13,8 +13,35 @@ use sodigy_span::SpanDeriveKind;
 use sodigy_string::intern_string;
 use sodigy_token::InfixOp;
 
+#[cfg(feature = "log")]
+use crate::log::LogEntry;
+
 impl Session {
     pub fn resolve_pattern(&mut self, pattern: &mut Pattern) -> Result<(), ()> {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::ResolvePatternStart {
+            id: _id.unwrap(),
+            pattern: pattern.clone(),
+        });
+
+        let result = self.resolve_pattern_(pattern);
+
+        write_log!(self, LogEntry::ResolvePatternEnd {
+            id: _id.unwrap(),
+            pattern: pattern.clone(),
+            has_error: result.is_err(),
+            last_errors: self.last_errors(),
+        });
+
+        result
+    }
+
+    fn resolve_pattern_(&mut self, pattern: &mut Pattern) -> Result<(), ()> {
         let mut has_error = false;
 
         if let Err(()) = self.resolve_pattern_kind(&mut pattern.kind) {

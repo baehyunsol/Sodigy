@@ -1,4 +1,4 @@
-use crate::Session;
+use crate::{LogId, Session, write_log};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_hir::{
     Alias,
@@ -11,10 +11,34 @@ use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::{RenderableSpan, Span};
 use std::collections::{HashMap, HashSet};
 
+#[cfg(feature = "log")]
+use crate::log::LogEntry;
+
 // TODO: make it configurable
 const ALIAS_RESOLVE_RECURSION_LIMIT: usize = 64;
 
 impl Session {
+    pub fn resolve_alias(&mut self) -> Result<(), ()> {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::ResolveAliasStart {
+            id: _id.unwrap(),
+        });
+
+        let result = self.resolve_alias_();
+
+        write_log!(self, LogEntry::ResolveAliasEnd {
+            id: _id.unwrap(),
+            has_error: result.is_err(),
+            last_errors: self.last_errors(),
+        });
+
+        result
+    }
     // Aliases might be nested. e.g.
     // `type x = foo;`
     // `use x as y;`
@@ -28,7 +52,7 @@ impl Session {
     // We have to do this before resolving aliases in expressions and type annotations.
     // We have to do this globally.
     // Also, there can be an infinite loop, so we have to set some kinda recursion limit.
-    pub fn resolve_alias(&mut self) -> Result<(), ()> {
+    fn resolve_alias_(&mut self) -> Result<(), ()> {
         let mut nested_name_aliases = HashMap::new();
         let mut nested_type_aliases = HashMap::new();
         let mut name_aliases_to_type_aliases = vec![];
@@ -36,6 +60,7 @@ impl Session {
         let mut has_error = false;
 
         for i in 0..(ALIAS_RESOLVE_RECURSION_LIMIT + 1) {
+            write_log!(self, LogEntry::ResolveAliasLoopStart(i as u32));
             let mut emergency_escape = false;
 
             for (name_span, mut alias) in self.type_aliases.clone().into_iter() {
@@ -82,6 +107,8 @@ impl Session {
                 }
             }
 
+            write_log!(self, LogEntry::ResolveAliasLoopEnd(i as u32));
+
             if i == ALIAS_RESOLVE_RECURSION_LIMIT || emergency_escape {
                 suspicious_spans = suspicious_spans.into_iter().collect::<HashSet<_>>().into_iter().collect();
                 self.errors.push(Error {
@@ -126,6 +153,35 @@ impl Session {
         Ok(())
     }
 
+    pub fn resolve_use(
+        &mut self,
+        r#use: &mut Use,
+        name_aliases_to_type_aliases: &mut Vec<(Span, Alias)>,
+        log: &mut Vec<Span>,
+    ) -> Result<(), ()> {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::ResolveUseStart {
+            id: _id.unwrap(),
+            r#use: r#use.clone(),
+        });
+
+        let result = self.resolve_use_(r#use, name_aliases_to_type_aliases, log);
+
+        write_log!(self, LogEntry::ResolveUseEnd {
+            id: _id.unwrap(),
+            r#use: r#use.clone(),
+            has_error: result.is_err(),
+            last_errors: self.last_errors(),
+        });
+
+        result
+    }
+
     // If `x` in `use x.y.z as w;` is an alias, it resolves `x`.
     // If `x` is a module in `use x.y as w;`, it finds the def_span of `y` and
     // replaces the alias with `use y as w;`.
@@ -137,7 +193,7 @@ impl Session {
     // `log` does 2 things:
     //     1. It tells whether the function has resolved something. If `log` is not empty, something has happened.
     //     2. When the solver throws `AliasResolveRecursionLimitReached` error, it looks at `log` to create an error message.
-    pub fn resolve_use(
+    fn resolve_use_(
         &mut self,
         r#use: &mut Use,
         name_aliases_to_type_aliases: &mut Vec<(Span, Alias)>,
