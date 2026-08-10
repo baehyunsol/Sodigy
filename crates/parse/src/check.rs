@@ -8,6 +8,7 @@ mod expr;
 mod func;
 mod r#if;
 mod r#let;
+mod r#macro;
 mod r#match;
 mod module;
 mod pattern;

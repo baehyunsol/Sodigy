@@ -122,6 +122,7 @@ error_kinds!(
     // TODO: more context!
     // TODO: suggest similar names
     (UndefinedName(InternedString),                                  330,    Error),
+    (UndefinedMacro(InternedString),                                 331,    Error),
 
     (EnumVariantInTypeAnnot,                                         335,    Error),
     (KeywordArgRepeated(InternedString),                        340,    Error),

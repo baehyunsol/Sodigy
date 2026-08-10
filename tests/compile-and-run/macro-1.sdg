@@ -1,0 +1,3 @@
+enum Foo = { Bar, Baz };
+
+assert number_of_variants!(Foo) == 2;

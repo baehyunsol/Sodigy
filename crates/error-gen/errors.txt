@@ -78,6 +78,7 @@ GenericFuncWithoutTypeAnnot/326/Error
 GenericStructWithoutTypeAnnot/327/Error
 GenericEnumVariantWithoutTypeAnnot/328/Error
 UndefinedName/330/Error
+UndefinedMacro/331/Error
 EnumVariantInTypeAnnot/335/Error
 KeywordArgRepeated/340/Error
 KeywordArgNotAllowed/345/Error

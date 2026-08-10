@@ -104,6 +104,20 @@ impl<'t, 's> Tokens<'t, 's> {
         }
     }
 
+    pub fn empty_or_error(&self) -> Result<(), Vec<Error>> {
+        match self.peek() {
+            Some(t) => Err(vec![Error {
+                kind: ErrorKind::UnexpectedToken {
+                    expected: ErrorToken::Nothing,
+                    got: (&t.kind).into(),
+                },
+                spans: t.span.simple_error(),
+                note: None,
+            }]),
+            None => Ok(()),
+        }
+    }
+
     pub fn peek(&self) -> Option<&Token> {
         self.tokens.get(self.cursor)
     }

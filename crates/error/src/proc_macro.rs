@@ -37,15 +37,15 @@
     { names: Vec<InternedString> }, DollarOutsidePipeline,
     DisconnectedPipeline, GenericFuncWithoutTypeAnnot,
     GenericStructWithoutTypeAnnot, GenericEnumVariantWithoutTypeAnnot,
-    UndefinedName(InternedString), EnumVariantInTypeAnnot,
-    KeywordArgRepeated(InternedString), KeywordArgNotAllowed,
-    AliasResolveRecursionLimitReached, MissingTypeParameter
-    { expected: usize, got: usize }, UnexpectedTypeParameter
-    { expected: usize, got: usize }, MissingKeywordArg(InternedString),
-    InvalidKeywordArg(InternedString), MissingFunctionParameter
-    { expected: usize, got: usize }, UnexpectedFunctionParameter
-    { expected: usize, got: usize }, StructFieldRepeated(InternedString),
-    MissingStructFields
+    UndefinedName(InternedString), UndefinedMacro(InternedString),
+    EnumVariantInTypeAnnot, KeywordArgRepeated(InternedString),
+    KeywordArgNotAllowed, AliasResolveRecursionLimitReached,
+    MissingTypeParameter { expected: usize, got: usize },
+    UnexpectedTypeParameter { expected: usize, got: usize },
+    MissingKeywordArg(InternedString), InvalidKeywordArg(InternedString),
+    MissingFunctionParameter { expected: usize, got: usize },
+    UnexpectedFunctionParameter { expected: usize, got: usize },
+    StructFieldRepeated(InternedString), MissingStructFields
     {
         struct_name: InternedString, is_enum_variant: bool, missing_fields:
         Vec<InternedString>
@@ -155,9 +155,10 @@
             => 325u16, ErrorKind :: GenericFuncWithoutTypeAnnot => 326u16,
             ErrorKind :: GenericStructWithoutTypeAnnot => 327u16, ErrorKind ::
             GenericEnumVariantWithoutTypeAnnot => 328u16, ErrorKind ::
-            UndefinedName(_,) => 330u16, ErrorKind :: EnumVariantInTypeAnnot
-            => 335u16, ErrorKind :: KeywordArgRepeated(_,) => 340u16,
-            ErrorKind :: KeywordArgNotAllowed => 345u16, ErrorKind ::
+            UndefinedName(_,) => 330u16, ErrorKind :: UndefinedMacro(_,) =>
+            331u16, ErrorKind :: EnumVariantInTypeAnnot => 335u16, ErrorKind
+            :: KeywordArgRepeated(_,) => 340u16, ErrorKind ::
+            KeywordArgNotAllowed => 345u16, ErrorKind ::
             AliasResolveRecursionLimitReached => 350u16, ErrorKind ::
             MissingTypeParameter { .. } => 355u16, ErrorKind ::
             UnexpectedTypeParameter { .. } => 360u16, ErrorKind ::
@@ -292,7 +293,8 @@
             GenericStructWithoutTypeAnnot => ErrorLevel :: Error, ErrorKind ::
             GenericEnumVariantWithoutTypeAnnot => ErrorLevel :: Error,
             ErrorKind :: UndefinedName(_,) => ErrorLevel :: Error, ErrorKind
-            :: EnumVariantInTypeAnnot => ErrorLevel :: Error, ErrorKind ::
+            :: UndefinedMacro(_,) => ErrorLevel :: Error, ErrorKind ::
+            EnumVariantInTypeAnnot => ErrorLevel :: Error, ErrorKind ::
             KeywordArgRepeated(_,) => ErrorLevel :: Error, ErrorKind ::
             KeywordArgNotAllowed => ErrorLevel :: Error, ErrorKind ::
             AliasResolveRecursionLimitReached => ErrorLevel :: Error,
@@ -524,6 +526,8 @@
             { buffer.push(1u8); buffer.push(72u8); }, ErrorKind ::
             UndefinedName(t0,) =>
             { buffer.push(1u8); buffer.push(74u8); t0.encode_impl(buffer); },
+            ErrorKind :: UndefinedMacro(t0,) =>
+            { buffer.push(1u8); buffer.push(75u8); t0.encode_impl(buffer); },
             ErrorKind :: EnumVariantInTypeAnnot =>
             { buffer.push(1u8); buffer.push(79u8); }, ErrorKind ::
             KeywordArgRepeated(t0,) =>
@@ -910,6 +914,11 @@
                 let (t0, cursor) = InternedString ::
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: UndefinedName(t0,), cursor))
+            }, 331u16 =>
+            {
+                let (t0, cursor) = InternedString ::
+                decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: UndefinedMacro(t0,), cursor))
             }, 335u16 => Ok((ErrorKind :: EnumVariantInTypeAnnot, cursor)),
             340u16 =>
             {

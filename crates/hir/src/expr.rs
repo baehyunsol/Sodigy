@@ -5,6 +5,7 @@ use crate::{
     Func,
     FuncOrigin,
     If,
+    MacroKind,
     Match,
     Path,
     Session,
@@ -94,6 +95,11 @@ pub enum Expr {
     Closure {
         fp: Path,
         captures: Vec<Span /* def_span */>,
+    },
+    Macro {
+        kind: MacroKind,
+        macro_span: Span,
+        group_span: Span,
     },
 }
 
@@ -472,6 +478,12 @@ impl Expr {
                 });
                 Err(())
             },
+
+            ast::Expr::Macro { kind, macro_span, group_span } => Ok(Expr::Macro {
+                kind: MacroKind::from_ast(kind, session)?,
+                macro_span: macro_span.clone(),
+                group_span: group_span.clone(),
+            }),
         }
     }
 
@@ -493,6 +505,7 @@ impl Expr {
             Expr::InfixOp { op_span, .. } |
             Expr::PostfixOp { op_span, .. } |
             Expr::TypeConversion { keyword_span: op_span, .. } => op_span.clone(),
+            Expr::Macro { macro_span, .. } => macro_span.clone(),
         }
     }
 
@@ -524,6 +537,7 @@ impl Expr {
             Expr::TypeConversion { lhs, keyword_span, rhs, .. } => lhs.error_span_wide()
                 .merge(keyword_span)
                 .merge(&rhs.error_span_wide()),
+            Expr::Macro { macro_span, group_span, .. } => macro_span.merge(group_span),
         }
     }
 }

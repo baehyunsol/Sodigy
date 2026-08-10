@@ -169,6 +169,7 @@ pub fn replace_dollar(
             });
             replaced_spans.push(id_span);
         },
+        ast::Expr::Macro { kind, .. } => todo!(),
     }
 }
 

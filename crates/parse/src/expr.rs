@@ -152,6 +152,7 @@ impl Expr {
             Expr::FieldUpdate { fields, .. } => merge_field_spans(fields),
             Expr::Lambda(Lambda { arrow_span, .. }) => arrow_span.clone(),
             Expr::Pipeline { pipe_spans, .. } => pipe_spans[0].clone(),
+            Expr::Macro { macro_span, .. } => macro_span.clone(),
         }
     }
 
@@ -194,6 +195,7 @@ impl Expr {
 
                 span
             },
+            Expr::Macro { macro_span, group_span, .. } => macro_span.merge(group_span),
         }
     }
 
@@ -264,7 +266,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 Some(Token { kind: TokenKind::Punct(Punct::Factorial), span: punct_span }),
                 Some(Token { kind: TokenKind::Group { delim, tokens }, span: group_span }),
             ) => match delim {
-                Delim::Parenthesis => match try_parse_macro(*id, id_span.merge(punct_span), group_span.clone(), tokens) {
+                Delim::Parenthesis => match try_parse_macro(*id, id_span.merge(punct_span), group_span.clone(), tokens, &self.intermediate_dir) {
                     Ok(r#macro) => {
                         self.cursor += 3;
                         r#macro

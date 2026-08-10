@@ -231,6 +231,8 @@ impl Expr {
             // Hir will lower a pipeline to a block, and hir will do the checks.
             Expr::Pipeline { .. } => Ok(()),
             Expr::PipelineData(_) => Ok(()),
+
+            Expr::Macro { kind, .. } => kind.check(intermediate_dir),
         }
     }
 }

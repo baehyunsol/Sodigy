@@ -5,6 +5,7 @@ use crate::{
     Expr,
     ExprOrString,
     If,
+    MacroKind,
     Match,
     Path,
     StructInitField,
@@ -110,6 +111,12 @@ impl Endec for Expr {
                 fp.encode_impl(buffer);
                 captures.encode_impl(buffer);
             },
+            Expr::Macro { kind, macro_span, group_span } => {
+                buffer.push(17);
+                kind.encode_impl(buffer);
+                macro_span.encode_impl(buffer);
+                group_span.encode_impl(buffer);
+            },
         }
     }
 
@@ -206,7 +213,13 @@ impl Endec for Expr {
                 let (captures, cursor) = Vec::<Span>::decode_impl(buffer, cursor)?;
                 Ok((Expr::Closure { fp, captures }, cursor))
             },
-            Some(n @ 16..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(17) => {
+                let (kind, cursor) = MacroKind::decode_impl(buffer, cursor + 1)?;
+                let (macro_span, cursor) = Span::decode_impl(buffer, cursor)?;
+                let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
+                Ok((Expr::Macro { kind, macro_span, group_span }, cursor))
+            },
+            Some(n @ 18..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

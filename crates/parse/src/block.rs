@@ -314,15 +314,8 @@ impl<'t, 's> Tokens<'t, 's> {
                     match self.parse_expr(true) {
                         Ok(expr) => {
                             if !is_top_level {
-                                if let Some(t) = self.peek() {
-                                    errors.push(Error {
-                                        kind: ErrorKind::UnexpectedToken {
-                                            expected: ErrorToken::Nothing,
-                                            got: (&t.kind).into(),
-                                        },
-                                        spans: t.span.simple_error(),
-                                        note: None,
-                                    });
+                                if let Err(es) = self.empty_or_error() {
+                                    errors.extend(es);
                                     return Err(errors);
                                 }
                             }

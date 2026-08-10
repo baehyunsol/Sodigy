@@ -275,22 +275,8 @@ impl<'t, 's> Tokens<'t, 's> {
                     arg_group_span: Some(group_span),
                 };
                 self.cursor += 1;
-
-                match self.peek() {
-                    Some(t) => {
-                        return Err(vec![Error {
-                            kind: ErrorKind::UnexpectedToken {
-                                expected: ErrorToken::Nothing,
-                                got: (&t.kind).into(),
-                            },
-                            spans: t.span.simple_error(),
-                            note: None,
-                        }]);
-                    },
-                    None => {
-                        return Ok(result);
-                    },
-                }
+                self.empty_or_error()?;
+                return Ok(result);
             },
             Some(t) => {
                 return Err(vec![Error {

@@ -280,6 +280,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session, max_
             dump_type(rhs, lines, session);
             lines.push(">");
         },
+        Expr::Macro { .. } => todo!(),
     }
 }
 
