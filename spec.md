@@ -546,3 +546,17 @@ Sodigy doesn't treat `panic` as an impure function, so you can use this function
 You can NEVER catch a panic. `panic` is impure, but catching a `panic` is even more impure.
 
 Also note that `exit` is an impure function. My intention is that 1) you `panic` when something goes really wrong and there's nothing you can do and 2) you `exit` when everything's successful and you want to terminate the program.
+
+## Macros
+
+- `include_string!(path: String) -> String`
+- `include_bytes!(path: String) -> Bytes`
+- `type_name!(t: Type) -> String`
+- `type_name_of_value!(v: Expr) -> String`
+- `number_of_variants!(t: Type) -> Int`
+- `number_of_fields!(t: Type) -> Int`
+- `name_of_variants!(t: Type) -> [String]`
+- `name_of_fields!(t: Type) -> [String]`
+- `file!() -> String`
+- `module_path!() -> String`
+- `line!() -> Int`, `column!() -> Int`

@@ -5,12 +5,14 @@ use crate::{
     FuncArg,
     If,
     Lambda,
+    MacroKind,
     Match,
     Path,
     StructInitField,
     Tokens,
     Type,
     merge_field_spans,
+    try_parse_macro,
 };
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_span::Span;
@@ -104,6 +106,11 @@ pub enum Expr {
         pipe_spans: Vec<Span>,
     },
     PipelineData(Span),  // `$`
+    Macro {
+        kind: Box<MacroKind>,
+        macro_span: Span,
+        group_span: Span,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -218,14 +225,14 @@ impl<'t, 's> Tokens<'t, 's> {
         min_bp: u32,
         try_struct_init: bool,
     ) -> Result<Expr, Vec<Error>> {
-        let mut lhs = match self.peek() {
-            Some(Token { kind: TokenKind::Punct(Punct::Dollar), span }) => {
+        let mut lhs = match self.peek3() {
+            (Some(Token { kind: TokenKind::Punct(Punct::Dollar), span }), _, _) => {
                 let span = span.clone();
                 self.cursor += 1;
                 Expr::PipelineData(span)
             },
-            Some(Token { kind: TokenKind::Punct(Punct::Backslash), span }) => Expr::Lambda(self.parse_lambda()?),
-            Some(Token { kind: TokenKind::Punct(p), span }) => {
+            (Some(Token { kind: TokenKind::Punct(Punct::Backslash), span }), _, _) => Expr::Lambda(self.parse_lambda()?),
+            (Some(Token { kind: TokenKind::Punct(p), span }), _, _) => {
                 let punct = *p;
                 let punct_span = span.clone();
 
@@ -252,40 +259,56 @@ impl<'t, 's> Tokens<'t, 's> {
                     },
                 }
             },
-            Some(Token { kind: TokenKind::Ident(id), span }) => {
+            (
+                Some(Token { kind: TokenKind::Ident(id), span: id_span }),
+                Some(Token { kind: TokenKind::Punct(Punct::Factorial), span: punct_span }),
+                Some(Token { kind: TokenKind::Group { delim, tokens }, span: group_span }),
+            ) => match delim {
+                Delim::Parenthesis => match try_parse_macro(*id, id_span.merge(punct_span), group_span.clone(), tokens) {
+                    Ok(r#macro) => {
+                        self.cursor += 3;
+                        r#macro
+                    },
+                    Err(es) => {
+                        return Err(es);
+                    },
+                },
+                _ => todo!(),
+            },
+            (Some(Token { kind: TokenKind::Ident(id), span }), _, _) => {
                 let (id, id_span) = (*id, span.clone());
                 self.cursor += 1;
                 Expr::Path(Path { id, id_span, fields: vec![], dotfish: vec![None] })
             },
-            Some(Token { kind: TokenKind::Wildcard, span }) => {
+            (Some(Token { kind: TokenKind::Wildcard, span }), _, _) => {
                 return Err(vec![Error {
                     kind: ErrorKind::WildcardNotAllowed,
                     spans: span.simple_error(),
                     note: None,
                 }]);
             },
-            Some(Token { kind: TokenKind::Number(n), span }) => {
+            (Some(Token { kind: TokenKind::Number(n), span }), _, _) => {
                 let (n, span) = (*n, span.clone());
                 self.cursor += 1;
                 Expr::Constant(Constant::Number { n, span })
             },
-            Some(Token { kind: TokenKind::String { binary, regex: false, s, .. }, span }) => {
+            (Some(Token { kind: TokenKind::String { binary, regex: false, s, .. }, span }), _, _) => {
                 let (binary, s, span) = (*binary, *s, span.clone());
                 self.cursor += 1;
                 Expr::Constant(Constant::String { binary, s, span })
             },
-            Some(Token { kind: TokenKind::String { regex: true, s, .. }, span }) => todo!(),
-            Some(Token { kind: TokenKind::Char(ch), span }) => {
+            (Some(Token { kind: TokenKind::String { regex: true, s, .. }, span }), _, _) => todo!(),
+            (Some(Token { kind: TokenKind::Char(ch), span }), _, _) => {
                 let (ch, span) = (*ch, span.clone());
                 self.cursor += 1;
                 Expr::Constant(Constant::Char { ch, span })
             },
-            Some(Token { kind: TokenKind::Byte(b), span }) => {
+            (Some(Token { kind: TokenKind::Byte(b), span }), _, _) => {
                 let (b, span) = (*b, span.clone());
                 self.cursor += 1;
                 Expr::Constant(Constant::Byte { b, span })
             },
-            Some(Token { kind: TokenKind::FormattedString { raw, elements: token_elements }, span }) => {
+            (Some(Token { kind: TokenKind::FormattedString { raw, elements: token_elements }, span }), _, _) => {
                 let (raw, span) = (*raw, span.clone());
                 let mut elements = Vec::with_capacity(token_elements.len());
 
@@ -311,9 +334,9 @@ impl<'t, 's> Tokens<'t, 's> {
                     span,
                 }
             },
-            Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => Expr::If(Box::new(self.parse_if_expr()?)),
-            Some(Token { kind: TokenKind::Keyword(Keyword::Match), .. }) => Expr::Match(Box::new(self.parse_match_expr()?)),
-            Some(Token { kind: TokenKind::Keyword(Keyword::Proc), span }) => {
+            (Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }), _, _) => Expr::If(Box::new(self.parse_if_expr()?)),
+            (Some(Token { kind: TokenKind::Keyword(Keyword::Match), .. }), _, _) => Expr::Match(Box::new(self.parse_match_expr()?)),
+            (Some(Token { kind: TokenKind::Keyword(Keyword::Proc), span }), _, _) => {
                 let proc_keyword_span = span.clone();
                 self.cursor += 1;
                 let mut lambda = self.parse_lambda()?;
@@ -321,7 +344,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 lambda.proc_keyword_span = Some(proc_keyword_span);
                 Expr::Lambda(lambda)
             },
-            Some(Token { kind: TokenKind::Group { delim, tokens }, span }) => match delim {
+            (Some(Token { kind: TokenKind::Group { delim, tokens }, span }), _, _) => match delim {
                 Delim::Lambda => Expr::Lambda(self.parse_lambda()?),
                 Delim::Parenthesis => {
                     let span = span.clone();
@@ -377,7 +400,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     }]);
                 },
             },
-            Some(t) => {
+            (Some(t), _, _) => {
                 return Err(vec![Error {
                     kind: ErrorKind::UnexpectedToken {
                         expected: ErrorToken::Expr,
@@ -387,7 +410,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     note: None,
                 }]);
             },
-            None => {
+            (None, _, _) => {
                 return Err(vec![self.unexpected_end(ErrorToken::Expr)]);
             },
         };
