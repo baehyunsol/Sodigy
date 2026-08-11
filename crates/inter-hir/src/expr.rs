@@ -245,6 +245,7 @@ impl Session {
                 (Ok(()), Ok(())) => Ok(()),
                 _ => Err(()),
             },
+            Expr::Macro { .. } => todo!(),
         }
     }
 
@@ -461,6 +462,7 @@ impl Session {
                 (Ok(()), Ok(())) => Ok(()),
                 _ => Err(()),
             },
+            Expr::Macro { .. } => todo!(),
         }
     }
 }

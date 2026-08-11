@@ -1,5 +1,5 @@
 use super::{dump_assert, dump_let, dump_pattern, dump_type};
-use crate::{CallArg, Expr, Session};
+use crate::{CallArg, Expr, MacroKind, Session};
 use sodigy_endec::IndentedLines;
 use sodigy_parse::Field;
 use sodigy_token::InfixOp;
@@ -280,7 +280,33 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session, max_
             dump_type(rhs, lines, session);
             lines.push(">");
         },
-        Expr::Macro { .. } => todo!(),
+        Expr::Macro { kind, .. } => {
+            lines.push(&format!("{}!(", kind.macro_name()));
+
+            match &**kind {
+                MacroKind::IncludeString { path } |
+                MacroKind::IncludeBytes { path } => {
+                    let path = path.unintern_or_default(&session.intermediate_dir);
+                    lines.push(&format!("{path:?}"));
+                },
+                MacroKind::TypeName { r#type } |
+                MacroKind::NumberOfVariants { r#type } |
+                MacroKind::NumberOfFields { r#type } |
+                MacroKind::NameOfVariants { r#type } |
+                MacroKind::NameOfFields { r#type } => {
+                    dump_type(r#type, lines, session);
+                },
+                MacroKind::TypeNameOfValue { value } => {
+                    dump_expr(value, lines, session, 0);
+                },
+                MacroKind::File |
+                MacroKind::ModulePath |
+                MacroKind::Line |
+                MacroKind::Column => {},
+            }
+
+            lines.push(")");
+        },
     }
 }
 

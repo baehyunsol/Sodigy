@@ -97,7 +97,7 @@ pub enum Expr {
         captures: Vec<Span /* def_span */>,
     },
     Macro {
-        kind: MacroKind,
+        kind: Box<MacroKind>,
         macro_span: Span,
         group_span: Span,
     },
@@ -480,7 +480,7 @@ impl Expr {
             },
 
             ast::Expr::Macro { kind, macro_span, group_span } => Ok(Expr::Macro {
-                kind: MacroKind::from_ast(kind, session)?,
+                kind: Box::new(MacroKind::from_ast(kind, session)?),
                 macro_span: macro_span.clone(),
                 group_span: group_span.clone(),
             }),

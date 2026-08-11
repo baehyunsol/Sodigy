@@ -1060,6 +1060,7 @@ impl Expr {
                 },
             },
             hir::Expr::Closure { fp, captures } => todo!(),
+            hir::Expr::Macro { .. } => todo!(),
         }
     }
 

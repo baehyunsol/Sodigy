@@ -214,7 +214,7 @@ impl Endec for Expr {
                 Ok((Expr::Closure { fp, captures }, cursor))
             },
             Some(17) => {
-                let (kind, cursor) = MacroKind::decode_impl(buffer, cursor + 1)?;
+                let (kind, cursor) = Box::<MacroKind>::decode_impl(buffer, cursor + 1)?;
                 let (macro_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((Expr::Macro { kind, macro_span, group_span }, cursor))
