@@ -420,6 +420,7 @@ pub fn lower_expr(
                 },
             }
         },
+        Expr::Macro { .. } => unreachable!(),
     }
 }
 

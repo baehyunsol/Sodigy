@@ -532,7 +532,7 @@ impl Session {
                             ErrorContext::None,
                             bidirectional,
                         ) {
-                            Ok(arg) => {
+                            Ok(_) => {
                                 args.push(args1[i].clone());
                             },
                             Err(()) => {

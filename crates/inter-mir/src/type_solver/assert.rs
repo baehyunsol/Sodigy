@@ -1,6 +1,6 @@
 use crate::{LogId, Session, Type, write_log};
 use crate::error::ErrorContext;
-use sodigy_mir::Assert;
+use sodigy_mir::{Assert, string_type};
 use sodigy_span::Span;
 
 #[cfg(feature = "log")]
@@ -48,17 +48,7 @@ impl Session {
                 if let Err(()) = self.solve_supertype(
                     // We shouldn't use `Type::Data { constructor_def_span: lang_item("type.String"), .. }` here!!
                     // `String` is just an alias to `[Char]` and it's already resolved.
-                    &Type::Data {
-                        constructor_def_span: self.get_lang_item_span_id("type.List"),
-                        constructor_span: Span::None,
-                        args: Some(vec![Type::Data {
-                            constructor_def_span: self.get_lang_item_span_id("type.Char"),
-                            constructor_span: Span::None,
-                            args: None,
-                            group_span: None,
-                        }]),
-                        group_span: Some(Span::None),
-                    },
+                    &string_type(&self.lang_items),
                     &note_type,
                     false,
                     None,

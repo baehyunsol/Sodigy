@@ -1,5 +1,5 @@
 use super::{dump_assert, dump_let, dump_type, span_to_string_or_verbose};
-use crate::{Callable, Dotfish, Expr, Type};
+use crate::{Callable, Dotfish, Expr, MacroKind, Type};
 use sodigy_endec::IndentedLines;
 use sodigy_error::EnumFieldKind;
 use sodigy_hir::dump::dump_pattern;
@@ -309,7 +309,33 @@ pub fn dump_expr<S: SodigySession>(
 
             lines.push(close_delim);
         },
-        Expr::Macro { .. } => todo!(),
+        Expr::Macro { kind, .. } => {
+            lines.push(&format!("{}!(", kind.macro_name()));
+
+            match &**kind {
+                MacroKind::IncludeString { path } |
+                MacroKind::IncludeBytes { path } => {
+                    let path = path.unintern_or_default(&session.intermediate_dir());
+                    lines.push(&format!("{path:?}"));
+                },
+                MacroKind::TypeName { r#type } |
+                MacroKind::NumberOfVariants { r#type } |
+                MacroKind::NumberOfFields { r#type } |
+                MacroKind::NameOfVariants { r#type } |
+                MacroKind::NameOfFields { r#type } => {
+                    dump_type(r#type, lines, session);
+                },
+                MacroKind::TypeNameOfValue { value } => {
+                    dump_expr(value, lines, types, session, 0, true);
+                },
+                MacroKind::File |
+                MacroKind::ModulePath |
+                MacroKind::Line |
+                MacroKind::Column => {},
+            }
+
+            lines.push(")");
+        },
     }
 }
 

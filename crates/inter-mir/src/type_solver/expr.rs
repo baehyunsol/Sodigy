@@ -3,7 +3,21 @@ use crate::error::{ErrorContext, TypeError};
 use sodigy_error::{EnumFieldKind, Error, ErrorKind, TypeVarInfo};
 use sodigy_hir::{AssociatedFunc, FuncPurity};
 use sodigy_inter_hir::get_associated_func_name;
-use sodigy_mir::{Callable, Dotfish, ShortCircuitKind, get_def_span_from_id};
+use sodigy_mir::{
+    Callable,
+    Dotfish,
+    MacroKind,
+    ShortCircuitKind,
+    bool_type,
+    byte_type,
+    bytes_type,
+    char_type,
+    get_def_span_from_id,
+    int_type,
+    number_type,
+    scalar_type,
+    string_type,
+};
 use sodigy_parse::{Field, merge_field_spans};
 use sodigy_span::{PolySpanKind, Span};
 use sodigy_string::intern_string;
@@ -54,91 +68,20 @@ impl Session {
         match expr {
             Expr::Ident { id, dotfish } => self.solve_path(id, dotfish),
             Expr::Constant(Constant::Number { n, .. }) => match n.is_integer() {
-                true => (
-                    Some(Type::Data {
-                        constructor_def_span: self.get_lang_item_span_id("type.Int"),
-                        constructor_span: Span::None,
-                        args: None,
-                        group_span: None,
-                    }),
-                    false,
-                ),
-                false => (
-                    Some(Type::Data {
-                        constructor_def_span: self.get_lang_item_span_id("type.Number"),
-                        constructor_span: Span::None,
-                        args: None,
-                        group_span: None,
-                    }),
-                    false,
-                ),
+                true => (Some(int_type(&self.lang_items)), false),
+                false => (Some(number_type(&self.lang_items)), false),
             },
             Expr::Constant(Constant::String { binary, .. }) => match *binary {
-                true => (
-                    Some(Type::Data {
-                        constructor_def_span: self.get_lang_item_span_id("type.List"),
-                        constructor_span: Span::None,
-                        args: Some(vec![Type::Data {
-                            constructor_def_span: self.get_lang_item_span_id("type.Byte"),
-                            constructor_span: Span::None,
-                            args: None,
-                            group_span: None,
-                        }]),
-                        group_span: Some(Span::None),
-                    }),
-                    false,
-                ),
-                false => (
-                    Some(Type::Data {
-                        constructor_def_span: self.get_lang_item_span_id("type.List"),
-                        constructor_span: Span::None,
-                        args: Some(vec![Type::Data {
-                            constructor_def_span: self.get_lang_item_span_id("type.Char"),
-                            constructor_span: Span::None,
-                            args: None,
-                            group_span: None,
-                        }]),
-                        group_span: None,
-                    }),
-                    false,
-                ),
+                true => (Some(bytes_type(&self.lang_items)), false),
+                false => (Some(string_type(&self.lang_items)), false),
             },
-            Expr::Constant(Constant::Char { .. }) => (
-                Some(Type::Data {
-                    constructor_def_span: self.get_lang_item_span_id("type.Char"),
-                    constructor_span: Span::None,
-                    args: None,
-                    group_span: None,
-                }),
-                false,
-            ),
-            Expr::Constant(Constant::Byte { .. }) => (
-                Some(Type::Data {
-                    constructor_def_span: self.get_lang_item_span_id("type.Byte"),
-                    constructor_span: Span::None,
-                    args: None,
-                    group_span: None,
-                }),
-                false,
-            ),
-            Expr::Constant(Constant::Scalar(_)) => (
-                Some(Type::Data {
-                    constructor_def_span: self.get_lang_item_span_id("type.Scalar"),
-                    constructor_span: Span::None,
-                    args: None,
-                    group_span: None,
-                }),
-                false,
-            ),
+            Expr::Constant(Constant::Char { .. }) => (Some(char_type(&self.lang_items)), false),
+            Expr::Constant(Constant::Byte { .. }) => (Some(byte_type(&self.lang_items)), false),
+            Expr::Constant(Constant::Scalar(_)) => (Some(scalar_type(&self.lang_items)), false),
             Expr::If(r#if) => match r#if.from_short_circuit {
                 Some(s) => {
                     let mut has_error = false;
-                    let bool_type = Type::Data {
-                        constructor_def_span: self.get_lang_item_span_id("type.Bool"),
-                        constructor_span: Span::None,
-                        args: None,
-                        group_span: None,
-                    };
+                    let bool_type = bool_type(&self.lang_items);
                     let context = match s {
                         ShortCircuitKind::And => ErrorContext::ShortCircuitAndBool,
                         ShortCircuitKind::Or => ErrorContext::ShortCircuitOrBool,
@@ -177,12 +120,7 @@ impl Session {
 
                     if let Some(cond_type) = cond_type {
                         if let Err(()) = self.solve_supertype(
-                            &Type::Data {
-                                constructor_def_span: self.get_lang_item_span_id("type.Bool"),
-                                constructor_span: Span::None,
-                                args: None,
-                                group_span: None,
-                            },
+                            &bool_type(&self.lang_items),
                             &cond_type,
                             false,
                             None,
@@ -260,12 +198,7 @@ impl Session {
 
                         if let Some(guard_type) = guard_type {
                             if let Err(()) = self.solve_supertype(
-                                &Type::Data {
-                                    constructor_def_span: self.get_lang_item_span_id("type.Bool"),
-                                    constructor_span: Span::None,
-                                    args: None,
-                                    group_span: None,
-                                },
+                                &bool_type(&self.lang_items),
                                 &guard_type,
                                 false,
                                 None,
@@ -1038,7 +971,11 @@ impl Session {
                     },
                 }
             },
-            Expr::Macro { .. } => todo!(),
+            Expr::Macro { kind, .. } => match &**kind {
+                MacroKind::IncludeString { .. } => (Some(string_type(&self.lang_items)), false),
+                MacroKind::IncludeBytes { .. } => (Some(bytes_type(&self.lang_items)), false),
+                _ => todo!(),
+            },
         }
     }
 

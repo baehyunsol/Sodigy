@@ -120,5 +120,6 @@ fn lower_expr(expr: &mut Expr, session: &mut Session) -> Result<(), ()> {
                 Ok(())
             }
         },
+        Expr::Macro { .. } => todo!(),
     }
 }

@@ -1,7 +1,15 @@
 use crate::{ErrorContext, LogId, Session, Type, TypeError, write_log};
 use sodigy_error::TypeVarInfo;
 use sodigy_hir::{Path, Pattern, PatternKind};
-use sodigy_mir::get_def_span_from_id;
+use sodigy_mir::{
+    byte_type,
+    bytes_type,
+    char_type,
+    get_def_span_from_id,
+    int_type,
+    number_type,
+    string_type,
+};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::Span;
 use sodigy_token::Constant;
@@ -68,73 +76,15 @@ impl Session {
         match pattern {
             PatternKind::Path(Path { id, .. }) => self.solve_path(id, &None),
             PatternKind::Constant(Constant::Number { n, .. }) => match n.is_integer() {
-                true => (
-                    Some(Type::Data {
-                        constructor_def_span: self.get_lang_item_span_id("type.Int"),
-                        constructor_span: Span::None,
-                        args: None,
-                        group_span: None,
-                    }),
-                    false,
-                ),
-                false => (
-                    Some(Type::Data {
-                        constructor_def_span: self.get_lang_item_span_id("type.Number"),
-                        constructor_span: Span::None,
-                        args: None,
-                        group_span: None,
-                    }),
-                    false,
-                ),
+                true => (Some(int_type(&self.lang_items)), false),
+                false => (Some(number_type(&self.lang_items)), false),
             },
             PatternKind::Constant(Constant::String { binary, .. }) => match *binary {
-                true => (
-                    Some(Type::Data {
-                        constructor_def_span: self.get_lang_item_span_id("type.List"),
-                        constructor_span: Span::None,
-                        args: Some(vec![Type::Data {
-                            constructor_def_span: self.get_lang_item_span_id("type.Byte"),
-                            constructor_span: Span::None,
-                            args: None,
-                            group_span: None,
-                        }]),
-                        group_span: Some(Span::None),
-                    }),
-                    false,
-                ),
-                false => (
-                    Some(Type::Data {
-                        constructor_def_span: self.get_lang_item_span_id("type.List"),
-                        constructor_span: Span::None,
-                        args: Some(vec![Type::Data {
-                            constructor_def_span: self.get_lang_item_span_id("type.Char"),
-                            constructor_span: Span::None,
-                            args: None,
-                            group_span: None,
-                        }]),
-                        group_span: Some(Span::None),
-                    }),
-                    false,
-                ),
+                true => (Some(bytes_type(&self.lang_items)), false),
+                false => (Some(string_type(&self.lang_items)), false),
             },
-            PatternKind::Constant(Constant::Char { .. }) => (
-                Some(Type::Data {
-                    constructor_def_span: self.get_lang_item_span_id("type.Char"),
-                    constructor_span: Span::None,
-                    args: None,
-                    group_span: None,
-                }),
-                false,
-            ),
-            PatternKind::Constant(Constant::Byte { .. }) => (
-                Some(Type::Data {
-                    constructor_def_span: self.get_lang_item_span_id("type.Byte"),
-                    constructor_span: Span::None,
-                    args: None,
-                    group_span: None,
-                }),
-                false,
-            ),
+            PatternKind::Constant(Constant::Char { .. }) => (Some(char_type(&self.lang_items)), false),
+            PatternKind::Constant(Constant::Byte { .. }) => (Some(byte_type(&self.lang_items)), false),
             PatternKind::NameBinding { id, span, .. } => match self.types.get(span) {
                 Some(r#type) => (Some(r#type.clone()), false),
                 None => {

@@ -8,7 +8,7 @@ use sodigy_session::SodigySession;
 use sodigy_span::{Span, SpanId};
 use sodigy_string::hash;
 use sodigy_token::Constant;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 // This enum is originally meant for type annotations, but
 // type-checker and type-inferer are also using this enum...
@@ -706,61 +706,16 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
             global_context.get_type(&id.def_span)
         },
         Expr::Constant(Constant::Number { n, .. }) => match n.is_integer() {
-            true => Some(Type::Data {
-                constructor_def_span: global_context.get_lang_item_span_id("type.Int"),
-                constructor_span: Span::None,
-                args: None,
-                group_span: None,
-            }),
-            false => Some(Type::Data {
-                constructor_def_span: global_context.get_lang_item_span_id("type.Number"),
-                constructor_span: Span::None,
-                args: None,
-                group_span: None,
-            }),
+            true => Some(int_type(&global_context.lang_items.as_ref().unwrap())),
+            false => Some(number_type(&global_context.lang_items.as_ref().unwrap())),
         },
         Expr::Constant(Constant::String { binary, .. }) => match *binary {
-            true => Some(Type::Data {
-                constructor_def_span: global_context.get_lang_item_span_id("type.List"),
-                constructor_span: Span::None,
-                args: Some(vec![Type::Data {
-                    constructor_def_span: global_context.get_lang_item_span_id("type.Byte"),
-                    constructor_span: Span::None,
-                    args: None,
-                    group_span: None,
-                }]),
-                group_span: Some(Span::None),
-            }),
-            false => Some(Type::Data {
-                constructor_def_span: global_context.get_lang_item_span_id("type.List"),
-                constructor_span: Span::None,
-                args: Some(vec![Type::Data {
-                    constructor_def_span: global_context.get_lang_item_span_id("type.Char"),
-                    constructor_span: Span::None,
-                    args: None,
-                    group_span: None,
-                }]),
-                group_span: Some(Span::None),
-            }),
+            true => Some(bytes_type(&global_context.lang_items.as_ref().unwrap())),
+            false => Some(string_type(&global_context.lang_items.as_ref().unwrap())),
         },
-        Expr::Constant(Constant::Char { .. }) => Some(Type::Data {
-            constructor_def_span: global_context.get_lang_item_span_id("type.Char"),
-            constructor_span: Span::None,
-            args: None,
-            group_span: None,
-        }),
-        Expr::Constant(Constant::Byte { .. }) => Some(Type::Data {
-            constructor_def_span: global_context.get_lang_item_span_id("type.Byte"),
-            constructor_span: Span::None,
-            args: None,
-            group_span: None,
-        }),
-        Expr::Constant(Constant::Scalar(_)) => Some(Type::Data {
-            constructor_def_span: global_context.get_lang_item_span_id("type.Scalar"),
-            constructor_span: Span::None,
-            args: None,
-            group_span: None,
-        }),
+        Expr::Constant(Constant::Char { .. }) => Some(char_type(&global_context.lang_items.as_ref().unwrap())),
+        Expr::Constant(Constant::Byte { .. }) => Some(byte_type(&global_context.lang_items.as_ref().unwrap())),
+        Expr::Constant(Constant::Scalar(_)) => Some(scalar_type(&global_context.lang_items.as_ref().unwrap())),
         Expr::If(r#if) => type_of(&r#if.true_value, global_context),
         Expr::Match(r#match) => type_of(&r#match.arms[0].value, global_context),
         Expr::Block(block) => type_of(&block.value, global_context),
@@ -804,12 +759,12 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
             MacroKind::TypeName { .. } |
             MacroKind::TypeNameOfValue { .. } |
             MacroKind::File |
-            MacroKind::ModulePath => todo!(),  // String
-            MacroKind::IncludeBytes { .. } => todo!(),  // Bytes
+            MacroKind::ModulePath => Some(string_type(&global_context.lang_items.as_ref().unwrap())),
+            MacroKind::IncludeBytes { .. } => Some(bytes_type(&global_context.lang_items.as_ref().unwrap())),
             MacroKind::NumberOfVariants { .. } |
             MacroKind::NumberOfFields { .. } |
             MacroKind::Line |
-            MacroKind::Column => todo!(),  // Int
+            MacroKind::Column => Some(int_type(&global_context.lang_items.as_ref().unwrap())),
             MacroKind::NameOfVariants { .. } |
             MacroKind::NameOfFields { .. } => todo!(),  // [String]
         },
@@ -867,12 +822,7 @@ pub fn type_of_field(r#type: &Type, field: &[Field], global_context: GlobalConte
 
                 else if let Some(enum_shape) = global_context.enum_shapes.unwrap().get(&def_span) {
                     match (&field[0], enum_shape.representation) {
-                        (Field::EnumDiscriminant, _) | (Field::Index(0), EnumRepr::Compound) => Type::Data {
-                            constructor_def_span: global_context.get_lang_item_span_id("type.Scalar"),
-                            constructor_span: Span::None,
-                            args: None,
-                            group_span: None,
-                        },
+                        (Field::EnumDiscriminant, _) | (Field::Index(0), EnumRepr::Compound) => scalar_type(&global_context.lang_items.as_ref().unwrap()),
                         (Field::EnumPayload { variant, payload }, _) => {
                             let variant = &enum_shape.variants[*variant];
 
@@ -1002,3 +952,90 @@ pub fn get_monomorphization_id_owned(def_span: SpanId, type_args: &[Type]) -> Op
 }
 
 // Monomorphization-related until here.
+
+// Frequently used types from here.
+// TODO: cache these!!!
+
+pub fn bool_type(lang_items: &HashMap<String, Span>) -> Type {
+    Type::Data {
+        constructor_def_span: lang_items.get("type.Bool").unwrap().id().unwrap(),
+        constructor_span: Span::None,
+        args: None,
+        group_span: None,
+    }
+}
+
+pub fn int_type(lang_items: &HashMap<String, Span>) -> Type {
+    Type::Data {
+        constructor_def_span: lang_items.get("type.Int").unwrap().id().unwrap(),
+        constructor_span: Span::None,
+        args: None,
+        group_span: None,
+    }
+}
+
+pub fn number_type(lang_items: &HashMap<String, Span>) -> Type {
+    Type::Data {
+        constructor_def_span: lang_items.get("type.Number").unwrap().id().unwrap(),
+        constructor_span: Span::None,
+        args: None,
+        group_span: None,
+    }
+}
+
+pub fn byte_type(lang_items: &HashMap<String, Span>) -> Type {
+    Type::Data {
+        constructor_def_span: lang_items.get("type.Byte").unwrap().id().unwrap(),
+        constructor_span: Span::None,
+        args: None,
+        group_span: None,
+    }
+}
+
+pub fn char_type(lang_items: &HashMap<String, Span>) -> Type {
+    Type::Data {
+        constructor_def_span: lang_items.get("type.Char").unwrap().id().unwrap(),
+        constructor_span: Span::None,
+        args: None,
+        group_span: None,
+    }
+}
+
+pub fn scalar_type(lang_items: &HashMap<String, Span>) -> Type {
+    Type::Data {
+        constructor_def_span: lang_items.get("type.Scalar").unwrap().id().unwrap(),
+        constructor_span: Span::None,
+        args: None,
+        group_span: None,
+    }
+}
+
+pub fn string_type(lang_items: &HashMap<String, Span>) -> Type {
+    Type::Data {
+        constructor_def_span: lang_items.get("type.List").unwrap().id().unwrap(),
+        constructor_span: Span::None,
+        args: Some(vec![Type::Data {
+            constructor_def_span: lang_items.get("type.Char").unwrap().id().unwrap(),
+            constructor_span: Span::None,
+            args: None,
+            group_span: None,
+        }]),
+        group_span: Some(Span::None),
+    }
+}
+
+pub fn bytes_type(lang_items: &HashMap<String, Span>) -> Type {
+    Type::Data {
+        constructor_def_span: lang_items.get("type.List").unwrap().id().unwrap(),
+        constructor_span: Span::None,
+        args: Some(vec![Type::Data {
+            constructor_def_span: lang_items.get("type.Byte").unwrap().id().unwrap(),
+            constructor_span: Span::None,
+            args: None,
+            group_span: None,
+        }]),
+        group_span: Some(Span::None),
+    }
+}
+
+// Frequently used types until here.
