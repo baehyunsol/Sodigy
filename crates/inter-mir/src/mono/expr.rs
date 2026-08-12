@@ -128,6 +128,7 @@ impl Session {
                 *arg_group_span = arg_group_span.monomorphize(monomorphization.id);
                 self.monomorphize_dotfish(types, wildcard_spans, monomorphization);
             },
+            Expr::Macro { .. } => todo!(),
         }
     }
 }

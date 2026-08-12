@@ -6,6 +6,7 @@ use crate::{
     Expr,
     If,
     Let,
+    MacroKind,
     Match,
     MatchArm,
     ShortCircuitKind,
@@ -63,6 +64,12 @@ impl Endec for Expr {
                 types.encode_impl(buffer);
                 given_keyword_args.encode_impl(buffer);
             },
+            Expr::Macro { kind, macro_span, group_span } => {
+                buffer.push(8);
+                kind.encode_impl(buffer);
+                macro_span.encode_impl(buffer);
+                group_span.encode_impl(buffer);
+            },
         }
     }
 
@@ -109,7 +116,13 @@ impl Endec for Expr {
                 let (given_keyword_args, cursor) = Vec::<(InternedString, usize)>::decode_impl(buffer, cursor)?;
                 Ok((Expr::Call { func, args, arg_group_span, types, given_keyword_args }, cursor))
             },
-            Some(n @ 8..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(8) => {
+                let (kind, cursor) = Box::<MacroKind>::decode_impl(buffer, cursor + 1)?;
+                let (macro_span, cursor) = Span::decode_impl(buffer, cursor)?;
+                let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
+                Ok((Expr::Macro { kind, macro_span, group_span }, cursor))
+            },
+            Some(n @ 9..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

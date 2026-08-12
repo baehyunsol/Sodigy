@@ -142,6 +142,7 @@ impl Session {
                     self.init_span_string_map_expr(arg, result);
                 }
             },
+            Expr::Macro { .. } => todo!(),
         }
     }
 }

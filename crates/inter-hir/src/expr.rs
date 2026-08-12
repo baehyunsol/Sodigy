@@ -1,6 +1,6 @@
 use crate::{LogId, Session, write_log};
 use sodigy_error::{EnumFieldKind, Error, ErrorKind, NotXBut};
-use sodigy_hir::{CallArg, Expr, ExprOrString, Path, StructInitField, fold_exprs};
+use sodigy_hir::{CallArg, Expr, ExprOrString, MacroKind, Path, StructInitField, fold_exprs};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::{RenderableSpan, SpanDeriveKind};
 use sodigy_token::InfixOp;
@@ -245,7 +245,20 @@ impl Session {
                 (Ok(()), Ok(())) => Ok(()),
                 _ => Err(()),
             },
-            Expr::Macro { .. } => todo!(),
+            Expr::Macro { kind, .. } => match &mut **kind {
+                MacroKind::TypeName { r#type } |
+                MacroKind::NumberOfVariants { r#type } |
+                MacroKind::NumberOfFields { r#type } |
+                MacroKind::NameOfVariants { r#type } |
+                MacroKind::NameOfFields { r#type } => self.resolve_type(r#type, &mut vec![]),
+                MacroKind::TypeNameOfValue { value } => self.resolve_expr(value),
+                MacroKind::IncludeString { .. } |
+                MacroKind::IncludeBytes { .. } |
+                MacroKind::File |
+                MacroKind::ModulePath |
+                MacroKind::Line |
+                MacroKind::Column => Ok(()),
+            },
         }
     }
 
@@ -462,7 +475,20 @@ impl Session {
                 (Ok(()), Ok(())) => Ok(()),
                 _ => Err(()),
             },
-            Expr::Macro { .. } => todo!(),
+            Expr::Macro { kind, .. } => match &**kind {
+                MacroKind::TypeName { r#type } |
+                MacroKind::NumberOfVariants { r#type } |
+                MacroKind::NumberOfFields { r#type } |
+                MacroKind::NameOfVariants { r#type } |
+                MacroKind::NameOfFields { r#type } => self.check_type_annot_path(r#type),
+                MacroKind::TypeNameOfValue { value } => self.check_expr_path(value),
+                MacroKind::IncludeString { .. } |
+                MacroKind::IncludeBytes { .. } |
+                MacroKind::File |
+                MacroKind::ModulePath |
+                MacroKind::Line |
+                MacroKind::Column => Ok(()),
+            },
         }
     }
 }

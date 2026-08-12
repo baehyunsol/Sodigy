@@ -1038,6 +1038,7 @@ impl Session {
                     },
                 }
             },
+            Expr::Macro { .. } => todo!(),
         }
     }
 

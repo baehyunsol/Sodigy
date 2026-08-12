@@ -3,6 +3,7 @@ mod r#enum;
 mod expr;
 mod func;
 mod r#let;
+mod r#macro;
 mod session;
 mod r#struct;
 mod r#type;

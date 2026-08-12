@@ -2,6 +2,7 @@ use crate::{
     Block,
     Dotfish,
     If,
+    MacroKind,
     Match,
     Session,
     Type,
@@ -29,7 +30,7 @@ pub enum Expr {
     Constant(Constant),
     If(If),
 
-    // `Match` is later lowered to a `Block`.
+    // `Match`es are lowered to a `Block`s and `If`s at post-mir.
     Match(Match),
     Block(Block),
     Field {
@@ -55,6 +56,13 @@ pub enum Expr {
         // It has type `Vec<(keyword: InternedString, n: usize)>` where
         // nth argument in `args` has keyword `keyword`.
         given_keyword_args: Vec<(InternedString, usize)>,
+    },
+
+    // `Macro`s are lowered at post-mir.
+    Macro {
+        kind: Box<MacroKind>,
+        macro_span: Span,
+        group_span: Span,
     },
 }
 
@@ -1060,7 +1068,11 @@ impl Expr {
                 },
             },
             hir::Expr::Closure { fp, captures } => todo!(),
-            hir::Expr::Macro { .. } => todo!(),
+            hir::Expr::Macro { kind, macro_span, group_span } => Ok(Expr::Macro {
+                kind: Box::new(MacroKind::from_hir(kind, session)?),
+                macro_span: macro_span.clone(),
+                group_span: group_span.clone(),
+            }),
         }
     }
 
@@ -1109,6 +1121,7 @@ impl Expr {
             Expr::Field { fields, .. } |
             Expr::FieldUpdate { fields, .. } => merge_field_spans(fields),
             Expr::Call { func, .. } => func.error_span_narrow(),
+            Expr::Macro { macro_span, .. } => macro_span.clone(),
         }
     }
 
@@ -1128,6 +1141,7 @@ impl Expr {
                 .merge(&merge_field_spans(fields))
                 .merge(&rhs.error_span_wide()),
             Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(arg_group_span),
+            Expr::Macro { macro_span, group_span, .. } => macro_span.merge(group_span),
         }
     }
 }

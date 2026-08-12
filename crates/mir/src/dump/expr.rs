@@ -309,6 +309,7 @@ pub fn dump_expr<S: SodigySession>(
 
             lines.push(close_delim);
         },
+        Expr::Macro { .. } => todo!(),
     }
 }
 

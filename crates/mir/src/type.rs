@@ -1,4 +1,4 @@
-use crate::{Callable, Expr, GlobalContext, Session};
+use crate::{Callable, Expr, GlobalContext, MacroKind, Session};
 use sodigy_endec::Endec;
 use sodigy_error::{Error, ErrorKind};
 use sodigy_hir::{self as hir, EnumRepr, EnumVariantFields, FuncPurity};
@@ -798,6 +798,20 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
                 })
             },
             _ => panic!("TODO: {func:?}"),
+        },
+        Expr::Macro { kind, .. } => match &**kind {
+            MacroKind::IncludeString { .. } |
+            MacroKind::TypeName { .. } |
+            MacroKind::TypeNameOfValue { .. } |
+            MacroKind::File |
+            MacroKind::ModulePath => todo!(),  // String
+            MacroKind::IncludeBytes { .. } => todo!(),  // Bytes
+            MacroKind::NumberOfVariants { .. } |
+            MacroKind::NumberOfFields { .. } |
+            MacroKind::Line |
+            MacroKind::Column => todo!(),  // Int
+            MacroKind::NameOfVariants { .. } |
+            MacroKind::NameOfFields { .. } => todo!(),  // [String]
         },
     }
 }

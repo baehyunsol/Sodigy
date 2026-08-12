@@ -155,6 +155,7 @@ impl Expr {
                     arg.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
                 }
             },
+            Expr::Macro { .. } => todo!(),
         }
     }
 }
