@@ -129,6 +129,7 @@ impl Session {
                     };
                     let mut type_vars_to_add = vec![];
                     let mut missing_fields = vec![];
+                    let from_enum = struct_shape.from_enum.clone();
 
                     for field in struct_shape.fields.clone().iter() {
                         match field_types.get(&field.name) {
@@ -172,7 +173,7 @@ impl Session {
                         self.type_errors.push(TypeError::MissingStructFields {
                             span: r#struct.id.span.clone(),
                             struct_name: r#struct.id.id,
-                            is_enum_variant: false,  // TODO: there's no way to check this...
+                            enum_name: from_enum.map(|r#enum| self.enum_shapes.get(&r#enum).unwrap().name),
                             missing_fields,
                         });
                     }

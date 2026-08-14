@@ -139,8 +139,11 @@ error_kinds!(
     (MissingFunctionParameter { expected: usize, got: usize },       375,    Error),
     (UnexpectedFunctionParameter { expected: usize, got: usize },    380,    Error),
     (StructFieldRepeated(InternedString),                            385,    Error),
-    (MissingStructFields { struct_name: InternedString, is_enum_variant: bool, missing_fields: Vec<InternedString> }, 390, Error),
-    (InvalidStructFields { struct_name: InternedString, is_enum_variant: bool, invalid_fields: Vec<InternedString> }, 395, Error),
+
+    // If it's an enum-variant, `enum_name` is the name of the enum.
+    (MissingStructFields { struct_name: InternedString, enum_name: Option<InternedString>, missing_fields: Vec<InternedString> }, 390, Error),
+    (InvalidStructFields { struct_name: InternedString, enum_name: Option<InternedString>, invalid_fields: Vec<InternedString> }, 395, Error),
+
     (MismatchedEnumFieldKind { expected: EnumFieldKind, got: EnumFieldKind }, 396, Error),
 
     (CannotAssociateItem,                                            398,    Error),

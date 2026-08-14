@@ -9,7 +9,7 @@ use crate::{
     lower_hir_if,
 };
 use sodigy_error::{EnumFieldKind, Error, ErrorKind, NotXBut, comma_list_strs, to_ordinal};
-use sodigy_hir::{self as hir, EnumVariantFields, Generic};
+use sodigy_hir::{self as hir, Generic};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::{ConversionKind, Field, merge_field_spans};
 use sodigy_session::SodigySession;
@@ -593,34 +593,25 @@ impl Expr {
 
                 // TODO: it has to lower dotfish operators
 
-                let (field_defs, generics, struct_name, is_enum_variant) = if let Some(struct_shape) = session.global_context.struct_shapes.unwrap().get(&def_span) {
-                    (&struct_shape.fields, &struct_shape.generics, struct_shape.name, false)
+                let (field_defs, generics, struct_name, enum_name) = if let Some(struct_shape) = session.global_context.struct_shapes.unwrap().get(&def_span) {
+                    let enum_name = struct_shape.from_enum.as_ref().map(|r#enum| session.global_context.enum_shapes.unwrap().get(r#enum).unwrap().name);
+                    (&struct_shape.fields, &struct_shape.generics, struct_shape.name, enum_name)
                 }
 
                 else if let Some(enum_def_span) = &enum_def_span && let Some(enum_shape) = session.global_context.enum_shapes.unwrap().get(enum_def_span) {
                     let variant_index = *enum_shape.variant_index.get(&def_span.id().unwrap()).unwrap();
                     let variant = &enum_shape.variants[variant_index];
-                    let fields = match &variant.fields {
-                        EnumVariantFields::Struct(fields) => fields,
-                        f => {
-                            session.errors.push(Error {
-                                kind: ErrorKind::MismatchedEnumFieldKind {
-                                    expected: f.into(),
-                                    got: EnumFieldKind::Struct,
-                                },
-                                spans: call_span.simple_error(),
-                                note: None,
-                            });
-                            return Err(());
-                        },
-                    };
-                    let name = {
-                        let enum_name = enum_shape.name.unintern_or_default(&session.intermediate_dir);
-                        let variant_name = variant.name.unintern_or_default(&session.intermediate_dir);
-                        intern_string(format!("{enum_name}.{variant_name}").as_bytes(), &session.intermediate_dir).unwrap()
-                    };
 
-                    (fields, &enum_shape.generics, name, true)
+                    // It must be an error because if it were EnumVariantFields::Struct, there must be a struct-shape
+                    session.errors.push(Error {
+                        kind: ErrorKind::MismatchedEnumFieldKind {
+                            expected: (&variant.fields).into(),
+                            got: EnumFieldKind::Struct,
+                        },
+                        spans: call_span.simple_error(),
+                        note: None,
+                    });
+                    return Err(());
                 }
 
                 else {
@@ -825,7 +816,7 @@ impl Expr {
                         });
 
                         session.errors.push(Error {
-                            kind: ErrorKind::MissingStructFields { struct_name, is_enum_variant, missing_fields: names },
+                            kind: ErrorKind::MissingStructFields { struct_name, enum_name, missing_fields: names },
                             spans,
                             note: None,
                         });
@@ -842,7 +833,7 @@ impl Expr {
                         ).collect::<Vec<_>>();
 
                         session.errors.push(Error {
-                            kind: ErrorKind::InvalidStructFields { struct_name, is_enum_variant, invalid_fields: names },
+                            kind: ErrorKind::InvalidStructFields { struct_name, enum_name, invalid_fields: names },
                             spans,
                             note: Some(format!(
                                 "Available field{} {} {}.",

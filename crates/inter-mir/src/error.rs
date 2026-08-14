@@ -151,7 +151,10 @@ pub enum TypeError {
     MissingStructFields {
         span: Span,
         struct_name: InternedString,
-        is_enum_variant: bool,
+
+        // If it's an enum-variant, the enum name is stored here.
+        enum_name: Option<InternedString>,
+
         missing_fields: Vec<InternedString>,
     },
     ImpureCallInPureContext {
@@ -838,10 +841,10 @@ impl Session {
                     note: None,
                 }
             },
-            TypeError::MissingStructFields { span, struct_name, is_enum_variant, missing_fields } => Error {
+            TypeError::MissingStructFields { span, struct_name, enum_name, missing_fields } => Error {
                 kind: ErrorKind::MissingStructFields {
                     struct_name,
-                    is_enum_variant,
+                    enum_name,
                     missing_fields,
                 },
                 spans: vec![RenderableSpan {

@@ -47,12 +47,12 @@
     UnexpectedFunctionParameter { expected: usize, got: usize },
     StructFieldRepeated(InternedString), MissingStructFields
     {
-        struct_name: InternedString, is_enum_variant: bool, missing_fields:
-        Vec<InternedString>
+        struct_name: InternedString, enum_name: Option<InternedString>,
+        missing_fields: Vec<InternedString>
     }, InvalidStructFields
     {
-        struct_name: InternedString, is_enum_variant: bool, invalid_fields:
-        Vec<InternedString>
+        struct_name: InternedString, enum_name: Option<InternedString>,
+        invalid_fields: Vec<InternedString>
     }, MismatchedEnumFieldKind
     { expected: EnumFieldKind, got: EnumFieldKind }, CannotAssociateItem,
     TooGeneralToAssociateItem, NotType { id: InternedString, but: NotXBut },
@@ -560,18 +560,18 @@
             }, ErrorKind :: StructFieldRepeated(t0,) =>
             { buffer.push(1u8); buffer.push(129u8); t0.encode_impl(buffer); },
             ErrorKind :: MissingStructFields
-            { r#struct_name, r#is_enum_variant, r#missing_fields, } =>
+            { r#struct_name, r#enum_name, r#missing_fields, } =>
             {
                 buffer.push(1u8); buffer.push(134u8);
                 r#struct_name.encode_impl(buffer);
-                r#is_enum_variant.encode_impl(buffer);
+                r#enum_name.encode_impl(buffer);
                 r#missing_fields.encode_impl(buffer);
             }, ErrorKind :: InvalidStructFields
-            { r#struct_name, r#is_enum_variant, r#invalid_fields, } =>
+            { r#struct_name, r#enum_name, r#invalid_fields, } =>
             {
                 buffer.push(1u8); buffer.push(139u8);
                 r#struct_name.encode_impl(buffer);
-                r#is_enum_variant.encode_impl(buffer);
+                r#enum_name.encode_impl(buffer);
                 r#invalid_fields.encode_impl(buffer);
             }, ErrorKind :: MismatchedEnumFieldKind { r#expected, r#got, } =>
             {
@@ -974,23 +974,21 @@
             }, 390u16 =>
             {
                 let (r#struct_name, cursor) = InternedString ::
-                decode_impl(buffer, cursor) ? ; let
-                (r#is_enum_variant, cursor) = bool ::
-                decode_impl(buffer, cursor) ? ; let (r#missing_fields, cursor)
-                = Vec :: < InternedString > :: decode_impl(buffer, cursor) ? ;
+                decode_impl(buffer, cursor) ? ; let (r#enum_name, cursor) =
+                Option :: < InternedString >:: decode_impl(buffer, cursor) ? ;
+                let (r#missing_fields, cursor) = Vec :: < InternedString > ::
+                decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: MissingStructFields
-                { r#struct_name, r#is_enum_variant, r#missing_fields, },
-                cursor))
+                { r#struct_name, r#enum_name, r#missing_fields, }, cursor))
             }, 395u16 =>
             {
                 let (r#struct_name, cursor) = InternedString ::
-                decode_impl(buffer, cursor) ? ; let
-                (r#is_enum_variant, cursor) = bool ::
-                decode_impl(buffer, cursor) ? ; let (r#invalid_fields, cursor)
-                = Vec :: < InternedString > :: decode_impl(buffer, cursor) ? ;
+                decode_impl(buffer, cursor) ? ; let (r#enum_name, cursor) =
+                Option :: < InternedString >:: decode_impl(buffer, cursor) ? ;
+                let (r#invalid_fields, cursor) = Vec :: < InternedString > ::
+                decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: InvalidStructFields
-                { r#struct_name, r#is_enum_variant, r#invalid_fields, },
-                cursor))
+                { r#struct_name, r#enum_name, r#invalid_fields, }, cursor))
             }, 396u16 =>
             {
                 let (r#expected, cursor) = EnumFieldKind ::
