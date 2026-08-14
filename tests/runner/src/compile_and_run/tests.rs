@@ -81,8 +81,8 @@ impl CnrContext {
         // The main test runner uses `sodigy build` + `sodigy interpret` and I want to test another path.
         let mut args = vec!["test"];
 
-        if self.log_post_mir {
-            args.push("--log-post-mir");
+        if self.dump_post_mir_log {
+            args.push("--dump-post-mir-log");
         }
 
         if self.emit_irs {

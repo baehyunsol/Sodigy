@@ -77,6 +77,7 @@ impl Endec for Session {
                 variant_to_enum_span,
                 errors,
                 warnings,
+                log: vec![],
             },
             cursor,
         ))

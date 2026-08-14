@@ -1,3 +1,4 @@
+use crate::LogEntry;
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{
     Alias,
@@ -63,6 +64,9 @@ pub struct Session {
 
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
+
+    // The session collects log only if `cfg(feature = "log")` is enabled.
+    pub log: Vec<LogEntry>,
 }
 
 impl Session {
@@ -95,6 +99,7 @@ impl Session {
             variant_to_enum_span: HashMap::new(),
             errors: vec![],
             warnings: vec![],
+            log: vec![],
         }
     }
 
@@ -192,5 +197,10 @@ impl Session {
                 None => None,
             },
         }
+    }
+
+    #[cfg(feature = "log")]
+    pub fn last_errors(&self) -> Vec<Error> {
+        self.errors.iter().rev().take(3).rev().map(|e| e.clone()).collect()
     }
 }

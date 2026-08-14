@@ -25,7 +25,7 @@ use sodigy_token::Constant;
 use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "log")]
-use crate::log::{BlockedTypeVarKind, LogEntry};
+use crate::log::LogEntry;
 
 #[cfg(feature = "log")]
 use sodigy_hir::ItemShape;

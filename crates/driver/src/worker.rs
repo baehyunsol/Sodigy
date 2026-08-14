@@ -6,9 +6,10 @@ use crate::{
     GlobalContext,
     StoreIrAt,
     TimingsEntry,
+    dump_inter_hir_log,
+    dump_inter_mir_log,
     emit_irs_if_has_to,
     get_cached_ir,
-    log_inter_mir,
 };
 use sodigy_endec::Endec;
 use sodigy_error::{Error as SodigyError, Warning as SodigyWarning};
@@ -52,7 +53,7 @@ pub enum MessageToMain {
         worker_id: WorkerId,
         entries: Vec<TimingsEntry>,
     },
-    MatchesLog(Vec<MatchDump>),
+    PostMirLog(Vec<MatchDump>),
     Error(Error),
 }
 
@@ -205,7 +206,7 @@ impl Worker {
                 intermediate_dir,
                 find_modules,
                 emit_ir_options,
-                dump_matches,
+                dump_post_mir_log,
                 stop_after,
                 validate_token_spans,
             } => {
@@ -394,11 +395,11 @@ impl Worker {
 
                 self.stage_start(CompileStage::PostMir, None, Some(input_module_path.to_string()));
                 mir_session.remove_generics_and_builtins();
-                let post_mir_session = sodigy_post_mir::lower(&mut mir_session, dump_matches);
+                let post_mir_session = sodigy_post_mir::lower(&mut mir_session, dump_post_mir_log);
                 self.stage_end(!mir_session.errors.is_empty());
 
-                if dump_matches {
-                    tx_to_main.send(MessageToMain::MatchesLog(post_mir_session.match_dumps.as_ref().unwrap().clone()))?;
+                if dump_post_mir_log {
+                    tx_to_main.send(MessageToMain::PostMirLog(post_mir_session.match_dumps.as_ref().unwrap().clone()))?;
                 }
 
                 emit_irs_if_has_to(
@@ -522,6 +523,12 @@ impl Worker {
 
                 let has_error = !inter_hir_session.errors.is_empty();
                 self.stage_end(has_error);
+
+                // `.log` field always exists, but it would be empty if logging is disabled.
+                self.stage_start(CompileStage::InterHir, Some("dump-inter-hir-log"), None);
+                dump_inter_hir_log(&inter_hir_session)?;
+                self.stage_end(false);
+
                 emit_irs_if_has_to(
                     &inter_hir_session,
                     &emit_ir_options,
@@ -596,8 +603,8 @@ impl Worker {
                 self.stage_end(false);
 
                 // `.log` field always exists, but it would be empty if logging is disabled.
-                self.stage_start(CompileStage::InterMir, Some("store-inter-mir-log"), None);
-                log_inter_mir(&inter_mir_session, &mir_session)?;
+                self.stage_start(CompileStage::InterMir, Some("dump-inter-mir-log"), None);
+                dump_inter_mir_log(&inter_mir_session, &mir_session)?;
                 self.stage_end(false);
 
                 // InterMir may have modified MIRs, so we have to update all the cached MIRs.

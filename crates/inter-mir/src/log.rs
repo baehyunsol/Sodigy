@@ -233,6 +233,9 @@ impl LogEntry {
 }
 
 #[cfg(feature = "log")]
+use crate::Session;
+
+#[cfg(feature = "log")]
 impl Session {
     pub fn render_poly_solver_state_machines(&mut self) {
         let mut rendered: HashMap<usize, String> = HashMap::new();

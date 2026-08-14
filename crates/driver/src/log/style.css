@@ -1,0 +1,115 @@
+body {
+    background-color: rgb(48, 48, 48);
+    color: rgb(224, 244, 244);
+}
+
+.code-block {
+    padding: 8px;
+    background-color: rgb(0, 0, 0);
+    color: rgb(255, 255, 255);
+    overflow: auto;
+}
+
+.code-span {
+    padding: 4px;
+    background-color: rgb(0, 0, 0);
+    color: rgb(192, 128, 0);
+    border-radius: 8px;
+    white-space: pre;
+}
+
+.preview-map {
+    display: inline-block;
+    padding: 12px;
+    background-color: rgb(0, 0, 0);
+    border: 4px solid rgb(255, 255, 255);
+    border-radius: 8px;
+    overflow: auto;
+    width: 300px;
+    height: 500px;
+}
+
+.hidden {
+    display: none;
+}
+
+span.modal-button {
+    cursor: pointer;
+    background-color: rgb(255, 255, 255);
+    color: rgb(32, 32, 32);
+    border-radius: 32px;
+    padding: 4px;
+}
+
+.modal-box {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    backdrop-filter: blur(5px);
+    z-index: 1;
+}
+
+.modal-content {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 80vw;
+    max-height: 80vh;
+    background-color: rgb(32, 32, 32);
+    padding: 20px;
+    border: 4px solid rgb(255, 255, 255);
+    border-radius: 8px;
+    overflow: auto;
+    z-index: 2;
+}
+
+.error-marker {
+    padding: 4px;
+    border-radius: 12px;
+    background-color: rgb(255, 0, 0);
+}
+
+li {
+    margin-top: 12px;
+    margin-bottom: 12px;
+}
+
+a:link {
+    border-bottom: 4px solid rgba(64, 192, 255, 0.5);
+    color: rgb(64, 192, 255);
+    text-decoration: none;
+    transition: border 0.3s;
+}
+
+a:visited {
+    color: rgb(64, 192, 255);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: none;
+    border-bottom: 4px solid rgb(64, 192, 255);
+}
+
+a::selection {
+    color: rgb(192, 64, 0);
+}
+
+.red {
+    color: rgb(192, 32, 32);
+}
+
+.green {
+    color: rgb(32, 192, 32);
+}
+
+.blue {
+    color: rgb(32, 32, 192);
+}
+
+.yellow {
+    color: rgb(192, 192, 32);
+}

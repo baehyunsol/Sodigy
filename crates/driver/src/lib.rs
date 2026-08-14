@@ -46,7 +46,7 @@ use cli::parse_args;
 use compile_stage::COMPILE_STAGES;
 use global_context::GlobalContext;
 use ir_store::{emit_irs_if_has_to, get_cached_ir};
-use log::{log_inter_mir, log_matches};
+use log::{dump_inter_hir_log, dump_inter_mir_log, dump_post_mir_log};
 use timings::{TimingsEntry, dump_timings};
 use worker::{Channel, MessageToMain, MessageToWorker, Worker, WorkerId, init_workers_and_channels};
 
@@ -134,12 +134,12 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             Ok(())
         },
         cli_command @ (
-            CliCommand::Build { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, log_post_mir, .. } |
-            CliCommand::Run { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, log_post_mir } |
-            CliCommand::Test { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, log_post_mir }
+            CliCommand::Build { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, .. } |
+            CliCommand::Run { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log } |
+            CliCommand::Test { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log }
         ) => {
-            // I want `log_post_mir` to enable more flags! What else can I dump/log?
-            let dump_matches = *log_post_mir;
+            // I want `dump_post_mir_log` to enable more flags! What else can I dump/log?
+            let dump_post_mir_log = *dump_post_mir_log;
 
             // maybe we need a finer control??
             let dump_bytecodes = *emit_irs;
@@ -171,7 +171,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                 *import_std,
                 custom_error_levels,
                 *emit_irs,
-                dump_matches,
+                dump_post_mir_log,
                 dump_bytecodes,
                 *graceful_shutdown,
                 *jobs,
@@ -209,7 +209,7 @@ pub fn init_workers_and_compile(
     import_std: bool,
     custom_error_levels: &HashMap<u16, CustomErrorLevel>,
     emit_irs: bool,
-    dump_matches: bool,
+    dump_post_mir_log: bool,
     dump_bytecodes: bool,
     graceful_shutdown: u32,  // in milliseconds
     jobs: usize,
@@ -234,7 +234,7 @@ pub fn init_workers_and_compile(
         import_std,
         custom_error_levels,
         emit_irs,
-        dump_matches,
+        dump_post_mir_log,
         dump_bytecodes,
         graceful_shutdown,
         incremental_compilation,
@@ -321,7 +321,7 @@ fn compile(
     import_std: bool,
     custom_error_levels: &HashMap<u16, CustomErrorLevel>,
     emit_irs: bool,
-    dump_matches: bool,
+    dump_post_mir_log_flag: bool,
     dump_bytecodes: bool,
     graceful_shutdown: u32,  // in milliseconds
     incremental_compilation: bool,
@@ -429,7 +429,7 @@ fn compile(
                                 human_readable: false,
                             },
                         ),
-                        dump_matches,
+                        dump_post_mir_log: dump_post_mir_log_flag,
                         stop_after: CompileStage::Hir,
                         validate_token_spans,
                     },
@@ -609,7 +609,7 @@ fn compile(
                                                     human_readable: false,
                                                 },
                                             ),
-                                            dump_matches,
+                                            dump_post_mir_log: dump_post_mir_log_flag,
                                             stop_after: CompileStage::Mir,
                                             validate_token_spans,
                                         },
@@ -642,7 +642,7 @@ fn compile(
                                                     human_readable: false,
                                                 },
                                             ),
-                                            dump_matches,
+                                            dump_post_mir_log: dump_post_mir_log_flag,
                                             stop_after: CompileStage::BytecodeOptimize,
                                             validate_token_spans,
                                         },
@@ -679,8 +679,8 @@ fn compile(
                     MessageToMain::TimingsLog { worker_id, entries } => {
                         worker_logs.insert(worker_id, entries);
                     },
-                    MessageToMain::MatchesLog(matches) => {
-                        log_matches(&matches, &ir_dir)?;
+                    MessageToMain::PostMirLog(matches) => {
+                        dump_post_mir_log(&matches, &ir_dir)?;
                     },
                     MessageToMain::Error(e) => {
                         return Err(e);

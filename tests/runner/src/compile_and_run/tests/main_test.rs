@@ -74,8 +74,8 @@ impl CnrContext {
             args.push("--emit-irs");
         }
 
-        if self.log_post_mir {
-            args.push("--log-post-mir");
+        if self.dump_post_mir_log {
+            args.push("--dump-post-mir-log");
         }
 
         // The cnr test runner has to validate the spans of the tokens. But it doesn't

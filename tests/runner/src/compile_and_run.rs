@@ -97,7 +97,7 @@ struct CnrContext {
     pub expected_output: ExpectedOutput,
     pub sdg_files: usize,
     pub dump_output: bool,
-    pub log_post_mir: bool,
+    pub dump_post_mir_log: bool,
     pub emit_irs: bool,
 
     // If this flag is set, it doesn't check the output.
@@ -113,7 +113,7 @@ pub fn run_cases(
     root: &str,
     test_dir: &str,  // `<ROOT>/tests/compile-and-run/`
     sodigy_path: &str,
-    log_post_mir: bool,
+    dump_post_mir_log: bool,
     debug_bytecode: bool,
 ) -> Vec<CompileAndRun> {
     let mut cases = vec![];
@@ -175,7 +175,7 @@ pub fn run_cases(
     let dump_output = cases.len() < 5;
 
     for (i, case) in cases.iter().enumerate() {
-        let case_result = run_cnr(case, root, sodigy_path, dump_output, log_post_mir, debug_bytecode, i, cases.len());
+        let case_result = run_cnr(case, root, sodigy_path, dump_output, dump_post_mir_log, debug_bytecode, i, cases.len());
         let (color, status) = if case_result.error.is_none() {
             pass += 1;
             (32, "pass")
@@ -203,12 +203,12 @@ fn run_cnr(
     root: &str,
     sodigy_path: &str,
     dump_output: bool,
-    log_post_mir: bool,
+    dump_post_mir_log: bool,
     debug_bytecode: bool,
     cnr_seq: usize,
     total_cnr: usize,
 ) -> CompileAndRun {
-    let mut cnr_context = prepare_cnr(name, root, sodigy_path, dump_output, log_post_mir, debug_bytecode, cnr_seq, total_cnr);
+    let mut cnr_context = prepare_cnr(name, root, sodigy_path, dump_output, dump_post_mir_log, debug_bytecode, cnr_seq, total_cnr);
     let mut result = cnr_context.main_test();
     cnr_context.extra_tests(&mut result);
     result
@@ -219,7 +219,7 @@ fn prepare_cnr(
     root: &str,
     sodigy_path: &str,
     dump_output: bool,
-    log_post_mir: bool,
+    dump_post_mir_log: bool,
     debug_bytecode: bool,
     cnr_seq: usize,
     total_cnr: usize,
@@ -261,7 +261,7 @@ fn prepare_cnr(
         expected_output,
         sdg_files,
         dump_output,
-        log_post_mir,
+        dump_post_mir_log,
         emit_irs: total_cnr < 2,
         debug_bytecode,
         cnr_seq,

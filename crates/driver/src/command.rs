@@ -27,7 +27,7 @@ pub enum Command {
         find_modules: bool,
 
         emit_ir_options: Vec<EmitIrOption>,
-        dump_matches: bool,
+        dump_post_mir_log: bool,
         stop_after: CompileStage,
         validate_token_spans: ValidateTokenSpans,
     },
