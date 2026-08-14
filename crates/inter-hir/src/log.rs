@@ -88,4 +88,10 @@ pub enum LogEntry {
     },
 }
 
+impl LogEntry {
+    pub fn id(&self) -> LogId {
+        todo!()
+    }
+}
+
 pub(crate) use write_log;

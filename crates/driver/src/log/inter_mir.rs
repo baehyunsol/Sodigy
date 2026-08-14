@@ -1,14 +1,12 @@
-use super::{FuncCall, PreviewMap, Value, create_preview_map, escape_html, to_html};
-use sodigy_error::dump_errors;
-use sodigy_fs_api::{
-    FileError,
-    WriteMode,
-    create_dir_all,
-    exists,
-    join,
-    join3,
-    write_string,
+use super::{
+    FuncCall,
+    Value,
+    create_preview_map,
+    escape_html,
+    render_map_and_save,
+    render_page_and_save,
 };
+use sodigy_fs_api::{FileError, join4};
 use sodigy_inter_mir::{LogEntry, Session as InterMirSession, SolvePolyResult};
 use sodigy_mir::{Session as MirSession, Type, dump_field_to_string};
 use sodigy_parse::merge_field_spans;
@@ -19,9 +17,7 @@ use sodigy_span::{
     RenderSpanOption,
     RenderSpanSession,
     RenderableSpan,
-    render_spans,
 };
-use std::collections::HashMap;
 
 pub fn dump_inter_mir_log(session: &InterMirSession, mir_session: &MirSession) -> Result<(), FileError> {
     fn to_func_call(log: &[LogEntry], mut index: usize, session: &InterMirSession, mir_session: &MirSession) -> (FuncCall, usize) {
@@ -379,7 +375,6 @@ pub fn dump_inter_mir_log(session: &InterMirSession, mir_session: &MirSession) -
         }
 
         let mut output = vec![];
-
         let (has_error, last_errors) = match &log[index] {
             LogEntry::TypeSolveLoopEnd(_) => (false, vec![]),
             LogEntry::SolveSupertypeEnd { solved_type, has_error, last_errors, .. } => {
@@ -598,7 +593,6 @@ pub fn dump_inter_mir_log(session: &InterMirSession, mir_session: &MirSession) -
             _ => unreachable!(),
         };
         let last_errors = last_errors.into_iter().map(|(type_error, error)| (Some(type_error), error)).collect();
-
         let has_inner_error = has_error || children.iter().any(|c| c.has_inner_error);
 
         (
@@ -626,256 +620,6 @@ pub fn dump_inter_mir_log(session: &InterMirSession, mir_session: &MirSession) -
         calls.push(call);
     }
 
-    // VIBE NOTE: many css and javascript in this function are written by AI.
-    fn render_page_and_save(
-        parent: Option<usize>,
-        calls: &[FuncCall],
-        index: usize,
-        preview_map: &HashMap<usize, PreviewMap>,
-        session: &InterMirSession,
-        render_span_option: &RenderSpanOption,
-        render_span_session: &mut RenderSpanSession,
-    ) -> Result<(), FileError> {
-        let call = &calls[index];
-        let call_index = call.call_index;
-
-        fn render_preview_map(preview_map: &HashMap<usize, PreviewMap>, children: &[FuncCall], call_index: usize) -> String {
-            fn render_single_preview(entries: &[(String, usize, bool)], cursor: Option<usize>) -> String {
-                let list = entries.iter().enumerate().map(
-                    |(i, (title, call_index, has_error))| format!(
-                        r#"<li>{}<a href="../{:02}/{call_index}.html">{title}</a>{}{}</li>"#,
-                        if cursor == Some(i) { "&gt;&gt;&gt; " } else { "   " },
-                        call_index % 100,
-                        if *has_error {
-                            r#" <span class="error-marker">E</span>"#
-                        } else {
-                            ""
-                        },
-                        if cursor == Some(i) { " &lt;&lt;&lt;" } else { "   " },
-                    )
-                ).collect::<Vec<_>>().concat();
-
-                format!(r#"
-<div class="preview-map">
-<ol>
-{list}
-</ol>
-</div>
-"#)
-            }
-
-            let mut preview = preview_map.get(&call_index).unwrap();
-            let mut previews = vec![];
-            previews.push(render_single_preview(
-                &children.iter().map(
-                    |c| (c.title(), c.call_index, c.has_error)
-                ).collect::<Vec<_>>(),
-                None,
-            ));
-
-            for _ in 0..4 {
-                previews.push(render_single_preview(&preview.entries, Some(preview.cursor)));
-
-                if let Some(parent) = preview.parent {
-                    preview = preview_map.get(&parent).unwrap();
-                }
-
-                else {
-                    break;
-                }
-            }
-
-            format!(
-                r#"<div class="preview-map-box">{}</div>"#,
-                previews.into_iter().rev().collect::<Vec<_>>().join("--&gt;"),
-            )
-        }
-
-        let preview_map_rendered = render_preview_map(preview_map, &call.children, call_index);
-
-        let first_index = if index != 0 && let Some(call) = calls.get(0) { Some(call.call_index) } else { None };
-        let prev_index = if index > 0 { Some(calls[index - 1].call_index) } else { None };
-        let next_index = if let Some(call) = calls.get(index + 1) { Some(call.call_index) } else { None };
-        let last_index = if index != calls.len() - 1 && let Some(call) = calls.last() { Some(call.call_index) } else { None };
-
-        fn create_button(title: &str, index: Option<usize>) -> String {
-            if let Some(index) = index {
-                format!(r#"<a href="../{:02}/{index}.html">{title}</a>"#, index % 100)
-            } else {
-                title.to_string()
-            }
-        }
-
-        let page = format!("{}/{}", index + 1, calls.len());
-        let page = format!("{}{page}{}", " ".repeat((13 - page.len()) / 2), " ".repeat((13 - page.len()) / 2));
-        let buttons = format!(
-            "                      {}\n\n{} {}{page}{} {}\n\n                     {}",
-            create_button("up", parent),
-            create_button("&lt;&lt;&lt; first", first_index),
-            create_button("&lt;&lt; prev", prev_index),
-            create_button("next &gt;&gt;", next_index),
-            create_button("last &gt;&gt;&gt;", last_index),
-            create_button("down", call.children.get(0).map(|c| c.call_index)),
-        );
-
-        for (i, _) in call.children.iter().enumerate() {
-            render_page_and_save(
-                Some(call_index),
-                &call.children,
-                i,
-                preview_map,
-                session,
-                render_span_option,
-                render_span_session,
-            )?;
-        }
-
-        let spans = render_spans(
-            &call.spans,
-            render_span_option,
-            render_span_session,
-        );
-        let spans = escape_html(&spans);
-        let title = call.title();
-
-        let input = call.input.iter().enumerate().map(
-            |(i, input)| format!("<li>{}</li>", input.render(i))
-        ).collect::<Vec<_>>().concat();
-        let output = call.output.iter().enumerate().map(
-            |(i, output)| format!("<li>{}</li>", output.render(i + 1000))
-        ).collect::<Vec<_>>().concat();
-        let error = if call.has_error {
-            let error = call.last_errors.iter().enumerate().map(
-                |(i, (type_error, error))| {
-                    let type_error_str = format!("{type_error:?}");
-
-                    let value = Value {
-                        name: String::from("e"),
-                        short: format!("{}...", type_error_str.chars().take(40).collect::<String>()),
-                        long: Some(vec![
-                            dump_errors(
-                                vec![error.clone()],
-                                vec![],
-                                &session.intermediate_dir,
-                                Default::default(),
-                                None,
-                                false,
-                            ),
-                            String::from_utf8(prettify(type_error_str.into_bytes())).unwrap(),
-                            String::from_utf8(prettify(format!("{error:?}").into_bytes())).unwrap(),
-                        ].join("\n\n------------\n\n")),
-                    };
-
-                    format!("<li>{}</li>", value.render(i + 2000))
-                }
-            ).collect::<Vec<_>>().concat();
-            format!(r#"
-<li>error<ul>{error}</ul></li>
-"#)
-        } else {
-            String::new()
-        };
-
-        let body = format!(r#"
-<h1>{title}</h1>
-
-{preview_map_rendered}
-
-<pre>
-<code>
-{buttons}
-</code>
-</pre>
-
-<pre class="code-block">
-<code>
-{spans}
-</code>
-</pre>
-
-<ul>
-<li>input<ul>{input}</ul></li>
-<li>output<ul>{output}</ul></li>
-{error}
-</ul>
-"#);
-        let inter_dir = join3(
-            &session.intermediate_dir,
-            "irs",
-            &join3(
-                "intermir",
-                "log",
-                &format!("{:02}", call_index % 100),
-            )?,
-        )?;
-
-        if !exists(&inter_dir) {
-            create_dir_all(&inter_dir)?;
-        }
-
-        let path = join(&inter_dir, &format!("{call_index}.html"))?;
-        write_string(&path, &to_html(&call_index.to_string(), &body), WriteMode::CreateOrTruncate)?;
-        Ok(())
-    }
-
-    fn render_map_and_save(calls: &[FuncCall], intermediate_dir: &str) -> Result<(), FileError> {
-        fn render_map(calls: &[FuncCall], error_only: bool, recursion_limit: usize) -> String {
-            if recursion_limit == 0 || calls.is_empty() {
-                String::new()
-            }
-
-            else {
-                format!(
-                    "<ol>{}</ol>",
-                    calls.iter().filter(
-                        |call| !error_only || call.has_inner_error
-                    ).map(
-                        |call| format!(
-                            r#"<li><a href="../{:02}/{}.html">{}</a>{}{}</li>"#,
-                            call.call_index % 100,
-                            call.call_index,
-                            call.title(),
-                            if call.has_error {
-                                r#" <span class="error-marker">E</span>"#
-                            } else {
-                                ""
-                            },
-                            render_map(&call.children, error_only, recursion_limit - 1),
-                        )
-                    ).collect::<Vec<_>>().concat(),
-                )
-            }
-        }
-
-        let inter_dir = join3(
-            intermediate_dir,
-            "irs",
-            &join3(
-                "intermir",
-                "log",
-                "indexes",
-            )?,
-        )?;
-
-        if !exists(&inter_dir) {
-            create_dir_all(&inter_dir)?;
-        }
-
-        write_string(
-            &join(&inter_dir, "map.html")?,
-            &to_html("map", &render_map(calls, false, 4)),
-            WriteMode::CreateOrTruncate,
-        )?;
-
-        write_string(
-            &join(&inter_dir, "error.html")?,
-            &to_html("error", &render_map(calls, true, 12)),
-            WriteMode::CreateOrTruncate,
-        )?;
-
-        Ok(())
-    }
-
     let render_span_option = RenderSpanOption {
         max_height: 20,
         max_width: 160,
@@ -890,6 +634,12 @@ pub fn dump_inter_mir_log(session: &InterMirSession, mir_session: &MirSession) -
     };
     let mut render_span_session = RenderSpanSession::new(&session.intermediate_dir);
     let preview_map = create_preview_map(&calls);
+    let log_dir = join4(
+        &session.intermediate_dir,
+        "irs",
+        "intermir",
+        "log",
+    )?;
 
     for (i, _) in calls.iter().enumerate() {
         render_page_and_save(
@@ -897,12 +647,13 @@ pub fn dump_inter_mir_log(session: &InterMirSession, mir_session: &MirSession) -
             &calls,
             i,
             &preview_map,
-            session,
+            &log_dir,
+            &session.intermediate_dir,
             &render_span_option,
             &mut render_span_session,
         )?;
     }
 
-    render_map_and_save(&calls, &session.intermediate_dir)?;
+    render_map_and_save(&calls, &log_dir)?;
     Ok(())
 }
