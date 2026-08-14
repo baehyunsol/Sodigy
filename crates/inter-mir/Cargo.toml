@@ -18,4 +18,4 @@ sodigy-string = { version = "0.1.0", path = "../string" }
 sodigy-token = { version = "0.1.0", path = "../token" }
 
 [features]
-log = []
+log = ["sodigy-inter-hir/log", "sodigy-mir/log"]

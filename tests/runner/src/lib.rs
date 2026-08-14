@@ -27,8 +27,7 @@ pub use meta::{Meta, git};
 pub fn get_sodigy_path(
     root: &str,
     release: bool,
-    log_inter_hir: bool,
-    log_inter_mir: bool,
+    dump_compiler_log: bool,
     debug_bytecode: bool,
     debug_heap: bool,
 ) -> String {
@@ -38,15 +37,11 @@ pub fn get_sodigy_path(
         args.push("--release");
     }
 
-    let features = if !(log_inter_hir || log_inter_mir || debug_bytecode || debug_heap) {
+    let features = if dump_compiler_log || debug_bytecode || debug_heap {
         let mut features = vec![];
 
-        if log_inter_hir {
-            features.push("log-inter-hir");
-        }
-
-        if log_inter_mir {
-            features.push("log-inter-mir");
+        if dump_compiler_log {
+            features.push("log");
         }
 
         if debug_bytecode {

@@ -12,3 +12,4 @@ sodigy-span = { version = "0.1.0", path = "../span" }
 [features]
 debug-bytecode = []
 debug-heap = []
+log = ["sodigy-bytecode/log", "sodigy-mir/log"]

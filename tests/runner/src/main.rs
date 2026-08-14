@@ -35,9 +35,7 @@ fn main() {
     match args.get(1).map(|arg| arg.as_str()) {
         Some("cnr") => {
             let parsed_args = ArgParser::new()
-                .optional_flag(&["--log-inter-hir"])
-                .optional_flag(&["--log-inter-mir"])
-                .optional_flag(&["--log-post-mir"])
+                .optional_flag(&["--dump-compiler-log"])
 
                 // If this flag is set, it'll launch the interactive interpreter
                 // and quit. You can't check the assertions in the cnr.
@@ -47,21 +45,18 @@ fn main() {
                 .map_err(|_| "cli error")
                 .unwrap();
 
-            let log_inter_hir = parsed_args.get_flag(0).is_some();
-            let log_inter_mir = parsed_args.get_flag(1).is_some();
-            let log_post_mir = parsed_args.get_flag(2).is_some();
-            let debug_bytecode = parsed_args.get_flag(3).is_some();
+            let dump_compiler_log = parsed_args.get_flag(0).is_some();
+            let debug_bytecode = parsed_args.get_flag(1).is_some();
             let filter = parsed_args.get_args().get(0).map(|f| f.to_string());
             let sodigy_path = get_sodigy_path(
                 &root,
 
-                // `--release` is set when `--log-inter-mir` is set.
+                // `--release` is set when `--dump-compiler-log` is set.
                 // Some inter-mir-logs are stupidly expensive, so we
                 // have to turn this on.
-                log_inter_mir,
+                dump_compiler_log,
 
-                log_inter_hir,
-                log_inter_mir,
+                dump_compiler_log,
                 debug_bytecode,
                 true,  // debug-heap
             );
@@ -71,7 +66,7 @@ fn main() {
                 &root,
                 &join3(&root, "tests", "compile-and-run").unwrap(),
                 &sodigy_path,
-                log_post_mir,
+                dump_compiler_log,
                 debug_bytecode,
             );
         },
@@ -157,8 +152,7 @@ fn main() {
             let sodigy_path = get_sodigy_path(
                 &root,
                 false,  // --release
-                false,  // log-inter-hir
-                false,  // log-inter-mir
+                false,  // dump-compiler-log
                 false,  // debug-bytecode
                 true,   // debug-heap
             );

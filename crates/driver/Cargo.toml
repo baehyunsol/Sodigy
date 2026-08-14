@@ -26,5 +26,13 @@ sodigy-span = { version = "0.1.0", path = "../span" }
 [features]
 debug-bytecode = ["sodigy-interpreter/debug-bytecode"]
 debug-heap = ["sodigy-interpreter/debug-heap"]
-log-inter-hir = ["sodigy-inter-hir/log"]
-log-inter-mir = ["sodigy-inter-mir/log"]
+log = [
+    "sodigy-bytecode/log",
+    "sodigy-code-gen/log",
+    "sodigy-inter-hir/log",
+    "sodigy-inter-mir/log",
+    "sodigy-interpreter/log",
+    "sodigy-mir/log",
+    "sodigy-optimize/log",
+    "sodigy-post-mir/log",
+]
