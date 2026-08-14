@@ -266,7 +266,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 Some(Token { kind: TokenKind::Punct(Punct::Factorial), span: punct_span }),
                 Some(Token { kind: TokenKind::Group { delim, tokens }, span: group_span }),
             ) => match delim {
-                Delim::Parenthesis => match try_parse_macro(*id, id_span.merge(punct_span), group_span.clone(), tokens, &self.intermediate_dir) {
+                Delim::Parenthesis => match try_parse_macro(*id, id_span.merge(punct_span), group_span.clone(), tokens, self.intermediate_dir) {
                     Ok(r#macro) => {
                         self.cursor += 3;
                         r#macro

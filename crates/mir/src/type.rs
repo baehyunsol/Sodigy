@@ -706,16 +706,16 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
             global_context.get_type(&id.def_span)
         },
         Expr::Constant(Constant::Number { n, .. }) => match n.is_integer() {
-            true => Some(int_type(&global_context.lang_items.as_ref().unwrap())),
-            false => Some(number_type(&global_context.lang_items.as_ref().unwrap())),
+            true => Some(int_type(global_context.lang_items.as_ref().unwrap())),
+            false => Some(number_type(global_context.lang_items.as_ref().unwrap())),
         },
         Expr::Constant(Constant::String { binary, .. }) => match *binary {
-            true => Some(bytes_type(&global_context.lang_items.as_ref().unwrap())),
-            false => Some(string_type(&global_context.lang_items.as_ref().unwrap())),
+            true => Some(bytes_type(global_context.lang_items.as_ref().unwrap())),
+            false => Some(string_type(global_context.lang_items.as_ref().unwrap())),
         },
-        Expr::Constant(Constant::Char { .. }) => Some(char_type(&global_context.lang_items.as_ref().unwrap())),
-        Expr::Constant(Constant::Byte { .. }) => Some(byte_type(&global_context.lang_items.as_ref().unwrap())),
-        Expr::Constant(Constant::Scalar(_)) => Some(scalar_type(&global_context.lang_items.as_ref().unwrap())),
+        Expr::Constant(Constant::Char { .. }) => Some(char_type(global_context.lang_items.as_ref().unwrap())),
+        Expr::Constant(Constant::Byte { .. }) => Some(byte_type(global_context.lang_items.as_ref().unwrap())),
+        Expr::Constant(Constant::Scalar(_)) => Some(scalar_type(global_context.lang_items.as_ref().unwrap())),
         Expr::If(r#if) => type_of(&r#if.true_value, global_context),
         Expr::Match(r#match) => type_of(&r#match.arms[0].value, global_context),
         Expr::Block(block) => type_of(&block.value, global_context),
@@ -760,12 +760,12 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
             MacroKind::TypeName { .. } |
             MacroKind::TypeNameOfValue { .. } |
             MacroKind::File |
-            MacroKind::ModulePath => Some(string_type(&global_context.lang_items.as_ref().unwrap())),
-            MacroKind::IncludeBytes { .. } => Some(bytes_type(&global_context.lang_items.as_ref().unwrap())),
+            MacroKind::ModulePath => Some(string_type(global_context.lang_items.as_ref().unwrap())),
+            MacroKind::IncludeBytes { .. } => Some(bytes_type(global_context.lang_items.as_ref().unwrap())),
             MacroKind::NumberOfVariants { .. } |
             MacroKind::NumberOfFields { .. } |
             MacroKind::Line |
-            MacroKind::Column => Some(int_type(&global_context.lang_items.as_ref().unwrap())),
+            MacroKind::Column => Some(int_type(global_context.lang_items.as_ref().unwrap())),
             MacroKind::NameOfVariants { .. } |
             MacroKind::NameOfFields { .. } => todo!(),  // [String]
         },
@@ -823,7 +823,7 @@ pub fn type_of_field(r#type: &Type, field: &[Field], global_context: GlobalConte
 
                 else if let Some(enum_shape) = global_context.enum_shapes.unwrap().get(&def_span) {
                     match (&field[0], enum_shape.representation) {
-                        (Field::EnumDiscriminant, _) | (Field::Index(0), EnumRepr::Compound) => scalar_type(&global_context.lang_items.as_ref().unwrap()),
+                        (Field::EnumDiscriminant, _) | (Field::Index(0), EnumRepr::Compound) => scalar_type(global_context.lang_items.as_ref().unwrap()),
                         (Field::EnumPayload { variant, payload }, _) => {
                             let variant = &enum_shape.variants[*variant];
 

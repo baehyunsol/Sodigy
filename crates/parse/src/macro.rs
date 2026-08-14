@@ -135,7 +135,7 @@ fn parse_type(mut tokens: Tokens) -> Result<Type, Vec<Error>> {
     Ok(r#type)
 }
 
-fn parse_string(mut tokens: Tokens) -> Result<InternedString, Vec<Error>> {
+fn parse_string(tokens: Tokens) -> Result<InternedString, Vec<Error>> {
     match tokens.peek2() {
         (Some(Token { kind: TokenKind::String { binary: false, raw: false, regex: false, s }, .. }), None) => Ok(*s),
         (Some(Token { kind: TokenKind::String { .. }, span }), None) => Err(vec![Error {

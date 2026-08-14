@@ -315,7 +315,7 @@ pub fn dump_expr<S: SodigySession>(
             match &**kind {
                 MacroKind::IncludeString { path } |
                 MacroKind::IncludeBytes { path } => {
-                    let path = path.unintern_or_default(&session.intermediate_dir());
+                    let path = path.unintern_or_default(session.intermediate_dir());
                     lines.push(&format!("{path:?}"));
                 },
                 MacroKind::TypeName { r#type } |
