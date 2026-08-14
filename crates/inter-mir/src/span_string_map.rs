@@ -1,5 +1,5 @@
 use crate::Session;
-use sodigy_mir::{Assert, Callable, Enum, EnumVariantFields, Expr, Func, Let, Struct};
+use sodigy_mir::{Assert, Callable, Enum, EnumVariantFields, Expr, Func, Let, MacroKind, Struct};
 use sodigy_span::{Span, SpanId};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
@@ -142,7 +142,22 @@ impl Session {
                     self.init_span_string_map_expr(arg, result);
                 }
             },
-            Expr::Macro { .. } => todo!(),
+            Expr::Macro { kind, .. } => match &**kind {
+                MacroKind::IncludeString { .. } |
+                MacroKind::IncludeBytes { .. } |
+                MacroKind::TypeName { .. } |
+                MacroKind::NumberOfVariants { .. } |
+                MacroKind::NumberOfFields { .. } |
+                MacroKind::NameOfVariants { .. } |
+                MacroKind::NameOfFields { .. } |
+                MacroKind::File |
+                MacroKind::ModulePath |
+                MacroKind::Line |
+                MacroKind::Column => {},
+                MacroKind::TypeNameOfValue { value } => {
+                    self.init_span_string_map_expr(value, result);
+                },
+            },
         }
     }
 }

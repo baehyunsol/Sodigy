@@ -942,7 +942,7 @@ impl Session {
             &self.lang_items,
             &self.intermediate_dir,
             &self.span_string_map,
-        )
+        ).unwrap_or(String::from("????"))
     }
 
     pub fn span_to_string(&self, span: &Span) -> Option<String> {

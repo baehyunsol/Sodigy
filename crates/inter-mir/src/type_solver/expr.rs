@@ -972,9 +972,29 @@ impl Session {
                 }
             },
             Expr::Macro { kind, .. } => match &**kind {
-                MacroKind::IncludeString { .. } => (Some(string_type(&self.lang_items)), false),
+                MacroKind::IncludeString { .. } |
+                MacroKind::TypeName { .. } |
+                MacroKind::File |
+                MacroKind::ModulePath => (Some(string_type(&self.lang_items)), false),
                 MacroKind::IncludeBytes { .. } => (Some(bytes_type(&self.lang_items)), false),
-                _ => todo!(),
+                MacroKind::TypeNameOfValue { value } => {
+                    let has_error = self.solve_expr(value, impure_calls).1;
+                    (Some(string_type(&self.lang_items)), has_error)
+                },
+                MacroKind::NumberOfVariants { .. } |
+                MacroKind::NumberOfFields { .. } |
+                MacroKind::Line |
+                MacroKind::Column => (Some(int_type(&self.lang_items)), false),
+                MacroKind::NameOfVariants { .. } |
+                MacroKind::NameOfFields { .. } => (
+                    Some(Type::Data {
+                        constructor_def_span: self.get_lang_item_span_id("type.List"),
+                        constructor_span: Span::None,
+                        args: Some(vec![string_type(&self.lang_items)]),
+                        group_span: Some(Span::None),
+                    }),
+                    false,
+                ),
             },
         }
     }

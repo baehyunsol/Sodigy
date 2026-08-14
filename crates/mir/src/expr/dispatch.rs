@@ -1,5 +1,5 @@
 use super::Expr;
-use crate::{Callable, Dotfish, Type};
+use crate::{Callable, Dotfish, MacroKind, Type};
 use sodigy_hir::FuncShape;
 use sodigy_parse::Field;
 use sodigy_span::Span;
@@ -155,7 +155,22 @@ impl Expr {
                     arg.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
                 }
             },
-            Expr::Macro { .. } => todo!(),
+            Expr::Macro { kind, .. } => match &mut **kind {
+                MacroKind::IncludeString { .. } |
+                MacroKind::IncludeBytes { .. } |
+                MacroKind::TypeName { .. } |
+                MacroKind::NumberOfVariants { .. } |
+                MacroKind::NumberOfFields { .. } |
+                MacroKind::NameOfVariants { .. } |
+                MacroKind::NameOfFields { .. } |
+                MacroKind::File |
+                MacroKind::ModulePath |
+                MacroKind::Line |
+                MacroKind::Column => {},
+                MacroKind::TypeNameOfValue { value } => {
+                    value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
+                },
+            },
         }
     }
 }

@@ -1,0 +1,18 @@
+//% compile-error == 7
+
+enum Foo = { Bar, Baz, Goo(Int) };
+
+assert number_of_fields!(Foo) == 3;
+assert name_of_fields!(Foo) == ["Bar", "Baz", "Goo"];
+
+struct FooFoo = {
+    barbar: Int,
+    bazbaz: Number,
+};
+
+assert number_of_variants!(FooFoo) == 2;
+assert name_of_variants!(FooFoo) == ["barbar", "bazbaz"];
+
+assert number_of_variants!(()) == 0;
+assert type_name_of_value!(()) == "";
+assert type_name_of_value!(\=>()) == "";

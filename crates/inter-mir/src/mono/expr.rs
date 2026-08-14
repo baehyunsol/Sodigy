@@ -1,7 +1,7 @@
 use super::Monomorphization;
 use crate::Session;
 use sodigy_error::TypeVarInfo;
-use sodigy_mir::{Callable, Expr, Type};
+use sodigy_mir::{Callable, Expr, MacroKind, Type};
 use sodigy_parse::Field;
 use sodigy_span::Span;
 use std::collections::HashSet;
@@ -128,7 +128,29 @@ impl Session {
                 *arg_group_span = arg_group_span.monomorphize(monomorphization.id);
                 self.monomorphize_dotfish(types, wildcard_spans, monomorphization);
             },
-            Expr::Macro { .. } => todo!(),
+            Expr::Macro { kind, macro_span, group_span } => {
+                *macro_span = macro_span.monomorphize(monomorphization.id);
+                *group_span = group_span.monomorphize(monomorphization.id);
+
+                match &mut **kind {
+                    MacroKind::IncludeString { .. } |
+                    MacroKind::IncludeBytes { .. } |
+                    MacroKind::File |
+                    MacroKind::ModulePath |
+                    MacroKind::Line |
+                    MacroKind::Column => {},
+                    MacroKind::TypeName { r#type } |
+                    MacroKind::NumberOfVariants { r#type } |
+                    MacroKind::NumberOfFields { r#type } |
+                    MacroKind::NameOfVariants { r#type } |
+                    MacroKind::NameOfFields { r#type } => {
+                        *r#type = self.monomorphize_type(r#type, wildcard_spans, monomorphization);
+                    },
+                    MacroKind::TypeNameOfValue { value } => {
+                        self.monomorphize_expr(value, wildcard_spans, monomorphization);
+                    },
+                }
+            },
         }
     }
 }

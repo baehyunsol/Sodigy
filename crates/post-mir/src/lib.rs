@@ -1,8 +1,10 @@
 use crate::field::lower_fields;
+use crate::r#macro::lower_macro;
 use crate::r#match::lower_match;
 use sodigy_mir::{Callable, Expr, Session as MirSession};
 
 mod field;
+mod r#macro;
 mod r#match;
 mod session;
 
@@ -120,6 +122,9 @@ fn lower_expr(expr: &mut Expr, session: &mut Session) -> Result<(), ()> {
                 Ok(())
             }
         },
-        Expr::Macro { .. } => todo!(),
+        Expr::Macro { kind, macro_span, .. } => {
+            *expr = lower_macro(kind, macro_span, session)?;
+            Ok(())
+        },
     }
 }

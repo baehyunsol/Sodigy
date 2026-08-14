@@ -4,16 +4,16 @@ use std.r#type.type_name;
 
 struct ConversionError<T> = {
     value: T,
-//    source_type: String,
-//    target_type: String,
+    source_type: String,
+    target_type: String,
 };
 
 fn conversion_error<From, To>(value: From) -> ConversionError<From> = ConversionError {
     // TODO: impl shorthand
     value: value,
 
-//    source_type: type_name.<From>(),
-//    target_type: type_name.<To>(),
+    source_type: type_name!(From),
+    target_type: type_name!(To),
 };
 
 #[impl(convert)]

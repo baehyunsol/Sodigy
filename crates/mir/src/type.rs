@@ -1,6 +1,6 @@
 use crate::{Callable, Expr, GlobalContext, MacroKind, Session};
 use sodigy_endec::Endec;
-use sodigy_error::{Error, ErrorKind};
+use sodigy_error::{EnumFieldKind, Error, ErrorKind};
 use sodigy_hir::{self as hir, EnumRepr, EnumVariantFields, FuncPurity};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::Field;
@@ -726,15 +726,16 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
         },
         Expr::FieldUpdate { lhs, .. } => type_of(lhs, global_context),
         Expr::Call { func, args, .. } => match func {
-            // TODO: What if it's generic?
             Callable::Static { def_span, .. } => match global_context.get_type(def_span) {
                 Some(Type::Func { r#return, .. }) => Some(*r#return.clone()),
                 _ => None,
             },
-
-            // If it has type args, there's no way we can figure that out...
-            Callable::StructInit { def_span, .. } => todo!(),
-
+            Callable::StructInit { def_span, .. } => global_context.get_type(def_span),
+            Callable::EnumInit { variant_def_span, kind, .. } => match (global_context.get_type(variant_def_span), kind) {
+                (Some(r#type), EnumFieldKind::None) => Some(r#type),
+                (Some(Type::Func { r#return, .. }), EnumFieldKind::Tuple | EnumFieldKind::Struct) => Some(*r#return.clone()),
+                _ => None,
+            },
             Callable::TupleInit { .. } => {
                 let mut arg_types = Vec::with_capacity(args.len());
 

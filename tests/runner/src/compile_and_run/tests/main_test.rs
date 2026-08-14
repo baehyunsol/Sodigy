@@ -321,11 +321,11 @@ fn check_compile_output(output: &subprocess::Output, directive: &Directive, expe
     }
 
     if let Some((cmp, n)) = directive.compile_error {
-        cmp.check(compile_errors, n, "the number of compile errors")?;
+        cmp.check(n, compile_errors, "the number of compile errors")?;
     }
 
     if let Some((cmp, n)) = directive.compile_warning {
-        cmp.check(compile_warnings, n, "the number of compile warnings")?;
+        cmp.check(n, compile_warnings, "the number of compile warnings")?;
     }
 
     match_lines(&String::from_utf8_lossy(&output.stdout), &expected_output.compile_stdout).map_err(|e| format!("expected compile_stdout and actual stdout do not match\n{e}"))?;

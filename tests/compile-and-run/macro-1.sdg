@@ -1,3 +1,17 @@
-enum Foo = { Bar, Baz };
+enum Foo = { Bar, Baz, Goo(Int) };
 
-assert number_of_variants!(Foo) == 2;
+assert number_of_variants!(Foo) == 3;
+assert name_of_variants!(Foo) == ["Bar", "Baz", "Goo"];
+assert type_name!(Foo) == "Foo";
+assert type_name_of_value!(Foo.Bar) == "Foo";
+assert type_name_of_value!(Foo.Goo(300)) == "Foo";
+
+struct FooFoo = {
+    barbar: Int,
+    bazbaz: Number,
+};
+
+assert number_of_fields!(FooFoo) == 2;
+assert name_of_fields!(FooFoo) == ["barbar", "bazbaz"];
+assert type_name!(FooFoo) == "FooFoo";
+assert type_name_of_value!(FooFoo { barbar: 0, bazbaz: 0.0 }) == "FooFoo";

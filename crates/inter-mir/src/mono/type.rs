@@ -5,6 +5,7 @@ use sodigy_span::Span;
 use std::collections::HashSet;
 
 impl Session {
+    #[must_use = "method returns a new value and does not mutate the original value"]
     pub fn monomorphize_type(
         &self,
         r#type: &Type,
