@@ -35,16 +35,20 @@ fn main() {
     match args.get(1).map(|arg| arg.as_str()) {
         Some("cnr") => {
             let parsed_args = ArgParser::new()
+                .optional_arg_flag("--output", ArgType::String)
                 .optional_flag(&["--dump-compiler-log"])
 
                 // If this flag is set, it'll launch the interactive interpreter
                 // and quit. You can't check the assertions in the cnr.
                 .optional_flag(&["--debug-bytecode"])
+
+                .short_flag(&["--output"])
                 .args(ArgType::String, ArgCount::Leq(1))
                 .parse(&args, 2)
                 .map_err(|_| "cli error")
                 .unwrap();
 
+            let output_path = parsed_args.arg_flags.get("--output").map(|p| p.to_string());
             let dump_compiler_log = parsed_args.get_flag(0).is_some();
             let debug_bytecode = parsed_args.get_flag(1).is_some();
             let filter = parsed_args.get_args().get(0).map(|f| f.to_string());
@@ -61,7 +65,8 @@ fn main() {
                 true,  // debug-heap
             );
 
-            compile_and_run::run_cases(
+            let metadata = output_path.as_ref().map(|_| meta::get());
+            let result = compile_and_run::run_cases(
                 filter,
                 &root,
                 &join3(&root, "tests", "compile-and-run").unwrap(),
@@ -69,14 +74,33 @@ fn main() {
                 dump_compiler_log,
                 debug_bytecode,
             );
+
+            if let Some(output_path) = output_path {
+                let result = TestHarness {
+                    meta: metadata.unwrap(),
+                    suites: vec![TestSuite::CompileAndRun],
+                    crates: None,
+                    compile_and_run: Some(result),
+                    fuzz: None,
+                };
+
+                write_string(
+                    &output_path,
+                    &serde_json::to_string_pretty(&result).unwrap(),
+                    WriteMode::CreateOrTruncate,
+                ).unwrap();
+            }
         },
         Some("crates") => {
             let parsed_args = ArgParser::new()
+                .optional_arg_flag("--output", ArgType::String)
                 .args(ArgType::String, ArgCount::Geq(0))
+                .short_flag(&["--output"])
                 .parse(&args, 2)
                 .map_err(|_| "cli error")
                 .unwrap();
 
+            let output_path = parsed_args.arg_flags.get("--output").map(|p| p.to_string());
             let filter = {
                 let args = parsed_args.get_args();
 
@@ -87,7 +111,25 @@ fn main() {
                 }
             };
             let crates_at = join(&root, "crates").unwrap();
-            crate_test::run_cases(&crates_at, filter, true);
+
+            let metadata = output_path.as_ref().map(|_| meta::get());
+            let result = crate_test::run_cases(&crates_at, filter, true);
+
+            if let Some(output_path) = output_path {
+                let result = TestHarness {
+                    meta: metadata.unwrap(),
+                    suites: vec![TestSuite::Crates],
+                    crates: Some(result),
+                    compile_and_run: None,
+                    fuzz: None,
+                };
+
+                write_string(
+                    &output_path,
+                    &serde_json::to_string_pretty(&result).unwrap(),
+                    WriteMode::CreateOrTruncate,
+                ).unwrap();
+            }
         },
         Some("fuzz") => {
             let parsed_args = ArgParser::new()
@@ -149,6 +191,15 @@ fn main() {
             }
         },
         Some("all") => {
+            let parsed_args = ArgParser::new()
+                .optional_arg_flag("--output", ArgType::String)
+                .short_flag(&["--output"])
+                .args(ArgType::String, ArgCount::None)
+                .parse(&args, 2)
+                .map_err(|_| "cli error")
+                .unwrap();
+
+            let output_path = parsed_args.arg_flags.get("--output").map(|p| p.to_string());
             let sodigy_path = get_sodigy_path(
                 &root,
                 false,  // --release
@@ -205,7 +256,10 @@ fn main() {
             };
             let result = serde_json::to_string_pretty(&result).unwrap();
 
-            write_string(&file_name, &result, WriteMode::CreateOrTruncate).unwrap();
+            if let Some(output_path) = output_path {
+                write_string(&output_path, &result, WriteMode::CreateOrTruncate).unwrap();
+            }
+
             write_string(&log_path, &result, WriteMode::CreateOrTruncate).unwrap();
         },
         Some(_) => todo!(),

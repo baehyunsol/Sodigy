@@ -1,6 +1,13 @@
 use regex::Regex;
+use sodigy_cli::{
+    ArgCount,
+    ArgParser,
+    ArgType,
+};
 use sodigy_compiler_test::{TestHarness, find_root, git};
 use sodigy_fs_api::{
+    FileError,
+    WriteMode,
     basename,
     create_dir_all,
     exists,
@@ -12,7 +19,6 @@ use sodigy_fs_api::{
     remove_dir_all,
     set_extension,
     write_string,
-    WriteMode,
 };
 use std::collections::hash_map::{Entry as HashMapEntry, HashMap};
 use std::collections::hash_set::HashSet;
@@ -40,9 +46,44 @@ use utils::{
 };
 
 fn main() {
-    let root = find_root().unwrap();
-    let test_results_at = join3(&root, "tests", "log").unwrap();
-    let rendered_htmls_at = join(&parent(&test_results_at).unwrap(), "html").unwrap();
+    let args = std::env::args().collect::<Vec<_>>();
+
+    match args.get(1).map(|arg| arg.as_str()) {
+        Some("diff") => {
+            let parsed_args = ArgParser::new()
+                .optional_arg_flag("--output", ArgType::String)
+                .short_flag(&["--output"])
+                .args(ArgType::String, ArgCount::Exact(2))
+                .parse(&args, 2)
+                .map_err(|_| "cli error")
+                .unwrap();
+
+            let output_path = parsed_args.arg_flags.get("--output").map(|p| p.to_string()).unwrap_or(String::from("diff.html"));
+            let input_files = parsed_args.get_args();
+            let input1 = read_string(&input_files[0]).unwrap();
+            let input1: TestHarness = serde_json::from_str(&input1).unwrap();
+            let input2 = read_string(&input_files[1]).unwrap();
+            let input2: TestHarness = serde_json::from_str(&input2).unwrap();
+            let result = render_diff(&input1, &input2, &HashMap::new());
+
+            write_string(
+                &output_path,
+                &result,
+                WriteMode::AlwaysCreate,
+            ).unwrap();
+        },
+        Some("render") => {
+            render_all().unwrap();
+        },
+        Some(_) => todo!(),
+        None => todo!(),
+    }
+}
+
+fn render_all() -> Result<(), FileError> {
+    let root = find_root()?;
+    let test_results_at = join3(&root, "tests", "log")?;
+    let rendered_htmls_at = join(&parent(&test_results_at)?, "html")?;
 
     println!("collecting test results and commits...");
     let started_at = Instant::now();
@@ -73,14 +114,14 @@ fn main() {
     recent_test_results = recent_test_results.into_iter().rev().collect();
 
     if exists(&rendered_htmls_at) {
-        remove_dir_all(&rendered_htmls_at).unwrap();
+        remove_dir_all(&rendered_htmls_at)?;
     }
 
-    create_dir_all(&rendered_htmls_at).unwrap();
-    create_dir_all(&join(&rendered_htmls_at, "harnesses").unwrap()).unwrap();
-    create_dir_all(&join(&rendered_htmls_at, "diffs").unwrap()).unwrap();
-    create_dir_all(&join(&rendered_htmls_at, "commits").unwrap()).unwrap();
-    create_dir_all(&join(&rendered_htmls_at, "blobs").unwrap()).unwrap();
+    create_dir_all(&rendered_htmls_at)?;
+    create_dir_all(&join(&rendered_htmls_at, "harnesses")?)?;
+    create_dir_all(&join(&rendered_htmls_at, "diffs")?)?;
+    create_dir_all(&join(&rendered_htmls_at, "commits")?)?;
+    create_dir_all(&join(&rendered_htmls_at, "blobs")?)?;
 
     println!("done! (took {})", render_elapsed_ms(Instant::now().duration_since(started_at).as_millis() as u64));
     println!("rendering harnesses...");
@@ -98,11 +139,11 @@ fn main() {
             ),
         };
 
-        let path = join(&test_results_at, test_result).unwrap();
-        let s = read_string(&path).unwrap();
+        let path = join(&test_results_at, test_result)?;
+        let s = read_string(&path)?;
         let j: TestHarness = serde_json::from_str(&s).unwrap();
         blobs_to_read.extend(j.get_cnr_blobs());
-        let html_name = set_extension(&j.meta.get_result_file_name(), "html").unwrap();
+        let html_name = set_extension(&j.meta.get_result_file_name(), "html")?;
 
         let html = render_harness(&j, prev, next);
         write_string(
@@ -110,17 +151,17 @@ fn main() {
                 &rendered_htmls_at,
                 "harnesses",
                 &html_name,
-            ).unwrap(),
+            )?,
             &html,
             WriteMode::AlwaysCreate,
-        ).unwrap();
+        )?;
     }
 
     println!("done! (took {})", render_elapsed_ms(Instant::now().duration_since(started_at).as_millis() as u64));
     println!("rendering blobs...");
     let started_at = Instant::now();
 
-    let blobs = load_test_files().unwrap();
+    let blobs = load_test_files()?;
 
     for blob_hash in blobs_to_read.iter() {
         let Some(html) = render_blob(blob_hash, &blobs) else { continue };
@@ -129,11 +170,11 @@ fn main() {
             &join3(
                 &rendered_htmls_at,
                 "blobs",
-                &set_extension(blob_hash, "html").unwrap(),
-            ).unwrap(),
+                &set_extension(blob_hash, "html")?,
+            )?,
             &html,
             WriteMode::AlwaysCreate,
-        ).unwrap();
+        )?;
     }
 
     println!("done! (took {})", render_elapsed_ms(Instant::now().duration_since(started_at).as_millis() as u64));
@@ -143,12 +184,12 @@ fn main() {
     for window in recent_test_results.windows(2) {
         let (prev, next) = (&window[0], &window[1]);
 
-        let prev = join(&test_results_at, prev).unwrap();
-        let prev = read_string(&prev).unwrap();
+        let prev = join(&test_results_at, prev)?;
+        let prev = read_string(&prev)?;
         let prev: TestHarness = serde_json::from_str(&prev).unwrap();
 
-        let next = join(&test_results_at, next).unwrap();
-        let next = read_string(&next).unwrap();
+        let next = join(&test_results_at, next)?;
+        let next = read_string(&next)?;
         let next: TestHarness = serde_json::from_str(&next).unwrap();
 
         let html = render_diff(&prev, &next, &blobs);
@@ -164,11 +205,11 @@ fn main() {
             &join3(
                 &rendered_htmls_at,
                 "diffs",
-                &set_extension(&diff_hash, "html").unwrap(),
-            ).unwrap(),
+                &set_extension(&diff_hash, "html")?,
+            )?,
             &html,
             WriteMode::AlwaysCreate,
-        ).unwrap();
+        )?;
     }
 
     println!("done! (took {})", render_elapsed_ms(Instant::now().duration_since(started_at).as_millis() as u64));
@@ -176,10 +217,10 @@ fn main() {
     let started_at = Instant::now();
 
     write_string(
-        &join(&rendered_htmls_at, "index.html").unwrap(),
+        &join(&rendered_htmls_at, "index.html")?,
         &render_index(&test_results, &commits),
         WriteMode::AlwaysCreate,
-    ).unwrap();
+    )?;
 
     println!("done! (took {})", render_elapsed_ms(Instant::now().duration_since(started_at).as_millis() as u64));
     println!("rendering commits...");
@@ -193,14 +234,15 @@ fn main() {
             &join3(
                 &rendered_htmls_at,
                 "commits",
-                &set_extension(&abbrev_hash, "html").unwrap(),
-            ).unwrap(),
+                &set_extension(&abbrev_hash, "html")?,
+            )?,
             &render_commit(commit),
             WriteMode::AlwaysCreate,
-        ).unwrap();
+        )?;
     }
 
     println!("done! (took {})", render_elapsed_ms(Instant::now().duration_since(started_at).as_millis() as u64));
+    Ok(())
 }
 
 // commit hash to file names map
