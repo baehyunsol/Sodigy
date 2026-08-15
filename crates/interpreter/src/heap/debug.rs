@@ -48,7 +48,7 @@ impl Heap {
             cursor += block_size as usize + 2;
 
             if cursor >= self.data.len() {
-                assert_eq!(cursor, self.data.len());
+                assert_eq!(cursor, self.data.len() + 2);
                 break;
             }
         }
