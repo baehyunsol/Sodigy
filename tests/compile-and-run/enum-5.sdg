@@ -14,5 +14,6 @@ assert get_name(Animal.Human { name: 99, age: 28 }).unwrap() == 99;
 assert get_name(Animal.Dog(200)).unwrap() == 200;
 assert get_name(Animal.Human { name: "Bae", age: 28 }).unwrap() == "Bae";
 assert get_name(Animal.Dog("Kim")).unwrap() == "Kim";
-assert get_name(Animal.Cat.<Int>) == None;
-assert get_name(Animal.Cat.<String>) == None;
+assert get_name(Animal.<String>.Dog("Kim")).unwrap() == "Kim";
+assert get_name(Animal.<Int>.Cat) == None;
+assert get_name(Animal.<String>.Cat) == None;

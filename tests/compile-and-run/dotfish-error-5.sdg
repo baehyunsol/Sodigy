@@ -1,0 +1,16 @@
+//% compile-error == 1
+
+enum Peano = {
+    Zero,
+    Succ(Peano),
+};
+
+#[impl(std.op.eq)]
+fn peano_eq(a: Peano, b: Peano) -> Bool = match (a, b) {
+    (Peano.Zero, Peano.Zero) => True,
+    (Peano.Succ($a), Peano.Succ($b)) => peano_eq(a, b),
+    _ => False,
+};
+
+// unnecessary dotfish!
+assert Peano.<Int>.Zero == Peano.<Int>.Zero;

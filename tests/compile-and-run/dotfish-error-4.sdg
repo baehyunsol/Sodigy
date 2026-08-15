@@ -1,0 +1,9 @@
+//% compile-error == 1
+
+enum MyOption<T> = {
+    Some(T),
+    None,
+};
+
+// It's supposed to be `MyOption.<Int>.None`.
+let x: MyOption<Int> = MyOption.None.<Int>;
