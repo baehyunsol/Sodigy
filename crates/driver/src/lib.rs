@@ -139,9 +139,9 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             Ok(())
         },
         cli_command @ (
-            CliCommand::Build { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings, .. } |
-            CliCommand::Run { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings } |
-            CliCommand::Test { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings }
+            CliCommand::Build { optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings, .. } |
+            CliCommand::Run { optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings } |
+            CliCommand::Test { optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings }
         ) => {
             // maybe we need a finer control??
             let dump_bytecodes = *emit_irs;
@@ -170,7 +170,6 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                 backend,
                 ir_dir,
                 *optimize_level,
-                *import_std,
                 custom_error_levels,
                 *emit_irs,
                 *dump_post_mir_log,
@@ -209,7 +208,6 @@ pub fn init_workers_and_compile(
     backend: Backend,
     ir_dir: String,
     optimize_level: OptimizeLevel,
-    import_std: bool,
     custom_error_levels: &HashMap<u16, CustomErrorLevel>,
     emit_irs: bool,
     dump_post_mir_log: bool,
@@ -235,7 +233,6 @@ pub fn init_workers_and_compile(
         backend,
         ir_dir.clone(),
         optimize_level,
-        import_std,
         custom_error_levels,
         emit_irs,
         dump_post_mir_log,
@@ -327,7 +324,6 @@ fn compile(
     backend: Backend,
     ir_dir: String,
     optimize_level: OptimizeLevel,
-    import_std: bool,
     custom_error_levels: &HashMap<u16, CustomErrorLevel>,
     emit_irs: bool,
     dump_post_mir_log_flag: bool,
@@ -387,19 +383,17 @@ fn compile(
     });
     init_ir_dir(&ir_dir, incremental_compilation)?;
 
-    if import_std {
-        let (std_module_path, std_file_path) = sodigy_file::std_root();
-        modules.insert(
-            std_module_path.clone(),
-            ModuleCompileState {
-                module_path: std_module_path,
-                file_path: std_file_path,
-                span: Span::Std,
-                compile_stage: CompileStage::Load,
-                running: false,
-            },
-        );
-    }
+    let (std_module_path, std_file_path) = sodigy_file::std_root();
+    modules.insert(
+        std_module_path.clone(),
+        ModuleCompileState {
+            module_path: std_module_path,
+            file_path: std_file_path,
+            span: Span::Std,
+            compile_stage: CompileStage::Load,
+            running: false,
+        },
+    );
 
     loop {
         // TODO: It has to immediately return if no worker's working.

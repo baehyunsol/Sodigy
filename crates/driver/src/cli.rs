@@ -16,7 +16,6 @@ pub enum CliCommand {
         output_path: String,
         backend: Backend,
         optimize_level: OptimizeLevel,
-        import_std: bool,
         custom_error_levels: HashMap<u16, CustomErrorLevel>,
         profile: Profile,
         emit_irs: bool,
@@ -29,7 +28,6 @@ pub enum CliCommand {
     },
     Run {
         optimize_level: OptimizeLevel,
-        import_std: bool,
         custom_error_levels: HashMap<u16, CustomErrorLevel>,
         emit_irs: bool,
         graceful_shutdown: u32,  // in millis
@@ -41,7 +39,6 @@ pub enum CliCommand {
     },
     Test {
         optimize_level: OptimizeLevel,
-        import_std: bool,
         custom_error_levels: HashMap<u16, CustomErrorLevel>,
         emit_irs: bool,
         graceful_shutdown: u32,  // in millis
@@ -80,7 +77,6 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_flag(&["--release"])
                 .optional_flag(&["--test"])
                 .optional_flag(&["--emit-irs"])
-                .optional_flag(&["--no-std"])
                 .optional_flag(&["--dump-post-mir-log"])
                 .optional_flag(&["--dump-timings"])
                 .flag_with_default(&[
@@ -134,11 +130,10 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             };
 
             let emit_irs = parsed_args.get_flag(2).is_some();
-            let import_std = parsed_args.get_flag(3).is_none();
-            let dump_post_mir_log = parsed_args.get_flag(4).is_some();
-            let dump_timings = parsed_args.get_flag(5).is_some();
+            let dump_post_mir_log = parsed_args.get_flag(3).is_some();
+            let dump_timings = parsed_args.get_flag(4).is_some();
 
-            let validate_token_spans = match parsed_args.get_flag(6).as_ref().map(|s| s.as_str()) {
+            let validate_token_spans = match parsed_args.get_flag(5).as_ref().map(|s| s.as_str()) {
                 Some("--no-validate-token-spans") => ValidateTokenSpans::Never,
                 Some("--validate-token-spans") => ValidateTokenSpans::Always,
                 Some("--validate-std-token-spans") => ValidateTokenSpans::OnlyStd,
@@ -155,7 +150,6 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 output_path,
                 backend,
                 optimize_level,
-                import_std,
                 custom_error_levels: HashMap::new(),  // TODO: make it configurable
                 graceful_shutdown: 300,  // TODO: make it configurable
                 validate_token_spans,
@@ -228,7 +222,6 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
                 .optional_flag(&["--release"])
                 .optional_flag(&["--emit-irs"])
-                .optional_flag(&["--no-std"])
                 .optional_flag(&["--dump-post-mir-log"])
                 .optional_flag(&["--dump-timings"])
                 .flag_with_default(&[
@@ -264,11 +257,10 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 || std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4)
             );
             let emit_irs = parsed_args.get_flag(1).is_some();
-            let import_std = parsed_args.get_flag(2).is_none();
-            let dump_post_mir_log = parsed_args.get_flag(3).is_some();
-            let dump_timings = parsed_args.get_flag(4).is_some();
+            let dump_post_mir_log = parsed_args.get_flag(2).is_some();
+            let dump_timings = parsed_args.get_flag(3).is_some();
 
-            let validate_token_spans = match parsed_args.get_flag(5).as_ref().map(|s| s.as_str()) {
+            let validate_token_spans = match parsed_args.get_flag(4).as_ref().map(|s| s.as_str()) {
                 Some("--no-validate-token-spans") => ValidateTokenSpans::Never,
                 Some("--validate-token-spans") => ValidateTokenSpans::Always,
                 Some("--validate-std-token-spans") => ValidateTokenSpans::OnlyStd,
@@ -278,7 +270,6 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
 
             Ok(CliCommand::Run {
                 optimize_level,
-                import_std,
                 custom_error_levels: HashMap::new(),  // TODO: make it configurable
                 graceful_shutdown: 300,  // TODO: make it configurable
                 validate_token_spans,
@@ -295,7 +286,6 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
                 .optional_flag(&["--release"])
                 .optional_flag(&["--emit-irs"])
-                .optional_flag(&["--no-std"])
                 .optional_flag(&["--dump-post-mir-log"])
                 .optional_flag(&["--dump-timings"])
                 .flag_with_default(&[
@@ -331,11 +321,10 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 || std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4)
             );
             let emit_irs = parsed_args.get_flag(1).is_some();
-            let import_std = parsed_args.get_flag(2).is_none();
-            let dump_post_mir_log = parsed_args.get_flag(3).is_some();
-            let dump_timings = parsed_args.get_flag(4).is_some();
+            let dump_post_mir_log = parsed_args.get_flag(2).is_some();
+            let dump_timings = parsed_args.get_flag(3).is_some();
 
-            let validate_token_spans = match parsed_args.get_flag(5).as_ref().map(|s| s.as_str()) {
+            let validate_token_spans = match parsed_args.get_flag(4).as_ref().map(|s| s.as_str()) {
                 Some("--no-validate-token-spans") => ValidateTokenSpans::Never,
                 Some("--validate-token-spans") => ValidateTokenSpans::Always,
                 Some("--validate-std-token-spans") => ValidateTokenSpans::OnlyStd,
@@ -345,7 +334,6 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
 
             Ok(CliCommand::Test {
                 optimize_level,
-                import_std,
                 custom_error_levels: HashMap::new(),  // TODO: make it configurable
                 graceful_shutdown: 300,  // TODO: make it configurable
                 validate_token_spans,
