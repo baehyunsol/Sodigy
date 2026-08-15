@@ -6,10 +6,10 @@ use crate::{
     GlobalContext,
     StoreIrAt,
     TimingsEntry,
-    dump_inter_hir_log,
     dump_inter_mir_log,
     emit_irs_if_has_to,
     get_cached_ir,
+    store_inter_hir_log,
 };
 use sodigy_endec::Endec;
 use sodigy_error::{Error as SodigyError, Warning as SodigyWarning};
@@ -340,6 +340,12 @@ impl Worker {
                     self.stage_start(CompileStage::PostHir, None, Some(input_module_path.to_string()));
                     let _ = inter_hir_session.resolve_module(&mut hir_session);
 
+                    store_inter_hir_log(
+                        Some(file),
+                        inter_hir_session.log.drain(..).collect(),
+                        &intermediate_dir,
+                    )?;
+
                     // There should be no errors in `inter_hir_session` before `.resolve_module` because
                     // otherwise this stage wouldn't have been reached.
                     // If there're errors in `.resolve_module`, it has to be passed to `hir_session` because
@@ -525,9 +531,14 @@ impl Worker {
                 self.stage_end(has_error);
 
                 // `.log` field always exists, but it would be empty if logging is disabled.
-                self.stage_start(CompileStage::InterHir, Some("dump-inter-hir-log"), None);
-                dump_inter_hir_log(&inter_hir_session)?;
-                self.stage_end(false);
+                //
+                // We can't call `dump_inter_hir_log` yet because it's not done yet.
+                // The post-hir workers will call resolve_module with their modules.
+                store_inter_hir_log(
+                    None,
+                    inter_hir_session.log.drain(..).collect(),
+                    &intermediate_dir,
+                )?;
 
                 emit_irs_if_has_to(
                     &inter_hir_session,

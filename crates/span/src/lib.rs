@@ -167,7 +167,9 @@ impl Span {
             Span::Prelude(_) |
             Span::Poly { .. } |
             Span::IntermediateTypeVar(_) => None,
-            Span::Std | Span::Lib => todo!(),
+
+            // TODO: maybe there's a way to represent this...
+            Span::Std | Span::Lib => None,
         }
     }
 

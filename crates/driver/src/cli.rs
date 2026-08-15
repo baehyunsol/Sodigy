@@ -25,6 +25,7 @@ pub enum CliCommand {
         jobs: usize,
         color: ColorWhen,
         dump_post_mir_log: bool,
+        dump_timings: bool,
     },
     Run {
         optimize_level: OptimizeLevel,
@@ -36,6 +37,7 @@ pub enum CliCommand {
         jobs: usize,
         color: ColorWhen,
         dump_post_mir_log: bool,
+        dump_timings: bool,
     },
     Test {
         optimize_level: OptimizeLevel,
@@ -47,6 +49,7 @@ pub enum CliCommand {
         jobs: usize,
         color: ColorWhen,
         dump_post_mir_log: bool,
+        dump_timings: bool,
     },
     Clean,
     Help(String),
@@ -79,6 +82,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_flag(&["--emit-irs"])
                 .optional_flag(&["--no-std"])
                 .optional_flag(&["--dump-post-mir-log"])
+                .optional_flag(&["--dump-timings"])
                 .flag_with_default(&[
                     "--no-validate-token-spans",
                     "--validate-token-spans",
@@ -132,8 +136,9 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             let emit_irs = parsed_args.get_flag(2).is_some();
             let import_std = parsed_args.get_flag(3).is_none();
             let dump_post_mir_log = parsed_args.get_flag(4).is_some();
+            let dump_timings = parsed_args.get_flag(5).is_some();
 
-            let validate_token_spans = match parsed_args.get_flag(5).as_ref().map(|s| s.as_str()) {
+            let validate_token_spans = match parsed_args.get_flag(6).as_ref().map(|s| s.as_str()) {
                 Some("--no-validate-token-spans") => ValidateTokenSpans::Never,
                 Some("--validate-token-spans") => ValidateTokenSpans::Always,
                 Some("--validate-std-token-spans") => ValidateTokenSpans::OnlyStd,
@@ -159,6 +164,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 jobs,
                 color,
                 dump_post_mir_log,
+                dump_timings,
             })
         },
         Some("clean") => {
@@ -224,6 +230,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_flag(&["--emit-irs"])
                 .optional_flag(&["--no-std"])
                 .optional_flag(&["--dump-post-mir-log"])
+                .optional_flag(&["--dump-timings"])
                 .flag_with_default(&[
                     "--no-validate-token-spans",
                     "--validate-token-spans",
@@ -259,8 +266,9 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             let emit_irs = parsed_args.get_flag(1).is_some();
             let import_std = parsed_args.get_flag(2).is_none();
             let dump_post_mir_log = parsed_args.get_flag(3).is_some();
+            let dump_timings = parsed_args.get_flag(4).is_some();
 
-            let validate_token_spans = match parsed_args.get_flag(4).as_ref().map(|s| s.as_str()) {
+            let validate_token_spans = match parsed_args.get_flag(5).as_ref().map(|s| s.as_str()) {
                 Some("--no-validate-token-spans") => ValidateTokenSpans::Never,
                 Some("--validate-token-spans") => ValidateTokenSpans::Always,
                 Some("--validate-std-token-spans") => ValidateTokenSpans::OnlyStd,
@@ -278,6 +286,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 jobs,
                 color,
                 dump_post_mir_log,
+                dump_timings,
             })
         },
         Some("test") => {
@@ -288,6 +297,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_flag(&["--emit-irs"])
                 .optional_flag(&["--no-std"])
                 .optional_flag(&["--dump-post-mir-log"])
+                .optional_flag(&["--dump-timings"])
                 .flag_with_default(&[
                     "--no-validate-token-spans",
                     "--validate-token-spans",
@@ -323,8 +333,9 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             let emit_irs = parsed_args.get_flag(1).is_some();
             let import_std = parsed_args.get_flag(2).is_none();
             let dump_post_mir_log = parsed_args.get_flag(3).is_some();
+            let dump_timings = parsed_args.get_flag(4).is_some();
 
-            let validate_token_spans = match parsed_args.get_flag(4).as_ref().map(|s| s.as_str()) {
+            let validate_token_spans = match parsed_args.get_flag(5).as_ref().map(|s| s.as_str()) {
                 Some("--no-validate-token-spans") => ValidateTokenSpans::Never,
                 Some("--validate-token-spans") => ValidateTokenSpans::Always,
                 Some("--validate-std-token-spans") => ValidateTokenSpans::OnlyStd,
@@ -342,6 +353,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 jobs,
                 color,
                 dump_post_mir_log,
+                dump_timings,
             })
         },
         Some(_) => todo!(),

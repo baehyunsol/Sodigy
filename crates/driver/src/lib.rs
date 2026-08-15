@@ -33,7 +33,6 @@ mod error;
 mod global_context;
 mod ir_store;
 mod log;
-mod timings;
 mod worker;
 
 pub use cli::{CliCommand, ColorWhen};
@@ -46,8 +45,14 @@ use cli::parse_args;
 use compile_stage::COMPILE_STAGES;
 use global_context::GlobalContext;
 use ir_store::{emit_irs_if_has_to, get_cached_ir};
-use log::{dump_inter_hir_log, dump_inter_mir_log, dump_post_mir_log};
-use timings::{TimingsEntry, dump_timings};
+use log::{
+    TimingsEntry,
+    dump_inter_hir_log,
+    dump_inter_mir_log,
+    dump_post_mir_log,
+    dump_timings,
+    store_inter_hir_log,
+};
 use worker::{Channel, MessageToMain, MessageToWorker, Worker, WorkerId, init_workers_and_channels};
 
 // The compiler compiles a project module-by-module. This is the status
@@ -134,13 +139,10 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             Ok(())
         },
         cli_command @ (
-            CliCommand::Build { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, .. } |
-            CliCommand::Run { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log } |
-            CliCommand::Test { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log }
+            CliCommand::Build { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings, .. } |
+            CliCommand::Run { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings } |
+            CliCommand::Test { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings }
         ) => {
-            // I want `dump_post_mir_log` to enable more flags! What else can I dump/log?
-            let dump_post_mir_log = *dump_post_mir_log;
-
             // maybe we need a finer control??
             let dump_bytecodes = *emit_irs;
 
@@ -171,7 +173,8 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                 *import_std,
                 custom_error_levels,
                 *emit_irs,
-                dump_post_mir_log,
+                *dump_post_mir_log,
+                *dump_timings,
                 dump_bytecodes,
                 *graceful_shutdown,
                 *jobs,
@@ -210,6 +213,7 @@ pub fn init_workers_and_compile(
     custom_error_levels: &HashMap<u16, CustomErrorLevel>,
     emit_irs: bool,
     dump_post_mir_log: bool,
+    dump_timings_flag: bool,
     dump_bytecodes: bool,
     graceful_shutdown: u32,  // in milliseconds
     jobs: usize,
@@ -222,7 +226,7 @@ pub fn init_workers_and_compile(
     let started_at = Instant::now();
     let mut errors = vec![];
     let mut warnings = vec![];
-    let mut worker_logs = HashMap::new();
+    let mut timings_log = HashMap::new();
     let channels = init_workers_and_channels(jobs);
 
     let result = compile(
@@ -242,7 +246,7 @@ pub fn init_workers_and_compile(
         &channels,
         &mut errors,
         &mut warnings,
-        &mut worker_logs,
+        &mut timings_log,
     );
 
     let elapsed_ms = Instant::now().duration_since(started_at).as_millis();
@@ -289,13 +293,18 @@ pub fn init_workers_and_compile(
 
         // Erroneous workers are already dead and their logs are already collected.
         // The other workers' logs are collected here.
-        if let Some(worker_log) = channel.join() {
-            worker_logs.insert(worker_id, worker_log);
+        if let Some(log) = channel.join() {
+            timings_log.insert(worker_id, log);
         }
     }
 
-    // TODO: make it configurable
-    dump_timings(all_worker_ids, &worker_logs, &ir_dir)?;
+    if dump_timings_flag {
+        dump_timings(all_worker_ids, &timings_log, &ir_dir)?;
+    }
+
+    // This is controlled by cfg, not cli.
+    dump_inter_hir_log(&ir_dir)?;
+
     result?;
 
     match interpret_with_profile {
@@ -329,7 +338,7 @@ fn compile(
     workers: &[Channel],
     errors: &mut Vec<SodigyError>,
     warnings: &mut Vec<SodigyWarning>,
-    worker_logs: &mut HashMap<WorkerId, Vec<TimingsEntry>>,
+    timings_log: &mut HashMap<WorkerId, Vec<TimingsEntry>>,
 ) -> Result<(), Error> {
     let mut shutdown_countdown: Option<Instant> = None;
     let mut round_robin = 0;
@@ -677,7 +686,7 @@ fn compile(
                         continue;
                     },
                     MessageToMain::TimingsLog { worker_id, entries } => {
-                        worker_logs.insert(worker_id, entries);
+                        timings_log.insert(worker_id, entries);
                     },
                     MessageToMain::PostMirLog(matches) => {
                         dump_post_mir_log(&matches, &ir_dir)?;

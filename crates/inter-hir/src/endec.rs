@@ -15,6 +15,8 @@ use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::{HashMap, HashSet};
 
+mod log;
+
 impl Endec for Session {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         // changes everytime

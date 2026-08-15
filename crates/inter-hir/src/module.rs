@@ -3,7 +3,8 @@
 //! in the items, with the methods defined in this module. The methods in this
 //! module are all trivial.
 
-use crate::Session;
+use crate::{LogId, Session, write_log};
+use sodigy_error::ItemKind;
 use sodigy_hir::{
     Assert,
     Enum,
@@ -13,6 +14,9 @@ use sodigy_hir::{
     Session as HirSession,
     Struct,
 };
+
+#[cfg(feature = "log")]
+use crate::log::LogEntry;
 
 impl Session {
     pub fn resolve_module(&mut self, hir_session: &mut HirSession) -> Result<(), ()> {
@@ -68,6 +72,19 @@ impl Session {
     }
 
     pub fn resolve_let(&mut self, r#let: &mut Let) -> Result<(), ()> {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::ResolveItemStart {
+            id: _id.unwrap(),
+            kind: ItemKind::Let,
+            name: Some(r#let.name),
+            span: r#let.name_span.clone(),
+        });
+
         let mut has_error = false;
 
         if let Some(type_annot) = &mut r#let.type_annot {
@@ -88,6 +105,12 @@ impl Session {
             has_error = true;
         }
 
+        write_log!(self, LogEntry::ResolveItemEnd {
+            id: _id.unwrap(),
+            has_error,
+            last_errors: self.last_errors(),
+        });
+
         if has_error {
             Err(())
         }
@@ -98,6 +121,19 @@ impl Session {
     }
 
     pub fn resolve_func(&mut self, func: &mut Func) -> Result<(), ()> {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::ResolveItemStart {
+            id: _id.unwrap(),
+            kind: ItemKind::Func,
+            name: Some(func.name),
+            span: func.name_span.clone(),
+        });
+
         let mut has_error = false;
 
         for param in func.params.iter_mut() {
@@ -130,6 +166,12 @@ impl Session {
             has_error = true;
         }
 
+        write_log!(self, LogEntry::ResolveItemEnd {
+            id: _id.unwrap(),
+            has_error,
+            last_errors: self.last_errors(),
+        });
+
         if has_error {
             Err(())
         }
@@ -140,6 +182,19 @@ impl Session {
     }
 
     pub fn resolve_struct(&mut self, r#struct: &mut Struct) -> Result<(), ()> {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::ResolveItemStart {
+            id: _id.unwrap(),
+            kind: ItemKind::Struct,
+            name: Some(r#struct.name),
+            span: r#struct.name_span.clone(),
+        });
+
         let mut has_error = false;
 
         for field in r#struct.fields.iter_mut() {
@@ -154,6 +209,12 @@ impl Session {
             }
         }
 
+        write_log!(self, LogEntry::ResolveItemEnd {
+            id: _id.unwrap(),
+            has_error,
+            last_errors: self.last_errors(),
+        });
+
         if has_error {
             Err(())
         }
@@ -164,6 +225,19 @@ impl Session {
     }
 
     pub fn resolve_enum(&mut self, r#enum: &mut Enum) -> Result<(), ()> {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::ResolveItemStart {
+            id: _id.unwrap(),
+            kind: ItemKind::Enum,
+            name: Some(r#enum.name),
+            span: r#enum.name_span.clone(),
+        });
+
         let mut has_error = false;
 
         for variant in r#enum.variants.iter_mut() {
@@ -196,6 +270,12 @@ impl Session {
             }
         }
 
+        write_log!(self, LogEntry::ResolveItemEnd {
+            id: _id.unwrap(),
+            has_error,
+            last_errors: self.last_errors(),
+        });
+
         if has_error {
             Err(())
         }
@@ -206,6 +286,19 @@ impl Session {
     }
 
     pub fn resolve_assert(&mut self, assert: &mut Assert) -> Result<(), ()> {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::ResolveItemStart {
+            id: _id.unwrap(),
+            kind: ItemKind::Assert,
+            name: assert.name,
+            span: assert.keyword_span.clone(),
+        });
+
         let mut has_error = false;
 
         if let Some(note) = &mut assert.note {
@@ -225,6 +318,12 @@ impl Session {
         else if let Err(()) = self.check_expr_path(&assert.value) {
             has_error = true;
         }
+
+        write_log!(self, LogEntry::ResolveItemEnd {
+            id: _id.unwrap(),
+            has_error,
+            last_errors: self.last_errors(),
+        });
 
         if has_error {
             Err(())

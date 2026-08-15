@@ -1,6 +1,8 @@
 // This file is mostly copy-paste of `inter-mir/src/log.rs`.
-use sodigy_error::Error;
+use sodigy_error::{Error, ItemKind};
 use sodigy_hir::{Expr, Path, Pattern, Type, Use};
+use sodigy_span::Span;
+use sodigy_string::InternedString;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 macro_rules! write_log {
@@ -15,7 +17,7 @@ macro_rules! write_log {
 static NEXT_ID: AtomicU32 = AtomicU32::new(0);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct LogId(u32);
+pub struct LogId(pub(crate) u32);
 
 impl LogId {
     pub fn new() -> Self {
@@ -35,6 +37,17 @@ pub enum LogEntry {
     },
     ResolveAliasLoopStart(u32),
     ResolveAliasLoopEnd(u32),
+    ResolveItemStart {
+        id: LogId,
+        kind: ItemKind,  // only let, func, struct, enum, or assert
+        name: Option<InternedString>,
+        span: Span,
+    },
+    ResolveItemEnd {
+        id: LogId,
+        has_error: bool,
+        last_errors: Vec<Error>,
+    },
     ResolveUseStart {
         id: LogId,
         r#use: Use,
@@ -90,7 +103,23 @@ pub enum LogEntry {
 
 impl LogEntry {
     pub fn id(&self) -> LogId {
-        todo!()
+        match self {
+            LogEntry::ResolveAliasStart { id } |
+            LogEntry::ResolveAliasEnd { id, .. } |
+            LogEntry::ResolveItemStart { id, .. } |
+            LogEntry::ResolveItemEnd { id, .. } |
+            LogEntry::ResolveUseStart { id, .. } |
+            LogEntry::ResolveUseEnd { id, .. } |
+            LogEntry::ResolvePathStart { id, .. } |
+            LogEntry::ResolvePathEnd { id, .. } |
+            LogEntry::ResolveExprStart { id, .. } |
+            LogEntry::ResolveExprEnd { id, .. } |
+            LogEntry::ResolvePatternStart { id, .. } |
+            LogEntry::ResolvePatternEnd { id, .. } |
+            LogEntry::ResolveTypeStart { id, .. } |
+            LogEntry::ResolveTypeEnd { id, .. } => *id,
+            LogEntry::ResolveAliasLoopStart(n) | LogEntry::ResolveAliasLoopEnd(n) => LogId(0x4_0000 | n),
+        }
     }
 }
 

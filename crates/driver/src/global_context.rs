@@ -5,6 +5,17 @@ use sodigy_span::Span;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
+// Let's say there are N workers.
+// 1. One of the workers will initialize inter_hir_session and store it to disk.
+// 2. The other workers will load the inter_hir_session from the disk.
+// 3. Every worker is in the mir stage. They need the inter_hir_session, and
+//    each has a copy of the inter_hir_session. They can even modify their copy
+//    of the inter_hir_session, but the modifications are not shared between
+//    workers.
+// 4. Same for inter_mir_session.
+// 5. When loading the inter_mir_session, the workers also load the `types`.
+// 6. The `types` are shared. Any worker can update the `types` and the updates
+//    are propagated immediately.
 pub struct GlobalContext {
     pub inter_hir_session: Option<inter_hir::Session>,
     pub inter_mir_session: Option<inter_mir::Session>,

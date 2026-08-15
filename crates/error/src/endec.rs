@@ -3,6 +3,7 @@ use crate::{
     Error,
     ErrorKind,
     ErrorToken,
+    ItemKind,
     NameCollisionKind,
     NotXBut,
     ParamIndex,
@@ -353,6 +354,56 @@ impl Endec for TypeVarInfo {
             Some(1) => Ok((TypeVarInfo::ListExpr, cursor + 1)),
             Some(2) => Ok((TypeVarInfo::ListPattern, cursor + 1)),
             Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+
+impl Endec for ItemKind {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            ItemKind::Alias => {
+                buffer.push(0);
+            },
+            ItemKind::Assert => {
+                buffer.push(1);
+            },
+            ItemKind::Enum => {
+                buffer.push(2);
+            },
+            ItemKind::EnumVariant => {
+                buffer.push(3);
+            },
+            ItemKind::Func => {
+                buffer.push(4);
+            },
+            ItemKind::Let => {
+                buffer.push(5);
+            },
+            ItemKind::Module => {
+                buffer.push(6);
+            },
+            ItemKind::Struct => {
+                buffer.push(7);
+            },
+            ItemKind::Use => {
+                buffer.push(8);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => Ok((ItemKind::Alias, cursor + 1)),
+            Some(1) => Ok((ItemKind::Assert, cursor + 1)),
+            Some(2) => Ok((ItemKind::Enum, cursor + 1)),
+            Some(3) => Ok((ItemKind::EnumVariant, cursor + 1)),
+            Some(4) => Ok((ItemKind::Func, cursor + 1)),
+            Some(5) => Ok((ItemKind::Let, cursor + 1)),
+            Some(6) => Ok((ItemKind::Module, cursor + 1)),
+            Some(7) => Ok((ItemKind::Struct, cursor + 1)),
+            Some(8) => Ok((ItemKind::Use, cursor + 1)),
+            Some(n @ 9..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

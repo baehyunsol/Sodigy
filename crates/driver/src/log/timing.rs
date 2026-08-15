@@ -233,7 +233,7 @@ fn dump_timings_html(
         format!("<ul>{elements}</ul>")
     };
 
-    let style = include_str!("timings/style.css");
+    let style = include_str!("timing/style.css");
 
     // It draws 8 graphs.
     // All stages, long (4096 pixels)
