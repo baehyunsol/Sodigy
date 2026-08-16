@@ -506,7 +506,7 @@ fn render_span_worker(
                     }
                 }
 
-                *label_index += labels.len();
+                *label_index += labels.iter().map(|label| label.index.len()).sum::<usize>();
             }
 
             let mut label_lines = vec![vec![b' '; max_width]; max_depth * 2];
