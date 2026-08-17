@@ -170,6 +170,7 @@ pub enum Memory {
     // A register for a return value.
     // A return value maybe stored here or directly stored in a SSA register.
     Return,
+
     SSA(SSA),
 
     Heap {

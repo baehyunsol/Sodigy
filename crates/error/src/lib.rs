@@ -156,7 +156,8 @@ pub enum FuncEffect {
     Callable,
 
     // It's for effect-inference.
-    Var(Span),
+    // NOTE: `Span` is too big, so I'm using `Box<Span>`.
+    Var(Box<Span>),
 }
 
 impl FuncEffect {

@@ -202,6 +202,7 @@ impl Expr {
     pub fn block_or_expr(block: Block) -> Expr {
         if block.lets.is_empty() && block.funcs.is_empty() &&
             block.structs.is_empty() && block.enums.is_empty() &&
+            block.asserts.is_empty() && block.does.is_empty() &&
             block.modules.is_empty() && block.uses.is_empty() &&
             block.value.is_some()
         {

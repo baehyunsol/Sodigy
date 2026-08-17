@@ -1,5 +1,6 @@
 mod assert;
 mod r#enum;
+mod r#do;
 mod expr;
 mod func;
 mod r#let;

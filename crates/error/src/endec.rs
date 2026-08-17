@@ -443,7 +443,7 @@ impl Endec for FuncEffect {
             Some(3) => Ok((FuncEffect::NdetProc, cursor + 1)),
             Some(4) => Ok((FuncEffect::Callable, cursor + 1)),
             Some(5) => {
-                let (s, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                let (s, cursor) = Box::<Span>::decode_impl(buffer, cursor + 1)?;
                 Ok((FuncEffect::Var(s), cursor))
             },
             Some(n @ 6..) => Err(DecodeError::InvalidEnumVariant(*n)),

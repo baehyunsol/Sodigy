@@ -275,6 +275,12 @@ impl Session {
                     }
                 }
 
+                for r#do in block.does.iter() {
+                    if let (_, true) = self.solve_expr(&r#do.value, impure_calls) {
+                        has_error = true;
+                    }
+                }
+
                 let (expr_type, e) = self.solve_expr(block.value.as_ref(), impure_calls);
                 (expr_type, e || has_error)
             },

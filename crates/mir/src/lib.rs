@@ -3,6 +3,7 @@ use sodigy_inter_hir::Session as InterHirSession;
 
 mod assert;
 mod block;
+mod r#do;
 pub(crate) mod dump;
 mod endec;
 mod r#enum;
@@ -24,6 +25,7 @@ mod tests;
 
 pub use assert::Assert;
 pub use block::Block;
+pub use r#do::Do;
 pub use dump::{dump_expr, dump_field_to_string, render_type, span_to_string, span_to_string_or_verbose};
 pub use r#enum::{Enum, EnumVariant, EnumVariantFields};
 pub use expr::{Callable, Expr, ShortCircuitKind, false_value, true_value};

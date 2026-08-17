@@ -127,7 +127,7 @@ pub fn lower_expr(
             }
         },
         Expr::Match(Match { .. }) => unreachable!(),
-        Expr::Block(Block { lets, asserts, value, .. }) => {
+        Expr::Block(Block { lets, asserts, does, value, .. }) => {
             for r#let in lets.iter() {
                 let ssa_reg = session.get_ssa();
                 session.ssa_map.insert(r#let.name_span.clone(), ssa_reg);
@@ -143,6 +143,18 @@ pub fn lower_expr(
 
             for assert in asserts.iter() {
                 bytecodes.extend(Assert::from_mir(assert, session, /* is_top_level: */ false).bytecodes);
+            }
+
+            for r#do in does.iter() {
+                let null_ssa = session.get_ssa();
+                let dst = Memory::SSA(null_ssa);
+                lower_expr(
+                    &r#do.value,
+                    session,
+                    bytecodes,
+                    dst.clone(),
+                    /* is_tail_call: */ false,
+                );
             }
 
             lower_expr(value, session, bytecodes, dst, is_tail_call);

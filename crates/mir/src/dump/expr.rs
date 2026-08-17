@@ -161,6 +161,14 @@ pub fn dump_expr<S: SodigySession>(
                 dump_assert(assert, lines, types, session);
             }
 
+            for r#do in block.does.iter() {
+                lines.break_line();
+                lines.push("do ");
+                dump_expr(&r#do.value, lines, types, session, max_len, true);
+                lines.push(";");
+                lines.break_line();
+            }
+
             dump_expr(&block.value, lines, types, session, max_len, single_line);
 
             if single_line {

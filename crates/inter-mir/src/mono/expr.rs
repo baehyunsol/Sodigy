@@ -80,6 +80,10 @@ impl Session {
                         *note_decorator_span = note_decorator_span.monomorphize(monomorphization.id);
                     }
                 }
+
+                for r#do in block.does.iter_mut() {
+                    todo!();
+                }
             },
             Expr::Field { lhs, fields, dotfish } => {
                 self.monomorphize_expr(lhs, wildcard_spans, monomorphization);

@@ -41,9 +41,9 @@ pub struct Block {
 impl Block {
     pub fn from_ast(ast_block: &ast::Block, session: &mut Session) -> Result<Block, ()> {
         let mut has_error = false;
-        let mut lets = vec![];
-        let mut asserts = vec![];
-        let mut does = vec![];
+        let mut lets = Vec::with_capacity(ast_block.lets.len());
+        let mut asserts = Vec::with_capacity(ast_block.asserts.len());
+        let mut does = Vec::with_capacity(ast_block.does.len());
 
         // NOTE: You must do this before calling `.is_at_top_level_block()` because
         // the method counts the number of `BlockSession`s!

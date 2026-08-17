@@ -322,6 +322,7 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
                 origin: LetOrigin::Match,
             }],
             asserts: vec![],
+            does: vec![],
             value: Box::new(tree_expr),
         })
     } else {
