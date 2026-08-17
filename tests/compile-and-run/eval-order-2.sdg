@@ -1,0 +1,8 @@
+let x = {
+    assert y > 200;
+    let y = 300;
+
+    y + 1
+};
+
+assert x == 301;
