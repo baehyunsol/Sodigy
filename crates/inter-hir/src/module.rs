@@ -4,7 +4,6 @@
 //! module are all trivial.
 
 use crate::{LogId, Session, write_log};
-use sodigy_error::ItemKind;
 use sodigy_hir::{
     Assert,
     Enum,

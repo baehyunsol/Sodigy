@@ -924,14 +924,14 @@ impl Session {
                 }
 
                 Error {
-                    kind: ErrorKind::ImpureCallInPureContext { context: context_effect.into() },
+                    kind: ErrorKind::ImpureCallInPureContext { context: context_effect },
                     spans,
                     note: error_note,
                 }
             },
 
             TypeWarning::NoImpureCallInImpureContext { effect_keyword_span, context_effect } => Warning {
-                kind: WarningKind::NoImpureCallInImpureContext { context: context_effect.into() },
+                kind: WarningKind::NoImpureCallInImpureContext { context: context_effect },
                 spans: vec![RenderableSpan {
                     span: effect_keyword_span.clone(),
                     auxiliary: false,
