@@ -7,7 +7,7 @@ pub struct Block {
     pub group_span: Span,
     pub lets: Vec<Let>,
     pub asserts: Vec<Assert>,
-    pub does: Vec<Do>,
+    pub dos: Vec<Do>,
     pub value: Box<Expr>,
 }
 
@@ -16,7 +16,7 @@ impl Block {
         let mut has_error = false;
         let mut lets = Vec::with_capacity(hir_block.lets.len());
         let mut asserts = Vec::with_capacity(hir_block.asserts.len());
-        let mut does = Vec::with_capacity(hir_block.does.len());
+        let mut dos = Vec::with_capacity(hir_block.dos.len());
 
         for r#let in hir_block.lets.iter() {
             match Let::from_hir(r#let, session) {
@@ -40,10 +40,10 @@ impl Block {
             }
         }
 
-        for r#do in hir_block.does.iter() {
+        for r#do in hir_block.dos.iter() {
             match Do::from_hir(r#do, session) {
                 Ok(d) => {
-                    does.push(d);
+                    dos.push(d);
                 },
                 Err(_) => {
                     has_error = true;
@@ -68,7 +68,7 @@ impl Block {
                 group_span: hir_block.group_span.clone(),
                 lets,
                 asserts,
-                does,
+                dos,
                 value: Box::new(value.unwrap()),
             })
         }

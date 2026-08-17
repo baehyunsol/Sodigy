@@ -81,7 +81,7 @@ impl Session {
                     }
                 }
 
-                for r#do in block.does.iter_mut() {
+                for r#do in block.dos.iter_mut() {
                     todo!();
                 }
             },

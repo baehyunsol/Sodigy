@@ -120,7 +120,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session, max_
                 dump_assert(assert, lines, session);
             }
 
-            for r#do in block.does.iter() {
+            for r#do in block.dos.iter() {
                 lines.break_line();
                 lines.push("do ");
                 dump_expr(&r#do.value, lines, session, 0);

@@ -26,7 +26,7 @@ pub struct Block {
     pub structs: Vec<Struct>,
     pub enums: Vec<Enum>,
     pub asserts: Vec<Assert>,
-    pub does: Vec<Do>,
+    pub dos: Vec<Do>,
     pub aliases: Vec<Alias>,
     pub uses: Vec<Use>,
 
@@ -54,7 +54,7 @@ impl Block {
             structs: vec![],
             enums: vec![],
             asserts: vec![],
-            does: vec![],
+            dos: vec![],
             aliases: vec![],
             modules: vec![],
             uses: vec![],
@@ -108,7 +108,7 @@ impl<'t, 's> Tokens<'t, 's> {
         let mut structs = vec![];
         let mut enums = vec![];
         let mut asserts = vec![];
-        let mut does = vec![];
+        let mut dos = vec![];
         let mut aliases = vec![];
         let mut modules = vec![];
         let mut uses = vec![];
@@ -258,7 +258,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         match self.parse_do() {
                             Ok(mut r#do) => {
                                 r#do.attribute = attribute;
-                                does.push(r#do);
+                                dos.push(r#do);
                             },
                             Err(e) => {
                                 errors.extend(e);
@@ -420,7 +420,7 @@ impl<'t, 's> Tokens<'t, 's> {
             structs,
             enums,
             asserts,
-            does,
+            dos,
             aliases,
             modules,
             uses,

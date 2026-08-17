@@ -450,7 +450,7 @@ impl Expr {
                     structs: vec![],
                     enums: vec![],
                     asserts: vec![],
-                    does: vec![],
+                    dos: vec![],
                     aliases: vec![],
                     uses: vec![],
                     modules: vec![],

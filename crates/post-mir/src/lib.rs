@@ -61,7 +61,7 @@ fn lower_expr(expr: &mut Expr, session: &mut Session) -> Result<(), ()> {
                 has_error |= lower_expr(&mut assert.value, session).is_err();
             }
 
-            for r#do in block.does.iter_mut() {
+            for r#do in block.dos.iter_mut() {
                 has_error |= lower_expr(&mut r#do.value, session).is_err();
             }
 

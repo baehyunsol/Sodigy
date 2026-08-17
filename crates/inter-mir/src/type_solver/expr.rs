@@ -275,7 +275,7 @@ impl Session {
                     }
                 }
 
-                for r#do in block.does.iter() {
+                for r#do in block.dos.iter() {
                     if let (_, true) = self.solve_expr(&r#do.value, impure_calls) {
                         has_error = true;
                     }

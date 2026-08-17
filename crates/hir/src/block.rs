@@ -29,7 +29,7 @@ pub struct Block {
     pub group_span: Span,
     pub lets: Vec<Let>,
     pub asserts: Vec<Assert>,
-    pub does: Vec<Do>,
+    pub dos: Vec<Do>,
     pub value: Box<Expr>,
 
     // TODO: The term `use` in `use_counts` is confusing.
@@ -43,7 +43,7 @@ impl Block {
         let mut has_error = false;
         let mut lets = Vec::with_capacity(ast_block.lets.len());
         let mut asserts = Vec::with_capacity(ast_block.asserts.len());
-        let mut does = Vec::with_capacity(ast_block.does.len());
+        let mut dos = Vec::with_capacity(ast_block.dos.len());
 
         // NOTE: You must do this before calling `.is_at_top_level_block()` because
         // the method counts the number of `BlockSession`s!
@@ -75,10 +75,10 @@ impl Block {
             }
         }
 
-        for r#do in ast_block.does.iter() {
+        for r#do in ast_block.dos.iter() {
             match Do::from_ast(r#do, session) {
                 Ok(r#do) => {
-                    does.push(r#do);
+                    dos.push(r#do);
                 },
                 Err(()) => {
                     has_error = true;
@@ -324,7 +324,7 @@ impl Block {
                 group_span: ast_block.group_span.clone(),
                 lets,
                 asserts,
-                does,
+                dos,
                 value: Box::new(value.unwrap()),
                 use_counts,
             })

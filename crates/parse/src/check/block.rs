@@ -22,7 +22,7 @@ impl Block {
             }
         }
 
-        for r#do in self.does.iter() {
+        for r#do in self.dos.iter() {
             if let Err(e) = r#do.value.check(intermediate_dir) {
                 errors.extend(e);
             }

@@ -134,7 +134,7 @@ impl Endec for Block {
         self.group_span.encode_impl(buffer);
         self.lets.encode_impl(buffer);
         self.asserts.encode_impl(buffer);
-        self.does.encode_impl(buffer);
+        self.dos.encode_impl(buffer);
         self.value.encode_impl(buffer);
     }
 
@@ -142,7 +142,7 @@ impl Endec for Block {
         let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (lets, cursor) = Vec::<Let>::decode_impl(buffer, cursor)?;
         let (asserts, cursor) = Vec::<Assert>::decode_impl(buffer, cursor)?;
-        let (does, cursor) = Vec::<Do>::decode_impl(buffer, cursor)?;
+        let (dos, cursor) = Vec::<Do>::decode_impl(buffer, cursor)?;
         let (value, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
 
         Ok((
@@ -150,7 +150,7 @@ impl Endec for Block {
                 group_span,
                 lets,
                 asserts,
-                does,
+                dos,
                 value,
             },
             cursor,

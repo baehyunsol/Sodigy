@@ -205,7 +205,7 @@ impl DecisionTree {
             group_span: Span::None,
             lets,
             asserts: vec![],
-            does: vec![],
+            dos: vec![],
             value: Box::new(value),
         })
     }

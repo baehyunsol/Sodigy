@@ -61,7 +61,7 @@ impl Expr {
                     }
                 }
 
-                for r#do in block.does.iter_mut() {
+                for r#do in block.dos.iter_mut() {
                     r#do.value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
                 }
 

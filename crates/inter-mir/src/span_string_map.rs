@@ -131,7 +131,7 @@ impl Session {
                     self.init_span_string_map_assert(assert, result);
                 }
 
-                for r#do in block.does.iter() {
+                for r#do in block.dos.iter() {
                     self.init_span_string_map_expr(&r#do.value, result);
                 }
 

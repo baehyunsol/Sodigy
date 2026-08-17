@@ -140,7 +140,7 @@ impl Session {
                     }
                 }
 
-                for r#do in block.does.iter_mut() {
+                for r#do in block.dos.iter_mut() {
                     if let Err(()) = self.resolve_expr(&mut r#do.value) {
                         has_error = true;
                     }
@@ -371,7 +371,7 @@ impl Session {
                     }
                 }
 
-                for r#do in block.does.iter() {
+                for r#do in block.dos.iter() {
                     if let Err(()) = self.check_expr_path(&r#do.value) {
                         has_error = true;
                     }
