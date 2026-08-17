@@ -589,12 +589,12 @@ impl Session {
                                 },
                                 (Some(e1 @ (FuncEffect::Callable | FuncEffect::Fn | FuncEffect::Proc | FuncEffect::NdetFn | FuncEffect::NdetProc)), None) => {
                                     let e1 = e1.clone();
-                                    self.effect_vars.insert(v2.clone(), e1.clone());
+                                    self.effect_vars.insert(*v2.clone(), e1.clone());
                                     e1.clone()
                                 },
                                 (None, Some(e2 @ (FuncEffect::Callable | FuncEffect::Fn | FuncEffect::Proc | FuncEffect::NdetFn | FuncEffect::NdetProc))) => {
                                     let e2 = e2.clone();
-                                    self.effect_vars.insert(v1.clone(), e2.clone());
+                                    self.effect_vars.insert(*v1.clone(), e2.clone());
                                     e2.clone()
                                 },
                                 (None, None) => e1.clone(),  // lhs is the supertype.
@@ -603,7 +603,7 @@ impl Session {
 
                             // Supertype of `FuncEffect::Callable` is `FuncEffect::Callable`.
                             (FuncEffect::Var(v), FuncEffect::Callable) => {
-                                self.effect_vars.insert(v.clone(), FuncEffect::Callable);
+                                self.effect_vars.insert(*v.clone(), FuncEffect::Callable);
                                 FuncEffect::Callable
                             },
 
@@ -615,7 +615,7 @@ impl Session {
                             (FuncEffect::Callable, FuncEffect::Var(_)) => FuncEffect::Callable,
 
                             (e1 @ (FuncEffect::Fn | FuncEffect::Proc | FuncEffect::NdetFn | FuncEffect::NdetProc), FuncEffect::Var(v)) => {
-                                self.effect_vars.insert(v.clone(), e1.clone());
+                                self.effect_vars.insert(*v.clone(), e1.clone());
                                 e1.clone()
                             },
                             (FuncEffect::Callable, _) => FuncEffect::Callable,

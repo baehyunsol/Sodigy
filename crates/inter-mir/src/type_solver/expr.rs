@@ -917,7 +917,7 @@ impl Session {
                                             is_return: false,
                                         };
                                         // Maybe it's solved in the previous iterations!
-                                        let effect = self.effect_vars.get(&call_span).cloned().unwrap_or_else(|| FuncEffect::Var(call_span.clone()));
+                                        let effect = self.effect_vars.get(&call_span).cloned().unwrap_or_else(|| FuncEffect::Var(Box::new(call_span.clone())));
                                         let intermediate_func_type = Type::Func {
                                             fn_span: Span::None,
                                             group_span: Span::None,
