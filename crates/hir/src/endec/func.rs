@@ -3,9 +3,9 @@ use crate::{
     CapturedNames,
     Expr,
     Func,
+    FuncEffect,
     FuncOrigin,
     FuncParam,
-    FuncPurity,
     FuncShape,
     Type,
     Visibility,
@@ -19,8 +19,9 @@ use std::collections::HashMap;
 
 impl Endec for Func {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
-        self.is_pure.encode_impl(buffer);
         self.visibility.encode_impl(buffer);
+        self.effect.encode_impl(buffer);
+        self.ndet_span.encode_impl(buffer);
         self.keyword_span.encode_impl(buffer);
         self.name.encode_impl(buffer);
         self.name_span.encode_impl(buffer);
@@ -37,8 +38,9 @@ impl Endec for Func {
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        let (is_pure, cursor) = bool::decode_impl(buffer, cursor)?;
         let (visibility, cursor) = Visibility::decode_impl(buffer, cursor)?;
+        let (effect, cursor) = FuncEffect::decode_impl(buffer, cursor)?;
+        let (ndet_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (keyword_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
@@ -55,8 +57,9 @@ impl Endec for Func {
 
         Ok((
             Func {
-                is_pure,
                 visibility,
+                effect,
+                ndet_span,
                 keyword_span,
                 name,
                 name_span,
@@ -136,20 +139,26 @@ impl Endec for FuncOrigin {
     }
 }
 
-impl Endec for FuncPurity {
+impl Endec for FuncEffect {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            FuncPurity::Pure => {
+            FuncEffect::Fn => {
                 buffer.push(0);
             },
-            FuncPurity::Impure => {
+            FuncEffect::Proc => {
                 buffer.push(1);
             },
-            FuncPurity::Both => {
+            FuncEffect::NdetFn => {
                 buffer.push(2);
             },
-            FuncPurity::Var(s) => {
+            FuncEffect::NdetProc => {
                 buffer.push(3);
+            },
+            FuncEffect::Callable => {
+                buffer.push(4);
+            },
+            FuncEffect::Var(s) => {
+                buffer.push(5);
                 s.encode_impl(buffer);
             },
         }
@@ -157,14 +166,16 @@ impl Endec for FuncPurity {
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         match buffer.get(cursor) {
-            Some(0) => Ok((FuncPurity::Pure, cursor + 1)),
-            Some(1) => Ok((FuncPurity::Impure, cursor + 1)),
-            Some(2) => Ok((FuncPurity::Both, cursor + 1)),
-            Some(3) => {
+            Some(0) => Ok((FuncEffect::Fn, cursor + 1)),
+            Some(1) => Ok((FuncEffect::Proc, cursor + 1)),
+            Some(2) => Ok((FuncEffect::NdetFn, cursor + 1)),
+            Some(3) => Ok((FuncEffect::NdetProc, cursor + 1)),
+            Some(4) => Ok((FuncEffect::Callable, cursor + 1)),
+            Some(5) => {
                 let (s, cursor) = Span::decode_impl(buffer, cursor + 1)?;
-                Ok((FuncPurity::Var(s), cursor))
+                Ok((FuncEffect::Var(s), cursor))
             },
-            Some(n @ 4..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 6..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

@@ -101,7 +101,7 @@ impl Let {
                 kind: AssociatedItemKind::Let,
                 name: ast_let.name,
                 name_span: ast_let.name_span.clone(),
-                is_pure: None,
+                effect: None,
                 params: None,
                 type_span: association.args[0].error_span_wide(),
                 r#type: association.args[0].clone().unwrap_type(),

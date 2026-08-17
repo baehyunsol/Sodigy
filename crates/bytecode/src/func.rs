@@ -1,4 +1,5 @@
 use crate::{Bytecode, Memory, Session, SSA, lower_expr};
+use sodigy_hir::FuncEffect;
 use sodigy_mir as mir;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -6,7 +7,7 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Func {
-    pub is_pure: bool,
+    pub effect: FuncEffect,
     pub name: InternedString,
     pub name_span: Span,
     pub params: usize,
@@ -36,7 +37,7 @@ impl Func {
         );
 
         Func {
-            is_pure: mir_func.is_pure,
+            effect: mir_func.effect.clone(),
             name: mir_func.name,
             name_span: mir_func.name_span.clone(),
             params: mir_func.params.len(),

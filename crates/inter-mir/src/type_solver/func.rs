@@ -20,7 +20,7 @@ impl Session {
             func: func.clone(),
         });
 
-        let mut impure_calls = vec![];
+        let mut impure_calls = HashMap::new();
         let mut span_to_name_map = vec![(func.name_span.clone(), func.name)];
 
         for param in func.params.iter() {

@@ -213,6 +213,7 @@ impl TokenKind {
                 // `proc \(x) => { .. }` is an expression
                 Keyword::If |
                 Keyword::Proc |
+                Keyword::Ndet |
                 Keyword::Match => true,
             },
 

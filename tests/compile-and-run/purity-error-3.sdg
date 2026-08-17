@@ -2,7 +2,7 @@
 
 let fs = [
     \(x, y) => x + y,
-    proc \(x, y) => x + y + 1,
+    ndet \(x, y) => x + y + 1,
 ];
 
 let x = fs[0](10, 20);

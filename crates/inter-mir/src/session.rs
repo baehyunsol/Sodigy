@@ -1,7 +1,7 @@
 use crate::{AssociatedFuncInstance, LogEntry, Monomorphization};
 use crate::error::{TypeError, TypeWarning};
 use sodigy_error::{Error, TypeVarInfo, Warning};
-use sodigy_hir::{EnumShape, FuncPurity, FuncShape, ItemShape, Poly, StructShape};
+use sodigy_hir::{EnumShape, FuncEffect, FuncShape, ItemShape, Poly, StructShape};
 use sodigy_mir::{Session as MirSession, Type};
 use sodigy_span::{Span, SpanId};
 use sodigy_string::InternedString;
@@ -35,9 +35,8 @@ pub struct Session {
     // A type var can be either `Type::Var` or `Type::GenericArg`.
     pub type_var_refs: HashMap<Type, Vec<Type>>,
 
-    // This is used for purity-inference and purity-unification.
-    // Its value must be either FuncPurity::Both, FuncPurity::Pure or FuncPurity::Impure.
-    pub purity_vars: HashMap<Span, FuncPurity>,
+    // This is used for effect-inference and effect-unification.
+    pub effect_vars: HashMap<Span, FuncEffect>,
 
     // If it infers that `Type::Var(x) = Type::Never`, it doesn't substitute
     // `x` with `Type::Never` and continues to infer `x`.
@@ -128,7 +127,7 @@ impl Session {
         Session {
             type_vars: HashMap::new(),
             type_var_refs: HashMap::new(),
-            purity_vars: HashMap::new(),
+            effect_vars: HashMap::new(),
             maybe_never_type: HashMap::new(),
             blocked_type_vars: HashSet::new(),
             pattern_name_bindings: HashSet::new(),
@@ -168,7 +167,7 @@ impl Session {
         Session {
             type_vars: HashMap::new(),
             type_var_refs: HashMap::new(),
-            purity_vars: HashMap::new(),
+            effect_vars: HashMap::new(),
             maybe_never_type: HashMap::new(),
             blocked_type_vars: HashSet::new(),
             pattern_name_bindings: HashSet::new(),

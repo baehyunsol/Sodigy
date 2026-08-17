@@ -1,12 +1,13 @@
 use crate::{Expr, Session, Type};
-use sodigy_hir::{self as hir, FuncOrigin, FuncParam, FuncPurity, FuncShape, Generic};
+use sodigy_hir::{self as hir, FuncEffect, FuncOrigin, FuncParam, FuncShape, Generic};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::hash_map::{Entry, HashMap};
 
 #[derive(Clone, Debug)]
 pub struct Func {
-    pub is_pure: bool,
+    pub effect: FuncEffect,
+    pub ndet_span: Option<Span>,
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
@@ -110,7 +111,7 @@ impl Func {
                 group_span: Span::None,
                 params: param_types,
                 r#return: Box::new(return_type),
-                purity: if hir_func.is_pure { FuncPurity::Pure } else { FuncPurity::Impure },
+                effect: hir_func.effect.clone(),
             },
         );
 
@@ -120,7 +121,8 @@ impl Func {
 
         else {
             Ok(Func {
-                is_pure: hir_func.is_pure,
+                effect: hir_func.effect.clone(),
+                ndet_span: hir_func.ndet_span.clone(),
                 keyword_span: hir_func.keyword_span.clone(),
                 name: hir_func.name,
                 name_span: hir_func.name_span.clone(),

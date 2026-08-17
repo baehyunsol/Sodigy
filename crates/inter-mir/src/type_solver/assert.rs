@@ -1,13 +1,15 @@
 use crate::{LogId, Session, Type, write_log};
 use crate::error::ErrorContext;
+use sodigy_hir::FuncEffect;
 use sodigy_mir::{Assert, string_type};
 use sodigy_span::Span;
+use std::collections::HashMap;
 
 #[cfg(feature = "log")]
 use crate::log::LogEntry;
 
 impl Session {
-    pub fn solve_assert(&mut self, assert: &Assert, impure_calls: &mut Vec<Span>) -> Result<(), ()> {
+    pub fn solve_assert(&mut self, assert: &Assert, impure_calls: &mut HashMap<FuncEffect, Vec<Span>>) -> Result<(), ()> {
         let _id = if cfg!(feature = "log") {
             Some(LogId::new())
         } else {

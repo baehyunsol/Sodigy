@@ -20,19 +20,13 @@ pub fn dump_func(func: &Func, lines: &mut IndentedLines, session: &Session) {
     let curr_len = lines.total_chars();
     dump_visibility(&func.visibility, lines, session);
 
-    if !func.is_pure {
-        if curr_len < lines.total_chars() {
-            lines.push(" ");
-        }
-
-        lines.push("impure");
-    }
-
     if curr_len < lines.total_chars() {
         lines.push(" ");
     }
 
-    lines.push(&format!("fn {}", func.name.unintern_or_default(&session.intermediate_dir)));
+    lines.push(func.effect.keyword());
+    lines.push(" ");
+    lines.push(&func.name.unintern_or_default(&session.intermediate_dir));
 
     if !func.generics.is_empty() {
         lines.push("<");

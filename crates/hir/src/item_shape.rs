@@ -38,11 +38,11 @@ macro_rules! item_shape_impl {
                         }
                     ).chain(
                         s.associated_funcs.iter().map(
-                            |(name, AssociatedFunc { is_pure, params, name_spans, .. })| AssociatedItem {
+                            |(name, AssociatedFunc { effect, params, name_spans, .. })| AssociatedItem {
                                 kind: AssociatedItemKind::Func,
                                 name: *name,
                                 name_span: name_spans[0].clone(),
-                                is_pure: Some(*is_pure),
+                                effect: Some(effect.clone()),
                                 params: Some(*params),
                                 ..AssociatedItem::default()
                             }
@@ -66,11 +66,11 @@ macro_rules! item_shape_impl {
                         }
                     ).chain(
                         e.associated_funcs.iter().map(
-                            |(name, AssociatedFunc { is_pure, params, name_spans, .. })| AssociatedItem {
+                            |(name, AssociatedFunc { effect, params, name_spans, .. })| AssociatedItem {
                                 kind: AssociatedItemKind::Func,
                                 name: *name,
                                 name_span: name_spans[0].clone(),
-                                is_pure: Some(*is_pure),
+                                effect: Some(effect.clone()),
                                 params: Some(*params),
                                 ..AssociatedItem::default()
                             }

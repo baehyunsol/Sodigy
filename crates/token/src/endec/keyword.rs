@@ -22,29 +22,32 @@ impl Endec for Keyword {
             Keyword::Proc => {
                 buffer.push(5);
             },
-            Keyword::If => {
+            Keyword::Ndet => {
                 buffer.push(6);
             },
-            Keyword::Let => {
+            Keyword::If => {
                 buffer.push(7);
             },
-            Keyword::Match => {
+            Keyword::Let => {
                 buffer.push(8);
             },
-            Keyword::Mod => {
+            Keyword::Match => {
                 buffer.push(9);
             },
-            Keyword::Pub => {
+            Keyword::Mod => {
                 buffer.push(10);
             },
-            Keyword::Struct => {
+            Keyword::Pub => {
                 buffer.push(11);
             },
-            Keyword::Type => {
+            Keyword::Struct => {
                 buffer.push(12);
             },
-            Keyword::Use => {
+            Keyword::Type => {
                 buffer.push(13);
+            },
+            Keyword::Use => {
+                buffer.push(14);
             },
         }
     }
@@ -57,15 +60,16 @@ impl Endec for Keyword {
             Some(3) => Ok((Keyword::Enum, cursor + 1)),
             Some(4) => Ok((Keyword::Fn, cursor + 1)),
             Some(5) => Ok((Keyword::Proc, cursor + 1)),
-            Some(6) => Ok((Keyword::If, cursor + 1)),
-            Some(7) => Ok((Keyword::Let, cursor + 1)),
-            Some(8) => Ok((Keyword::Match, cursor + 1)),
-            Some(9) => Ok((Keyword::Mod, cursor + 1)),
-            Some(10) => Ok((Keyword::Pub, cursor + 1)),
-            Some(11) => Ok((Keyword::Struct, cursor + 1)),
-            Some(12) => Ok((Keyword::Type, cursor + 1)),
-            Some(13) => Ok((Keyword::Use, cursor + 1)),
-            Some(n @ 13..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(6) => Ok((Keyword::Ndet, cursor + 1)),
+            Some(7) => Ok((Keyword::If, cursor + 1)),
+            Some(8) => Ok((Keyword::Let, cursor + 1)),
+            Some(9) => Ok((Keyword::Match, cursor + 1)),
+            Some(10) => Ok((Keyword::Mod, cursor + 1)),
+            Some(11) => Ok((Keyword::Pub, cursor + 1)),
+            Some(12) => Ok((Keyword::Struct, cursor + 1)),
+            Some(13) => Ok((Keyword::Type, cursor + 1)),
+            Some(14) => Ok((Keyword::Use, cursor + 1)),
+            Some(n @ 15..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

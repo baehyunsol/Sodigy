@@ -1,4 +1,4 @@
-use crate::Type;
+use crate::{FuncEffect, Type};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
@@ -7,7 +7,7 @@ pub struct AssociatedItem {
     pub kind: AssociatedItemKind,
     pub name: InternedString,
     pub name_span: Span,
-    pub is_pure: Option<bool>,  // only for associated functions
+    pub effect: Option<FuncEffect>,  // only for associated functions
     pub params: Option<usize>,  // only for associated functions
 
     // type annotation inside `#[associated(...)]`
@@ -21,7 +21,7 @@ impl Default for AssociatedItem {
             kind: AssociatedItemKind::Let,
             name: InternedString::dummy(),
             name_span: Span::None,
-            is_pure: None,
+            effect: None,
             params: None,
             type_span: Span::None,
             r#type: Type::Never(Span::None),
@@ -48,7 +48,7 @@ pub struct AssociatedFunc {
     pub name_spans: Vec<Span>,
 
     // The multiple assoc-funcs must have the same number of parameters,
-    // and must have the same purity.
+    // and must have the same effect.
     pub params: usize,
-    pub is_pure: bool,
+    pub effect: FuncEffect,
 }

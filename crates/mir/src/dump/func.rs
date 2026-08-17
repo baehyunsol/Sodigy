@@ -24,7 +24,7 @@ pub fn dump_func<S: SodigySession>(
 
     lines.push(&format!(
         "{} {}",
-        if func.is_pure { "fn" } else { "proc" },
+        func.effect.keyword(),
         func.name.unintern_or_default(session.intermediate_dir()),
     ));
 

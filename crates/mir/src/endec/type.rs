@@ -1,6 +1,6 @@
 use crate::{Dotfish, Type, TypeAssertion, TypeUnit};
 use sodigy_endec::{DecodeError, Endec};
-use sodigy_hir::FuncPurity;
+use sodigy_hir::FuncEffect;
 use sodigy_span::{Span, SpanId};
 
 impl Endec for Type {
@@ -13,13 +13,13 @@ impl Endec for Type {
                 args.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
-            Type::Func { fn_span, group_span, params, r#return, purity } => {
+            Type::Func { fn_span, group_span, params, r#return, effect } => {
                 buffer.push(1);
                 fn_span.encode_impl(buffer);
                 group_span.encode_impl(buffer);
                 params.encode_impl(buffer);
                 r#return.encode_impl(buffer);
-                purity.encode_impl(buffer);
+                effect.encode_impl(buffer);
             },
             Type::Never(span) => {
                 buffer.push(2);
@@ -61,8 +61,8 @@ impl Endec for Type {
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (params, cursor) = Vec::<Type>::decode_impl(buffer, cursor)?;
                 let (r#return, cursor) = Box::<Type>::decode_impl(buffer, cursor)?;
-                let (purity, cursor) = FuncPurity::decode_impl(buffer, cursor)?;
-                Ok((Type::Func { fn_span, group_span, params, r#return, purity }, cursor))
+                let (effect, cursor) = FuncEffect::decode_impl(buffer, cursor)?;
+                Ok((Type::Func { fn_span, group_span, params, r#return, effect }, cursor))
             },
             Some(2) => {
                 let (span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
@@ -117,8 +117,8 @@ impl Endec for TypeUnit {
                 Ok((TypeUnit::DefSpan(id), cursor))
             },
             Some(1) => {
-                let (purity, cursor) = FuncPurity::decode_impl(buffer, cursor + 1)?;
-                Ok((TypeUnit::Func(purity), cursor))
+                let (effect, cursor) = FuncEffect::decode_impl(buffer, cursor + 1)?;
+                Ok((TypeUnit::Func(effect), cursor))
             },
             Some(2) => Ok((TypeUnit::Never, cursor + 1)),
             Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),

@@ -6,6 +6,7 @@ use sodigy_hir::{
     AssociatedItemKind,
     Expr,
     Func,
+    FuncEffect,
     FuncOrigin,
     FuncParam,
     Generic,
@@ -78,7 +79,7 @@ impl Session {
                         if existing_association.name == associated_item.name {
                             let error = match (existing_association.kind, associated_item.kind) {
                                 (AssociatedItemKind::Func, AssociatedItemKind::Func) => {
-                                    if associated_item.params == existing_association.params && associated_item.is_pure == existing_association.is_pure {
+                                    if associated_item.params == existing_association.params && associated_item.effect == existing_association.effect {
                                         // okay
                                         continue;
                                     }
@@ -109,7 +110,7 @@ impl Session {
 
                     if let AssociatedItemKind::Func = associated_item.kind {
                         let params = associated_item.params.unwrap();
-                        let is_pure = associated_item.is_pure.unwrap();
+                        let effect = associated_item.effect.clone().unwrap();
 
                         match item_shape.associated_funcs_mut().entry(associated_item.name) {
                             Entry::Occupied(mut e) => {
@@ -120,12 +121,12 @@ impl Session {
                                     name: associated_item.name,
                                     name_spans: vec![associated_item.name_span.clone()],
                                     params,
-                                    is_pure,
+                                    effect: effect.clone(),
                                 });
                             },
                         }
 
-                        let poly_name = get_associated_func_name(associated_item.name, is_pure, params, &self.intermediate_dir);
+                        let poly_name = get_associated_func_name(associated_item.name, &effect, params, &self.intermediate_dir);
                         let poly_name_interned = intern_string(poly_name.as_bytes(), &self.intermediate_dir).unwrap();
                         let poly_span: Span = Span::Poly {
                             name: poly_name_interned,
@@ -174,12 +175,12 @@ impl Session {
 
                                 // push `#[poly] fn @associated_func_unwrap_1<T1, T2>(x: T1) -> T2;` to the session.
                                 let new_func = Func {
-                                    is_pure,
-
                                     // TODO: I'm not sure whether it should be private/public
                                     //       I'll know that when I implement the visibility checker.
                                     visibility: Visibility::private(),
 
+                                    effect,
+                                    ndet_span: None,
                                     keyword_span: Span::None,
                                     name: poly_name_interned,
                                     name_span: poly_span.clone(),
@@ -272,12 +273,12 @@ impl Session {
 
 pub fn get_associated_func_name(
     name: InternedString,
-    is_pure: bool,
+    effect: &FuncEffect,
     params: usize,
     intermediate_dir: &str,
 ) -> String {
     // Readability does not matter!! It tries hard to keep the name shorter than 16 bytes,
     // so that interner doesn't have to do file IO.
-    let suffix = params * 2 + is_pure as usize;
+    let suffix = params * 4 + effect.to_usize();
     format!("{}:{suffix:x}", name.unintern_or_default(intermediate_dir))
 }

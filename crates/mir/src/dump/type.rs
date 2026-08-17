@@ -1,6 +1,6 @@
 use crate::Type;
 use sodigy_endec::IndentedLines;
-use sodigy_hir::FuncPurity;
+use sodigy_hir::FuncEffect;
 use sodigy_session::SodigySession;
 use sodigy_span::{PolySpanKind, Span, SpanId};
 use sodigy_string::{InternedString, unintern_string};
@@ -61,12 +61,14 @@ pub fn render_type(
                 span_to_string(&Span::Range(*constructor_def_span), intermediate_dir, span_string_map)
             }
         },
-        Type::Func { params, r#return, purity, .. } => {
-            let purity = match purity {
-                FuncPurity::Pure => "Fn",
-                FuncPurity::Impure => "Proc",
-                FuncPurity::Both => "Callable",
-                FuncPurity::Var(_) => "FnVar",
+        Type::Func { params, r#return, effect, .. } => {
+            let effect = match effect {
+                FuncEffect::Fn => "Fn",
+                FuncEffect::Proc => "Proc",
+                FuncEffect::NdetFn => "NdetFn",
+                FuncEffect::NdetProc => "NdetProc",
+                FuncEffect::Callable => "Callable",
+                FuncEffect::Var(_) => "EffectVar",
             };
             let mut params_rendered = Vec::with_capacity(params.len());
 
@@ -76,7 +78,7 @@ pub fn render_type(
 
             let params = params_rendered.join(", ");
             let r#return = render_type(r#return, verbose, lang_items, intermediate_dir, span_string_map)?;
-            Some(format!("{purity}({params}) -> {return}"))
+            Some(format!("{effect}({params}) -> {return}"))
         },
         Type::GenericParam { def_span, .. } => if verbose {
             Some(span_to_string_or_verbose(def_span, intermediate_dir, span_string_map))

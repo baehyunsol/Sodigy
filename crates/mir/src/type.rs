@@ -1,7 +1,7 @@
 use crate::{Callable, Expr, GlobalContext, MacroKind, Session};
 use sodigy_endec::Endec;
 use sodigy_error::{EnumFieldKind, Error, ErrorKind};
-use sodigy_hir::{self as hir, EnumRepr, EnumVariantFields, FuncPurity};
+use sodigy_hir::{self as hir, EnumRepr, EnumVariantFields, FuncEffect};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_session::SodigySession;
@@ -50,7 +50,7 @@ pub enum Type {
         group_span: Span,
         params: Vec<Type>,
         r#return: Box<Type>,
-        purity: FuncPurity,
+        effect: FuncEffect,
     },
 
     // !
@@ -121,7 +121,7 @@ pub struct TypeAssertion {
 #[derive(Clone, Debug)]
 pub enum TypeUnit {
     DefSpan(SpanId),
-    Func(FuncPurity),
+    Func(FuncEffect),
     Never,
 }
 
@@ -213,10 +213,12 @@ impl Type {
             hir::Type::Func { fn_constructor, group_span, params: hir_params, r#return } => {
                 let mut has_error = false;
                 let fn_span = fn_constructor.id.span.clone();
-                let purity = match &fn_constructor.id.def_span {
-                    f if f == &session.get_lang_item_span("type.Callable") => FuncPurity::Both,
-                    f if f == &session.get_lang_item_span("type.Fn") => FuncPurity::Pure,
-                    f if f == &session.get_lang_item_span("type.Proc") => FuncPurity::Impure,
+                let effect = match &fn_constructor.id.def_span {
+                    f if f == &session.get_lang_item_span("type.Callable") => FuncEffect::Callable,
+                    f if f == &session.get_lang_item_span("type.Fn") => FuncEffect::Fn,
+                    f if f == &session.get_lang_item_span("type.Proc") => FuncEffect::Proc,
+                    f if f == &session.get_lang_item_span("type.NdetFn") => FuncEffect::NdetFn,
+                    f if f == &session.get_lang_item_span("type.NdetProc") => FuncEffect::NdetProc,
                     _ => {
                         session.errors.push(Error {
                             kind: ErrorKind::InvalidFnType,
@@ -257,7 +259,7 @@ impl Type {
                         group_span: group_span.clone(),
                         params,
                         r#return: Box::new(r#return.unwrap()),
-                        purity,
+                        effect,
                     })
                 }
             },
@@ -367,12 +369,12 @@ impl Type {
                 Some(units)
             },
             Type::Func {
-                purity,
+                effect,
                 params,
                 r#return,
                 ..
             } => {
-                let mut units = vec![TypeUnit::Func(purity.clone())];
+                let mut units = vec![TypeUnit::Func(effect.clone())];
 
                 for r#type in params.iter().chain(std::iter::once(r#return.as_ref())) {
                     units.extend(r#type.flatten()?);
@@ -624,7 +626,7 @@ impl Type {
                     }
                 }
             },
-            Type::Func { params, r#return, purity, .. } => {
+            Type::Func { params, r#return, effect, .. } => {
                 buffer.push(1);
 
                 for param in params.iter() {
@@ -632,14 +634,7 @@ impl Type {
                 }
 
                 buffer.extend(r#return.hash().to_le_bytes());
-
-                let purity = match purity {
-                    FuncPurity::Pure => 0,
-                    FuncPurity::Impure => 1,
-                    FuncPurity::Both => 2,
-                    FuncPurity::Var(_) => todo!(),
-                };
-                buffer.push(purity);
+                buffer.push(effect.to_usize() as u8);
             },
             Type::Never(_) => {
                 buffer.push(2);

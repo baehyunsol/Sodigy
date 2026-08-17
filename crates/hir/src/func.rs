@@ -41,8 +41,12 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Func {
-    pub is_pure: bool,
     pub visibility: Visibility,
+
+    // Cannot be `FuncEffect::Callable` or `FuncEffect::Var` -> these are for type-inference.
+    pub effect: FuncEffect,
+
+    pub ndet_span: Option<Span>,
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
@@ -101,16 +105,15 @@ pub struct FuncShape {
     pub generic_group_span: Option<Span>,
 }
 
-/// Type signature `Callable` is for both pure and impure functions.
-/// `Fn` and `Proc` are subtypes of `Callable`.
-/// You cannot use `Callable` in pure contexts.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub enum FuncPurity {
-    Pure,    // Fn
-    Impure,  // Proc
-    Both,    // Callable
+pub enum FuncEffect {
+    Fn,
+    Proc,
+    NdetFn,
+    NdetProc,
+    Callable,
 
-    // It's for purity-inference.
+    // It's for effect-inference.
     Var(Span),
 }
 
@@ -205,7 +208,7 @@ impl Func {
                 kind: AssociatedItemKind::Func,
                 name: ast_func.name,
                 name_span: ast_func.name_span.clone(),
-                is_pure: Some(ast_func.is_pure),
+                effect: Some(FuncEffect::from_ndet_and_proc(ast_func.is_ndet, ast_func.is_proc)),
                 params: Some(ast_func.params.len()),
                 type_span: association.args[0].error_span_wide(),
                 r#type: associated_type.clone().unwrap(),
@@ -424,8 +427,9 @@ impl Func {
 
         else {
             Ok(Func {
-                is_pure: ast_func.is_pure,
                 visibility,
+                effect: FuncEffect::from_ndet_and_proc(ast_func.is_ndet, ast_func.is_proc),
+                ndet_span: ast_func.ndet_span.clone(),
                 keyword_span: ast_func.keyword_span.clone(),
                 name: ast_func.name,
                 name_span: ast_func.name_span.clone(),
@@ -588,6 +592,38 @@ impl FuncParam {
                 type_annot,
                 default_value,
             })
+        }
+    }
+}
+
+impl FuncEffect {
+    pub fn from_ndet_and_proc(is_ndet: bool, is_proc: bool) -> FuncEffect {
+        match (is_ndet, is_proc) {
+            (true, true) => FuncEffect::NdetProc,
+            (true, false) => FuncEffect::NdetFn,
+            (false, true) => FuncEffect::Proc,
+            (false, false) => FuncEffect::Fn,
+        }
+    }
+
+    pub fn keyword(&self) -> &'static str {
+        match self {
+            FuncEffect::Fn => "fn",
+            FuncEffect::Proc => "proc",
+            FuncEffect::NdetFn => "ndet fn",
+            FuncEffect::NdetProc => "ndet proc",
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn to_usize(&self) -> usize {
+        match self {
+            FuncEffect::Fn       => 0b_000,
+            FuncEffect::Proc     => 0b_001,
+            FuncEffect::NdetFn   => 0b_010,
+            FuncEffect::NdetProc => 0b_011,
+            FuncEffect::Callable => 0b_111,
+            _ => unreachable!(),
         }
     }
 }

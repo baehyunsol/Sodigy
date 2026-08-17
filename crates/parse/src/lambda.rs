@@ -10,7 +10,7 @@ use sodigy_token::{Delim, Punct, Token, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Lambda {
-    pub is_pure: bool,
+    pub ndet_keyword_span: Option<Span>,
     pub proc_keyword_span: Option<Span>,
     pub backslash_span: Span,
     pub params: Vec<FuncParam>,
@@ -22,7 +22,7 @@ pub struct Lambda {
 
 impl<'t, 's> Tokens<'t, 's> {
     // The cursor must be pointing to the backslash character.
-    // If there's `proc` keyword before the backslash, its callee will take care of that.
+    // If there's `ndet` or `proc` keyword before the backslash, its callee will take care of that.
     pub fn parse_lambda(&mut self) -> Result<Lambda, Vec<Error>> {
         match self.peek2() {
             (Some(Token { kind: TokenKind::Punct(Punct::Backslash), .. }), Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. })) |
@@ -50,11 +50,11 @@ impl<'t, 's> Tokens<'t, 's> {
                 let value = self.parse_expr(true)?;
 
                 Ok(Lambda {
-                    // if there's `proc` keyword, its callee will change these values.
-                    is_pure: true,
+                    // if there's a `proc` or `ndet` keyword, its callee will change these values.
+                    ndet_keyword_span: None,
                     proc_keyword_span: None,
-                    backslash_span,
 
+                    backslash_span,
                     params,
                     param_group_span,
                     type_annot: Box::new(type_annot),
@@ -98,11 +98,11 @@ impl<'t, 's> Tokens<'t, 's> {
                         let value = self.parse_expr(true)?;
 
                         Ok(Lambda {
-                            // if there's `proc` keyword, its callee will change these values.
-                            is_pure: true,
+                            // if there's a `proc` or `ndet` keyword, its callee will change these values.
+                            ndet_keyword_span: None,
                             proc_keyword_span: None,
-                            backslash_span,
 
+                            backslash_span,
                             params,
                             param_group_span,
                             type_annot: Box::new(None),

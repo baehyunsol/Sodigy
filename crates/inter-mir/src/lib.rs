@@ -71,7 +71,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
         }
 
         for r#let in mir_session.lets.iter() {
-            let mut impure_calls = vec![];
+            let mut impure_calls = HashMap::new();
 
             if let (_, true) = session.solve_let(r#let, &mut impure_calls) {
                 has_error = true;
@@ -87,7 +87,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
         }
 
         for assert in mir_session.asserts.iter() {
-            let mut impure_calls = vec![];
+            let mut impure_calls = HashMap::new();
 
             if let Err(()) = session.solve_assert(assert, &mut impure_calls) {
                 has_error = true;

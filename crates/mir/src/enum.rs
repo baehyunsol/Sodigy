@@ -1,6 +1,6 @@
 use crate::{Session, StructField, Type};
 use sodigy_error::EnumFieldKind;
-use sodigy_hir::{self as hir, FuncPurity, Generic};
+use sodigy_hir::{self as hir, FuncEffect, Generic};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
@@ -80,7 +80,7 @@ impl Enum {
                             group_span: Span::None,
                             params: param_types,
                             r#return: Box::new(enum_type.clone()),
-                            purity: FuncPurity::Pure,
+                            effect: FuncEffect::Fn,
                         },
                     );
                     EnumVariantFields::Tuple(hir_types.len())
@@ -129,7 +129,7 @@ impl Enum {
                             group_span: Span::None,
                             params: param_types,
                             r#return: Box::new(enum_type.clone()),
-                            purity: FuncPurity::Pure,
+                            effect: FuncEffect::Fn,
                         },
                     );
                     EnumVariantFields::Struct(fields)

@@ -9,7 +9,7 @@ use sodigy_error::{
     comma_list_strs,
     to_ordinal,
 };
-use sodigy_hir::{FuncOrigin, FuncPurity, LetOrigin};
+use sodigy_hir::{FuncEffect, FuncOrigin, LetOrigin};
 use sodigy_mir::{render_type, span_to_string};
 use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span};
@@ -107,12 +107,12 @@ pub enum TypeError {
 
     // Basically, it's just an `TypeError::UnexpectedType`, but I added a variant
     // for better error messages.
-    UnexpectedPurity {
+    UnexpectedEffect {
         expected_type: Type,
-        expected_purity: FuncPurity,
+        expected_effect: FuncEffect,
         expected_span: Option<Span>,
         got_type: Type,
-        got_purity: FuncPurity,
+        got_effect: FuncEffect,
         got_span: Option<Span>,
     },
 
@@ -682,12 +682,12 @@ impl Session {
                 ].concat(),
                 note: None,
             },
-            TypeError::UnexpectedPurity {
+            TypeError::UnexpectedEffect {
                 expected_type,
-                expected_purity,
+                expected_effect,
                 expected_span,
                 got_type,
-                got_purity,
+                got_effect,
                 got_span,
             } => {
                 let mut spans = vec![];
@@ -695,11 +695,13 @@ impl Session {
                 let got_type = self.render_type(&got_type);
 
                 if let Some(span) = expected_span {
-                    let note = match expected_purity {
-                        FuncPurity::Pure => "It expects a pure function.",
-                        FuncPurity::Impure => "It expects an impure function.",
-                        FuncPurity::Both => unreachable!(),
-                        FuncPurity::Var(_) => todo!(),
+                    let note = match expected_effect {
+                        FuncEffect::Fn => "It expects a pure function.",
+                        FuncEffect::Proc => "It expects a deterministic procedure.",
+                        FuncEffect::NdetFn => "It expects a non-deterministic function.",
+                        FuncEffect::NdetProc => "It expects a non-deterministic procedure.",
+                        FuncEffect::Callable => unreachable!(),
+                        FuncEffect::Var(_) => todo!(),
                     }.to_string();
 
                     spans.push(RenderableSpan {
@@ -710,11 +712,13 @@ impl Session {
                 }
 
                 if let Some(span) = got_span {
-                    let note = match got_purity {
-                        FuncPurity::Pure => "This is a pure function.",
-                        FuncPurity::Impure => "This is an impure function.",
-                        FuncPurity::Both => "I'm not sure whether it's pure or not.",
-                        FuncPurity::Var(_) => todo!(),
+                    let note = match got_effect {
+                        FuncEffect::Fn => "This is a pure function.",
+                        FuncEffect::Proc => "This is a deterministic procedure.",
+                        FuncEffect::NdetFn => "This is a non-deterministic function.",
+                        FuncEffect::NdetProc => "This is a non-deterministic procedure.",
+                        FuncEffect::Callable => "I'm not sure about its effect.",
+                        FuncEffect::Var(_) => todo!(),
                     }.to_string();
 
                     spans.push(RenderableSpan {
@@ -724,14 +728,16 @@ impl Session {
                     });
                 }
 
-                let note = match (expected_purity, got_purity) {
-                    (ex, FuncPurity::Both) => Some(format!(
+                let note = match (expected_effect, got_effect) {
+                    (ex, FuncEffect::Callable) => Some(format!(
                         "If you're sure that this is {}, add a type annotation.",
                         match ex {
-                            FuncPurity::Pure => "pure",
-                            FuncPurity::Impure => "impure",
-                            FuncPurity::Both => unreachable!(),
-                            FuncPurity::Var(_) => todo!(),
+                            FuncEffect::Fn => "pure",
+                            FuncEffect::Proc => "a procedure",
+                            FuncEffect::NdetFn => "a non-deterministic function",
+                            FuncEffect::NdetProc => "a non-deterministic function",
+                            FuncEffect::Callable => unreachable!(),
+                            FuncEffect::Var(_) => todo!(),
                         },
                     )),
                     _ => None,

@@ -86,7 +86,7 @@ pub use closure::CapturedNames;
 pub use r#enum::{Enum, EnumRepr, EnumShape, EnumVariant, EnumVariantFields};
 pub use eval::eval_const;
 pub use expr::{Expr, ExprOrString};
-pub use func::{CallArg, Func, FuncOrigin, FuncParam, FuncPurity, FuncShape};
+pub use func::{CallArg, Func, FuncEffect, FuncOrigin, FuncParam, FuncShape};
 pub use r#if::If;
 pub use item_shape::{ItemShape, ItemShapeMut};
 pub use r#let::{Let, LetOrigin, TrivialLet};

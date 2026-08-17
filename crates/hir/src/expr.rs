@@ -294,7 +294,7 @@ impl Expr {
                 _ => Err(()),
             },
             ast::Expr::Lambda(ast::Lambda {
-                is_pure,
+                ndet_keyword_span,
                 proc_keyword_span,
                 backslash_span,
                 params,
@@ -309,7 +309,9 @@ impl Expr {
                 let name = name_lambda_function(&span, &session.intermediate_dir);
 
                 let func = ast::Func {
-                    is_pure: *is_pure,
+                    is_ndet: ndet_keyword_span.is_some(),
+                    is_proc: proc_keyword_span.is_some(),
+                    ndet_span: ndet_keyword_span.clone(),
                     keyword_span: span.clone(),
                     name,
                     name_span: span.clone(),

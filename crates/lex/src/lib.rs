@@ -1433,6 +1433,7 @@ impl Session {
                         (b"enum", false) => TokenKind::Keyword(Keyword::Enum),
                         (b"fn", false) => TokenKind::Keyword(Keyword::Fn),
                         (b"proc", false) => TokenKind::Keyword(Keyword::Proc),
+                        (b"ndet", false) => TokenKind::Keyword(Keyword::Ndet),
                         (b"if", false) => TokenKind::Keyword(Keyword::If),
                         (b"let", false) => TokenKind::Keyword(Keyword::Let),
                         (b"match", false) => TokenKind::Keyword(Keyword::Match),

@@ -1,4 +1,4 @@
-use crate::{AssociatedFunc, AssociatedItem, AssociatedItemKind, Type};
+use crate::{AssociatedFunc, AssociatedItem, AssociatedItemKind, FuncEffect, Type};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -8,7 +8,7 @@ impl Endec for AssociatedItem {
         self.kind.encode_impl(buffer);
         self.name.encode_impl(buffer);
         self.name_span.encode_impl(buffer);
-        self.is_pure.encode_impl(buffer);
+        self.effect.encode_impl(buffer);
         self.params.encode_impl(buffer);
         self.type_span.encode_impl(buffer);
         self.r#type.encode_impl(buffer);
@@ -18,7 +18,7 @@ impl Endec for AssociatedItem {
         let (kind, cursor) = AssociatedItemKind::decode_impl(buffer, cursor)?;
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
-        let (is_pure, cursor) = Option::<bool>::decode_impl(buffer, cursor)?;
+        let (effect, cursor) = Option::<FuncEffect>::decode_impl(buffer, cursor)?;
         let (params, cursor) = Option::<usize>::decode_impl(buffer, cursor)?;
         let (type_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (r#type, cursor) = Type::decode_impl(buffer, cursor)?;
@@ -28,7 +28,7 @@ impl Endec for AssociatedItem {
                 kind,
                 name,
                 name_span,
-                is_pure,
+                effect,
                 params,
                 type_span,
                 r#type,
@@ -73,21 +73,21 @@ impl Endec for AssociatedFunc {
         self.name.encode_impl(buffer);
         self.name_spans.encode_impl(buffer);
         self.params.encode_impl(buffer);
-        self.is_pure.encode_impl(buffer);
+        self.effect.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_spans, cursor) = Vec::<Span>::decode_impl(buffer, cursor)?;
         let (params, cursor) = usize::decode_impl(buffer, cursor)?;
-        let (is_pure, cursor) = bool::decode_impl(buffer, cursor)?;
+        let (effect, cursor) = FuncEffect::decode_impl(buffer, cursor)?;
 
         Ok((
             AssociatedFunc {
                 name,
                 name_spans,
                 params,
-                is_pure,
+                effect,
             },
             cursor,
         ))

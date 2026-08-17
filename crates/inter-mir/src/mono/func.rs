@@ -67,7 +67,8 @@ impl Session {
         self.types.insert(new_name_span.clone(), new_type);
 
         let result = Func {
-            is_pure: func.is_pure,
+            effect: func.effect.clone(),
+            ndet_span: func.ndet_span.clone(),
             keyword_span: func.keyword_span.monomorphize(monomorphization.id),
             name: func.name,
             name_span: new_name_span,

@@ -1,7 +1,7 @@
 use crate::{AssociatedFuncInstance, Expr, LogId, Session, Type, write_log};
 use crate::error::{ErrorContext, TypeError};
 use sodigy_error::{EnumFieldKind, Error, ErrorKind, TypeVarInfo};
-use sodigy_hir::{AssociatedFunc, FuncPurity};
+use sodigy_hir::{AssociatedFunc, FuncEffect};
 use sodigy_inter_hir::get_associated_func_name;
 use sodigy_mir::{
     Callable,
@@ -22,7 +22,8 @@ use sodigy_parse::{Field, merge_field_spans};
 use sodigy_span::{PolySpanKind, Span};
 use sodigy_string::intern_string;
 use sodigy_token::Constant;
-use std::collections::{HashMap, HashSet};
+use std::collections::hash_map::{Entry, HashMap};
+use std::collections::hash_set::HashSet;
 
 #[cfg(feature = "log")]
 use crate::log::LogEntry;
@@ -31,7 +32,7 @@ use crate::log::LogEntry;
 use sodigy_hir::ItemShape;
 
 impl Session {
-    pub fn solve_expr(&mut self, expr: &Expr, impure_calls: &mut Vec<Span>) -> (Option<Type>, bool) {
+    pub fn solve_expr(&mut self, expr: &Expr, impure_calls: &mut HashMap<FuncEffect, Vec<Span>>) -> (Option<Type>, bool) {
         let _id = if cfg!(feature = "log") {
             Some(LogId::new())
         } else {
@@ -64,7 +65,10 @@ impl Session {
     // If there's no error, it must return the type of the expr: `(Some(ty), false)`.
     // If there're errors, it'll still try to return the type, so that it
     // can find more type errors (only obvious ones).
-    fn solve_expr_(&mut self, expr: &Expr, impure_calls: &mut Vec<Span>) -> (Option<Type>, bool /* has_error */) {
+    //
+    // `impure_calls` collect call_spans of `FuncEffect::Proc`, `FuncEffect::NdetFn`, `FuncEffect::NdetProc` and
+    // `FuncEffect::Callable`.
+    fn solve_expr_(&mut self, expr: &Expr, impure_calls: &mut HashMap<FuncEffect, Vec<Span>>) -> (Option<Type>, bool /* has_error */) {
         match expr {
             Expr::Ident { id, dotfish } => self.solve_path(id, dotfish),
             Expr::Constant(Constant::Number { n, .. }) => match n.is_integer() {
@@ -382,13 +386,20 @@ impl Session {
                         Some(ff @ Type::Func {
                             params,
                             r#return,
-                            purity,
+                            effect,
                             ..
                         }) => {
                             let is_convert = def_span == &self.get_lang_item_span("fn.convert");
 
-                            if let FuncPurity::Impure | FuncPurity::Both = purity {
-                                impure_calls.push(span.clone());
+                            if let FuncEffect::Proc | FuncEffect::NdetFn | FuncEffect::NdetProc | FuncEffect::Callable = effect {
+                                match impure_calls.entry(effect.clone()) {
+                                    Entry::Occupied(mut e) => {
+                                        e.get_mut().push(span.clone());
+                                    },
+                                    Entry::Vacant(e) => {
+                                        e.insert(vec![span.clone()]);
+                                    },
+                                }
                             }
 
                             let mut params = params.clone();
@@ -828,9 +839,16 @@ impl Session {
                             // We'll only type check/infer monomorphized functions.
                             Type::GenericParam { .. } => unreachable!(),
 
-                            Type::Func { params, r#return, purity, .. } => {
-                                if let FuncPurity::Impure | FuncPurity::Both = purity {
-                                    impure_calls.push(func.error_span_wide());
+                            Type::Func { params, r#return, effect, .. } => {
+                                if let FuncEffect::Proc | FuncEffect::NdetFn | FuncEffect::NdetProc | FuncEffect::Callable = effect {
+                                    match impure_calls.entry(effect.clone()) {
+                                        Entry::Occupied(mut e) => {
+                                            e.get_mut().push(func.error_span_wide());
+                                        },
+                                        Entry::Vacant(e) => {
+                                            e.insert(vec![func.error_span_wide()]);
+                                        },
+                                    }
                                 }
 
                                 // It doesn't check arg types if there are wrong number of args.
@@ -893,13 +911,13 @@ impl Session {
                                             is_return: false,
                                         };
                                         // Maybe it's solved in the previous iterations!
-                                        let purity = self.purity_vars.get(&call_span).cloned().unwrap_or_else(|| FuncPurity::Var(call_span.clone()));
+                                        let effect = self.effect_vars.get(&call_span).cloned().unwrap_or_else(|| FuncEffect::Var(call_span.clone()));
                                         let intermediate_func_type = Type::Func {
                                             fn_span: Span::None,
                                             group_span: Span::None,
                                             params: arg_types,
                                             r#return: Box::new(intermediate_type_var.clone()),
-                                            purity,
+                                            effect,
                                         };
 
                                         match type_var {
@@ -1147,9 +1165,9 @@ impl Session {
                         // `x.unwrap()` is desugared to `associated_func::unwrap::pure::1(x)`.
                         // `associated_func::unwrap::pure::1` is a poly-generic function and we can
                         // easily reference the function with its name.
-                        if let Some(AssociatedFunc { params, is_pure, .. }) = item_shape.associated_funcs().get(name) {
-                            let is_pure = *is_pure;
-                            let poly_name = get_associated_func_name(*name, is_pure, *params, &self.intermediate_dir);
+                        if let Some(AssociatedFunc { params, effect, .. }) = item_shape.associated_funcs().get(name) {
+                            let effect = effect.clone();
+                            let poly_name = get_associated_func_name(*name, &effect, *params, &self.intermediate_dir);
                             let poly_name = intern_string(poly_name.as_bytes(), &self.intermediate_dir).unwrap();
                             associated_func_instance = Some(AssociatedFuncInstance {
                                 field_name: *name,
@@ -1184,11 +1202,7 @@ impl Session {
                                 group_span: Span::None,
                                 params,
                                 r#return: Box::new(r#return),
-                                purity: if is_pure {
-                                    FuncPurity::Pure
-                                } else {
-                                    FuncPurity::Impure
-                                },
+                                effect,
                             });
                         }
                     }

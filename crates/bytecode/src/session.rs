@@ -121,7 +121,7 @@ impl Session<'_, '_> {
                 dump_bytecodes(
                     func.name,
                     &func.name_span,
-                    if func.is_pure { "fn" } else { "proc" },
+                    func.effect.keyword(),
                     Some(func.params),
                     &func.bytecodes,
                     4,

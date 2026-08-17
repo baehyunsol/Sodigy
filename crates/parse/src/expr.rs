@@ -338,12 +338,28 @@ impl<'t, 's> Tokens<'t, 's> {
             },
             (Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }), _, _) => Expr::If(Box::new(self.parse_if_expr()?)),
             (Some(Token { kind: TokenKind::Keyword(Keyword::Match), .. }), _, _) => Expr::Match(Box::new(self.parse_match_expr()?)),
-            (Some(Token { kind: TokenKind::Keyword(Keyword::Proc), span }), _, _) => {
-                let proc_keyword_span = span.clone();
-                self.cursor += 1;
+            (
+                Some(Token { kind: TokenKind::Keyword(Keyword::Proc | Keyword::Ndet), .. }),
+                Some(Token { kind: TokenKind::Group { delim: Delim::Lambda, .. } | TokenKind::Punct(Punct::Backslash), .. }),
+                _,
+            ) | (
+                Some(Token { kind: TokenKind::Keyword(Keyword::Ndet), .. }),
+                Some(Token { kind: TokenKind::Keyword(Keyword::Proc), .. }),
+                Some(Token { kind: TokenKind::Group { delim: Delim::Lambda, .. } | TokenKind::Punct(Punct::Backslash), .. }),
+            ) => {
+                let (ndet_keyword_span, proc_keyword_span, jump) = match self.peek2() {
+                    (
+                        Some(Token { kind: TokenKind::Keyword(Keyword::Ndet), span: span1 }),
+                        Some(Token { kind: TokenKind::Keyword(Keyword::Proc), span: span2 }),
+                    ) => (Some(span1.clone()), Some(span2.clone()), 2),
+                    (Some(Token { kind: TokenKind::Keyword(Keyword::Ndet), span }), _) => (Some(span.clone()), None, 1),
+                    (Some(Token { kind: TokenKind::Keyword(Keyword::Proc), span }), _) => (None, Some(span.clone()), 1),
+                    _ => unreachable!(),
+                };
+                self.cursor += jump;
                 let mut lambda = self.parse_lambda()?;
-                lambda.is_pure = false;
-                lambda.proc_keyword_span = Some(proc_keyword_span);
+                lambda.ndet_keyword_span = ndet_keyword_span;
+                lambda.proc_keyword_span = proc_keyword_span;
                 Expr::Lambda(lambda)
             },
             (Some(Token { kind: TokenKind::Group { delim, tokens }, span }), _, _) => match delim {

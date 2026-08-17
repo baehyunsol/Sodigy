@@ -1,7 +1,7 @@
 use crate::{LogId, Session, Type, write_log};
 use crate::error::{ErrorContext, TypeError};
 use sodigy_error::TypeVarInfo;
-use sodigy_hir::FuncPurity;
+use sodigy_hir::FuncEffect;
 use sodigy_mir::TypeAssertion;
 use sodigy_span::Span;
 use std::collections::hash_map::Entry;
@@ -475,7 +475,7 @@ impl Session {
                     },
                 }
             },
-            (Type::Func { r#return: return1, params: args1, purity: p1, .. }, Type::Func { r#return: return2, params: args2, purity: p2, .. }) => {
+            (Type::Func { r#return: return1, params: args1, effect: e1, .. }, Type::Func { r#return: return2, params: args2, effect: e2, .. }) => {
                 let r#return = match self.solve_supertype(
                     return1,
                     return2,
@@ -555,28 +555,31 @@ impl Session {
                     }
 
                     else {
-                        let purity = match (p1, p2) {
-                            (FuncPurity::Var(v1), FuncPurity::Var(v2)) => match (self.purity_vars.get(v1), self.purity_vars.get(v2)) {
+                        let effect = match (e1, e2) {
+                            (FuncEffect::Var(v1), FuncEffect::Var(v2)) => match (self.effect_vars.get(v1), self.effect_vars.get(v2)) {
+                                // `FuncEffect::Callable` is supertype of all the other effects.
                                 (
-                                    Some(p1 @ (FuncPurity::Both | FuncPurity::Pure | FuncPurity::Impure)),
-                                    Some(p2 @ (FuncPurity::Both | FuncPurity::Pure | FuncPurity::Impure)),
-                                ) => match (p1, p2) {
-                                    (FuncPurity::Both, _) => FuncPurity::Both,
-                                    (FuncPurity::Pure, FuncPurity::Pure) => FuncPurity::Pure,
-                                    (FuncPurity::Impure, FuncPurity::Impure) => FuncPurity::Impure,
+                                    Some(e1 @ (FuncEffect::Callable | FuncEffect::Fn | FuncEffect::Proc | FuncEffect::NdetFn | FuncEffect::NdetProc)),
+                                    Some(e2 @ (FuncEffect::Callable | FuncEffect::Fn | FuncEffect::Proc | FuncEffect::NdetFn | FuncEffect::NdetProc)),
+                                ) => match (e1, e2) {
+                                    (FuncEffect::Callable, _) => FuncEffect::Callable,
+                                    (FuncEffect::Fn, FuncEffect::Fn) => FuncEffect::Fn,
+                                    (FuncEffect::Proc, FuncEffect::Proc) => FuncEffect::Proc,
+                                    (FuncEffect::NdetFn, FuncEffect::NdetFn) => FuncEffect::NdetFn,
+                                    (FuncEffect::NdetProc, FuncEffect::NdetProc) => FuncEffect::NdetProc,
                                     _ => {
                                         if bidirectional {
-                                            FuncPurity::Both
+                                            FuncEffect::Callable
                                         }
 
                                         else {
                                             if !is_checking_argument {
-                                                self.type_errors.push(TypeError::UnexpectedPurity {
+                                                self.type_errors.push(TypeError::UnexpectedEffect {
                                                     expected_type: lhs.clone(),
-                                                    expected_purity: p1.clone(),
+                                                    expected_effect: e1.clone(),
                                                     expected_span: lhs_span.cloned(),
                                                     got_type: rhs.clone(),
-                                                    got_purity: p2.clone(),
+                                                    got_effect: e2.clone(),
                                                     got_span: rhs_span.cloned(),
                                                 });
                                             }
@@ -585,49 +588,55 @@ impl Session {
                                         }
                                     },
                                 },
-                                (Some(p1 @ (FuncPurity::Both | FuncPurity::Pure | FuncPurity::Impure)), None) => {
-                                    let p1 = p1.clone();
-                                    self.purity_vars.insert(v2.clone(), p1.clone());
-                                    p1.clone()
+                                (Some(e1 @ (FuncEffect::Callable | FuncEffect::Fn | FuncEffect::Proc | FuncEffect::NdetFn | FuncEffect::NdetProc)), None) => {
+                                    let e1 = e1.clone();
+                                    self.effect_vars.insert(v2.clone(), e1.clone());
+                                    e1.clone()
                                 },
-                                (None, Some(p2 @ (FuncPurity::Both | FuncPurity::Pure | FuncPurity::Impure))) => {
-                                    let p2 = p2.clone();
-                                    self.purity_vars.insert(v1.clone(), p2.clone());
-                                    p2.clone()
+                                (None, Some(e2 @ (FuncEffect::Callable | FuncEffect::Fn | FuncEffect::Proc | FuncEffect::NdetFn | FuncEffect::NdetProc))) => {
+                                    let e2 = e2.clone();
+                                    self.effect_vars.insert(v1.clone(), e2.clone());
+                                    e2.clone()
                                 },
-                                (None, None) => p1.clone(),  // lhs is the supertype.
+                                (None, None) => e1.clone(),  // lhs is the supertype.
                                 _ => unreachable!(),
                             },
-                            (FuncPurity::Var(v), FuncPurity::Both) => {
-                                self.purity_vars.insert(v.clone(), FuncPurity::Both);
-                                FuncPurity::Both
-                            },
-                            (FuncPurity::Var(v), FuncPurity::Pure | FuncPurity::Impure) => FuncPurity::Var(v.clone()),
 
-                            // We're sure that the supertype of these are FuncPurity::Both, but we can't say that
-                            // this purity-variable is `FuncPurity::Both`.
-                            (FuncPurity::Both, FuncPurity::Var(_)) => FuncPurity::Both,
-
-                            (p1 @ (FuncPurity::Pure | FuncPurity::Impure), FuncPurity::Var(v)) => {
-                                self.purity_vars.insert(v.clone(), p1.clone());
-                                p1.clone()
+                            // Supertype of `FuncEffect::Callable` is `FuncEffect::Callable`.
+                            (FuncEffect::Var(v), FuncEffect::Callable) => {
+                                self.effect_vars.insert(v.clone(), FuncEffect::Callable);
+                                FuncEffect::Callable
                             },
-                            (FuncPurity::Both, _) => FuncPurity::Both,
-                            (FuncPurity::Pure, FuncPurity::Pure) => FuncPurity::Pure,
-                            (FuncPurity::Impure, FuncPurity::Impure) => FuncPurity::Impure,
+
+                            // Supertype of `FuncEffect::Fn` can be `FuncEffect::Callable` or `FuncEffect::Fn`. We don't know that.
+                            (FuncEffect::Var(v), _) => FuncEffect::Var(v.clone()),
+
+                            // We're sure that the supertype of these are FuncEffect::Callable, but we can't say that
+                            // this effect-variable is `FuncEffect::Callable`.
+                            (FuncEffect::Callable, FuncEffect::Var(_)) => FuncEffect::Callable,
+
+                            (e1 @ (FuncEffect::Fn | FuncEffect::Proc | FuncEffect::NdetFn | FuncEffect::NdetProc), FuncEffect::Var(v)) => {
+                                self.effect_vars.insert(v.clone(), e1.clone());
+                                e1.clone()
+                            },
+                            (FuncEffect::Callable, _) => FuncEffect::Callable,
+                            (FuncEffect::Fn, FuncEffect::Fn) => FuncEffect::Fn,
+                            (FuncEffect::Proc, FuncEffect::Proc) => FuncEffect::Proc,
+                            (FuncEffect::NdetFn, FuncEffect::NdetFn) => FuncEffect::NdetFn,
+                            (FuncEffect::NdetProc, FuncEffect::NdetProc) => FuncEffect::NdetProc,
                             _ => {
                                 if bidirectional {
-                                    FuncPurity::Both
+                                    FuncEffect::Callable
                                 }
 
                                 else {
                                     if !is_checking_argument {
-                                        self.type_errors.push(TypeError::UnexpectedPurity {
+                                        self.type_errors.push(TypeError::UnexpectedEffect {
                                             expected_type: lhs.clone(),
-                                            expected_purity: p1.clone(),
+                                            expected_effect: e1.clone(),
                                             expected_span: lhs_span.cloned(),
                                             got_type: rhs.clone(),
-                                            got_purity: p2.clone(),
+                                            got_effect: e2.clone(),
                                             got_span: rhs_span.cloned(),
                                         });
                                     }
@@ -642,7 +651,7 @@ impl Session {
                             group_span: Span::None,
                             params: args,
                             r#return: Box::new(r#return),
-                            purity,
+                            effect,
                         })
                     }
                 }

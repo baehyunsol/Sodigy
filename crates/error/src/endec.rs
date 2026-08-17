@@ -132,7 +132,7 @@ impl Endec for ErrorToken {
             ErrorToken::DotOrSemicolon => {
                 buffer.push(30);
             },
-            ErrorToken::FnOrProc => {
+            ErrorToken::FnOrNdetOrProc => {
                 buffer.push(31);
             },
         }
@@ -183,7 +183,7 @@ impl Endec for ErrorToken {
             Some(28) => Ok((ErrorToken::CommaOrDot, cursor + 1)),
             Some(29) => Ok((ErrorToken::CommaOrGt, cursor + 1)),
             Some(30) => Ok((ErrorToken::DotOrSemicolon, cursor + 1)),
-            Some(31) => Ok((ErrorToken::FnOrProc, cursor + 1)),
+            Some(31) => Ok((ErrorToken::FnOrNdetOrProc, cursor + 1)),
             Some(n @ 32..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }

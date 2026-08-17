@@ -12,8 +12,12 @@ use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Func {
-    pub is_pure: bool,
+    pub is_ndet: bool,
+    pub is_proc: bool,
+
+    pub ndet_span: Option<Span>,
     pub keyword_span: Span,
+
     pub name: InternedString,
     pub name_span: Span,
     pub generics: Vec<Generic>,
@@ -46,25 +50,33 @@ impl<'t, 's> Tokens<'t, 's> {
     // `fn foo(x) = 3;`
     // `fn bar(x: Int, y: Int): Int = x + y;`
     pub fn parse_func(&mut self) -> Result<Func, Vec<Error>> {
-        let (is_pure, keyword_span) = match self.peek() {
-            Some(Token { kind: TokenKind::Keyword(Keyword::Fn), span }) => (true, span.clone()),
-            Some(Token { kind: TokenKind::Keyword(Keyword::Proc), span }) => (false, span.clone()),
-            Some(t) => {
+        let (is_ndet, is_proc, ndet_span, keyword_span, jump) = match self.peek2() {
+            (Some(Token { kind: TokenKind::Keyword(Keyword::Fn), span }), _) => (false, false, None, span.clone(), 1),
+            (Some(Token { kind: TokenKind::Keyword(Keyword::Proc), span }), _) => (false, true, None, span.clone(), 1),
+            (
+                Some(Token { kind: TokenKind::Keyword(Keyword::Ndet), span: span1 }),
+                Some(Token { kind: TokenKind::Keyword(Keyword::Fn), span: span2 }),
+            ) => (true, false, Some(span1.clone()), span2.clone(), 2),
+            (
+                Some(Token { kind: TokenKind::Keyword(Keyword::Ndet), span: span1 }),
+                Some(Token { kind: TokenKind::Keyword(Keyword::Proc), span: span2 }),
+            ) => (true, true, Some(span1.clone()), span2.clone(), 2),
+            (Some(t), _) => {
                 return Err(vec![Error {
                     kind: ErrorKind::UnexpectedToken {
-                        expected: ErrorToken::FnOrProc,
+                        expected: ErrorToken::FnOrNdetOrProc,
                         got: (&t.kind).into(),
                     },
                     spans: t.span.simple_error(),
                     note: None,
                 }]);
             },
-            None => {
-                return Err(vec![self.unexpected_end(ErrorToken::FnOrProc)]);
+            (None, _) => {
+                return Err(vec![self.unexpected_end(ErrorToken::FnOrNdetOrProc)]);
             },
         };
 
-        self.cursor += 1;
+        self.cursor += jump;
         let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
         let mut generics = vec![];
         let mut generic_group_span = None;
@@ -120,7 +132,9 @@ impl<'t, 's> Tokens<'t, 's> {
         };
 
         Ok(Func {
-            is_pure,
+            is_ndet,
+            is_proc,
+            ndet_span,
             keyword_span,
             name,
             name_span,
