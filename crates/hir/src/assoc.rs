@@ -1,4 +1,5 @@
-use crate::{FuncEffect, Type};
+use crate::Type;
+use sodigy_error::FuncEffect;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 

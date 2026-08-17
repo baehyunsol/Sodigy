@@ -6,6 +6,7 @@ mod assert;
 mod attribute;
 mod block;
 mod check;
+mod r#do;
 mod endec;
 mod r#enum;
 mod expr;
@@ -38,6 +39,7 @@ pub use attribute::{
     Visibility,
 };
 pub use block::Block;
+pub use r#do::Do;
 pub use r#enum::{Enum, EnumVariant, EnumVariantFields};
 pub use expr::{ConversionKind, Expr, ExprOrString};
 pub use func::{Func, FuncArg, FuncParam};

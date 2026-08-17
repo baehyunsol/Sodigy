@@ -3,6 +3,7 @@ use crate::{
     Error,
     ErrorKind,
     ErrorToken,
+    FuncEffect,
     ItemKind,
     NameCollisionKind,
     NotXBut,
@@ -10,7 +11,7 @@ use crate::{
     TypeVarInfo,
 };
 use sodigy_endec::{DecodeError, Endec};
-use sodigy_span::RenderableSpan;
+use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use sodigy_token::{Delim, Keyword, Punct};
 
@@ -404,6 +405,48 @@ impl Endec for ItemKind {
             Some(7) => Ok((ItemKind::Struct, cursor + 1)),
             Some(8) => Ok((ItemKind::Use, cursor + 1)),
             Some(n @ 9..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+
+impl Endec for FuncEffect {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            FuncEffect::Fn => {
+                buffer.push(0);
+            },
+            FuncEffect::Proc => {
+                buffer.push(1);
+            },
+            FuncEffect::NdetFn => {
+                buffer.push(2);
+            },
+            FuncEffect::NdetProc => {
+                buffer.push(3);
+            },
+            FuncEffect::Callable => {
+                buffer.push(4);
+            },
+            FuncEffect::Var(s) => {
+                buffer.push(5);
+                s.encode_impl(buffer);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => Ok((FuncEffect::Fn, cursor + 1)),
+            Some(1) => Ok((FuncEffect::Proc, cursor + 1)),
+            Some(2) => Ok((FuncEffect::NdetFn, cursor + 1)),
+            Some(3) => Ok((FuncEffect::NdetProc, cursor + 1)),
+            Some(4) => Ok((FuncEffect::Callable, cursor + 1)),
+            Some(5) => {
+                let (s, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                Ok((FuncEffect::Var(s), cursor))
+            },
+            Some(n @ 6..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

@@ -1,4 +1,4 @@
-use crate::{Expr, Assert};
+use crate::{Assert, Expr};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::Span;
 use sodigy_string::InternedString;

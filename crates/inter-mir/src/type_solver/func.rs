@@ -1,6 +1,6 @@
 use crate::{LogId, Session, Type, write_log};
 use crate::error::{ErrorContext, TypeError, TypeWarning};
-use sodigy_error::TypeVarInfo;
+use sodigy_error::{FuncEffect, TypeVarInfo};
 use sodigy_mir::Func;
 use std::collections::HashMap;
 
@@ -85,18 +85,64 @@ impl Session {
             }
         }
 
-        match (func.is_pure, impure_calls.len()) {
-            (true, 1..) => {
+        match (&func.effect, impure_calls.len()) {
+            (FuncEffect::Fn, 1..) => {
                 self.type_errors.push(TypeError::ImpureCallInPureContext {
                     call_spans: impure_calls,
                     keyword_span: func.keyword_span.clone(),
                     context: func.origin.into(),
+                    context_effect: func.effect.clone(),
                 });
                 has_error = true;
             },
-            (false, 0) => {
+            (FuncEffect::Proc, _) => match (impure_calls.get(&FuncEffect::NdetFn), impure_calls.get(&FuncEffect::NdetProc), impure_calls.get(&FuncEffect::Callable)) {
+                (None, None, None) => match impure_calls.get(&FuncEffect::Proc) {
+                    Some(_) => {},
+                    None => {
+                        self.type_warnings.push(TypeWarning::NoImpureCallInImpureContext {
+                            effect_keyword_span: func.keyword_span.clone(),
+                            context_effect: func.effect.clone(),
+                        });
+                    },
+                },
+                _ => {
+                    let mut impure_calls = impure_calls.clone();
+                    impure_calls.remove(&FuncEffect::Proc);
+                    self.type_errors.push(TypeError::ImpureCallInPureContext {
+                        call_spans: impure_calls,
+                        keyword_span: func.keyword_span.clone(),
+                        context: func.origin.into(),
+                        context_effect: func.effect.clone(),
+                    });
+                    has_error = true;
+                },
+            },
+            (FuncEffect::NdetFn, _) => match (impure_calls.get(&FuncEffect::Proc), impure_calls.get(&FuncEffect::NdetProc), impure_calls.get(&FuncEffect::Callable)) {
+                (None, None, None) => match impure_calls.get(&FuncEffect::NdetFn) {
+                    Some(_) => {},
+                    None => {
+                        self.type_warnings.push(TypeWarning::NoImpureCallInImpureContext {
+                            effect_keyword_span: func.ndet_span.clone().unwrap(),
+                            context_effect: func.effect.clone(),
+                        });
+                    },
+                },
+                _ => {
+                    let mut impure_calls = impure_calls.clone();
+                    impure_calls.remove(&FuncEffect::NdetFn);
+                    self.type_errors.push(TypeError::ImpureCallInPureContext {
+                        call_spans: impure_calls,
+                        keyword_span: func.keyword_span.clone(),
+                        context: func.origin.into(),
+                        context_effect: func.effect.clone(),
+                    });
+                    has_error = true;
+                },
+            },
+            (FuncEffect::NdetProc, 0) => {
                 self.type_warnings.push(TypeWarning::NoImpureCallInImpureContext {
-                    proc_keyword_span: func.keyword_span.clone(),
+                    effect_keyword_span: func.ndet_span.as_ref().unwrap().merge(&func.keyword_span),
+                    context_effect: func.effect.clone(),
                 });
             },
             _ => {},

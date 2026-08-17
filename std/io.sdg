@@ -1,4 +1,4 @@
-use std.{blackbox, impure_blackbox};
+use std.{Void, blackbox};
 use std.bool.{Bool, Bool.False};
 use std.int.Int;
 use std.scalar.Scalar;
@@ -10,15 +10,14 @@ use std.string.String;
 // This is an impure function, but I didn't mark it so in order to implement `debug`.
 #[built_in]
 #[lang_item("built_in.print")]
-fn print_built_in(v: String) -> Scalar;
+fn print_built_in(v: String) -> Void;
 
 #[built_in]
 #[lang_item("built_in.eprint")]
-fn eprint_built_in(v: String) -> Scalar;
+fn eprint_built_in(v: String) -> Void;
 
-proc print(v: String) -> Int = impure_blackbox((print_built_in(v), 0))._1;
-
-proc eprint(v: String) -> Int = impure_blackbox((eprint_built_in(v), 0))._1;
+pub proc print(v: String) -> Void = print_built_in(v);
+pub proc eprint(v: String) -> Void = eprint_built_in(v);
 
 // TODO: remove this function before 1.0 release
 // This is a debug-only function. Don't use this for actual printing!
@@ -28,7 +27,8 @@ fn debug<T>(
     suffix: String = "\n",
     stderr: Bool = False,
 ) -> T = {
-    // TODO: better way to call impure functions sequentially?
+    // The `do` keyword exists exactly for this purpose, but we can't use it
+    // because we're in a pure context...
     if stderr {
         blackbox((
             eprint_built_in(prefix),

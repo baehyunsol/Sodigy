@@ -1,5 +1,5 @@
 use crate::{Bytecode, Memory, Session, SSA, lower_expr};
-use sodigy_hir::FuncEffect;
+use sodigy_error::FuncEffect;
 use sodigy_mir as mir;
 use sodigy_span::Span;
 use sodigy_string::InternedString;

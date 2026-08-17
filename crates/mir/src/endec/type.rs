@@ -1,6 +1,6 @@
 use crate::{Dotfish, Type, TypeAssertion, TypeUnit};
 use sodigy_endec::{DecodeError, Endec};
-use sodigy_hir::FuncEffect;
+use sodigy_error::FuncEffect;
 use sodigy_span::{Span, SpanId};
 
 impl Endec for Type {

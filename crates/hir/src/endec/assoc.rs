@@ -1,5 +1,6 @@
-use crate::{AssociatedFunc, AssociatedItem, AssociatedItemKind, FuncEffect, Type};
+use crate::{AssociatedFunc, AssociatedItem, AssociatedItemKind, Type};
 use sodigy_endec::{DecodeError, Endec};
+use sodigy_error::FuncEffect;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 

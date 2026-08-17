@@ -3,7 +3,7 @@ mod log;
 
 use crate::log::write_log;
 use crate::mono::GenericCall;
-use sodigy_error::{Error, Warning};
+use sodigy_error::{Error, FuncEffect, Warning};
 use sodigy_mir::{EnumVariantFields, Expr, Session as MirSession, Type, get_monomorphization_id_owned};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -82,6 +82,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                     call_spans: impure_calls,
                     keyword_span: r#let.keyword_span.clone(),
                     context: r#let.origin.into(),
+                    context_effect: FuncEffect::Fn,
                 });
             }
         }
@@ -98,6 +99,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                     call_spans: impure_calls,
                     keyword_span: assert.keyword_span.clone(),
                     context: ExprContext::TopLevelAssert,
+                    context_effect: FuncEffect::Fn,
                 });
             }
         }

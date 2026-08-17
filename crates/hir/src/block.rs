@@ -1,6 +1,7 @@
 use crate::{
     Alias,
     Assert,
+    Do,
     Enum,
     Expr,
     Func,
@@ -28,6 +29,7 @@ pub struct Block {
     pub group_span: Span,
     pub lets: Vec<Let>,
     pub asserts: Vec<Assert>,
+    pub does: Vec<Do>,
     pub value: Box<Expr>,
 
     // TODO: The term `use` in `use_counts` is confusing.
@@ -41,6 +43,7 @@ impl Block {
         let mut has_error = false;
         let mut lets = vec![];
         let mut asserts = vec![];
+        let mut does = vec![];
 
         // NOTE: You must do this before calling `.is_at_top_level_block()` because
         // the method counts the number of `BlockSession`s!
@@ -65,6 +68,17 @@ impl Block {
             match Assert::from_ast(assert, session) {
                 Ok(assert) => {
                     asserts.push(assert);
+                },
+                Err(()) => {
+                    has_error = true;
+                },
+            }
+        }
+
+        for r#do in ast_block.does.iter() {
+            match Do::from_ast(r#do, session) {
+                Ok(r#do) => {
+                    does.push(r#do);
                 },
                 Err(()) => {
                     has_error = true;
@@ -310,6 +324,7 @@ impl Block {
                 group_span: ast_block.group_span.clone(),
                 lets,
                 asserts,
+                does,
                 value: Box::new(value.unwrap()),
                 use_counts,
             })

@@ -7,6 +7,7 @@ pub enum Keyword {
     Fn,
     Proc,
     Ndet,
+    Do,
     If,
     Let,
     Match,

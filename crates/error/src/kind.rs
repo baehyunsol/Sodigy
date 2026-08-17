@@ -1,4 +1,4 @@
-use crate::{ErrorLevel, ErrorToken, ParamIndex, TypeVarInfo};
+use crate::{ErrorLevel, ErrorToken, FuncEffect, ParamIndex, TypeVarInfo};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_error_gen::error_kinds;
 use sodigy_file::{GetFilePathError, ModulePath};
@@ -74,6 +74,7 @@ error_kinds!(
     (StructWithoutBody,                                              176,    Error),
     (EnumWithoutBody,                                                177,    Error),
     (BlockWithoutValue,                                              180,    Error),
+    (TopLevelDo,                                                     181,    Error),
     (StructWithoutField,                                             185,    Error),
     (EmptyCurlyBraceBlock,                                           190,    Error),
     (AmbiguousCurlyBraces,                                           191,    Error),
@@ -178,7 +179,7 @@ error_kinds!(
     (CannotUpdateAssociatedFunc { r#type: String, name: InternedString },  439,  Error),
     (CannotApplyInfixOp { op: InfixOp, arg_types: Vec<String> },           440,  Error),
     (CannotSpecializePolyGeneric { num_candidates: usize },                445,  Error),
-    (ImpureCallInPureContext,                                              450,  Error),
+    (ImpureCallInPureContext { context: FuncEffect },                      450,  Error),
 
     // TODO: tell what's missing
     (NonExhaustiveArms,                                                  455,    Error),
@@ -201,7 +202,7 @@ error_kinds!(
     (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),
     (UnreachableMatchArm,                                           5005,  Warning),
     (UnreachableOrPattern,                                          5006,  Warning),
-    (NoImpureCallInImpureContext,                                   5010,  Warning),
+    (NoImpureCallInImpureContext { context: FuncEffect },           5010,  Warning),
 
     // Lints from here
     (FuncWithoutTypeAnnot,                                          8000,  Lint),

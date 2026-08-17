@@ -496,43 +496,83 @@ fn foo(x, y) = {
 
 TODO: documentation
 
-## impure functions
+## Effects
 
-Sodigy is a purely functional language, but sometimes you need impure functions (e.g. file IO, time, random, ...).
+Sodigy is an effectful-language! By default, every function (defined with `fn` keyword) is pure. But sometimes you need effectful functions (e.g. file IO, time, random, ...).
 
-You can define an impure function with `impure` keyword. You can call impure functions inside an impure function, but you cannot call impure functions inside a pure function.
+There are 2 effects in Sodigy:
+
+- `ndet` (non-deterministic): This function may return different values even if the same inputs are given.
+- `proc` (procedure): When you call a procedure, its behavior is observable in the outside world.
+
+Here's how I (informally) define `proc`: If a return value of `fn` or `ndet fn` is not used, the function won't be called and that's perfectly fine. But if a return value of `proc` or `ndet proc` is not used, we still have to call the procedure because not calling the procedure will change the behavior of the program.
 
 ```sodigy
-// This is an impure function.
-use sodigy.random.random_int;
+// This is a non-deterministic function.
+use std.random.random_int;
 
-// In an impure function, you can call another impure function.
-impure fn random_numbers() -> [Int] = [random_int(), random_int()];
+// In a non-deterministic function, you can call another n-det function.
+ndet fn random_numbers() -> [Int] = [random_int(), random_int()];
 
 // This is a compile error.
 // fn random_numbers() -> [Int] = [random_int(), random_int()];
+
+// This is not a compile error, but a compile warning because you're
+// not calling any ndet function inside a ndet function.
+ndet fn empty_list() -> [Int] = [];
 ```
 
-Lambdas can be impure, too. Use `impure` keyword before the backslash.
+Inside a `proc` context, you can use `do` keyword. With the `do` keyword, you can execute a procedure. The compiler guarantees that `do` keywords are not ignored, and their order does not change.
+
+```sodigy
+// This is a procedure.
+use std.time.sleep;
+
+// Inside a `proc` context, you can use the `do` keyword!
+// It'll execute the procedure and discard the result.
+proc sleep_and_return(t, n) = {
+    do sleep(t);
+    n
+};
+```
+
+Functions with different effects have differet types. See the type annotations below:
+
+```sodigy
+use std.random.random_int;
+use std.time.sleep;
+
+let pure_func: Fn(Int) -> Int = \n => n + 1;
+let ndet_func: NdetFn(Int) -> Int = ndet \n => random_int() + n;
+let det_proc: Proc(Int) -> Int = proc \n => { do sleep(0.1); n + 1 };
+let ndet_proc: NdetProc(Int) -> Int = ndet proc \n => { do sleep(0.1); random_int() + n };
+```
+
+Lambdas can be effectful, too. Use `ndet` and/or `proc` keyword before the backslash.
 
 ```sodigy
 use sodigy.random.random_int;
+use sodigy.time.sleep;
 
-let impure_lambda = impure \() -> [Int] = [random_int(), random_int()];
+let ndet_lambda = ndet \=> [random_int(), random_int()];
 
-// This is a compile error because there's no `impure` keyword.
-// impure_lambda = \() -> [Int] = [random_int(), random_int()];
+// This is a compile error because there's no `ndet` keyword.
+// let ndet_lambda = \=> [random_int(), random_int()];
+
+// This lambda is a non-deterministic procedure.
+// You have to put the `ndet` keyword before the `proc` keyword.
+let ndet_proc_lambda = ndet proc \=> { do sleep(0.5); random_int() };
 ```
 
-Creating an impure function is not impure. It's impure only if you call the impure function.
+Creating an effectful function is not effectful. It's effectful only if you call the effectful function.
 
 ```sodigy
 use sodigy.random.random_int;
 
 // This is pure.
-let impure_functions: [Proc() -> Int] = [
+let impure_functions: [Ndet() -> Int] = [
     random_int,
-    proc \() => random_int(),
+    ndet \() => random_int(),
 ];
 
 // This is impure.

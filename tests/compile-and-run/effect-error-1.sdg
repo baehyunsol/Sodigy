@@ -1,0 +1,30 @@
+//% compile-error == 14
+
+use std.random.random_int;
+use std.time.sleep;
+
+// This file is a sibling of `effect-1.sdg`
+// All the `let` statements in this file must be a type error.
+// Read `effect-1.sdg` for more context.
+
+fn pure_func(n: Int) -> Int = n + 1;
+ndet fn ndet_func(n: Int) -> Int = random_int() + n;
+ndet proc ndet_proc(n: Int) -> Int = {
+    do sleep(0.1);
+    n + random_int()
+};
+
+let f3: NdetFn(Int) -> Int = pure_func;
+let f4: NdetProc(Int) -> Int = pure_func;
+let f6: Fn(Int) -> Int = ndet_func;
+let f8: NdetProc(Int) -> Int = ndet_func;
+let f10: Fn(Int) -> Int = ndet_proc;
+let f11: NdetFn(Int) -> Int = ndet_proc;
+let funcs4: [Fn(Int) -> Int] = [pure_func, ndet_func];
+let funcs6: [Fn(Int) -> Int] = [ndet_func, ndet_func];
+let funcs7: [NdetFn(Int) -> Int] = [pure_func, ndet_func];
+let funcs8: [NdetFn(Int) -> Int] = [pure_func, pure_func];
+let lambda3: NdetFn(Int) -> Int = \(n) => n + 1;
+let lambda4: NdetProc(Int) -> Int = \n => n + 1;
+let lambda6: Fn(Int) -> Int = ndet \(n) => random_int() + n;
+let lambda8: NdetProc(Int) -> Int = ndet \n => random_int() + n;

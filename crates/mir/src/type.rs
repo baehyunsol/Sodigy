@@ -1,7 +1,7 @@
 use crate::{Callable, Expr, GlobalContext, MacroKind, Session};
 use sodigy_endec::Endec;
-use sodigy_error::{EnumFieldKind, Error, ErrorKind};
-use sodigy_hir::{self as hir, EnumRepr, EnumVariantFields, FuncEffect};
+use sodigy_error::{EnumFieldKind, Error, ErrorKind, FuncEffect};
+use sodigy_hir::{self as hir, EnumRepr, EnumVariantFields};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_session::SodigySession;

@@ -17,7 +17,7 @@
     UnexpectedDecorator(InternedString), ModuleDecoratorNotAtTop,
     MissingVisibility, CannotBePublic, DanglingVisibility,
     FunctionWithoutBody, StructWithoutBody, EnumWithoutBody,
-    BlockWithoutValue, StructWithoutField, EmptyCurlyBraceBlock,
+    BlockWithoutValue, TopLevelDo, StructWithoutField, EmptyCurlyBraceBlock,
     AmbiguousCurlyBraces, AmbiguousAngleBrackets,
     PositionalArgAfterKeywordArg, NonDefaultValueAfterDefaultValue,
     CannotDeclareInlineModule, InclusiveRangeWithNoEnd, MultipleRestPatterns,
@@ -71,11 +71,11 @@
     { r#type: String, field: InternedString }, CannotUpdateAssociatedFunc
     { r#type: String, name: InternedString }, CannotApplyInfixOp
     { op: InfixOp, arg_types: Vec<String> }, CannotSpecializePolyGeneric
-    { num_candidates: usize }, ImpureCallInPureContext, NonExhaustiveArms,
-    RefutableLetPattern, MultipleModuleFiles
-    { module: ModulePath, found_files: Vec<String> }, ModuleFileNotFound
-    { module: ModulePath, candidates: Vec<String> }, LibFileNotFound,
-    SelfParamWithTypeAnnot, AssociatedFuncWithoutSelfParam,
+    { num_candidates: usize }, ImpureCallInPureContext
+    { context: FuncEffect }, NonExhaustiveArms, RefutableLetPattern,
+    MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },
+    ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },
+    LibFileNotFound, SelfParamWithTypeAnnot, AssociatedFuncWithoutSelfParam,
     CannotInferPolyGenericParam { param_index: ParamIndex },
     CannotInferPolyGenericImpl { param_index: ParamIndex },
     PolyImplDifferentNumberOfParams
@@ -83,10 +83,10 @@
     { poly_type: String, impl_type: String, param_index: ParamIndex },
     MultiplePolyCandidates(usize), UnusedNames
     { names: Vec<InternedString>, kind: NameKind }, UnreachableMatchArm,
-    UnreachableOrPattern, NoImpureCallInImpureContext, FuncWithoutTypeAnnot,
-    LetWithoutTypeAnnot, StructWithoutTypeAnnot, EnumVariantWithoutTypeAnnot,
-    SelfParamNotNamedSelf, Todo { id: u32, message: String },
-    InternalCompilerError { id: u32 },
+    UnreachableOrPattern, NoImpureCallInImpureContext { context: FuncEffect },
+    FuncWithoutTypeAnnot, LetWithoutTypeAnnot, StructWithoutTypeAnnot,
+    EnumVariantWithoutTypeAnnot, SelfParamNotNamedSelf, Todo
+    { id: u32, message: String }, InternalCompilerError { id: u32 },
 } impl ErrorKind {
     pub fn index(& self) -> u16
     {
@@ -124,11 +124,11 @@
             170u16, ErrorKind :: DanglingVisibility => 171u16, ErrorKind ::
             FunctionWithoutBody => 175u16, ErrorKind :: StructWithoutBody =>
             176u16, ErrorKind :: EnumWithoutBody => 177u16, ErrorKind ::
-            BlockWithoutValue => 180u16, ErrorKind :: StructWithoutField =>
-            185u16, ErrorKind :: EmptyCurlyBraceBlock => 190u16, ErrorKind ::
-            AmbiguousCurlyBraces => 191u16, ErrorKind ::
-            AmbiguousAngleBrackets => 192u16, ErrorKind ::
-            PositionalArgAfterKeywordArg => 195u16, ErrorKind ::
+            BlockWithoutValue => 180u16, ErrorKind :: TopLevelDo => 181u16,
+            ErrorKind :: StructWithoutField => 185u16, ErrorKind ::
+            EmptyCurlyBraceBlock => 190u16, ErrorKind :: AmbiguousCurlyBraces
+            => 191u16, ErrorKind :: AmbiguousAngleBrackets => 192u16,
+            ErrorKind :: PositionalArgAfterKeywordArg => 195u16, ErrorKind ::
             NonDefaultValueAfterDefaultValue => 200u16, ErrorKind ::
             CannotDeclareInlineModule => 205u16, ErrorKind ::
             InclusiveRangeWithNoEnd => 210u16, ErrorKind ::
@@ -187,20 +187,20 @@
             CannotUpdateAssociatedFunc { .. } => 439u16, ErrorKind ::
             CannotApplyInfixOp { .. } => 440u16, ErrorKind ::
             CannotSpecializePolyGeneric { .. } => 445u16, ErrorKind ::
-            ImpureCallInPureContext => 450u16, ErrorKind :: NonExhaustiveArms
-            => 455u16, ErrorKind :: RefutableLetPattern => 456u16, ErrorKind
-            :: MultipleModuleFiles { .. } => 460u16, ErrorKind ::
-            ModuleFileNotFound { .. } => 465u16, ErrorKind :: LibFileNotFound
-            => 470u16, ErrorKind :: SelfParamWithTypeAnnot => 475u16,
-            ErrorKind :: AssociatedFuncWithoutSelfParam => 480u16, ErrorKind
-            :: CannotInferPolyGenericParam { .. } => 485u16, ErrorKind ::
-            CannotInferPolyGenericImpl { .. } => 490u16, ErrorKind ::
-            PolyImplDifferentNumberOfParams { .. } => 495u16, ErrorKind ::
-            CannotImplPoly { .. } => 500u16, ErrorKind ::
+            ImpureCallInPureContext { .. } => 450u16, ErrorKind ::
+            NonExhaustiveArms => 455u16, ErrorKind :: RefutableLetPattern =>
+            456u16, ErrorKind :: MultipleModuleFiles { .. } => 460u16,
+            ErrorKind :: ModuleFileNotFound { .. } => 465u16, ErrorKind ::
+            LibFileNotFound => 470u16, ErrorKind :: SelfParamWithTypeAnnot =>
+            475u16, ErrorKind :: AssociatedFuncWithoutSelfParam => 480u16,
+            ErrorKind :: CannotInferPolyGenericParam { .. } => 485u16,
+            ErrorKind :: CannotInferPolyGenericImpl { .. } => 490u16,
+            ErrorKind :: PolyImplDifferentNumberOfParams { .. } => 495u16,
+            ErrorKind :: CannotImplPoly { .. } => 500u16, ErrorKind ::
             MultiplePolyCandidates(_,) => 505u16, ErrorKind :: UnusedNames
             { .. } => 5000u16, ErrorKind :: UnreachableMatchArm => 5005u16,
             ErrorKind :: UnreachableOrPattern => 5006u16, ErrorKind ::
-            NoImpureCallInImpureContext => 5010u16, ErrorKind ::
+            NoImpureCallInImpureContext { .. } => 5010u16, ErrorKind ::
             FuncWithoutTypeAnnot => 8000u16, ErrorKind :: LetWithoutTypeAnnot
             => 8005u16, ErrorKind :: StructWithoutTypeAnnot => 8010u16,
             ErrorKind :: EnumVariantWithoutTypeAnnot => 8011u16, ErrorKind ::
@@ -256,27 +256,27 @@
             FunctionWithoutBody => ErrorLevel :: Error, ErrorKind ::
             StructWithoutBody => ErrorLevel :: Error, ErrorKind ::
             EnumWithoutBody => ErrorLevel :: Error, ErrorKind ::
-            BlockWithoutValue => ErrorLevel :: Error, ErrorKind ::
-            StructWithoutField => ErrorLevel :: Error, ErrorKind ::
-            EmptyCurlyBraceBlock => ErrorLevel :: Error, ErrorKind ::
-            AmbiguousCurlyBraces => ErrorLevel :: Error, ErrorKind ::
-            AmbiguousAngleBrackets => ErrorLevel :: Error, ErrorKind ::
-            PositionalArgAfterKeywordArg => ErrorLevel :: Error, ErrorKind ::
-            NonDefaultValueAfterDefaultValue => ErrorLevel :: Error, ErrorKind
-            :: CannotDeclareInlineModule => ErrorLevel :: Error, ErrorKind ::
-            InclusiveRangeWithNoEnd => ErrorLevel :: Error, ErrorKind ::
-            MultipleRestPatterns => ErrorLevel :: Error, ErrorKind ::
-            DifferentNameBindingsInOrPattern => ErrorLevel :: Error, ErrorKind
-            :: InvalidFnType => ErrorLevel :: Error, ErrorKind ::
-            EmptyMatchStatement => ErrorLevel :: Error, ErrorKind ::
-            RedundantDecorator(_,) => ErrorLevel :: Error, ErrorKind ::
-            InvalidDecorator(_,) => ErrorLevel :: Error, ErrorKind ::
-            MissingDecoratorArg { .. } => ErrorLevel :: Error, ErrorKind ::
-            UnexpectedDecoratorArg { .. } => ErrorLevel :: Error, ErrorKind ::
-            WrongNumberOfLangItemGenerics { .. } => ErrorLevel :: Error,
-            ErrorKind :: CannotEvaluateConst => ErrorLevel :: Error, ErrorKind
-            :: InvalidRangePattern => ErrorLevel :: Error, ErrorKind ::
-            InvalidConcatPattern => ErrorLevel :: Error, ErrorKind ::
+            BlockWithoutValue => ErrorLevel :: Error, ErrorKind :: TopLevelDo
+            => ErrorLevel :: Error, ErrorKind :: StructWithoutField =>
+            ErrorLevel :: Error, ErrorKind :: EmptyCurlyBraceBlock =>
+            ErrorLevel :: Error, ErrorKind :: AmbiguousCurlyBraces =>
+            ErrorLevel :: Error, ErrorKind :: AmbiguousAngleBrackets =>
+            ErrorLevel :: Error, ErrorKind :: PositionalArgAfterKeywordArg =>
+            ErrorLevel :: Error, ErrorKind :: NonDefaultValueAfterDefaultValue
+            => ErrorLevel :: Error, ErrorKind :: CannotDeclareInlineModule =>
+            ErrorLevel :: Error, ErrorKind :: InclusiveRangeWithNoEnd =>
+            ErrorLevel :: Error, ErrorKind :: MultipleRestPatterns =>
+            ErrorLevel :: Error, ErrorKind :: DifferentNameBindingsInOrPattern
+            => ErrorLevel :: Error, ErrorKind :: InvalidFnType => ErrorLevel
+            :: Error, ErrorKind :: EmptyMatchStatement => ErrorLevel :: Error,
+            ErrorKind :: RedundantDecorator(_,) => ErrorLevel :: Error,
+            ErrorKind :: InvalidDecorator(_,) => ErrorLevel :: Error,
+            ErrorKind :: MissingDecoratorArg { .. } => ErrorLevel :: Error,
+            ErrorKind :: UnexpectedDecoratorArg { .. } => ErrorLevel :: Error,
+            ErrorKind :: WrongNumberOfLangItemGenerics { .. } => ErrorLevel ::
+            Error, ErrorKind :: CannotEvaluateConst => ErrorLevel :: Error,
+            ErrorKind :: InvalidRangePattern => ErrorLevel :: Error, ErrorKind
+            :: InvalidConcatPattern => ErrorLevel :: Error, ErrorKind ::
             CannotBindName(_,) => ErrorLevel :: Error, ErrorKind ::
             CannotApplyInfixOpToMultipleBindings => ErrorLevel :: Error,
             ErrorKind :: CannotApplyInfixOpToBinding => ErrorLevel :: Error,
@@ -329,8 +329,8 @@
             :: CannotUpdateAssociatedFunc { .. } => ErrorLevel :: Error,
             ErrorKind :: CannotApplyInfixOp { .. } => ErrorLevel :: Error,
             ErrorKind :: CannotSpecializePolyGeneric { .. } => ErrorLevel ::
-            Error, ErrorKind :: ImpureCallInPureContext => ErrorLevel ::
-            Error, ErrorKind :: NonExhaustiveArms => ErrorLevel :: Error,
+            Error, ErrorKind :: ImpureCallInPureContext { .. } => ErrorLevel
+            :: Error, ErrorKind :: NonExhaustiveArms => ErrorLevel :: Error,
             ErrorKind :: RefutableLetPattern => ErrorLevel :: Error, ErrorKind
             :: MultipleModuleFiles { .. } => ErrorLevel :: Error, ErrorKind ::
             ModuleFileNotFound { .. } => ErrorLevel :: Error, ErrorKind ::
@@ -345,14 +345,14 @@
             ErrorLevel :: Error, ErrorKind :: UnusedNames { .. } => ErrorLevel
             :: Warning, ErrorKind :: UnreachableMatchArm => ErrorLevel ::
             Warning, ErrorKind :: UnreachableOrPattern => ErrorLevel ::
-            Warning, ErrorKind :: NoImpureCallInImpureContext => ErrorLevel ::
-            Warning, ErrorKind :: FuncWithoutTypeAnnot => ErrorLevel :: Lint,
-            ErrorKind :: LetWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind
-            :: StructWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
-            EnumVariantWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
-            SelfParamNotNamedSelf => ErrorLevel :: Lint, ErrorKind :: Todo
-            { .. } => ErrorLevel :: Error, ErrorKind :: InternalCompilerError
-            { .. } => ErrorLevel :: Error,
+            Warning, ErrorKind :: NoImpureCallInImpureContext { .. } =>
+            ErrorLevel :: Warning, ErrorKind :: FuncWithoutTypeAnnot =>
+            ErrorLevel :: Lint, ErrorKind :: LetWithoutTypeAnnot => ErrorLevel
+            :: Lint, ErrorKind :: StructWithoutTypeAnnot => ErrorLevel ::
+            Lint, ErrorKind :: EnumVariantWithoutTypeAnnot => ErrorLevel ::
+            Lint, ErrorKind :: SelfParamNotNamedSelf => ErrorLevel :: Lint,
+            ErrorKind :: Todo { .. } => ErrorLevel :: Error, ErrorKind ::
+            InternalCompilerError { .. } => ErrorLevel :: Error,
         }
     }
 } impl Endec for ErrorKind {
@@ -444,12 +444,13 @@
             ErrorKind :: EnumWithoutBody =>
             { buffer.push(0u8); buffer.push(177u8); }, ErrorKind ::
             BlockWithoutValue => { buffer.push(0u8); buffer.push(180u8); },
-            ErrorKind :: StructWithoutField =>
-            { buffer.push(0u8); buffer.push(185u8); }, ErrorKind ::
-            EmptyCurlyBraceBlock => { buffer.push(0u8); buffer.push(190u8); },
-            ErrorKind :: AmbiguousCurlyBraces =>
-            { buffer.push(0u8); buffer.push(191u8); }, ErrorKind ::
-            AmbiguousAngleBrackets =>
+            ErrorKind :: TopLevelDo =>
+            { buffer.push(0u8); buffer.push(181u8); }, ErrorKind ::
+            StructWithoutField => { buffer.push(0u8); buffer.push(185u8); },
+            ErrorKind :: EmptyCurlyBraceBlock =>
+            { buffer.push(0u8); buffer.push(190u8); }, ErrorKind ::
+            AmbiguousCurlyBraces => { buffer.push(0u8); buffer.push(191u8); },
+            ErrorKind :: AmbiguousAngleBrackets =>
             { buffer.push(0u8); buffer.push(192u8); }, ErrorKind ::
             PositionalArgAfterKeywordArg =>
             { buffer.push(0u8); buffer.push(195u8); }, ErrorKind ::
@@ -654,12 +655,14 @@
             {
                 buffer.push(1u8); buffer.push(189u8);
                 r#num_candidates.encode_impl(buffer);
-            }, ErrorKind :: ImpureCallInPureContext =>
-            { buffer.push(1u8); buffer.push(194u8); }, ErrorKind ::
-            NonExhaustiveArms => { buffer.push(1u8); buffer.push(199u8); },
-            ErrorKind :: RefutableLetPattern =>
-            { buffer.push(1u8); buffer.push(200u8); }, ErrorKind ::
-            MultipleModuleFiles { r#module, r#found_files, } =>
+            }, ErrorKind :: ImpureCallInPureContext { r#context, } =>
+            {
+                buffer.push(1u8); buffer.push(194u8);
+                r#context.encode_impl(buffer);
+            }, ErrorKind :: NonExhaustiveArms =>
+            { buffer.push(1u8); buffer.push(199u8); }, ErrorKind ::
+            RefutableLetPattern => { buffer.push(1u8); buffer.push(200u8); },
+            ErrorKind :: MultipleModuleFiles { r#module, r#found_files, } =>
             {
                 buffer.push(1u8); buffer.push(204u8);
                 r#module.encode_impl(buffer);
@@ -706,12 +709,14 @@
             { buffer.push(19u8); buffer.push(141u8); }, ErrorKind ::
             UnreachableOrPattern =>
             { buffer.push(19u8); buffer.push(142u8); }, ErrorKind ::
-            NoImpureCallInImpureContext =>
-            { buffer.push(19u8); buffer.push(146u8); }, ErrorKind ::
-            FuncWithoutTypeAnnot => { buffer.push(31u8); buffer.push(64u8); },
-            ErrorKind :: LetWithoutTypeAnnot =>
-            { buffer.push(31u8); buffer.push(69u8); }, ErrorKind ::
-            StructWithoutTypeAnnot =>
+            NoImpureCallInImpureContext { r#context, } =>
+            {
+                buffer.push(19u8); buffer.push(146u8);
+                r#context.encode_impl(buffer);
+            }, ErrorKind :: FuncWithoutTypeAnnot =>
+            { buffer.push(31u8); buffer.push(64u8); }, ErrorKind ::
+            LetWithoutTypeAnnot => { buffer.push(31u8); buffer.push(69u8); },
+            ErrorKind :: StructWithoutTypeAnnot =>
             { buffer.push(31u8); buffer.push(74u8); }, ErrorKind ::
             EnumVariantWithoutTypeAnnot =>
             { buffer.push(31u8); buffer.push(75u8); }, ErrorKind ::
@@ -822,7 +827,8 @@
             Ok((ErrorKind :: FunctionWithoutBody, cursor)), 176u16 =>
             Ok((ErrorKind :: StructWithoutBody, cursor)), 177u16 =>
             Ok((ErrorKind :: EnumWithoutBody, cursor)), 180u16 =>
-            Ok((ErrorKind :: BlockWithoutValue, cursor)), 185u16 =>
+            Ok((ErrorKind :: BlockWithoutValue, cursor)), 181u16 =>
+            Ok((ErrorKind :: TopLevelDo, cursor)), 185u16 =>
             Ok((ErrorKind :: StructWithoutField, cursor)), 190u16 =>
             Ok((ErrorKind :: EmptyCurlyBraceBlock, cursor)), 191u16 =>
             Ok((ErrorKind :: AmbiguousCurlyBraces, cursor)), 192u16 =>
@@ -1107,9 +1113,14 @@
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: CannotSpecializePolyGeneric
                 { r#num_candidates, }, cursor))
-            }, 450u16 => Ok((ErrorKind :: ImpureCallInPureContext, cursor)),
-            455u16 => Ok((ErrorKind :: NonExhaustiveArms, cursor)), 456u16 =>
-            Ok((ErrorKind :: RefutableLetPattern, cursor)), 460u16 =>
+            }, 450u16 =>
+            {
+                let (r#context, cursor) = FuncEffect ::
+                decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: ImpureCallInPureContext { r#context, },
+                cursor))
+            }, 455u16 => Ok((ErrorKind :: NonExhaustiveArms, cursor)), 456u16
+            => Ok((ErrorKind :: RefutableLetPattern, cursor)), 460u16 =>
             {
                 let (r#module, cursor) = ModulePath ::
                 decode_impl(buffer, cursor) ? ; let (r#found_files, cursor) =
@@ -1166,8 +1177,13 @@
                 Ok((ErrorKind :: UnusedNames { r#names, r#kind, }, cursor))
             }, 5005u16 => Ok((ErrorKind :: UnreachableMatchArm, cursor)),
             5006u16 => Ok((ErrorKind :: UnreachableOrPattern, cursor)),
-            5010u16 => Ok((ErrorKind :: NoImpureCallInImpureContext, cursor)),
-            8000u16 => Ok((ErrorKind :: FuncWithoutTypeAnnot, cursor)),
+            5010u16 =>
+            {
+                let (r#context, cursor) = FuncEffect ::
+                decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: NoImpureCallInImpureContext { r#context, },
+                cursor))
+            }, 8000u16 => Ok((ErrorKind :: FuncWithoutTypeAnnot, cursor)),
             8005u16 => Ok((ErrorKind :: LetWithoutTypeAnnot, cursor)), 8010u16
             => Ok((ErrorKind :: StructWithoutTypeAnnot, cursor)), 8011u16 =>
             Ok((ErrorKind :: EnumVariantWithoutTypeAnnot, cursor)), 8015u16 =>

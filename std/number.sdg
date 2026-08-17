@@ -27,6 +27,16 @@ fn eq_number(a: Number, b: Number) -> Bool = {
     }
 };
 
+// I need the definition of this function, otherwise the std will not compile.
+// But unfortunately, the compiler isn't strong enough (yet) to compile the
+// actual implementation of this function (defined below, in the comments).
+#[impl(std.op.mul)]
+fn mul_number(a: Number, b: Number) -> Number = std.panic("TODO");
+
+// Again, I need this definition for std to compile.
+#[impl(std.convert.convert)]
+fn number_to_int(n: Number) -> Int = std.panic("TODO");
+
 // TODO: The compiler isn't strong enough to compile these functions.
 /*
 fn gcd(a: Int, b: Int) -> Int = match b {
@@ -70,7 +80,6 @@ fn normalize(self) -> Number = {
         denom: denom,
     }
 };
-
 
 #[impl(std.op.add)]
 fn add_number(a: Number, b: Number) -> Number = {

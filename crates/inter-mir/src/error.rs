@@ -2,6 +2,7 @@ use crate::{Session, Type};
 use sodigy_error::{
     Error,
     ErrorKind,
+    FuncEffect,
     ParamIndex,
     TypeVarInfo,
     Warning,
@@ -9,7 +10,7 @@ use sodigy_error::{
     comma_list_strs,
     to_ordinal,
 };
-use sodigy_hir::{FuncEffect, FuncOrigin, LetOrigin};
+use sodigy_hir::{FuncOrigin, LetOrigin};
 use sodigy_mir::{render_type, span_to_string};
 use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span};
@@ -158,14 +159,16 @@ pub enum TypeError {
         missing_fields: Vec<InternedString>,
     },
     ImpureCallInPureContext {
-        call_spans: Vec<Span>,
+        call_spans: HashMap<FuncEffect, Vec<Span>>,
         keyword_span: Span,
         context: ExprContext,
+        context_effect: FuncEffect,
     },
 
     // warning by default
     NoImpureCallInImpureContext {
-        proc_keyword_span: Span,
+        effect_keyword_span: Span,
+        context_effect: FuncEffect,
     },
 
     // This is an ICE.
@@ -860,21 +863,40 @@ impl Session {
                 }],
                 note: None,
             },
-            TypeError::ImpureCallInPureContext { call_spans, keyword_span, context } => {
+            TypeError::ImpureCallInPureContext { call_spans, keyword_span, context, context_effect } => {
                 let mut spans = vec![];
                 let (keyword_note, error_note) = match context {
-                    ExprContext::TopLevelLet => (Some("This is a top-level `let` statement, and it has to be pure. If you want to do impure stuffs, define an impure function."), None),
-                    ExprContext::InlineLet => unreachable!(),
-                    ExprContext::FuncDefaultValue => (None, Some("You can't call impure functions when initializing a default value.")),
-                    ExprContext::TopLevelFunc | ExprContext::InlineFunc => (
-                        Some("A function is pure by default. If you want to define an impure function, use the `proc` keyword."),
+                    ExprContext::TopLevelLet => (
+                        Some(String::from("This is a top-level `let` statement, and it has to be pure. If you want to do impure stuffs, define an impure function.")),
                         None,
                     ),
-                    ExprContext::Lambda => (Some("A lambda function is pure by default. If you want the lambda to be impure, add `proc` keyword before the backslash."), None),
-                    ExprContext::TopLevelAssert => (Some("You can't call impure functions when asserting something."), None),
-                    ExprContext::Monomorphization => todo!(),
+                    ExprContext::InlineLet => unreachable!(),
+                    ExprContext::FuncDefaultValue => (
+                        None,
+                        Some(String::from("You can't call impure functions when initializing a default value.")),
+                    ),
+                    ExprContext::TopLevelFunc | ExprContext::InlineFunc | ExprContext::Monomorphization => (
+                        Some(format!(
+                            "You defined {} here.",
+                            match context_effect {
+                                FuncEffect::Fn => "a pure function",
+                                FuncEffect::Proc => "a deterministic procedure",
+                                FuncEffect::NdetFn => "a non-deterministic function",
+                                FuncEffect::NdetProc => "a non-deterministic procedure",
+                                _ => unreachable!(),
+                            },
+                        )),
+                        None,
+                    ),
+                    ExprContext::Lambda => (
+                        Some(String::from("A lambda function is pure by default. If you want the lambda to be effectful, add `ndet` and/or `proc` keyword before the backslash.")),
+                        None,
+                    ),
+                    ExprContext::TopLevelAssert => (
+                        Some(String::from("You can't call effectful functions when asserting something.")),
+                        None,
+                    ),
                 };
-                let (keyword_note, error_note) = (keyword_note.map(|s| s.to_string()), error_note.map(|s| s.to_string()));
 
                 spans.push(RenderableSpan {
                     span: keyword_span.clone(),
@@ -882,28 +904,38 @@ impl Session {
                     note: keyword_note,
                 });
 
-                for call_span in call_spans.iter() {
-                    spans.push(RenderableSpan {
-                        span: call_span.clone(),
-                        auxiliary: false,
-                        note: Some(String::from("You're calling an impure function here.")),
-                    });
+                for (effect, call_spans) in call_spans.iter() {
+                    let message = match effect {
+                        FuncEffect::Fn => unreachable!(),
+                        FuncEffect::Proc => "This is a procedure.",
+                        FuncEffect::NdetFn => "This is non-deterministic.",
+                        FuncEffect::NdetProc => "This is a non-deterministic procedure.",
+                        FuncEffect::Callable => "I cannot infer the effect of this function, so it's treated like a non-deterministic procedure.",
+                        _ => unreachable!(),
+                    };
+
+                    for call_span in call_spans.iter() {
+                        spans.push(RenderableSpan {
+                            span: call_span.clone(),
+                            auxiliary: false,
+                            note: Some(message.to_string()),
+                        });
+                    }
                 }
 
                 Error {
-                    kind: ErrorKind::ImpureCallInPureContext,
+                    kind: ErrorKind::ImpureCallInPureContext { context: context_effect.into() },
                     spans,
                     note: error_note,
                 }
             },
 
-            // This is a warning, so don't expect `init_span_string_map()`!
-            TypeWarning::NoImpureCallInImpureContext { proc_keyword_span } => Warning {
-                kind: WarningKind::NoImpureCallInImpureContext,
+            TypeWarning::NoImpureCallInImpureContext { effect_keyword_span, context_effect } => Warning {
+                kind: WarningKind::NoImpureCallInImpureContext { context: context_effect.into() },
                 spans: vec![RenderableSpan {
-                    span: proc_keyword_span.clone(),
+                    span: effect_keyword_span.clone(),
                     auxiliary: false,
-                    note: Some(String::from("This `proc` keyword makes this function impure.")),
+                    note: Some(String::from("This keyword makes this function effectful.")),
                 }],
                 note: None,
             },

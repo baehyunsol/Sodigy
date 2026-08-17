@@ -1434,6 +1434,7 @@ impl Session {
                         (b"fn", false) => TokenKind::Keyword(Keyword::Fn),
                         (b"proc", false) => TokenKind::Keyword(Keyword::Proc),
                         (b"ndet", false) => TokenKind::Keyword(Keyword::Ndet),
+                        (b"do", false) => TokenKind::Keyword(Keyword::Do),
                         (b"if", false) => TokenKind::Keyword(Keyword::If),
                         (b"let", false) => TokenKind::Keyword(Keyword::Let),
                         (b"match", false) => TokenKind::Keyword(Keyword::Match),

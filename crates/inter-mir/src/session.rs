@@ -1,7 +1,7 @@
 use crate::{AssociatedFuncInstance, LogEntry, Monomorphization};
 use crate::error::{TypeError, TypeWarning};
-use sodigy_error::{Error, TypeVarInfo, Warning};
-use sodigy_hir::{EnumShape, FuncEffect, FuncShape, ItemShape, Poly, StructShape};
+use sodigy_error::{Error, FuncEffect, TypeVarInfo, Warning};
+use sodigy_hir::{EnumShape, FuncShape, ItemShape, Poly, StructShape};
 use sodigy_mir::{Session as MirSession, Type};
 use sodigy_span::{Span, SpanId};
 use sodigy_string::InternedString;

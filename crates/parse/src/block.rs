@@ -2,6 +2,7 @@ use crate::{
     Alias,
     Assert,
     Attribute,
+    Do,
     Enum,
     Expr,
     Func,
@@ -25,6 +26,7 @@ pub struct Block {
     pub structs: Vec<Struct>,
     pub enums: Vec<Enum>,
     pub asserts: Vec<Assert>,
+    pub does: Vec<Do>,
     pub aliases: Vec<Alias>,
     pub uses: Vec<Use>,
 
@@ -52,6 +54,7 @@ impl Block {
             structs: vec![],
             enums: vec![],
             asserts: vec![],
+            does: vec![],
             aliases: vec![],
             modules: vec![],
             uses: vec![],
@@ -105,6 +108,7 @@ impl<'t, 's> Tokens<'t, 's> {
         let mut structs = vec![];
         let mut enums = vec![];
         let mut asserts = vec![];
+        let mut does = vec![];
         let mut aliases = vec![];
         let mut modules = vec![];
         let mut uses = vec![];
@@ -136,10 +140,10 @@ impl<'t, 's> Tokens<'t, 's> {
             };
 
             // FIXME: the same code is repeated multiple times...
-            match self.peek2() {
+            match self.peek3() {
                 // `parse_let` might return multiple `Let`s because if there's a pattern,
                 // it's destructured to multiple `Let`s.
-                (Some(Token { kind: TokenKind::Keyword(Keyword::Let), .. }), _) => match self.parse_let() {
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Let), .. }), _, _) => match self.parse_let() {
                     Ok(mut lets_) => {
                         match (lets_.len(), attribute.is_empty()) {
                             (1, _) => {
@@ -167,8 +171,10 @@ impl<'t, 's> Tokens<'t, 's> {
                 },
                 // `proc \() ..` is an expression, but `proc foo(...)` is an item.
                 // So, we have to look 1 more token when we see `proc` keyword.
-                (Some(Token { kind: TokenKind::Keyword(Keyword::Proc), .. }), Some(Token { kind: TokenKind::Ident(_), .. })) |
-                (Some(Token { kind: TokenKind::Keyword(Keyword::Fn), .. }), _) => match self.parse_func() {
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Fn), .. }), _, _) |
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Proc), .. }), Some(Token { kind: TokenKind::Ident(_), .. }), _) |
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Ndet), .. }), Some(Token { kind: TokenKind::Keyword(Keyword::Fn), .. }), Some(Token { kind: TokenKind::Ident(_), .. })) |
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Ndet), .. }), Some(Token { kind: TokenKind::Keyword(Keyword::Proc), .. }), Some(Token { kind: TokenKind::Ident(_), .. })) => match self.parse_func() {
                     Ok(mut func) => {
                         func.attribute = attribute;
                         funcs.push(func);
@@ -185,7 +191,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         }
                     },
                 },
-                (Some(Token { kind: TokenKind::Keyword(Keyword::Struct), .. }), _) => match self.parse_struct() {
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Struct), .. }), _, _) => match self.parse_struct() {
                     Ok(mut r#struct) => {
                         r#struct.attribute = attribute;
                         structs.push(r#struct);
@@ -202,7 +208,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         }
                     },
                 },
-                (Some(Token { kind: TokenKind::Keyword(Keyword::Enum), .. }), _) => match self.parse_enum() {
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Enum), .. }), _, _) => match self.parse_enum() {
                     Ok(mut r#enum) => {
                         r#enum.attribute = attribute;
                         enums.push(r#enum);
@@ -219,7 +225,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         }
                     },
                 },
-                (Some(Token { kind: TokenKind::Keyword(Keyword::Assert), .. }), _) => {
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Assert), .. }), _, _) => {
                     match self.parse_assert() {
                         Ok(mut assert) => {
                             assert.attribute = attribute;
@@ -238,7 +244,30 @@ impl<'t, 's> Tokens<'t, 's> {
                         },
                     }
                 },
-                (Some(Token { kind: TokenKind::Keyword(Keyword::Type), .. }), _) => match self. parse_alias() {
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Do), span }), _, _) => {
+                    if is_top_level {
+                        errors.push(Error {
+                            kind: ErrorKind::TopLevelDo,
+                            spans: span.simple_error(),
+                            note: None,
+                        });
+                        return Err(errors);
+                    }
+
+                    else {
+                        match self.parse_do() {
+                            Ok(mut r#do) => {
+                                r#do.attribute = attribute;
+                                does.push(r#do);
+                            },
+                            Err(e) => {
+                                errors.extend(e);
+                                return Err(errors);
+                            },
+                        }
+                    }
+                },
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Type), .. }), _, _) => match self. parse_alias() {
                     Ok(mut alias) => {
                         alias.attribute = attribute;
                         aliases.push(alias);
@@ -255,7 +284,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         }
                     },
                 },
-                (Some(Token { kind: TokenKind::Keyword(Keyword::Mod), .. }), _) => match self.parse_module() {
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Mod), .. }), _, _) => match self.parse_module() {
                     Ok(mut module) => {
                         module.attribute = attribute;
                         modules.push(module);
@@ -272,7 +301,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         }
                     },
                 },
-                (Some(Token { kind: TokenKind::Keyword(Keyword::Use), .. }), _) => match self.parse_use() {
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Use), .. }), _, _) => match self.parse_use() {
                     Ok(mut uses_) => {
                         match (uses_.len(), attribute.is_empty()) {
                             (1, _) => {
@@ -301,7 +330,18 @@ impl<'t, 's> Tokens<'t, 's> {
                         }
                     },
                 },
-                (Some(t), _) => {
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Ndet), .. }), Some(Token { kind: TokenKind::Ident(id), span }), _) => {
+                    errors.push(Error {
+                        kind: ErrorKind::UnexpectedToken {
+                            expected: ErrorToken::Keyword(Keyword::Fn),
+                            got: ErrorToken::Ident,
+                        },
+                        spans: span.simple_error(),
+                        note: Some(format!("If you want to define a non-deterministic function, define it like `ndet fn {}`.", id.unintern_or_default(self.intermediate_dir))),
+                    });
+                    return Err(errors);
+                },
+                (Some(t), _, _) => {
                     let initial_token = t.clone();
 
                     if let Err(e) = attribute_not_allowed(&attribute, self.peek().map(|token| token.span.start()), true) {
@@ -355,7 +395,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         },
                     }
                 },
-                (None, _) => {
+                (None, _, _) => {
                     if let Err(e) = attribute_not_allowed(&attribute, None, false) {
                         errors.extend(e);
                     }
@@ -380,6 +420,7 @@ impl<'t, 's> Tokens<'t, 's> {
             structs,
             enums,
             asserts,
+            does,
             aliases,
             modules,
             uses,

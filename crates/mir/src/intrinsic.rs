@@ -90,7 +90,8 @@ intrinsics!(
     (Print           , "built_in.print"             , 27   , 1),
     (EPrint          , "built_in.eprint"            , 28   , 1),
     (RandomInt       , "built_in.random_int"        , 29   , 0),
-    (Nop             , "built_in.nop"               , 30   , 0),
+    (Sleep           , "built_in.sleep"             , 30   , 1),
+    (Nop             , "built_in.nop"               , 31   , 0),
 //   ^^^               ^^^^^^^^^^^^^^                 ^^     ^
 //   |                 |                              |      |
 //  (0)               (1)                            (2)    (3)

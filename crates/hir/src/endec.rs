@@ -4,6 +4,7 @@ mod assoc;
 mod attribute;
 mod block;
 mod closure;
+mod r#do;
 mod r#enum;
 mod expr;
 mod func;

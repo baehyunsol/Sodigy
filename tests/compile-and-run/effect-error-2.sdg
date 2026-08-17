@@ -1,0 +1,13 @@
+//% compile-error == 5
+
+use std.random.random_int;
+
+// This file is a sibling of `effect-2.sdg`
+// All the `let` statements and function definitions in this file must be a type error.
+// Read `effect-2.sdg` for more context.
+
+fn f1(n: Int) -> Int = random_int() + n;
+let v1 = random_int();
+let l1: Callable(Int) -> Int = \(n) => random_int() + n;
+let l2: Fn(Int) -> Int = \(n) => random_int() + n;
+assert random_int() == 100;

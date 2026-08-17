@@ -145,3 +145,48 @@ pub enum TypeVarInfo {
     ListExpr,
     ListPattern,
 }
+
+// TODO: I'm not sure whether this is the best place to define this enum.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum FuncEffect {
+    Fn,
+    Proc,
+    NdetFn,
+    NdetProc,
+    Callable,
+
+    // It's for effect-inference.
+    Var(Span),
+}
+
+impl FuncEffect {
+    pub fn from_ndet_and_proc(is_ndet: bool, is_proc: bool) -> FuncEffect {
+        match (is_ndet, is_proc) {
+            (true, true) => FuncEffect::NdetProc,
+            (true, false) => FuncEffect::NdetFn,
+            (false, true) => FuncEffect::Proc,
+            (false, false) => FuncEffect::Fn,
+        }
+    }
+
+    pub fn keyword(&self) -> &'static str {
+        match self {
+            FuncEffect::Fn => "fn",
+            FuncEffect::Proc => "proc",
+            FuncEffect::NdetFn => "ndet fn",
+            FuncEffect::NdetProc => "ndet proc",
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn to_usize(&self) -> usize {
+        match self {
+            FuncEffect::Fn       => 0b_000,
+            FuncEffect::Proc     => 0b_001,
+            FuncEffect::NdetFn   => 0b_010,
+            FuncEffect::NdetProc => 0b_011,
+            FuncEffect::Callable => 0b_111,
+            _ => unreachable!(),
+        }
+    }
+}

@@ -1,6 +1,6 @@
 use crate::{LogId, Session, Type, write_log};
 use crate::error::ErrorContext;
-use sodigy_hir::FuncEffect;
+use sodigy_error::FuncEffect;
 use sodigy_mir::{Assert, string_type};
 use sodigy_span::Span;
 use std::collections::HashMap;

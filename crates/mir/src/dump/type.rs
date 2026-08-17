@@ -1,6 +1,6 @@
 use crate::Type;
 use sodigy_endec::IndentedLines;
-use sodigy_hir::FuncEffect;
+use sodigy_error::FuncEffect;
 use sodigy_session::SodigySession;
 use sodigy_span::{PolySpanKind, Span, SpanId};
 use sodigy_string::{InternedString, unintern_string};

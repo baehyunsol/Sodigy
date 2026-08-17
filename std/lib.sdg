@@ -16,6 +16,7 @@ mod range;
 mod result;
 mod scalar;
 mod string;
+mod time;
 mod tuple;
 mod r#type;
 
@@ -42,8 +43,8 @@ fn transmute<T, U>(v: T) -> U;
 
 /// The compiler will never optimize-away this function.
 // NOTE: There's no optimization, so it's just an id function.
+// This is a compiler-magic. Use this when you want to use `proc` inside a pure function.
 fn blackbox<T>(x: T) -> T = x;
 
-/// The compiler will never optimize-away this function.
-// NOTE: There's no optimization, so it's just an id function.
-proc impure_blackbox<T>(x: T) -> T = blackbox((random.random_int(), x))._1;
+#[built_in]
+enum Void;

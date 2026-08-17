@@ -142,7 +142,13 @@ impl Session {
                         // ->
                         // We called `resolve_path(Tuple3<Int>)`.
                         // There's no way we can represent `(Int, Int, Int)` with `Path`.
-                        _ => todo!(),
+                        //
+                        // What's even trickier is `type IntFn = Fn(Int) -> Int;`
+                        _ => {
+                            println!("{path:?}");
+                            println!("{alias:?}");
+                            todo!()
+                        },
                     };
 
                     path.id = IdentWithOrigin {

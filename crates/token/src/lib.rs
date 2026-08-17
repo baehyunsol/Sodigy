@@ -203,6 +203,7 @@ impl TokenKind {
                 Keyword::Else |
                 Keyword::Enum |
                 Keyword::Fn |
+                Keyword::Do |
                 Keyword::Let |
                 Keyword::Mod |
                 Keyword::Pub |

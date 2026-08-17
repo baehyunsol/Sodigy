@@ -1,6 +1,6 @@
 use crate::{Session, StructField, Type};
-use sodigy_error::EnumFieldKind;
-use sodigy_hir::{self as hir, FuncEffect, Generic};
+use sodigy_error::{EnumFieldKind, FuncEffect};
+use sodigy_hir::{self as hir, Generic};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 

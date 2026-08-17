@@ -2,7 +2,7 @@
 
 let fs = [
     \(x, y) => x + y,
-    ndet \(x, y) => x + y + 1,
+    ndet \(x, y) => std.random.random_int() + x + y + 1,
 ];
 
 let x = fs[0](10, 20);

@@ -1,6 +1,7 @@
 use crate::{Expr, Func};
 use sodigy_endec::{DecodeError, Endec};
-use sodigy_hir::{FuncEffect, FuncOrigin, FuncParam, Generic};
+use sodigy_error::FuncEffect;
+use sodigy_hir::{FuncOrigin, FuncParam, Generic};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 

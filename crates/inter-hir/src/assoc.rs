@@ -1,12 +1,11 @@
 use crate::Session;
-use sodigy_error::{Error, ErrorKind};
+use sodigy_error::{Error, ErrorKind, FuncEffect};
 use sodigy_hir::{
     AssociatedFunc,
     AssociatedItem,
     AssociatedItemKind,
     Expr,
     Func,
-    FuncEffect,
     FuncOrigin,
     FuncParam,
     Generic,

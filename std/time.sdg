@@ -1,0 +1,13 @@
+use std.Void;
+use std.int.Int;
+use std.number.Number;
+
+proc sleep(second: Number) -> Void = {
+    let ms = (second * 1000.0) as <Int>;
+    let ms_non_zero = if ms > 0 { ms } else { 0 };
+    sleep_built_in(ms_non_zero)
+};
+
+#[built_in]
+#[lang_item("built_in.sleep")]
+proc sleep_built_in(millisecond: Int) -> Void;

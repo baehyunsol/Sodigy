@@ -1,0 +1,28 @@
+//% compile-warning == 3
+
+use std.random.random_int;
+
+// fn f1(n: Int) -> Int = random_int() + n;  // effect error
+fn f2(n: Int) -> Int = n + 1;
+ndet fn f3(n: Int) -> Int = random_int() + n;
+ndet fn f4(n: Int) -> Int = n + 1;  // effect warning
+
+// let v1 = random_int();  // effect error
+
+// let l1: Callable(Int) -> Int = \(n) => random_int() + n;  // effect error
+// let l2: Fn(Int) -> Int = \(n) => random_int() + n;  // effect error
+// let l3: NdetFn(Int) -> Int = \(n) => random_int() + n;  // type error, effect error
+
+let l4: Callable(Int) -> Int = ndet \(n) => random_int() + n;
+// let l5: Fn(Int) -> Int = ndet \(n) => random_int() + n;  // type error
+let l6: NdetFn(Int) -> Int = ndet \(n) => random_int() + n;
+
+let l7: Callable(Int) -> Int = \(n) => n + 1;
+let l8: Fn(Int) -> Int = \(n) => n + 1;
+// let l9: Ndet(Int) -> Int = \(n) => n + 1;  // type error
+
+let l10: Callable(Int) -> Int = ndet \(n) => n + 1;  // effect warning
+// let l11: Fn(Int) -> Int = ndet \(n) => n + 1;  // type error, effect warning
+let l12: NdetFn(Int) -> Int = ndet \(n) => n + 1;  // effect warning
+
+// assert random_int() == 100;  // effect error

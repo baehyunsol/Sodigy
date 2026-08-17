@@ -365,6 +365,17 @@ fn call(
                     }
                 },
                 Intrinsic::RandomInt => todo!(),
+                Intrinsic::Sleep => {
+                    let n = *stack.ssa.get(&args[0]).unwrap() as usize;
+                    let (_, ns) = inspect_int(&heap.data, n);
+                    let n = match (ns.get(0), ns.get(1), ns.get(2)) {
+                        (Some(n), None, _) => *n as u64,
+                        (Some(a), Some(b), None) => *a as u64 | ((*b as u64) << 32),
+                        _ => u64::MAX,  // who cares?
+                    };
+
+                    std::thread::sleep(std::time::Duration::from_millis(n));
+                },
                 Intrinsic::Nop => {
                     let v = *stack.ssa.get(&args[0]).unwrap();
                     update(dst, v, &mut stack, heap);

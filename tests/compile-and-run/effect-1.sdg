@@ -1,0 +1,46 @@
+use std.random.random_int;
+use std.time.sleep;
+
+fn pure_func(n: Int) -> Int = n + 1;
+ndet fn ndet_func(n: Int) -> Int = random_int() + n;
+ndet proc ndet_proc(n: Int) -> Int = {
+    do sleep(0.1);
+    n + random_int()
+};
+
+let f1: Callable(Int) -> Int = pure_func;
+let f2: Fn(Int) -> Int = pure_func;
+// let f3: NdetFn(Int) -> Int = pure_func;  // type error
+// let f4: NdetProc(Int) -> Int = pure_func;  // type error
+
+let f5: Callable(Int) -> Int = ndet_func;
+// let f6: Fn(Int) -> Int = ndet_func;  // type error
+let f7: NdetFn(Int) -> Int = ndet_func;
+// let f8: NdetProc(Int) -> Int = ndet_func;  // type error
+
+let f9: Callable(Int) -> Int = ndet_proc;
+// let f10: Fn(Int) -> Int = ndet_proc;  // type error
+// let f11: NdetFn(Int) -> Int = ndet_proc;  // type error
+let f12: NdetProc(Int) -> Int = ndet_proc;
+
+let funcs1: [Callable(Int) -> Int] = [pure_func, ndet_func];
+let funcs2: [Callable(Int) -> Int] = [pure_func, pure_func];
+let funcs3: [Callable(Int) -> Int] = [ndet_func, ndet_func];
+
+// let funcs4: [Fn(Int) -> Int] = [pure_func, ndet_func];  // type error
+let funcs5: [Fn(Int) -> Int] = [pure_func, pure_func];
+// let funcs6: [Fn(Int) -> Int] = [ndet_func, ndet_func];  // type error
+
+// let funcs7: [NdetFn(Int) -> Int] = [pure_func, ndet_func];  // type error
+// let funcs8: [NdetFn(Int) -> Int] = [pure_func, pure_func];  // type error
+let funcs9: [NdetFn(Int) -> Int] = [ndet_func, ndet_func];
+
+let lambda1: Callable(Int) -> Int = \(n) => n + 1;
+let lambda2: Fn(Int) -> Int = \(n) => n + 1;
+// let lambda3: NdetFn(Int) -> Int = \(n) => n + 1;  // type error
+// let lambda4: NdetProc(Int) -> Int = \n => n + 1;  // type error
+
+let lambda5: Callable(Int) -> Int = ndet \(n) => random_int() + n;
+// let lambda6: Fn(Int) -> Int = ndet \(n) => random_int() + n;  // type error
+let lambda7: NdetFn(Int) -> Int = ndet \(n) => random_int() + n;
+// let lambda8: NdetProc(Int) -> Int = ndet \n => random_int() + n;  // type error

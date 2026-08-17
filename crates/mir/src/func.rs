@@ -1,5 +1,6 @@
 use crate::{Expr, Session, Type};
-use sodigy_hir::{self as hir, FuncEffect, FuncOrigin, FuncParam, FuncShape, Generic};
+use sodigy_error::FuncEffect;
+use sodigy_hir::{self as hir, FuncOrigin, FuncParam, FuncShape, Generic};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::hash_map::{Entry, HashMap};

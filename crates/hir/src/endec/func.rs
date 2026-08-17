@@ -3,7 +3,6 @@ use crate::{
     CapturedNames,
     Expr,
     Func,
-    FuncEffect,
     FuncOrigin,
     FuncParam,
     FuncShape,
@@ -11,6 +10,7 @@ use crate::{
     Visibility,
 };
 use sodigy_endec::{DecodeError, Endec};
+use sodigy_error::FuncEffect;
 use sodigy_name_analysis::{IdentWithOrigin, NameOrigin, UseCount};
 use sodigy_parse::Generic;
 use sodigy_span::Span;
@@ -134,48 +134,6 @@ impl Endec for FuncOrigin {
             Some(3) => Ok((FuncOrigin::AssociatedFunc, cursor + 1)),
             Some(4) => Ok((FuncOrigin::Monomorphization, cursor + 1)),
             Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
-            None => Err(DecodeError::UnexpectedEof),
-        }
-    }
-}
-
-impl Endec for FuncEffect {
-    fn encode_impl(&self, buffer: &mut Vec<u8>) {
-        match self {
-            FuncEffect::Fn => {
-                buffer.push(0);
-            },
-            FuncEffect::Proc => {
-                buffer.push(1);
-            },
-            FuncEffect::NdetFn => {
-                buffer.push(2);
-            },
-            FuncEffect::NdetProc => {
-                buffer.push(3);
-            },
-            FuncEffect::Callable => {
-                buffer.push(4);
-            },
-            FuncEffect::Var(s) => {
-                buffer.push(5);
-                s.encode_impl(buffer);
-            },
-        }
-    }
-
-    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        match buffer.get(cursor) {
-            Some(0) => Ok((FuncEffect::Fn, cursor + 1)),
-            Some(1) => Ok((FuncEffect::Proc, cursor + 1)),
-            Some(2) => Ok((FuncEffect::NdetFn, cursor + 1)),
-            Some(3) => Ok((FuncEffect::NdetProc, cursor + 1)),
-            Some(4) => Ok((FuncEffect::Callable, cursor + 1)),
-            Some(5) => {
-                let (s, cursor) = Span::decode_impl(buffer, cursor + 1)?;
-                Ok((FuncEffect::Var(s), cursor))
-            },
-            Some(n @ 6..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

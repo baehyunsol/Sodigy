@@ -7,5 +7,13 @@ pub enum Fn;
 pub enum Proc;
 
 #[built_in]
+#[lang_item("type.NdetFn")]
+pub enum NdetFn;
+
+#[built_in]
+#[lang_item("type.NdetProc")]
+pub enum NdetProc;
+
+#[built_in]
 #[lang_item("type.Callable")]
 pub enum Callable;
