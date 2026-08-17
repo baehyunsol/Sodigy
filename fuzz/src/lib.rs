@@ -5,6 +5,7 @@ use sodigy_driver::{
     OptimizeLevel,
     Profile,
     StoreIrAt,
+    ValidateTokenSpans,
     init_project,
     init_workers_and_compile,
 };
@@ -38,18 +39,20 @@ pub fn runner(data: &[u8], target: &str) {
         Backend::Bytecode,
         join(&target_dir, "target/").unwrap(),
         OptimizeLevel::None,
-        true,
         &HashMap::new(),
 
         // If it's true, I can find bugs in ir dumps.
         // If it's false, the fuzzer's evolution algorithm will become more efficient.
         false,  // emit-irs
 
-        false,  // dump-matches
-        0,
-        8,
+        false,  // dump-post-mir-log
+        true,   // dump-timings
+        false,  // dump-bytecodes
+        0,  // graceful-shutdown
+        8,  // jobs
         ColorWhen::Never,
-        true,
+        true,  // incremental-compilation
+        ValidateTokenSpans::Never,
         Some(Profile::Test),
         true,
     ) {
