@@ -42,6 +42,11 @@ pub enum Command {
         modules: HashMap<ModulePath, Span>,
         intermediate_dir: String,
         emit_ir_options: Vec<EmitIrOption>,
+
+        // It has nothing to do with the actual compilation.
+        // It checks if the built_in funcs in the sodigy std and the
+        // `mir::Intrinsic` match. If not, the compiler panics.
+        verify_built_ins: bool,
     },
     // Collects per-module bytecodes and runs Link/CodeGen stage.
     // The result (bytecode or generated executable) is saved at `output_path`.

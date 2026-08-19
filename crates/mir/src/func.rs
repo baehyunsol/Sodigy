@@ -141,6 +141,8 @@ impl Func {
 
     pub fn shape(&self) -> FuncShape {
         FuncShape {
+            effect: self.effect.clone(),
+
             // type annotations are already erased
             params: self.params.clone(),
             generics: self.generics.clone(),

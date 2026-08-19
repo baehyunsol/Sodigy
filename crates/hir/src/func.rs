@@ -101,6 +101,7 @@ pub struct CallArg {
 // `crates/hir/src/lib.rs` will tell you what's the difference between Func vs FuncShape
 #[derive(Clone, Debug)]
 pub struct FuncShape {
+    pub effect: FuncEffect,
     pub params: Vec<FuncParam>,
     pub generics: Vec<Generic>,
     pub generic_group_span: Option<Span>,
@@ -503,6 +504,7 @@ impl Func {
 
     pub fn shape(&self) -> FuncShape {
         FuncShape {
+            effect: self.effect.clone(),
             params: self.params.iter().map(
                 |param| FuncParam {
                     name: param.name,

@@ -53,8 +53,9 @@ pub fn runner(data: &[u8], target: &str) {
         ColorWhen::Never,
         true,  // incremental-compilation
         ValidateTokenSpans::Never,
+        false,  // verify-built-ins
         Some(Profile::Test),
-        true,
+        true,  // quiet
     ) {
         Ok(_) => {},
         Err(Error::CompileError | Error::RuntimeError) => {},  // it's okay

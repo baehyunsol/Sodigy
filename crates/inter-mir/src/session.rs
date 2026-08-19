@@ -2,7 +2,7 @@ use crate::{AssociatedFuncInstance, LogEntry, Monomorphization};
 use crate::error::{TypeError, TypeWarning};
 use sodigy_error::{Error, FuncEffect, TypeVarInfo, Warning};
 use sodigy_hir::{EnumShape, FuncShape, ItemShape, Poly, StructShape};
-use sodigy_mir::{Session as MirSession, Type};
+use sodigy_mir::{Intrinsic, Session as MirSession, Type};
 use sodigy_span::{Span, SpanId};
 use sodigy_string::InternedString;
 use std::collections::{HashMap, HashSet};
@@ -218,6 +218,60 @@ impl Session {
                 Some(e) => Some(ItemShape::Enum(e)),
                 None => None,
             },
+        }
+    }
+
+    // It panics if there's mismatch between `mir::Intrinsic` and the sodigy std's
+    // builtins.
+    pub fn verify_built_ins(&self) {
+        let mut intrinsic_by_span: HashMap<Span, Intrinsic> = HashMap::new();
+        let mut has_error = false;
+
+        for (intrinsic, lang_item) in Intrinsic::ALL_WITH_LANG_ITEM.iter() {
+            let func_span = match self.lang_items.get(&lang_item.to_string()) {
+                Some(s) => s.clone(),
+                None => {
+                    has_error = true;
+                    eprintln!("Intrinsic {intrinsic:?} is not defined in sodigy std!!");
+                    continue;
+                },
+            };
+            intrinsic_by_span.insert(func_span, *intrinsic);
+        }
+
+        for func in self.built_in_funcs.iter() {
+            let intrinsic = match intrinsic_by_span.get(func) {
+                Some(i) => *i,
+                None => {
+                    has_error = true;
+                    eprintln!("Func {func:?} is not defined in mir::Intrinsic!!");
+                    continue;
+                },
+            };
+            let func = self.func_shapes.get(func).unwrap();
+
+            if func.params.len() != intrinsic.num_params() {
+                has_error = true;
+                eprintln!(
+                    "{intrinsic:?}.num_params() == {}, while the sodigy std's implementation says it has {} param{}",
+                    intrinsic.num_params(),
+                    func.params.len(),
+                    if func.params.len() == 1 { "" } else { "s" },
+                );
+            }
+
+            if func.effect != intrinsic.effect() {
+                has_error = true;
+                eprintln!(
+                    "{intrinsic:?}.effect() == {:?}, while the sodigy std's implementation says its effect is {:?}",
+                    intrinsic.effect(),
+                    func.effect,
+                );
+            }
+        }
+
+        if has_error {
+            panic!();
         }
     }
 

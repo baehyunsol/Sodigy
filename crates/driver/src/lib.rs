@@ -35,6 +35,9 @@ mod ir_store;
 mod log;
 mod worker;
 
+#[cfg(test)]
+mod tests;
+
 pub use cli::{CliCommand, ColorWhen};
 pub use command::{Command, ValidateTokenSpans};
 pub use compile_stage::CompileStage;
@@ -146,6 +149,11 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             // maybe we need a finer control??
             let dump_bytecodes = *emit_irs;
 
+            // TODO: make these configurable
+            let incremental_compilation = true;
+            let quiet = false;
+            let verify_built_ins = false;
+
             let (output_path, backend, interpret_with_profile) = match cli_command {
                 CliCommand::Run { .. } => (
                     StoreIrAt::IntermediateDir,
@@ -178,10 +186,11 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                 *graceful_shutdown,
                 *jobs,
                 *color,
-                true,  // TODO: make it configurable
+                incremental_compilation,
                 *validate_token_spans,
+                verify_built_ins,
                 interpret_with_profile,
-                false,  // TODO: make it configurable
+                quiet,
             )
         },
         CliCommand::Interpret { bytecodes_path, profile } => interpret(
@@ -218,6 +227,7 @@ pub fn init_workers_and_compile(
     color: ColorWhen,
     incremental_compilation: bool,
     validate_token_spans: ValidateTokenSpans,
+    verify_built_ins: bool,
     interpret_with_profile: Option<Profile>,
     quiet: bool,
 ) -> Result<(), Error> {
@@ -240,6 +250,7 @@ pub fn init_workers_and_compile(
         graceful_shutdown,
         incremental_compilation,
         validate_token_spans,
+        verify_built_ins,
         &channels,
         &mut errors,
         &mut warnings,
@@ -331,6 +342,7 @@ fn compile(
     graceful_shutdown: u32,  // in milliseconds
     incremental_compilation: bool,
     validate_token_spans: ValidateTokenSpans,
+    verify_built_ins: bool,
     workers: &[Channel],
     errors: &mut Vec<SodigyError>,
     warnings: &mut Vec<SodigyWarning>,
@@ -499,6 +511,7 @@ fn compile(
                             human_readable: false,
                         },
                     ),
+                    verify_built_ins,
                 },
             ))?;
             round_robin += 1;

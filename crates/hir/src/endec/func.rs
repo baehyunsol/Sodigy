@@ -154,15 +154,17 @@ impl Endec for CallArg {
 
 impl Endec for FuncShape {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.effect.encode_impl(buffer);
         self.params.encode_impl(buffer);
         self.generics.encode_impl(buffer);
         self.generic_group_span.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (effect, cursor) = FuncEffect::decode_impl(buffer, cursor)?;
         let (params, cursor) = Vec::<FuncParam>::decode_impl(buffer, cursor)?;
         let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
         let (generic_group_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
-        Ok((FuncShape { params, generics, generic_group_span }, cursor))
+        Ok((FuncShape { effect, params, generics, generic_group_span }, cursor))
     }
 }

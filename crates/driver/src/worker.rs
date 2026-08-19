@@ -563,6 +563,7 @@ impl Worker {
                 modules,
                 intermediate_dir,
                 emit_ir_options,
+                verify_built_ins,
             } => {
                 self.stage_start(CompileStage::InterMir, Some("load-mir-modules"), None);
                 let mut merged_mir_session: Option<mir::Session> = None;
@@ -617,6 +618,10 @@ impl Worker {
                 self.stage_start(CompileStage::InterMir, Some("dump-inter-mir-log"), None);
                 dump_inter_mir_log(&inter_mir_session, &mir_session)?;
                 self.stage_end(false);
+
+                if verify_built_ins {
+                    inter_mir_session.verify_built_ins();
+                }
 
                 // InterMir may have modified MIRs, so we have to update all the cached MIRs.
                 // NOTE: It drains the items in `mir_session`, so we cannot use the session anymore.
