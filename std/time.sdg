@@ -1,13 +1,19 @@
-use std.Void;
+use std.{Void, nop0, panic};
 use std.int.Int;
 use std.number.Number;
+use std.scalar.Scalar;
 
 proc sleep(second: Number) -> Void = {
     let ms = (second * 1000.0) as <Int>;
-    let ms_non_zero = if ms > 0 { ms } else { 0 };
-    sleep_built_in(ms_non_zero)
+
+    match ms {
+        ..0 => panic("You can't sleep negative seconds."),
+        0 => nop0(),
+        1..=3_999_999 => sleep_built_in(ms as! <Scalar>),
+        _ => panic("Due to restrictions in the runtime, you can't sleep more than 4 million seconds."),
+    }
 };
 
 #[built_in]
 #[lang_item("built_in.sleep")]
-proc sleep_built_in(millisecond: Int) -> Void;
+proc sleep_built_in(millisecond: Scalar) -> Void;

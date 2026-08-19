@@ -37,9 +37,15 @@ pub fn panic(s: String) -> ! = blackbox((std.io.eprint_built_in(s ++ "\n"), pani
 // This is a magic function. It does nothing at runtime.
 // It exists just to trick the type checker. It's used for
 // trivial type conversions (e.g. `Char` -> `Scalar`).
+fn transmute<T, U>(v: T) -> U = nop1(v);
+
 #[built_in]
-#[lang_item("built_in.nop")]
-fn transmute<T, U>(v: T) -> U;
+#[lang_item("built_in.nop0")]
+fn nop0() -> Void;
+
+#[built_in]
+#[lang_item("built_in.nop1")]
+fn nop1<T, U>(v: T) -> U;
 
 /// The compiler will never optimize-away this function.
 // NOTE: There's no optimization, so it's just an id function.
