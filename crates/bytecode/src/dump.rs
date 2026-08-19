@@ -66,7 +66,7 @@ impl Display for Bytecode {
             Bytecode::Move { dst, src } => write!(fmt, "{dst} = {src};"),
             Bytecode::Phi { pair: (x, y), dst } => write!(fmt, "{dst} = phi({x}, {y});"),
             Bytecode::Jump(label) => write!(fmt, "jump {label};"),
-            Bytecode::Call { func, args, dst, debug_info } => write!(
+            Bytecode::Call { func, args, dst, debug_info, effect: _ } => write!(
                 fmt,
                 "{}call {func}({});{}",
                 if let Some(dst) = dst { format!("{dst} = ") } else { String::from("return ") },
@@ -75,7 +75,7 @@ impl Display for Bytecode {
                 ).collect::<Vec<_>>().join(", "),
                 dump_debug_info(debug_info),
             ),
-            Bytecode::CallDynamic { func, args, dst, debug_info } => write!(
+            Bytecode::CallDynamic { func, args, dst, debug_info, effect: _ } => write!(
                 fmt,
                 "{}dyn_call ({func})({});{}",
                 if let Some(dst) = dst { format!("{dst} = ") } else { String::from("return ") },

@@ -107,8 +107,9 @@ intrinsics!(
 
     (RandomInt       , "built_in.random_int"        , 31   , 0   , NdetFn  ),
     (Sleep           , "built_in.sleep"             , 32   , 1   , Proc    ),
-    (Nop             , "built_in.nop"               , 33   , 1   , Fn      ),
-//   ^^^               ^^^^^^^^^^^^^^                 ^^     ^     ^^
+    (Nop0            , "built_in.nop0"              , 33   , 0   , Fn      ),
+    (Nop1            , "built_in.nop1"              , 34   , 1   , Fn      ),
+//   ^^^^              ^^^^^^^^^^^^^^^                ^^     ^     ^^
 //   |                 |                              |      |     |
 //  (0)               (1)                            (2)    (3)   (4)
 //

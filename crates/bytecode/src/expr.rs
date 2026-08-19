@@ -8,8 +8,8 @@ use crate::{
     SSA,
     Value,
 };
-use sodigy_hir::EnumRepr;
-use sodigy_mir::{Block, Callable, Expr, If, Match};
+use sodigy_hir::{EnumRepr, FuncShape};
+use sodigy_mir::{Block, Callable, Expr, If, Match, Type, type_of};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::Field;
 
@@ -284,11 +284,17 @@ pub fn lower_expr(
                             },
                             None => {
                                 let func = Label::Global(def_span.clone());
+                                let effect = match session.global_context.func_shapes.unwrap().get(def_span) {
+                                    Some(FuncShape { effect, .. }) => Box::new(effect.clone()),
+                                    _ => unreachable!(),
+                                };
+
                                 bytecodes.push(Bytecode::Call {
                                     func,
                                     args: arg_ssa_regs,
                                     dst: if is_tail_call { None } else { Some(dst) },
                                     debug_info: if session.debug_info { Some(Box::new(span.clone())) } else { None },
+                                    effect,
                                 });
                             },
                         },
@@ -302,11 +308,17 @@ pub fn lower_expr(
                                 /* is_tail_call: */ false,
                             );
 
+                            let effect = match type_of(f, session.global_context.clone()) {
+                                Some(Type::Func { effect, .. }) => Box::new(effect.clone()),
+                                _ => unreachable!(),
+                            };
+
                             bytecodes.push(Bytecode::CallDynamic {
                                 func: Memory::SSA(func_ssa),
                                 args: arg_ssa_regs,
                                 dst: if is_tail_call { None } else { Some(dst) },
                                 debug_info: if session.debug_info { Some(Box::new(f.error_span_wide())) } else { None },
+                                effect,
                             });
                         },
                         _ => unreachable!(),

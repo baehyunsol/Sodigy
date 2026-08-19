@@ -1,3 +1,4 @@
+use sodigy_error::FuncEffect;
 use sodigy_mir::{Intrinsic, Session as MirSession};
 use sodigy_span::Span;
 use std::collections::HashMap;
@@ -31,6 +32,10 @@ pub struct SSA(u32);
 impl SSA {
     pub fn from_u32(n: u32) -> SSA {
         SSA(n)
+    }
+
+    pub fn to_u32(&self) -> u32 {
+        self.0
     }
 
     pub fn increment(&mut self) {
@@ -67,6 +72,9 @@ pub enum Bytecode {
         dst: Option<Memory>,
 
         debug_info: Option<Box<Span>>,
+
+        // This information is used by the optimizer.
+        effect: Box<FuncEffect>,
     },
 
     CallDynamic {
@@ -78,6 +86,9 @@ pub enum Bytecode {
         dst: Option<Memory>,
 
         debug_info: Option<Box<Span>>,
+
+        // This information is used by the optimizer.
+        effect: Box<FuncEffect>,
     },
 
     // Jumps if the `value` is 1.
@@ -438,6 +449,31 @@ impl Bytecode {
         }
 
         indexes
+    }
+
+    // Whether it's okay for the optimizer to remove this bytecode.
+    pub fn is_observable(&self) -> bool {
+        match self {
+            Bytecode::Const { .. } |
+            Bytecode::Move { .. } |
+            Bytecode::Phi { .. } |
+            Bytecode::Jump(_) |
+            Bytecode::JumpIf { .. } |
+            Bytecode::Label(_) |
+            Bytecode::Return(_) |
+            Bytecode::Update { .. } |
+            Bytecode::InitTuple { .. } |
+            Bytecode::InitList { .. } |
+            Bytecode::PushDebugInfo { .. } |
+            Bytecode::PopDebugInfo => false,
+            Bytecode::Call { effect, .. } |
+            Bytecode::CallDynamic { effect, .. } => matches!(&**effect, FuncEffect::Fn | FuncEffect::NdetFn),
+
+            // as of now, all the `let` statements are pure
+            Bytecode::InitOrJump { .. } => false,
+
+            Bytecode::Intrinsic { intrinsic, .. } => matches!(intrinsic.effect(), FuncEffect::Fn | FuncEffect::NdetFn),
+        }
     }
 }
 

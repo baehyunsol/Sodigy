@@ -122,14 +122,22 @@ impl LocalContext {
             }
         }
 
-        let mut sroa = HashMap::new();
-        let mut free_ssa = self.free_ssa;
+        // We have to sort this before inserting, so that the result is deterministic.
+        let mut sroa_list = vec![];
 
         for (a, b) in self.heap_use_counts.keys() {
             if let Some(0) | None = self.use_counts.get(a) {
-                sroa.insert((*a, *b), free_ssa);
-                free_ssa.increment();
+                sroa_list.push((*a, *b));
             }
+        }
+
+        sroa_list.sort_by_key(|(a, b)| ((a.to_u32() as u64) << 32) | *b as u64);
+        let mut free_ssa = self.free_ssa;
+        let mut sroa = HashMap::new();
+
+        for s in sroa_list.into_iter() {
+            sroa.insert(s, free_ssa);
+            free_ssa.increment();
         }
 
         self.free_ssa = free_ssa;
@@ -302,10 +310,10 @@ fn optimize_local(bytecodes: &mut Vec<Bytecode>) {
         if let Some(dst) = bytecode.get_dst() {
             if let Memory::SSA(a) = dst {
                 match (context.use_counts.get(a), context.indirect_use_counts.get(a)) {
-                    (Some(0) | None, Some(0) | None) => {
+                    (Some(0) | None, Some(0) | None) if bytecode.is_observable() => {
                         continue;
                     },
-                    (Some(1), _) => {
+                    (Some(1), _) if bytecode.is_observable() => {
                         // TODO: move this definition to the use point
                     },
                     _ => {},
@@ -313,7 +321,7 @@ fn optimize_local(bytecodes: &mut Vec<Bytecode>) {
             }
 
             if let Some((a, b)) = dst.get_heap_index() {
-                if let Some(0) | None = context.use_counts.get(&a) {
+                if let Some(0) | None = context.use_counts.get(&a) && bytecode.is_observable() {
                     continue;
                 }
 

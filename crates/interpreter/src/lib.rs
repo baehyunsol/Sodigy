@@ -90,7 +90,7 @@ fn call(
                 },
                 _ => unreachable!(),
             },
-            Bytecode::Call { func, args, dst, debug_info: _ } => {
+            Bytecode::Call { func, args, dst, debug_info: _, effect: _ } => {
                 let new_stack = Stack::from_args(args, &stack);
                 let pc = match func {
                     Label::Flatten(i) => *i,
@@ -110,7 +110,7 @@ fn call(
                     },
                 }
             },
-            Bytecode::CallDynamic { func, args, dst, debug_info: _ } => {
+            Bytecode::CallDynamic { func, args, dst, debug_info: _, effect: _ } => {
                 let new_stack = Stack::from_args(args, &stack);
                 let pc = read(func, &stack, heap);
 
@@ -378,7 +378,8 @@ fn call(
 
                     std::thread::sleep(std::time::Duration::from_millis(n));
                 },
-                Intrinsic::Nop => {
+                Intrinsic::Nop0 => {},
+                Intrinsic::Nop1 => {
                     let v = *stack.ssa.get(&args[0]).unwrap();
                     update(dst, v, &mut stack, heap);
                 },
