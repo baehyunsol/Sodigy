@@ -229,6 +229,8 @@ fn call(
 
                     update(dst, result, &mut stack, heap);
                 },
+                Intrinsic::BitAndInt => todo!(),
+                Intrinsic::BitOrInt => todo!(),
                 Intrinsic::ShrInt | Intrinsic::ShlInt => {
                     let lhs_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;
                     let (is_neg, lhs) = inspect_int(&heap.data, lhs_ptr);
