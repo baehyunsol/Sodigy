@@ -81,6 +81,9 @@ pub struct FuncParam {
     // `fn foo(x = 3, y = bar()) = ...;` is lowered to
     // `let foo_default_x = 3; let foo_default_y = bar(); fn foo(x = foo_default_x, y = foo_default_y) = ...;`
     pub default_value: Option<IdentWithOrigin>,
+
+    // span of `#[unused_name]`, if exists
+    pub unused_name: Option<Span>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -511,6 +514,7 @@ impl Func {
                     name_span: param.name_span.clone(),
                     type_annot: None,
                     default_value: param.default_value.clone(),
+                    unused_name: param.unused_name.clone(),
                 }
             ).collect(),
             generics: self.generics.clone(),
@@ -524,6 +528,22 @@ impl FuncParam {
         let mut type_annot = None;
         let mut default_value = None;
         let mut has_error = false;
+
+        let attribute = match session.lower_attribute(
+            &ast_param.attribute,
+            ItemKind::FuncParam,
+            ast_param.name_span.clone(),
+        ) {
+            Ok(attribute) => attribute,
+            Err(()) => {
+                has_error = true;
+                Attribute::new()
+            },
+        };
+
+        let unused_name = attribute.get_decorator(b"unused_name", &session.intermediate_dir).map(
+            |decorator| decorator.name_span.clone()
+        );
 
         if let Some(ast_type) = &ast_param.type_annot {
             match Type::from_ast(ast_type, session) {
@@ -582,7 +602,35 @@ impl FuncParam {
                 name_span: ast_param.name_span.clone(),
                 type_annot,
                 default_value,
+                unused_name,
             })
         }
+    }
+
+    pub fn get_attribute_rule(is_top_level: bool, is_std: bool, intermediate_dir: &str) -> AttributeRule {
+        let mut attribute_rule = AttributeRule {
+            doc_comment: Requirement::Maybe,
+            doc_comment_error_note: None,
+            visibility: Requirement::Never,
+            visibility_error_note: Some(String::from("A function parameter is always public.")),
+            decorators: vec![
+                (
+                    intern_string(b"unused_name", intermediate_dir).unwrap(),
+                    DecoratorRule {
+                        name: intern_string(b"unused_name", intermediate_dir).unwrap(),
+                        requirement: Requirement::Maybe,
+                        arg_requirement: Requirement::Never,
+                        ..DecoratorRule::default()
+                    },
+                ),
+            ].into_iter().collect(),
+            decorator_error_notes: get_decorator_error_notes(ItemKind::FuncParam, intermediate_dir),
+        };
+
+        if is_std {
+            attribute_rule.add_decorators_for_std(ItemKind::FuncParam, intermediate_dir);
+        }
+
+        attribute_rule
     }
 }

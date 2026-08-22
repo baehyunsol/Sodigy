@@ -1,0 +1,13 @@
+//% compile-warning == 0
+
+fn foo(#[unused_name] x, y, z) -> Int = y + z;
+
+assert {
+    #[unused_name]
+    let x = 3;
+
+    let y = 4;
+    let z = 5;
+
+    foo(0, y, z)
+} == 9;

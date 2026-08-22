@@ -53,6 +53,7 @@ impl Session {
 
                     field.default_value.clone()
                 },
+                unused_name: field.unused_name.clone(),
             }
         ).collect();
 

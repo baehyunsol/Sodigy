@@ -237,6 +237,7 @@ pub fn remove_struct_fields_type_annot(fields: &[StructField]) -> Vec<StructFiel
             name_span: field.name_span.clone(),
             default_value: field.default_value.clone(),
             type_annot: None,
+            unused_name: field.unused_name.clone(),
         }
     ).collect()
 }

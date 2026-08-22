@@ -220,6 +220,7 @@ impl Session {
                                                 dotfish: vec![None],
                                             })),
                                             default_value: None,
+                                            unused_name: None,
                                         }
                                     ).collect(),
                                     type_annot: Some(Type::Path(Path {

@@ -378,17 +378,20 @@ impl Endec for ItemKind {
             ItemKind::Func => {
                 buffer.push(4);
             },
-            ItemKind::Let => {
+            ItemKind::FuncParam => {
                 buffer.push(5);
             },
-            ItemKind::Module => {
+            ItemKind::Let => {
                 buffer.push(6);
             },
-            ItemKind::Struct => {
+            ItemKind::Module => {
                 buffer.push(7);
             },
-            ItemKind::Use => {
+            ItemKind::Struct => {
                 buffer.push(8);
+            },
+            ItemKind::Use => {
+                buffer.push(9);
             },
         }
     }
@@ -400,11 +403,12 @@ impl Endec for ItemKind {
             Some(2) => Ok((ItemKind::Enum, cursor + 1)),
             Some(3) => Ok((ItemKind::EnumVariant, cursor + 1)),
             Some(4) => Ok((ItemKind::Func, cursor + 1)),
-            Some(5) => Ok((ItemKind::Let, cursor + 1)),
-            Some(6) => Ok((ItemKind::Module, cursor + 1)),
-            Some(7) => Ok((ItemKind::Struct, cursor + 1)),
-            Some(8) => Ok((ItemKind::Use, cursor + 1)),
-            Some(n @ 9..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(5) => Ok((ItemKind::FuncParam, cursor + 1)),
+            Some(6) => Ok((ItemKind::Let, cursor + 1)),
+            Some(7) => Ok((ItemKind::Module, cursor + 1)),
+            Some(8) => Ok((ItemKind::Struct, cursor + 1)),
+            Some(9) => Ok((ItemKind::Use, cursor + 1)),
+            Some(n @ 10..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

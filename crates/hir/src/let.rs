@@ -192,6 +192,14 @@ impl Let {
                         arg_type_error_note: Some(String::from("The argument must be a type that you want to associate the value with.")),
                         ..DecoratorRule::default()
                     },
+                ), (
+                    intern_string(b"unused_name", intermediate_dir).unwrap(),
+                    DecoratorRule {
+                        name: intern_string(b"unused_name", intermediate_dir).unwrap(),
+                        requirement: Requirement::Maybe,
+                        arg_requirement: Requirement::Never,
+                        ..DecoratorRule::default()
+                    },
                 ),
             ].into_iter().collect(),
             decorator_error_notes: get_decorator_error_notes(ItemKind::Let, intermediate_dir),

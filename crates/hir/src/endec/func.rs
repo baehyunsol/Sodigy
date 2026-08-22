@@ -85,6 +85,7 @@ impl Endec for FuncParam {
         self.name_span.encode_impl(buffer);
         self.type_annot.encode_impl(buffer);
         self.default_value.encode_impl(buffer);
+        self.unused_name.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
@@ -92,6 +93,7 @@ impl Endec for FuncParam {
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (type_annot, cursor) = Option::<Type>::decode_impl(buffer, cursor)?;
         let (default_value, cursor) = Option::<IdentWithOrigin>::decode_impl(buffer, cursor)?;
+        let (unused_name, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
 
         Ok((
             FuncParam {
@@ -99,6 +101,7 @@ impl Endec for FuncParam {
                 name_span,
                 type_annot,
                 default_value,
+                unused_name,
             },
             cursor,
         ))

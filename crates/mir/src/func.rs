@@ -73,6 +73,7 @@ impl Func {
                 name_span: hir_param.name_span.clone(),
                 type_annot: None,
                 default_value: hir_param.default_value.clone(),
+                unused_name: hir_param.unused_name.clone(),
             });
         }
 
