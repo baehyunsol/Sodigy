@@ -403,13 +403,27 @@ impl Func {
         }
 
         if ast_func.value.is_some() {
-            session.warn_unused_names(&names);
+            session.warn_unused_names(
+                &names,
+                &params.iter().filter_map(
+                    |param| match &param.unused_name {
+                        Some(attr) => Some((param.name, attr.clone())),
+                        None => None,
+                    }
+                ).collect(),
+            );
         }
 
         let Some(Namespace::GenericParam { names, .. }) = session.name_stack.pop() else { unreachable!() };
 
         if ast_func.value.is_some() {
-            session.warn_unused_names(&names);
+            session.warn_unused_names(
+                &names,
+
+                // TODO: I want to impl `#[unused_name]` for generic_params,
+                //       but there's no room for attributes for generic_params.
+                &HashMap::new(),
+            );
         }
 
         let Some(Namespace::ForeignNameCollector { foreign_names, .. }) = session.name_stack.pop() else { unreachable!() };
@@ -574,6 +588,7 @@ impl FuncParam {
                         value: v,
                         origin: LetOrigin::FuncDefaultValue,
                         foreign_names,
+                        unused_name: None,
                     });
 
                     default_value = Some(IdentWithOrigin {

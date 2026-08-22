@@ -1,0 +1,16 @@
+assert {
+    #[unused_name]
+    let x = 100;
+    let y = 200;
+
+    x + y == 300
+};
+
+fn add(
+    a: Int,
+
+    #[unused_name]
+    b: Int,
+) -> Int = a + b;
+
+assert add(200, 300) == 500;

@@ -182,11 +182,21 @@ impl Session {
 
     // If a function has 5 params and 3 are unused, it throws 1 warning instead of 3.
     // If you want to throw multiple times, call this function multiple times with each name.
-    pub fn warn_unused_names(&mut self, names: &HashMap<InternedString, (Span, NameKind, UseCount)>) {
+    pub fn warn_unused_names(
+        &mut self,
+        names: &HashMap<InternedString, (Span, NameKind, UseCount)>,
+
+        // span of `#[unused_name]`, if exists
+        supposed_to_be_unused: &HashMap<InternedString, Span>,
+    ) {
         let mut names_by_kind: HashMap<(NameKind, bool), Vec<(InternedString, Span)>> = HashMap::new();
 
         for (name, (span, kind, count)) in names.iter() {
             if ((!self.is_in_debug_context && count.always == Counter::Never) || (self.is_in_debug_context && count.debug_only == Counter::Never)) && !name.eq(b"_") {
+                if supposed_to_be_unused.contains_key(name) {
+                    continue;
+                }
+
                 let debug_only = count.debug_only != Counter::Never;
                 match names_by_kind.entry((*kind, debug_only)) {
                     Entry::Occupied(mut e) => {
@@ -196,6 +206,26 @@ impl Session {
                         e.insert(vec![(*name, span.clone())]);
                     },
                 }
+            }
+
+            // TODO: I want to underline the use, but no one collects that spans...
+            else if let Some(attr_span) = supposed_to_be_unused.get(name) {
+                self.warnings.push(Warning {
+                    kind: WarningKind::UseUnusedName { name: *name },
+                    spans: vec![
+                        RenderableSpan {
+                            span: span.clone(),
+                            auxiliary: false,
+                            note: Some(String::from("You said you're not going to use this name, but it's used.")),
+                        },
+                        RenderableSpan {
+                            span: attr_span.clone(),
+                            auxiliary: true,
+                            note: Some(String::from("This attribute says that this name is not gonna used.")),
+                        },
+                    ],
+                    note: None,
+                });
             }
         }
 

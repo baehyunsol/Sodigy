@@ -200,6 +200,7 @@ error_kinds!(
 
     // Warnings from here
     (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),
+    (UseUnusedName { name: InternedString },                        5001,  Warning),
     (UnreachableMatchArm,                                           5005,  Warning),
     (UnreachableOrPattern,                                          5006,  Warning),
     (NoImpureCallInImpureContext { context: FuncEffect },           5010,  Warning),

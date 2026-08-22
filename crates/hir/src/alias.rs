@@ -87,7 +87,7 @@ impl Alias {
         };
 
         let Some(Namespace::GenericParam { names, .. }) = session.name_stack.pop() else { unreachable!() };
-        session.warn_unused_names(&names);
+        session.warn_unused_names(&names, &HashMap::new());
 
         let Some(Namespace::ForeignNameCollector { foreign_names, .. }) = session.name_stack.pop() else { unreachable!() };
 

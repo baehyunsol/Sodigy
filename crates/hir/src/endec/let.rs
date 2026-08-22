@@ -16,6 +16,7 @@ impl Endec for Let {
         self.value.encode_impl(buffer);
         self.origin.encode_impl(buffer);
         self.foreign_names.encode_impl(buffer);
+        self.unused_name.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
@@ -27,6 +28,7 @@ impl Endec for Let {
         let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
         let (origin, cursor) = LetOrigin::decode_impl(buffer, cursor)?;
         let (foreign_names, cursor) = HashMap::<InternedString, (NameOrigin, Span)>::decode_impl(buffer, cursor)?;
+        let (unused_name, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
 
         Ok((
             Let {
@@ -38,6 +40,7 @@ impl Endec for Let {
                 value,
                 origin,
                 foreign_names,
+                unused_name,
             },
             cursor,
         ))

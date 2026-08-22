@@ -35,6 +35,9 @@ pub struct Let {
 
     // We have to do cycle checks.
     pub foreign_names: HashMap<InternedString, (NameOrigin, Span /* def_span */)>,
+
+    // span of `#[unused_name]`, if exists
+    pub unused_name: Option<Span>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -87,6 +90,9 @@ impl Let {
             },
         };
         let visibility = attribute.visibility.clone();
+        let unused_name = attribute.get_decorator(b"unused_name", &session.intermediate_dir).map(
+            |decorator| decorator.name_span.clone()
+        );
 
         if let Some(asserted_type) = attribute.get_decorator(b"assert_type", &session.intermediate_dir) {
             session.type_assertions.push(TypeAssertion {
@@ -158,6 +164,7 @@ impl Let {
                     LetOrigin::Inline
                 },
                 foreign_names,
+                unused_name,
             })
         }
     }

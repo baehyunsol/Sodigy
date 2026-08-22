@@ -5,7 +5,7 @@ fn foo() -> Option<Int> = None;
 
 assert unused_if_let_bind() == 2;
 fn unused_if_let_bind() = {
-    if let Some(xx) = foo() { 1 } else { 2 }
+    if let Some($xx) = foo() { 1 } else { 2 }
 };
 
 assert unused_match_bind() == 2;

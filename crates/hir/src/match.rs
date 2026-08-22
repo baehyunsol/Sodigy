@@ -7,6 +7,7 @@ use sodigy_name_analysis::{
 use sodigy_parse as ast;
 use sodigy_span::{Span, SpanDeriveKind};
 use sodigy_token::InfixOp;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Match {
@@ -93,7 +94,7 @@ impl Match {
             };
 
             let Some(Namespace::Pattern { names }) = session.name_stack.pop() else { unreachable!() };
-            session.warn_unused_names(&names);
+            session.warn_unused_names(&names, &HashMap::new());
 
             if !has_error {
                 arms.push(MatchArm {

@@ -4,6 +4,7 @@
 let global_value = 42;
 
 assert outer(10, 20, 30) == 882;
+assert outer(100, 200, 300) == 1152;
 fn outer(x1, x2, x3) = {  // x3 is unused
     let local1 = 100;
     let local2 = 200;

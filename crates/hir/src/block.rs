@@ -218,7 +218,15 @@ impl Block {
         // If it's top-level, mir will check unused names.
         // If it's from a pipeline, `Expr::from_ast` will throw an error if there's an unused name.
         if !session.is_at_top_level_block() && !ast_block.from_pipeline {
-            session.warn_unused_names(&names);
+            session.warn_unused_names(
+                &names,
+                &lets.iter().filter_map(
+                    |r#let| match &r#let.unused_name {
+                        Some(attr) => Some((r#let.name, attr.clone())),
+                        None => None,
+                    }
+                ).collect(),
+            );
         }
 
         let mut block_session = session.block_stack.pop().unwrap();

@@ -175,7 +175,10 @@ impl Struct {
         let Some(Namespace::GenericParam { names, .. }) = session.name_stack.pop() else { unreachable!() };
 
         if !built_in {
-            session.warn_unused_names(&names);
+            session.warn_unused_names(
+                &names,
+                &HashMap::new(),
+            );
         }
 
         if has_error {

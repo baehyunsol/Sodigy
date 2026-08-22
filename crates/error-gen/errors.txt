@@ -129,6 +129,7 @@ PolyImplDifferentNumberOfParams/495/Error
 CannotImplPoly/500/Error
 MultiplePolyCandidates/505/Error
 UnusedNames/5000/Warning
+UseUnusedName/5001/Warning
 UnreachableMatchArm/5005/Warning
 UnreachableOrPattern/5006/Warning
 NoImpureCallInImpureContext/5010/Warning

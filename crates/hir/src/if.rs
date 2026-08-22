@@ -66,7 +66,7 @@ impl If {
         };
 
         let Some(Namespace::Pattern { names }) = session.name_stack.pop() else { unreachable!() };
-        session.warn_unused_names(&names);
+        session.warn_unused_names(&names, &HashMap::new());
 
         let false_value = match Expr::from_ast(&ast_if.false_value, session) {
             Ok(false_value) => Some(false_value),
