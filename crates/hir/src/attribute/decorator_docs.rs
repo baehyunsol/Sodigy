@@ -12,6 +12,7 @@ use crate::{
     Module,
     Requirement,
     Struct,
+    StructField,
     Use,
 };
 use sodigy_error::ItemKind;
@@ -71,6 +72,7 @@ pub fn generate_decorator_docs(intermediate_dir: &str) -> String {
                 ItemKind::EnumVariant => EnumVariant::get_attribute_rule(is_top_level, is_std, intermediate_dir),
                 ItemKind::Func => Func::get_attribute_rule(is_top_level, is_std, intermediate_dir),
                 ItemKind::FuncParam => FuncParam::get_attribute_rule(is_top_level, is_std, intermediate_dir),
+                ItemKind::StructField => StructField::get_attribute_rule(is_top_level, is_std, intermediate_dir),
                 ItemKind::Let => Let::get_attribute_rule(is_top_level, is_std, intermediate_dir),
                 ItemKind::Module => Module::get_attribute_rule(is_top_level, is_std, intermediate_dir),
                 ItemKind::Struct => Struct::get_attribute_rule(is_top_level, is_std, intermediate_dir),

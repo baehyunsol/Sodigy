@@ -1,5 +1,15 @@
-use crate::{AssociatedFunc, Expr, Struct, StructInitField, StructField, StructShape, Visibility};
+use crate::{
+    AssociatedFunc,
+    Expr,
+    Struct,
+    StructInitField,
+    StructField,
+    StructShape,
+    Type,
+    Visibility,
+};
 use sodigy_endec::{DecodeError, Endec};
+use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_parse::Generic;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -34,6 +44,32 @@ impl Endec for Struct {
                 generics,
                 generic_group_span,
                 fields,
+            },
+            cursor,
+        ))
+    }
+}
+
+impl Endec for StructField {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.name.encode_impl(buffer);
+        self.name_span.encode_impl(buffer);
+        self.type_annot.encode_impl(buffer);
+        self.default_value.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
+        let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
+        let (type_annot, cursor) = Option::<Type>::decode_impl(buffer, cursor)?;
+        let (default_value, cursor) = Option::<IdentWithOrigin>::decode_impl(buffer, cursor)?;
+
+        Ok((
+            StructField {
+                name,
+                name_span,
+                type_annot,
+                default_value,
             },
             cursor,
         ))

@@ -106,10 +106,11 @@ pub enum ItemKind {
     EnumVariant,
     Func,
 
-    // TODO: `FuncParam` is not an item, but `get_attribute_rule` needs this variant.
-    //       Maybe we have to rename `ItemKind` to `AttributeKind` or define another enum
-    //       for `get_attribute_rule`.
+    // TODO: `FuncParam` and `StructField` are not items, but `get_attribute_rule` needs
+    //       these variants. Maybe we have to rename `ItemKind` to `AttributeKind` or
+    //       define another enum for `get_attribute_rule`.
     FuncParam,
+    StructField,
 
     Let,
     Module,
@@ -126,6 +127,7 @@ impl ItemKind {
             ItemKind::EnumVariant => "enum variant",
             ItemKind::Func => "function",
             ItemKind::FuncParam => "function parameter",
+            ItemKind::StructField => "struct field",
             ItemKind::Let => "`let` statement",
             ItemKind::Module => "module",
             ItemKind::Struct => "struct",

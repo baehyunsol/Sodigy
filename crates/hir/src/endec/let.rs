@@ -59,8 +59,11 @@ impl Endec for LetOrigin {
             LetOrigin::FuncDefaultValue => {
                 buffer.push(2);
             },
-            LetOrigin::Match => {
+            LetOrigin::StructDefaultValue => {
                 buffer.push(3);
+            },
+            LetOrigin::Match => {
+                buffer.push(4);
             },
         }
     }
@@ -70,8 +73,9 @@ impl Endec for LetOrigin {
             Some(0) => Ok((LetOrigin::TopLevel, cursor + 1)),
             Some(1) => Ok((LetOrigin::Inline, cursor + 1)),
             Some(2) => Ok((LetOrigin::FuncDefaultValue, cursor + 1)),
-            Some(3) => Ok((LetOrigin::Match, cursor + 1)),
-            Some(n @ 4..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(3) => Ok((LetOrigin::StructDefaultValue, cursor + 1)),
+            Some(4) => Ok((LetOrigin::Match, cursor + 1)),
+            Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

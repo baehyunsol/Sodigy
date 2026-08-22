@@ -44,9 +44,8 @@ pub struct Let {
 pub enum LetOrigin {
     TopLevel,
     Inline,  // `let` keyword in an inline block
-
-    // TODO: distinguish struct default values and func default values
     FuncDefaultValue,
+    StructDefaultValue,
 
     // `match` expressions are lowered to blocks
     Match,

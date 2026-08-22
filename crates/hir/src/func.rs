@@ -71,7 +71,6 @@ pub struct Func {
     pub use_counts: HashMap<InternedString, UseCount>,
 }
 
-// TODO: attributes
 #[derive(Clone, Debug)]
 pub struct FuncParam {
     pub name: InternedString,
@@ -579,9 +578,9 @@ impl FuncParam {
             match Expr::from_ast(ast_default_value, session) {
                 Ok(v) => {
                     let Some(Namespace::ForeignNameCollector { foreign_names, .. }) = session.name_stack.pop() else { unreachable!() };
-                    session.push_func_default_value(Let {
+                    session.push_default_value(Let {
                         visibility: Visibility::private(),
-                        keyword_span: ast_param.name_span.derive(SpanDeriveKind::FuncDefaultValue),
+                        keyword_span: ast_param.name_span.derive(SpanDeriveKind::DefaultValue),
                         name: ast_param.name,
                         name_span: ast_param.name_span.clone(),
                         type_annot: type_annot.clone(),
@@ -622,7 +621,7 @@ impl FuncParam {
         }
     }
 
-    pub fn get_attribute_rule(is_top_level: bool, is_std: bool, intermediate_dir: &str) -> AttributeRule {
+    pub fn get_attribute_rule(_is_top_level: bool, is_std: bool, intermediate_dir: &str) -> AttributeRule {
         let mut attribute_rule = AttributeRule {
             doc_comment: Requirement::Maybe,
             doc_comment_error_note: None,

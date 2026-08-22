@@ -12,6 +12,7 @@ use crate::{
     Path,
     Session,
     Struct,
+    StructField,
     Type,
     Use,
 };
@@ -50,6 +51,7 @@ impl Session {
                     ItemKind::EnumVariant => EnumVariant::get_attribute_rule(is_top_level, self.is_std, &self.intermediate_dir),
                     ItemKind::Func => Func::get_attribute_rule(is_top_level, self.is_std, &self.intermediate_dir),
                     ItemKind::FuncParam => FuncParam::get_attribute_rule(is_top_level, self.is_std, &self.intermediate_dir),
+                    ItemKind::StructField => StructField::get_attribute_rule(is_top_level, self.is_std, &self.intermediate_dir),
                     ItemKind::Let => Let::get_attribute_rule(is_top_level, self.is_std, &self.intermediate_dir),
                     ItemKind::Module => Module::get_attribute_rule(is_top_level, self.is_std, &self.intermediate_dir),
                     ItemKind::Struct => Struct::get_attribute_rule(is_top_level, self.is_std, &self.intermediate_dir),

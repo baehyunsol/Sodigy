@@ -24,7 +24,8 @@ pub enum SpanDeriveKind {
     LetPattern(u32),
 
     // `fn add(a, b=1) = a + b;` -> `let b_default = 1; fn add(a, b=b_default) = a + b;`
-    FuncDefaultValue,
+    // `struct Foo = { a, b = 1 };` -> `let b_default = 1; struct Foo = { a, b=b_default };`
+    DefaultValue,
 
     // `match (x, y) { .. }` -> `let scrutinee = (x, y); match scrutinee { .. }`
     MatchScrutinee(u32),
@@ -59,7 +60,7 @@ impl SpanDeriveKind {
             // We have a lot of error variants for let-patterns, so we don't need an extra note.
             SpanDeriveKind::LetPattern(_) => None,
 
-            SpanDeriveKind::FuncDefaultValue => Some("It is desugared to a `let` statement."),
+            SpanDeriveKind::DefaultValue => Some("It is desugared to a `let` statement."),
             SpanDeriveKind::MatchScrutinee(_) => None,
             SpanDeriveKind::ConcatPatternRest => Some("It is desugared to a rest pattern."),
             SpanDeriveKind::ConcatPatternList => Some("It is desugared to a list pattern."),

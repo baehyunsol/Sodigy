@@ -231,17 +231,17 @@ impl Block {
 
         let mut block_session = session.block_stack.pop().unwrap();
 
-        for func_default_value in block_session.func_default_values.drain(..) {
-            let_cycle_check_vertices.insert(func_default_value.name_span.clone());
+        for default_value in block_session.default_values.drain(..) {
+            let_cycle_check_vertices.insert(default_value.name_span.clone());
             let_cycle_check_edges.insert(
-                func_default_value.name_span.clone(),
-                func_default_value.foreign_names.iter().filter(
+                default_value.name_span.clone(),
+                default_value.foreign_names.iter().filter(
                     |(_, (_, span))| let_cycle_check_vertices.contains(span)
                 ).map(
                     |(_, (_, span))| span.clone()
                 ).collect(),
             );
-            lets.push(func_default_value);
+            lets.push(default_value);
         }
 
         let mut lambdas: Vec<Func> = block_session.lambdas.drain(..).collect();
@@ -344,18 +344,18 @@ pub struct BlockSession {
     // Lambda (maybe closure) defined in this block
     pub lambdas: Vec<Func>,
 
-    // Default values of functions in the current block. A default value is
+    // Default values of functions/structs in the current block. A default value is
     // lowered to a `let` statement.
     // When it leaves a block, it pops `let` statements and pushes them
     // to the current block.
-    pub func_default_values: Vec<Let>,
+    pub default_values: Vec<Let>,
 }
 
 impl BlockSession {
     pub fn new() -> Self {
         BlockSession {
             lambdas: vec![],
-            func_default_values: vec![],
+            default_values: vec![],
         }
     }
 }

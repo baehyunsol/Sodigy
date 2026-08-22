@@ -63,7 +63,6 @@ impl Session {
                             name_span: field.name_span.monomorphize(monomorphization.id),
                             type_annot: None,  // it already should've been removed
                             default_value: field.default_value.clone(),
-                            unused_name: field.unused_name.clone(),
                         }
                     ).collect()),
                 },

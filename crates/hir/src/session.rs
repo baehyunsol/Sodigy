@@ -172,8 +172,8 @@ impl Session {
         self.block_stack.len() == 1  // 1 is the top-level block's session
     }
 
-    pub fn push_func_default_value(&mut self, default_value: Let) {
-        self.block_stack.last_mut().unwrap().func_default_values.push(default_value);
+    pub fn push_default_value(&mut self, default_value: Let) {
+        self.block_stack.last_mut().unwrap().default_values.push(default_value);
     }
 
     pub fn push_lambda(&mut self, lambda: Func) {

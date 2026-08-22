@@ -186,6 +186,7 @@ pub enum ExprContext {
     TopLevelLet,
     InlineLet,
     FuncDefaultValue,
+    StructDefaultValue,
     TopLevelFunc,
     InlineFunc,
     Lambda,
@@ -199,6 +200,7 @@ impl From<LetOrigin> for ExprContext {
             LetOrigin::TopLevel => ExprContext::TopLevelLet,
             LetOrigin::Inline => ExprContext::InlineLet,
             LetOrigin::FuncDefaultValue => ExprContext::FuncDefaultValue,
+            LetOrigin::StructDefaultValue => ExprContext::StructDefaultValue,
             LetOrigin::Match => ExprContext::InlineLet,
         }
     }
@@ -871,7 +873,7 @@ impl Session {
                         None,
                     ),
                     ExprContext::InlineLet => unreachable!(),
-                    ExprContext::FuncDefaultValue => (
+                    ExprContext::FuncDefaultValue | ExprContext::StructDefaultValue => (
                         None,
                         Some(String::from("You can't call impure functions when initializing a default value.")),
                     ),

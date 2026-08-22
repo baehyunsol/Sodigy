@@ -3,17 +3,25 @@ use crate::{
     Attribute,
     AttributeRule,
     Expr,
-    FuncParam,
     Generic,
+    Let,
+    LetOrigin,
     Requirement,
     Session,
+    Type,
     Visibility,
     get_decorator_error_notes,
 };
 use sodigy_error::{Error, ErrorKind, ItemKind, Lint, LintKind, comma_list_strs};
-use sodigy_name_analysis::{Namespace, NameKind, UseCount};
+use sodigy_name_analysis::{
+    IdentWithOrigin,
+    Namespace,
+    NameKind,
+    NameOrigin,
+    UseCount,
+};
 use sodigy_parse as ast;
-use sodigy_span::{RenderableSpan, Span};
+use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
@@ -29,8 +37,16 @@ pub struct Struct {
     pub fields: Vec<StructField>,
 }
 
-// TODO: attributes
-pub type StructField = FuncParam;
+#[derive(Clone, Debug)]
+pub struct StructField {
+    pub name: InternedString,
+    pub name_span: Span,
+    pub type_annot: Option<Type>,
+
+    // `struct Foo = { x = 3, y = bar() };` is lowered to
+    // `let foo_default_x = 3; let foo_default_y = bar(); struct Foo = { x = foo_default_x, y = foo_default_y };`
+    pub default_value: Option<IdentWithOrigin>,
+}
 
 #[derive(Clone, Debug)]
 pub struct StructInitField {
@@ -233,6 +249,98 @@ impl Struct {
     }
 }
 
+impl StructField {
+    pub fn from_ast(ast_field: &ast::StructField, session: &mut Session) -> Result<StructField, ()> {
+        let mut type_annot = None;
+        let mut default_value = None;
+        let mut has_error = false;
+
+        let attribute = match session.lower_attribute(
+            &ast_field.attribute,
+            ItemKind::StructField,
+            ast_field.name_span.clone(),
+        ) {
+            Ok(attribute) => attribute,
+            Err(()) => {
+                has_error = true;
+                Attribute::new()
+            },
+        };
+
+        if let Some(ast_type) = &ast_field.type_annot {
+            match Type::from_ast(ast_type, session) {
+                Ok(t) => {
+                    type_annot = Some(t);
+                },
+                Err(()) => {
+                    has_error = false;
+                },
+            }
+        }
+
+        if let Some(ast_default_value) = &ast_field.default_value {
+            session.name_stack.push(Namespace::ForeignNameCollector {
+                is_func: false,
+                foreign_names: HashMap::new(),
+            });
+
+            match Expr::from_ast(ast_default_value, session) {
+                Ok(v) => {
+                    let Some(Namespace::ForeignNameCollector { foreign_names, .. }) = session.name_stack.pop() else { unreachable!() };
+                    session.push_default_value(Let {
+                        visibility: Visibility::private(),
+                        keyword_span: ast_field.name_span.derive(SpanDeriveKind::DefaultValue),
+                        name: ast_field.name,
+                        name_span: ast_field.name_span.clone(),
+                        type_annot: type_annot.clone(),
+                        value: v,
+                        origin: LetOrigin::StructDefaultValue,
+                        foreign_names,
+                        unused_name: None,
+                    });
+
+                    default_value = Some(IdentWithOrigin {
+                        id: ast_field.name,
+                        span: ast_field.name_span.clone(),
+                        origin: NameOrigin::Local {
+                            kind: NameKind::Let { is_top_level: session.is_at_top_level_block() },
+                        },
+                        def_span: ast_field.name_span.clone(),
+                    });
+                },
+                Err(()) => {
+                    session.name_stack.pop();
+                    has_error = false;
+                },
+            }
+        }
+
+        if has_error {
+            Err(())
+        }
+
+        else {
+            Ok(StructField {
+                name: ast_field.name,
+                name_span: ast_field.name_span.clone(),
+                type_annot,
+                default_value,
+            })
+        }
+    }
+
+    pub fn get_attribute_rule(_is_top_level: bool, _is_std: bool, _intermediate_dir: &str) -> AttributeRule {
+        AttributeRule {
+            doc_comment: Requirement::Maybe,
+            doc_comment_error_note: None,
+            visibility: Requirement::Maybe,
+            visibility_error_note: None,
+            decorators: HashMap::new(),
+            decorator_error_notes: HashMap::new(),
+        }
+    }
+}
+
 pub fn remove_struct_fields_type_annot(fields: &[StructField]) -> Vec<StructField> {
     fields.iter().map(
         |field| StructField {
@@ -240,7 +348,6 @@ pub fn remove_struct_fields_type_annot(fields: &[StructField]) -> Vec<StructFiel
             name_span: field.name_span.clone(),
             default_value: field.default_value.clone(),
             type_annot: None,
-            unused_name: field.unused_name.clone(),
         }
     ).collect()
 }

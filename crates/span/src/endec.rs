@@ -141,7 +141,7 @@ impl Endec for SpanDeriveKind {
                 buffer.push(6);
                 id.encode_impl(buffer);
             },
-            SpanDeriveKind::FuncDefaultValue => {
+            SpanDeriveKind::DefaultValue => {
                 buffer.push(7);
             },
             SpanDeriveKind::MatchScrutinee(id) => {
@@ -181,7 +181,7 @@ impl Endec for SpanDeriveKind {
                 let (id, cursor) = u32::decode_impl(buffer, cursor + 1)?;
                 Ok((SpanDeriveKind::LetPattern(id), cursor))
             },
-            Some(7) => Ok((SpanDeriveKind::FuncDefaultValue, cursor + 1)),
+            Some(7) => Ok((SpanDeriveKind::DefaultValue, cursor + 1)),
             Some(8) => {
                 let (id, cursor) = u32::decode_impl(buffer, cursor + 1)?;
                 Ok((SpanDeriveKind::MatchScrutinee(id), cursor))
