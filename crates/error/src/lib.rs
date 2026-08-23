@@ -26,6 +26,9 @@ pub struct Error {
     // the span renderer will try to render non-auxiliary spans first
     pub spans: Vec<RenderableSpan>,
 
+    // If a note can be derived from `error.kind`, that has to be in
+    // `error.extra_notes()`. (e.g. suggesting similar names, suggesting
+    // attributes to suppress a warning)
     pub note: Option<String>,
 }
 

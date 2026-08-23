@@ -83,11 +83,11 @@
     { poly_type: String, impl_type: String, param_index: ParamIndex },
     MultiplePolyCandidates(usize), UnusedNames
     { names: Vec<InternedString>, kind: NameKind }, UseUnusedName
-    { name: InternedString }, UnreachableMatchArm, UnreachableOrPattern,
-    NoImpureCallInImpureContext { context: FuncEffect }, FuncWithoutTypeAnnot,
-    LetWithoutTypeAnnot, StructWithoutTypeAnnot, EnumVariantWithoutTypeAnnot,
-    SelfParamNotNamedSelf, Todo { id: u32, message: String },
-    InternalCompilerError { id: u32 },
+    { name: InternedString, kind: NameKind }, UnreachableMatchArm,
+    UnreachableOrPattern, NoImpureCallInImpureContext { context: FuncEffect },
+    FuncWithoutTypeAnnot, LetWithoutTypeAnnot, StructWithoutTypeAnnot,
+    EnumVariantWithoutTypeAnnot, SelfParamNotNamedSelf, Todo
+    { id: u32, message: String }, InternalCompilerError { id: u32 },
 } impl ErrorKind {
     pub fn index(& self) -> u16
     {
@@ -708,10 +708,10 @@
             {
                 buffer.push(19u8); buffer.push(136u8);
                 r#names.encode_impl(buffer); r#kind.encode_impl(buffer);
-            }, ErrorKind :: UseUnusedName { r#name, } =>
+            }, ErrorKind :: UseUnusedName { r#name, r#kind, } =>
             {
                 buffer.push(19u8); buffer.push(137u8);
-                r#name.encode_impl(buffer);
+                r#name.encode_impl(buffer); r#kind.encode_impl(buffer);
             }, ErrorKind :: UnreachableMatchArm =>
             { buffer.push(19u8); buffer.push(141u8); }, ErrorKind ::
             UnreachableOrPattern =>
@@ -1185,8 +1185,9 @@
             }, 5001u16 =>
             {
                 let (r#name, cursor) = InternedString ::
-                decode_impl(buffer, cursor) ? ;
-                Ok((ErrorKind :: UseUnusedName { r#name, }, cursor))
+                decode_impl(buffer, cursor) ? ; let (r#kind, cursor) =
+                NameKind :: decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: UseUnusedName { r#name, r#kind, }, cursor))
             }, 5005u16 => Ok((ErrorKind :: UnreachableMatchArm, cursor)),
             5006u16 => Ok((ErrorKind :: UnreachableOrPattern, cursor)),
             5010u16 =>

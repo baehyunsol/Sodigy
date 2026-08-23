@@ -211,7 +211,7 @@ impl Session {
             // TODO: I want to underline the use, but no one collects that spans...
             else if let Some(attr_span) = supposed_to_be_unused.get(name) {
                 self.warnings.push(Warning {
-                    kind: WarningKind::UseUnusedName { name: *name },
+                    kind: WarningKind::UseUnusedName { name: *name, kind: *kind },
                     spans: vec![
                         RenderableSpan {
                             span: span.clone(),
@@ -221,7 +221,7 @@ impl Session {
                         RenderableSpan {
                             span: attr_span.clone(),
                             auxiliary: true,
-                            note: Some(String::from("This attribute says that this name is not gonna used.")),
+                            note: Some(String::from("This attribute says that this name is not gonna be used.")),
                         },
                     ],
                     note: None,

@@ -1,9 +1,9 @@
 use super::{ErrorKind, NameCollisionKind};
-use crate::comma_list_strs;
+use crate::{comma_list_strs, WarningKind};
 use sodigy_name_analysis::NameKind;
 
 impl ErrorKind {
-    pub fn render(&self, intermediate_dir: &str) -> String {
+    pub fn message(&self, intermediate_dir: &str) -> String {
         match self {
             ErrorKind::NameCollision { name, kind } => {
                 let name = name.unintern_or_default(intermediate_dir);
@@ -78,7 +78,7 @@ impl ErrorKind {
                 ),
             ),
             ErrorKind::UnexpectedType { expected, got } => format!("Expected type `{expected}`, got type `{got}`."),
-            ErrorKind::UnusedNames { names, kind } => {
+            WarningKind::UnusedNames { names, kind } => {
                 let names = names.iter().map(
                     |name| name.unintern_or_default(intermediate_dir)
                 ).collect::<Vec<_>>();
@@ -99,11 +99,29 @@ impl ErrorKind {
                 };
 
                 format!(
-                    "There {} {}unused {kind}{}: {names_joined}",
+                    "There {} {}unused {kind}{}: {names_joined}.",
                     if names.len() == 1 { "is" } else { "are" },
                     if names.len() == 1 { "an " } else { "" },
                     if names.len() == 1 { "" } else { "s" },
                 )
+            },
+            WarningKind::UseUnusedName { name, kind } => {
+                let (a, kind) = match kind {
+                    NameKind::Let { .. } => ("A", "value"),
+                    NameKind::Func => ("A", "function"),
+                    NameKind::Struct => ("A", "struct"),
+                    NameKind::Enum => ("An", "enum"),
+                    NameKind::EnumVariant => ("An", "enum variant"),
+                    NameKind::Alias => ("A", "type alias"),
+                    NameKind::Module => ("A", "module"),
+                    NameKind::Use => ("An", "import"),
+                    NameKind::FuncParam => ("A", "function parameter"),
+                    NameKind::GenericParam => ("A", "generic parameter"),
+                    NameKind::PatternNameBind => ("A", "name binding"),
+                    NameKind::Pipeline => ("A", "piped value"),
+                };
+                let name = name.unintern_or_default(intermediate_dir);
+                format!("{a} {kind} `{name}` isn't supposed to be used, but you used it.")
             },
             _ => format!("{self:?}"),  // TODO
         }

@@ -6,7 +6,8 @@ use sodigy_name_analysis::{IdentWithOrigin, NameKind};
 use sodigy_string::InternedString;
 use sodigy_token::InfixOp;
 
-mod render;
+mod extra_note;
+mod message;
 
 // It derives Clone, Debug, Eq, Hash and PartialEq.
 //
@@ -188,7 +189,6 @@ error_kinds!(
     (MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },    460,    Error),
     (ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },      465,    Error),
     (LibFileNotFound,                                                470,    Error),
-
     (SelfParamWithTypeAnnot,                                         475,    Error),
     (AssociatedFuncWithoutSelfParam,                                 480,    Error),
 
@@ -200,7 +200,7 @@ error_kinds!(
 
     // Warnings from here
     (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),
-    (UseUnusedName { name: InternedString },                        5001,  Warning),
+    (UseUnusedName { name: InternedString, kind: NameKind },        5001,  Warning),
     (UnreachableMatchArm,                                           5005,  Warning),
     (UnreachableOrPattern,                                          5006,  Warning),
     (NoImpureCallInImpureContext { context: FuncEffect },           5010,  Warning),

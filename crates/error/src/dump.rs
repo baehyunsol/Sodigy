@@ -32,7 +32,7 @@ impl Default for DumpErrorOption {
             delim: String::from("\n\n---------\n\n"),
             span_max_width: 88,
             span_max_height: 10,
-            span_context: 2,
+            span_context: 3,
             max_dump: Some(100),
         }
     }
@@ -82,11 +82,22 @@ pub fn dump_errors(
             ErrorLevel::Lint => unreachable!(),
         };
         let colored_title = color.render_fg(&title);
-        let note = if let Some(note) = &error.note {
-            format!("\nnote: {note}")
+        let mut note = if let Some(note) = &error.note {
+            vec![format!("note: {note}")]
         } else {
-            String::new()
+            vec![]
         };
+
+        for extra_note in error.kind.extra_notes() {
+            note.push(format!("note: {extra_note}"));
+        }
+
+        let mut note = note.join("\n");
+
+        if !note.is_empty() {
+            note = format!("\n{note}");
+        }
+
         let rendered_span = format!("\n{}", render_spans(
             &error.spans,
             &RenderSpanOption {
@@ -106,7 +117,7 @@ pub fn dump_errors(
 
         stderr.push(format!(
             "{colored_title}: {}{note}{rendered_span}",
-            error.kind.render(intermediate_dir),
+            error.kind.message(intermediate_dir),
         ));
     }
 
