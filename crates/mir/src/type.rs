@@ -748,6 +748,18 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
                     group_span: Some(Span::None),
                 })
             },
+            Callable::ListInit { group_span } => {
+                let elem_type = global_context.generic_args.unwrap().get(
+                    &(group_span.clone(), global_context.get_lang_item_span("built_in.init_list.generic.0")),
+                ).unwrap();
+
+                Some(Type::Data {
+                    constructor_def_span: global_context.get_lang_item_span_id("type.List"),
+                    constructor_span: Span::None,
+                    args: Some(vec![elem_type.clone()]),
+                    group_span: Some(Span::None),
+                })
+            },
             _ => panic!("TODO: {func:?}"),
         },
         Expr::Macro { kind, .. } => match &**kind {

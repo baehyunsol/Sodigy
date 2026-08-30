@@ -25,6 +25,8 @@ pub enum ErrorToken {
     Item,  // fn / struct / enum / use / type / let
     Block,
     Operator,
+    LambdaParams,
+
     AssignOrColon,
     AssignOrLt,
     AssignOrSemicolon,

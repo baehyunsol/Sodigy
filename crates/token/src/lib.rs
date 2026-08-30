@@ -196,6 +196,7 @@ impl TokenKind {
             TokenKind::GroupDelim { delim: None, .. } |
             TokenKind::Wildcard => false,
 
+            TokenKind::Punct(Punct::Backslash) => true,
             TokenKind::Punct(p) => PrefixOp::try_from(*p).is_ok(),
             TokenKind::Keyword(k) => match k {
                 Keyword::As |

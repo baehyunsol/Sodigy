@@ -110,7 +110,13 @@ impl<'t, 's> Tokens<'t, 's> {
                             value: Box::new(value),
                         })
                     },
-                    _ => todo!(),
+                    (None, None) => {
+                        return Err(vec![self.unexpected_end(ErrorToken::LambdaParams)]);
+                    },
+                    (None, _) => {
+                        return Err(vec![self.unexpected_end(ErrorToken::Punct(Punct::Arrow))]);
+                    },
+                    _ => unreachable!(),
                 }
             },
             (Some(t), _) => {
