@@ -1598,6 +1598,13 @@ impl Session {
                         });
                     },
                 },
+                _ if self.buffer1.is_empty() && self.buffer2.is_empty() => {
+                    return Err(Error {
+                        kind: ErrorKind::InvalidNumberLiteral,
+                        spans: Span::range(self.file, (self.cursor.max(1) - 1) as u32, 1).simple_error(),
+                        note: Some(String::from("A number literal ended unexpectedly.")),
+                    });
+                },
                 _ => {
                     let interned = intern_number_raw(
                         base,
