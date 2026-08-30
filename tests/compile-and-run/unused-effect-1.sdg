@@ -1,0 +1,4 @@
+//% compile-warning == 0
+
+#[unused_effect]
+ndet fn add(a: Int, b: Int) = a + b;

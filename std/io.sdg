@@ -16,7 +16,10 @@ fn print_built_in(v: String) -> Void;
 #[lang_item("built_in.eprint")]
 fn eprint_built_in(v: String) -> Void;
 
+#[unused_effect]
 pub proc print(v: String) -> Void = print_built_in(v);
+
+#[unused_effect]
 pub proc eprint(v: String) -> Void = eprint_built_in(v);
 
 // TODO: remove this function before 1.0 release

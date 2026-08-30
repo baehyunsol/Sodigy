@@ -19,6 +19,7 @@ impl Endec for Func {
         self.value.encode_impl(buffer);
         self.built_in.encode_impl(buffer);
         self.origin.encode_impl(buffer);
+        self.unused_effect.encode_impl(buffer);
         self.wildcard_spans.encode_impl(buffer);
     }
 
@@ -35,6 +36,7 @@ impl Endec for Func {
         let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
         let (built_in, cursor) = bool::decode_impl(buffer, cursor)?;
         let (origin, cursor) = FuncOrigin::decode_impl(buffer, cursor)?;
+        let (unused_effect, cursor) = bool::decode_impl(buffer, cursor)?;
         let (wildcard_spans, cursor) = Vec::<Span>::decode_impl(buffer, cursor)?;
 
         Ok((
@@ -51,6 +53,7 @@ impl Endec for Func {
                 value,
                 built_in,
                 origin,
+                unused_effect,
                 wildcard_spans,
             },
             cursor,

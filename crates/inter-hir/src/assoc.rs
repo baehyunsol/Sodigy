@@ -179,6 +179,7 @@ impl Session {
                                     visibility: Visibility::private(),
 
                                     effect,
+                                    unused_effect: false,
                                     ndet_span: None,
                                     keyword_span: Span::None,
                                     name: poly_name_interned,
@@ -279,6 +280,6 @@ pub fn get_associated_func_name(
 ) -> String {
     // Readability does not matter!! It tries hard to keep the name shorter than 16 bytes,
     // so that interner doesn't have to do file IO.
-    let suffix = params * 4 + effect.to_usize();
+    let suffix = params * 8 + effect.to_usize();
     format!("{}:{suffix:x}", name.unintern_or_default(intermediate_dir))
 }

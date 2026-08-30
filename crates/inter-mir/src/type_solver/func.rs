@@ -97,13 +97,13 @@ impl Session {
             },
             (FuncEffect::Proc, _) => match (impure_calls.get(&FuncEffect::NdetFn), impure_calls.get(&FuncEffect::NdetProc), impure_calls.get(&FuncEffect::Callable)) {
                 (None, None, None) => match impure_calls.get(&FuncEffect::Proc) {
-                    Some(_) => {},
-                    None => {
+                    None if !func.unused_effect => {
                         self.type_warnings.push(TypeWarning::NoImpureCallInImpureContext {
                             effect_keyword_span: func.keyword_span.clone(),
                             context_effect: func.effect.clone(),
                         });
                     },
+                    _ => {},
                 },
                 _ => {
                     let mut impure_calls = impure_calls.clone();
@@ -119,13 +119,13 @@ impl Session {
             },
             (FuncEffect::NdetFn, _) => match (impure_calls.get(&FuncEffect::Proc), impure_calls.get(&FuncEffect::NdetProc), impure_calls.get(&FuncEffect::Callable)) {
                 (None, None, None) => match impure_calls.get(&FuncEffect::NdetFn) {
-                    Some(_) => {},
-                    None => {
+                    None if !func.unused_effect => {
                         self.type_warnings.push(TypeWarning::NoImpureCallInImpureContext {
                             effect_keyword_span: func.ndet_span.clone().unwrap(),
                             context_effect: func.effect.clone(),
                         });
                     },
+                    _ => {},
                 },
                 _ => {
                     let mut impure_calls = impure_calls.clone();
@@ -139,7 +139,7 @@ impl Session {
                     has_error = true;
                 },
             },
-            (FuncEffect::NdetProc, 0) => {
+            (FuncEffect::NdetProc, 0) if !func.unused_effect => {
                 self.type_warnings.push(TypeWarning::NoImpureCallInImpureContext {
                     effect_keyword_span: func.ndet_span.as_ref().unwrap().merge(&func.keyword_span),
                     context_effect: func.effect.clone(),

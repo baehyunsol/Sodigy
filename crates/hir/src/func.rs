@@ -47,6 +47,9 @@ pub struct Func {
     // Cannot be `FuncEffect::Callable` or `FuncEffect::Var` -> these are for type-inference.
     pub effect: FuncEffect,
 
+    // `#[unused_effect]`
+    pub unused_effect: bool,
+
     pub ndet_span: Option<Span>,
     pub keyword_span: Span,
     pub name: InternedString,
@@ -154,6 +157,7 @@ impl Func {
         };
         let visibility = attribute.visibility.clone();
         let built_in = attribute.get_decorator(b"built_in", &session.intermediate_dir).is_some();
+        let unused_effect = attribute.get_decorator(b"unused_effect", &session.intermediate_dir).is_some();
 
         let is_poly = match attribute.get_decorator(b"poly", &session.intermediate_dir) {
             Some(d) => {
@@ -435,6 +439,7 @@ impl Func {
             Ok(Func {
                 visibility,
                 effect: FuncEffect::from_ndet_and_proc(ast_func.is_ndet, ast_func.is_proc),
+                unused_effect,
                 ndet_span: ast_func.ndet_span.clone(),
                 keyword_span: ast_func.keyword_span.clone(),
                 name: ast_func.name,
@@ -504,6 +509,14 @@ impl Func {
                         arg_count_error_note: Some(String::from("You can associate at most 1 type with a function.")),
                         arg_type: ArgType::Type,
                         arg_type_error_note: Some(String::from("The argument must be a type that you want to associate the function with.")),
+                        ..DecoratorRule::default()
+                    },
+                ), (
+                    intern_string(b"unused_effect", intermediate_dir).unwrap(),
+                    DecoratorRule {
+                        name: intern_string(b"unused_effect", intermediate_dir).unwrap(),
+                        requirement: Requirement::Maybe,
+                        arg_requirement: Requirement::Never,
                         ..DecoratorRule::default()
                     },
                 ),
