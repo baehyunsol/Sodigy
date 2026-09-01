@@ -1,44 +1,57 @@
-use crate::{Bytecode, Label, Memory, Offset, SSA, Value};
+use crate::{
+    Bytecode,
+    CodeSection,
+    Label,
+    Memory,
+    ObjectFile,
+    Offset,
+    SSA,
+    Value,
+};
 use sodigy_number::bi_to_string;
 use sodigy_span::Span;
-use sodigy_string::InternedString;
 use std::fmt::{Display, Error, Formatter};
 
-pub fn dump_bytecodes(
-    name: InternedString,
-    span: &Span,
-    keyword: &str,
-    params: Option<usize>,
-    bytecodes: &[Bytecode],
-    indent: usize,
-    intermediate_dir: &str,
-) -> String {
-    let mut lines = vec![
-        format!("// name: {}", name.unintern_or_default(intermediate_dir)),
-        format!("// span: {span:?}"),
-        format!(
-            "{keyword} @G{:09x}{}:",
-            span.hash() & 0xfff_fff_fff,
-            match params {
+impl Display for CodeSection {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        let mut lines = vec![];
+
+        if let Some(span) = &self.span {
+            lines.push(format!("// span: {span:?}"));
+        }
+
+        lines.push(format!("#[effect({})]", self.effect.single_word()));
+        lines.push(format!("#[name({:?})]", self.name));
+        lines.push(format!(
+            "{} @G{}{}:",
+            self.kind.keyword(),
+            self.label.hex(12),
+            match self.params {
                 Some(params) => format!("({})", (0..params).map(|i| format!("_{i}")).collect::<Vec<_>>().join(", ")),
                 None => String::new(),
             },
-        ),
-        format!("{}label @start:", " ".repeat(indent)),
-    ];
+        ));
+        lines.push(String::from("    label @start:"));
 
-    for bytecode in bytecodes.iter() {
-        match bytecode {
-            Bytecode::Label(_) => {
-                lines.push(format!("{}{bytecode}", " ".repeat(indent)));
-            },
-            _ => {
-                lines.push(format!("{}{bytecode}", " ".repeat(indent * 2)));
-            },
+        for bytecode in self.code.iter() {
+            match bytecode {
+                Bytecode::Label(_) => {
+                    lines.push(format!("    {bytecode}"));
+                },
+                _ => {
+                    lines.push(format!("        {bytecode}"));
+                },
+            }
         }
-    }
 
-    lines.join("\n")
+        write!(fmt, "{}", lines.join("\n"))
+    }
+}
+
+impl Display for ObjectFile {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        todo!()
+    }
 }
 
 impl Display for SSA {
@@ -91,8 +104,8 @@ impl Display for Bytecode {
             ),
             Bytecode::InitOrJump { def_span, func, label } => write!(
                 fmt,
-                "if is_init(_g{:09x}) {{ jump {label}; }} else {{ call {func}(); }}",
-                def_span.hash() & 0xfff_fff_fff,
+                "if is_init(_g{}) {{ jump {label}; }} else {{ call {func}(); }}",
+                def_span.hex(12),
             ),
             Bytecode::Label(label) => write!(fmt, "label {label}:"),
             Bytecode::Return(ssa) => write!(fmt, "return {ssa};"),
@@ -137,7 +150,7 @@ impl Display for Memory {
                 Offset::Static(i) => write!(fmt, "{ptr}[{i}]"),
                 Offset::Dynamic(p) => write!(fmt, "{ptr}[{p}]"),
             },
-            Memory::Global(s) => write!(fmt, "_g{:09x}", s.hash() & 0xfff_fff_fff),
+            Memory::Global(s) => write!(fmt, "_g{}", s.hex(12)),
         }
     }
 }
@@ -163,9 +176,9 @@ impl Display for Value {
             ),
             Value::FuncPointer { def_span, program_counter } => match program_counter {
                 Some(pc) => write!(fmt, "%f(@F{pc})"),
-                None => write!(fmt, "%f(@S{:09x})", def_span.hash() & 0xfff_fff_fff),
+                None => write!(fmt, "%f(@S{})", def_span.hex(12)),
             },
-            Value::Span(s) => write!(fmt, "%sp({:09x})", s.hash() & 0xfff_fff_fff),
+            Value::Span(s) => write!(fmt, "%sp({})", s.hex(12)),
         }
     }
 }
@@ -174,7 +187,7 @@ impl Display for Label {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         match self {
             Label::Local(n) => write!(fmt, "@L{n}"),
-            Label::Global(s) => write!(fmt, "@G{:09x}", s.hash() & 0xfff_fff_fff),
+            Label::Global(s) => write!(fmt, "@G{}", s.hex(12)),
             Label::Flatten(n) => write!(fmt, "@F{n}"),
         }
     }

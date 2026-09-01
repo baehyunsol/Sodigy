@@ -1,8 +1,9 @@
-use crate::Session;
-use sodigy_number::{BigInt, InternedNumber, Ratio, unintern_number};
+use crate::{ExprHash, ExprHashOrScalar, Session};
+use sodigy_number::{BigInt, Ratio, unintern_number};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, unintern_string};
 use sodigy_token::Constant;
+use std::collections::hash_map::Entry;
 
 // This is how values are represented in Sodigy runtime.
 // TODO: intern values
@@ -27,45 +28,52 @@ pub enum Value {
 }
 
 impl Session<'_, '_> {
-    pub fn lower_constant(&self, constant: &Constant) -> Value {
-        match constant {
-            Constant::Number { n, .. } => self.number_to_value(*n),
-            Constant::String { s, binary, .. } => self.string_to_value(*s, *binary),
-            Constant::Char { ch, .. } => Value::Scalar(*ch),
-            Constant::Byte { b, .. } => Value::Scalar(*b as u32),
-            Constant::Scalar(n) => Value::Scalar(*n),
-        }
-    }
-
-    // TODO: we need some kinda intern mechanism here... again!
     // FIXME: so many unwraps!
-    pub fn string_to_value(&self, s: InternedString, binary: bool) -> Value {
-        let b = unintern_string(s, &self.intermediate_dir).unwrap().unwrap();
-        let elems: Vec<Value> = if binary {
-            b.iter().map(
-                |b| Value::Scalar(*b as u32)
-            ).collect()
-        } else {
-            String::from_utf8(b).unwrap().chars().map(
-                |c| Value::Scalar(c as u32)
-            ).collect()
-        };
+    pub fn lower_constant(&mut self, constant: &Constant) -> ExprHashOrScalar {
+        match constant {
+            Constant::Number { n, .. } => match self.number_to_expr_hash.entry(*n) {
+                Entry::Occupied(e) => ExprHashOrScalar::ExprHash(*e.get()),
+                Entry::Vacant(e) => {
+                    let is_integer = n.is_integer();
+                    let n = unintern_number(*n, &self.intermediate_dir).unwrap();
+                    let value = if is_integer {
+                        Value::Int(n.numer)
+                    } else {
+                        let Ratio { numer, denom } = n;
+                        // TODO: we have to make sure that always `numer` comes before `denom`, everywhere.
+                        Value::Compound(vec![Value::Int(numer), Value::Int(denom)])
+                    };
+                    let expr_hash = ExprHash::from_const(&value);
 
-        Value::List(elems)
-    }
+                    e.insert(expr_hash);
+                    self.data_section.insert(expr_hash, value);
+                    ExprHashOrScalar::ExprHash(expr_hash)
+                },
+            },
+            Constant::String { s, binary, .. } => match self.string_to_expr_hash.entry((*s, *binary)) {
+                Entry::Occupied(e) => ExprHashOrScalar::ExprHash(*e.get()),
+                Entry::Vacant(e) => {
+                    let b = unintern_string(*s, &self.intermediate_dir).unwrap().unwrap();
+                    let elems: Vec<Value> = if *binary {
+                        b.iter().map(
+                            |b| Value::Scalar(*b as u32)
+                        ).collect()
+                    } else {
+                        String::from_utf8(b).unwrap().chars().map(
+                            |c| Value::Scalar(c as u32)
+                        ).collect()
+                    };
+                    let value = Value::List(elems);
+                    let expr_hash = ExprHash::from_const(&value);
 
-    pub fn number_to_value(&self, n: InternedNumber) -> Value {
-        let is_integer = n.is_integer();
-        let n = unintern_number(n, &self.intermediate_dir).unwrap();
-
-        if is_integer {
-            Value::Int(n.numer)
-        }
-
-        else {
-            let Ratio { numer, denom } = n;
-            // TODO: we have to make sure that always `numer` comes before `denom`, everywhere.
-            Value::Compound(vec![Value::Int(numer), Value::Int(denom)])
+                    e.insert(expr_hash);
+                    self.data_section.insert(expr_hash, value);
+                    ExprHashOrScalar::ExprHash(expr_hash)
+                },
+            },
+            Constant::Char { ch, .. } => ExprHashOrScalar::Scalar(*ch),
+            Constant::Byte { b, .. } => ExprHashOrScalar::Scalar(*b as u32),
+            Constant::Scalar(n) => ExprHashOrScalar::Scalar(*n),
         }
     }
 }

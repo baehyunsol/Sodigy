@@ -21,6 +21,32 @@ pub use render::{
     render_spans,
 };
 
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct SpanHash(pub u128);
+
+impl SpanHash {
+    pub fn hex(&self, l: usize) -> String {
+        // damn...
+        match l {
+            1 => format!("{:01x}", self.0 & 0xf),
+            2 => format!("{:02x}", self.0 & 0xff),
+            3 => format!("{:03x}", self.0 & 0xfff),
+            4 => format!("{:04x}", self.0 & 0xffff),
+            5 => format!("{:05x}", self.0 & 0xf_ffff),
+            6 => format!("{:06x}", self.0 & 0xff_ffff),
+            7 => format!("{:07x}", self.0 & 0xfff_ffff),
+            8 => format!("{:08x}", self.0 & 0xffff_ffff),
+            9 => format!("{:09x}", self.0 & 0xf_ffff_ffff),
+            10 => format!("{:010x}", self.0 & 0xff_ffff_ffff),
+            11 => format!("{:011x}", self.0 & 0xfff_ffff_ffff),
+            12 => format!("{:012x}", self.0 & 0xffff_ffff_ffff),
+
+            // I'm too lazy to type the rest...
+            _ => panic!(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct SpanId(pub u128);
 
@@ -238,9 +264,9 @@ impl Span {
         }]
     }
 
-    pub fn hash(&self) -> u128 {
+    pub fn hash(&self) -> SpanHash {
         use sodigy_endec::Endec;
-        hash(&self.encode())
+        SpanHash(hash(&self.encode()))
     }
 
     pub fn or(&self, other: &Span) -> Span {

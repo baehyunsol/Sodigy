@@ -1,14 +1,13 @@
 use crate::{
-    Assert,
     Bytecode,
     DropType,
-    Func,
+    ExprHash,
     Label,
     Let,
     Memory,
     ObjectFile,
     SSA,
-    dump_bytecodes,
+    Value,
 };
 use sodigy_error::{Error, Warning};
 use sodigy_mir::{
@@ -16,8 +15,10 @@ use sodigy_mir::{
     Intrinsic,
     Session as MirSession,
 };
+use sodigy_number::InternedNumber;
 use sodigy_session::SodigySession;
 use sodigy_span::Span;
+use sodigy_string::InternedString;
 use std::collections::HashMap;
 
 pub struct Session<'hir, 'mir> {
@@ -25,6 +26,11 @@ pub struct Session<'hir, 'mir> {
     pub label_counter: u32,
     pub ssa_counter: u32,
     pub ssa_map: HashMap<Span, SSA>,
+
+    // for data section in the object file
+    pub number_to_expr_hash: HashMap<InternedNumber, ExprHash>,
+    pub string_to_expr_hash: HashMap<(InternedString, /* binary: */ bool), ExprHash>,
+    pub data_section: HashMap<ExprHash, Value>,
 
     // key: def_span of the built-in function (in sodigy std)
     pub intrinsics: HashMap<Span, Intrinsic>,
@@ -53,6 +59,9 @@ impl Session<'_, '_> {
             label_counter: 0,
             ssa_counter: 0,
             ssa_map: HashMap::new(),
+            number_to_expr_hash: HashMap::new(),
+            string_to_expr_hash: HashMap::new(),
+            data_section: HashMap::new(),
             intrinsics: Intrinsic::ALL_WITH_LANG_ITEM.iter().map(
                 |(intrinsic, lang_item)| (mir_session.get_lang_item_span(lang_item), *intrinsic)
             ).collect(),

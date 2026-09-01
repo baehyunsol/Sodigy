@@ -1,12 +1,13 @@
 use crate::{DebugInfoKind, Label, Memory, Offset, SSA};
 use sodigy_endec::{DecodeError, Endec};
-use sodigy_span::Span;
+use sodigy_span::{Span, SpanHash};
 
 mod assert;
 mod bytecode;
 mod executable;
 mod func;
 mod r#let;
+mod object_file;
 mod session;
 mod value;
 
@@ -66,7 +67,7 @@ impl Endec for Memory {
                 Ok((Memory::List { ptr, offset }, cursor))
             },
             Some(4) => {
-                let (span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                let (span, cursor) = SpanHash::decode_impl(buffer, cursor + 1)?;
                 Ok((Memory::Global(span), cursor))
             },
             Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
@@ -100,7 +101,7 @@ impl Endec for Label {
                 Ok((Label::Local(i), cursor))
             },
             Some(1) => {
-                let (span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                let (span, cursor) = SpanHash::decode_impl(buffer, cursor + 1)?;
                 Ok((Label::Global(span), cursor))
             },
             Some(2) => {

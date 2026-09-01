@@ -3,6 +3,7 @@ use crate::{
     PolySpanKind,
     RenderableSpan,
     Span,
+    SpanHash,
     SpanId,
     SpanDeriveKind,
 };
@@ -97,6 +98,17 @@ impl Endec for SpanId {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (id, cursor) = u128::decode_impl(buffer, cursor)?;
         Ok((SpanId(id), cursor))
+    }
+}
+
+impl Endec for SpanHash {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.0.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (id, cursor) = u128::decode_impl(buffer, cursor)?;
+        Ok((SpanHash(id), cursor))
     }
 }
 

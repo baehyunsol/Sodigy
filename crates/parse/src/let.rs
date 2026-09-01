@@ -146,7 +146,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 //    - It uses `keyword_span.hash()` so that tmp_names are different.
                 //    - It uses `@` character so that this name cannot appear in user code.
                 // 2. The name has to be shorter than 16 bytes for efficient `intern_string`.
-                let tmp_name = format!("@{:012x}", keyword_span.hash() & 0xffff_ffff_ffff);
+                let tmp_name = format!("@{}", keyword_span.hash().hex(12));
                 let tmp_name = intern_string(tmp_name.as_bytes(), self.intermediate_dir).unwrap();
 
                 let mut lets = vec![

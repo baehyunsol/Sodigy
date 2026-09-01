@@ -192,6 +192,16 @@ impl FuncEffect {
         }
     }
 
+    pub fn single_word(&self) -> &'static str {
+        match self {
+            FuncEffect::Fn => "fn",
+            FuncEffect::Proc => "proc",
+            FuncEffect::NdetFn => "ndet_fn",
+            FuncEffect::NdetProc => "ndet_proc",
+            _ => unreachable!(),
+        }
+    }
+
     pub fn to_usize(&self) -> usize {
         match self {
             FuncEffect::Fn       => 0b_000,

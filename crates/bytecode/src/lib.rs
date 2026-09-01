@@ -1,6 +1,6 @@
 use sodigy_error::FuncEffect;
 use sodigy_mir::{Intrinsic, Session as MirSession};
-use sodigy_span::Span;
+use sodigy_span::{Span, SpanHash};
 use std::collections::HashMap;
 
 mod assert;
@@ -8,6 +8,7 @@ mod dump;
 mod endec;
 mod executable;
 mod expr;
+mod expr_hash;
 mod func;
 mod r#let;
 mod link;
@@ -19,12 +20,12 @@ mod value;
 mod tests;
 
 pub use assert::Assert;
-pub(crate) use dump::dump_bytecodes;
 pub use executable::Executable;
+pub use expr_hash::{ExprHash, ExprHashOrScalar};
 pub(crate) use expr::lower_expr;
 pub use func::Func;
 pub use r#let::Let;
-pub use object_file::ObjectFile;
+pub use object_file::{CodeSection, ObjectFile};
 pub use session::{LocalValue, Session};
 pub use value::Value;
 
@@ -50,7 +51,7 @@ impl SSA {
 #[derive(Clone, Debug)]
 pub enum Bytecode {
     Const {
-        value: Value,
+        value: ExprHashOrScalar,
         dst: Memory,
         debug_info: Option<Box<Span>>,
     },
@@ -103,7 +104,7 @@ pub enum Bytecode {
     // If the global value `def_span` is not initialized, it calls the function `func`.
     // Otherwise, it jumps to `label`.
     InitOrJump {
-        def_span: Span,
+        def_span: SpanHash,
         func: Label,
         label: Label,
     },
@@ -200,7 +201,7 @@ pub enum Memory {
     },
 
     // Top-level `let` statements.
-    Global(Span),
+    Global(SpanHash),
 }
 
 impl Memory {
@@ -216,9 +217,9 @@ impl Memory {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Label {
     Local(u32),
-    Global(Span /* def_span of the item */),
+    Global(SpanHash /* def_span of the item */),
 
-    // Labels are flattened by `Session::into_exeutable`.
+    // Labels are flattened by `crate::link::flatten(..)`.
     // After flattened, every label in the executable has a unique id.
     Flatten(usize),
 }
@@ -497,6 +498,6 @@ pub fn lower<'hir, 'mir>(mir_session: MirSession<'hir, 'mir>) -> Session<'hir, '
         asserts.push(Assert::from_mir(assert, &mut session, true /* is_top_level */));
     }
 
-    session.object_file = ObjectFile::new(&mut lets, &mut funcs, &mut asserts);
+    session.object_file = ObjectFile::new(&mut lets, &mut funcs, &mut asserts, &mut session.data_section);
     session
 }

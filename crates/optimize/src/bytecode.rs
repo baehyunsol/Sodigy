@@ -145,50 +145,6 @@ impl LocalContext {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-struct ExprHash(u128);
-
-impl ExprHash {
-    pub fn from_const(c: &Value) -> ExprHash {
-        let mut encoded = vec![0];
-        c.encode_impl(&mut encoded);
-        ExprHash(hash(&encoded))
-    }
-
-    pub fn from_func_call(f: &Label, args: &[SSA]) -> ExprHash {
-        let mut encoded = vec![1];
-        f.encode_impl(&mut encoded);
-
-        for arg in args.iter() {
-            arg.encode_impl(&mut encoded);
-        }
-
-        ExprHash(hash(&encoded))
-    }
-
-    pub fn from_dynamic_func_call(f: &Memory, args: &[SSA]) -> ExprHash {
-        let mut encoded = vec![2];
-        f.encode_impl(&mut encoded);
-
-        for arg in args.iter() {
-            arg.encode_impl(&mut encoded);
-        }
-
-        ExprHash(hash(&encoded))
-    }
-
-    pub fn from_intrinsic(f: Intrinsic, args: &[SSA]) -> ExprHash {
-        let mut encoded = vec![3];
-        f.encode_impl(&mut encoded);
-
-        for arg in args.iter() {
-            arg.encode_impl(&mut encoded);
-        }
-
-        ExprHash(hash(&encoded))
-    }
-}
-
 fn optimize_local(bytecodes: &mut Vec<Bytecode>) {
     let mut context = LocalContext::new();
     let mut max_ssa = SSA::from_u32(1000);

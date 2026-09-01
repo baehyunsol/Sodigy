@@ -1,6 +1,7 @@
 use crate::{
     Assert,
     Bytecode,
+    ExprHashOrScalar,
     Label,
     Memory,
     Offset,
@@ -33,16 +34,16 @@ pub fn lower_expr(
                         NameKind::Let { is_top_level: true } => {
                             let value_inited = session.get_local_label();
                             bytecodes.push(Bytecode::InitOrJump {
-                                def_span: id.def_span.clone(),
-                                func: Label::Global(id.def_span.clone()),
+                                def_span: id.def_span.hash(),
+                                func: Label::Global(id.def_span.hash()),
                                 label: value_inited.clone(),
                             });
                             bytecodes.push(Bytecode::Move {
                                 src: Memory::Return,
-                                dst: Memory::Global(id.def_span.clone()),
+                                dst: Memory::Global(id.def_span.hash()),
                             });
                             bytecodes.push(Bytecode::Label(value_inited.clone()));
-                            Memory::Global(id.def_span.clone())
+                            Memory::Global(id.def_span.hash())
                         },
                         NameKind::Func => {
                             bytecodes.push(Bytecode::Const {
@@ -283,7 +284,7 @@ pub fn lower_expr(
                                 }
                             },
                             None => {
-                                let func = Label::Global(def_span.clone());
+                                let func = Label::Global(def_span.hash());
                                 let effect = match session.global_context.func_shapes.unwrap().get(def_span) {
                                     Some(FuncShape { effect, .. }) => Box::new(effect.clone()),
                                     _ => unreachable!(),
@@ -369,7 +370,7 @@ pub fn lower_expr(
                         EnumRepr::Scalar => {
                             assert!(args.is_empty());
                             bytecodes.push(Bytecode::Const {
-                                value: Value::Scalar(variant_index as u32),
+                                value: ExprHashOrScalar::Scalar(variant_index as u32),
                                 dst: dst.clone(),
                                 debug_info: None,
                             });
@@ -382,7 +383,7 @@ pub fn lower_expr(
                                 debug_info: None,
                             });
                             bytecodes.push(Bytecode::Const {
-                                value: Value::Scalar(variant_index as u32),
+                                value: ExprHashOrScalar::Scalar(variant_index as u32),
                                 dst: Memory::Heap {
                                     ptr: dst_ssa,
                                     offset: Offset::Static(0),

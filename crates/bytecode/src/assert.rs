@@ -9,6 +9,7 @@ use crate::{
 use sodigy_mir::{self as mir, Intrinsic};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
+use sodigy_token::Constant;
 
 #[derive(Clone, Debug)]
 pub struct Assert {
@@ -48,7 +49,7 @@ impl Assert {
         };
         let name_ssa = session.get_ssa();
         bytecodes.push(Bytecode::Const {
-            value: session.string_to_value(name, /* binary: */ false),
+            value: session.lower_constant(&Constant::String { s: name, binary: false, span: Span::None }),
             dst: Memory::SSA(name_ssa),
             debug_info: None,
         });

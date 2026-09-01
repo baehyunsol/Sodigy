@@ -2,6 +2,7 @@ use crate::{
     Bytecode,
     DebugInfoKind,
     DropType,
+    ExprHashOrScalar,
     Label,
     Memory,
     SSA,
@@ -10,7 +11,7 @@ use crate::{
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_error::FuncEffect;
 use sodigy_mir::Intrinsic;
-use sodigy_span::Span;
+use sodigy_span::{Span, SpanHash};
 
 impl Endec for Bytecode {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
@@ -112,7 +113,7 @@ impl Endec for Bytecode {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         match buffer.get(cursor) {
             Some(0) => {
-                let (value, cursor) = Value::decode_impl(buffer, cursor + 1)?;
+                let (value, cursor) = ExprHashOrScalar::decode_impl(buffer, cursor + 1)?;
                 let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::Const { value, dst, debug_info }, cursor))
@@ -154,7 +155,7 @@ impl Endec for Bytecode {
                 Ok((Bytecode::JumpIf { value, label, debug_info }, cursor))
             },
             Some(7) => {
-                let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                let (def_span, cursor) = SpanHash::decode_impl(buffer, cursor + 1)?;
                 let (func, cursor) = Label::decode_impl(buffer, cursor)?;
                 let (label, cursor) = Label::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::InitOrJump { def_span, func, label }, cursor))
