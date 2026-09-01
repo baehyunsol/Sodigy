@@ -1,12 +1,11 @@
-use crate::{ExprHash, ExprHashOrScalar, Session};
+use crate::{ExprHash, Session};
 use sodigy_number::{BigInt, Ratio, unintern_number};
 use sodigy_span::Span;
-use sodigy_string::{InternedString, unintern_string};
+use sodigy_string::unintern_string;
 use sodigy_token::Constant;
 use std::collections::hash_map::Entry;
 
 // This is how values are represented in Sodigy runtime.
-// TODO: intern values
 #[derive(Clone, Debug)]
 pub enum Value {
     Scalar(u32),
@@ -27,12 +26,18 @@ pub enum Value {
     Span(Span),
 }
 
+#[derive(Clone, Debug)]
+pub enum InternedValue {
+    Interned(ExprHash),
+    Scalar(u32),
+}
+
 impl Session<'_, '_> {
     // FIXME: so many unwraps!
-    pub fn lower_constant(&mut self, constant: &Constant) -> ExprHashOrScalar {
+    pub fn lower_constant(&mut self, constant: &Constant) -> InternedValue {
         match constant {
             Constant::Number { n, .. } => match self.number_to_expr_hash.entry(*n) {
-                Entry::Occupied(e) => ExprHashOrScalar::ExprHash(*e.get()),
+                Entry::Occupied(e) => InternedValue::Interned(*e.get()),
                 Entry::Vacant(e) => {
                     let is_integer = n.is_integer();
                     let n = unintern_number(*n, &self.intermediate_dir).unwrap();
@@ -47,11 +52,11 @@ impl Session<'_, '_> {
 
                     e.insert(expr_hash);
                     self.data_section.insert(expr_hash, value);
-                    ExprHashOrScalar::ExprHash(expr_hash)
+                    InternedValue::Interned(expr_hash)
                 },
             },
             Constant::String { s, binary, .. } => match self.string_to_expr_hash.entry((*s, *binary)) {
-                Entry::Occupied(e) => ExprHashOrScalar::ExprHash(*e.get()),
+                Entry::Occupied(e) => InternedValue::Interned(*e.get()),
                 Entry::Vacant(e) => {
                     let b = unintern_string(*s, &self.intermediate_dir).unwrap().unwrap();
                     let elems: Vec<Value> = if *binary {
@@ -68,12 +73,23 @@ impl Session<'_, '_> {
 
                     e.insert(expr_hash);
                     self.data_section.insert(expr_hash, value);
-                    ExprHashOrScalar::ExprHash(expr_hash)
+                    InternedValue::Interned(expr_hash)
                 },
             },
-            Constant::Char { ch, .. } => ExprHashOrScalar::Scalar(*ch),
-            Constant::Byte { b, .. } => ExprHashOrScalar::Scalar(*b as u32),
-            Constant::Scalar(n) => ExprHashOrScalar::Scalar(*n),
+            Constant::Char { ch, .. } => InternedValue::Scalar(*ch),
+            Constant::Byte { b, .. } => InternedValue::Scalar(*b as u32),
+            Constant::Scalar(n) => InternedValue::Scalar(*n),
+        }
+    }
+
+    pub fn intern_value(&mut self, v: &Value) -> InternedValue {
+        match v {
+            Value::Scalar(n) => InternedValue::Scalar(*n),
+            _ => {
+                let expr_hash = ExprHash::from_const(v);
+                self.data_section.insert(expr_hash, v.clone());
+                InternedValue::Interned(expr_hash)
+            },
         }
     }
 }

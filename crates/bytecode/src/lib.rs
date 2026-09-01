@@ -21,13 +21,13 @@ mod tests;
 
 pub use assert::Assert;
 pub use executable::Executable;
-pub use expr_hash::{ExprHash, ExprHashOrScalar};
+pub use expr_hash::ExprHash;
 pub(crate) use expr::lower_expr;
 pub use func::Func;
 pub use r#let::Let;
-pub use object_file::{CodeSection, ObjectFile};
+pub use object_file::{CodeKind, CodeSection, ObjectFile};
 pub use session::{LocalValue, Session};
-pub use value::Value;
+pub use value::{InternedValue, Value};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct SSA(u32);
@@ -51,7 +51,7 @@ impl SSA {
 #[derive(Clone, Debug)]
 pub enum Bytecode {
     Const {
-        value: ExprHashOrScalar,
+        value: InternedValue,
         dst: Memory,
         debug_info: Option<Box<Span>>,
     },
@@ -498,6 +498,12 @@ pub fn lower<'hir, 'mir>(mir_session: MirSession<'hir, 'mir>) -> Session<'hir, '
         asserts.push(Assert::from_mir(assert, &mut session, true /* is_top_level */));
     }
 
-    session.object_file = ObjectFile::new(&mut lets, &mut funcs, &mut asserts, &mut session.data_section);
+    session.object_file = ObjectFile::new(
+        &mut lets,
+        &mut funcs,
+        &mut asserts,
+        &mut session.data_section,
+        &mir_session.intermediate_dir,
+    );
     session
 }

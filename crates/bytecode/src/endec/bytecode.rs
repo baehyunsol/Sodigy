@@ -2,7 +2,7 @@ use crate::{
     Bytecode,
     DebugInfoKind,
     DropType,
-    ExprHashOrScalar,
+    InternedValue,
     Label,
     Memory,
     SSA,
@@ -113,7 +113,7 @@ impl Endec for Bytecode {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         match buffer.get(cursor) {
             Some(0) => {
-                let (value, cursor) = ExprHashOrScalar::decode_impl(buffer, cursor + 1)?;
+                let (value, cursor) = InternedValue::decode_impl(buffer, cursor + 1)?;
                 let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::Const { value, dst, debug_info }, cursor))

@@ -1,7 +1,7 @@
 use crate::{
     Assert,
     Bytecode,
-    ExprHashOrScalar,
+    InternedValue,
     Label,
     Memory,
     Offset,
@@ -46,13 +46,15 @@ pub fn lower_expr(
                             Memory::Global(id.def_span.hash())
                         },
                         NameKind::Func => {
-                            bytecodes.push(Bytecode::Const {
-                                value: Value::FuncPointer {
-                                    def_span: id.def_span.clone(),
+                            let func_pointer = Value::FuncPointer {
+                                def_span: id.def_span.clone(),
 
-                                    // `Session::link()` will fill this
-                                    program_counter: None,
-                                },
+                                // `Session::link()` will fill this
+                                program_counter: None,
+                            };
+
+                            bytecodes.push(Bytecode::Const {
+                                value: session.intern_value(&func_pointer),
                                 dst: dst.clone(),
                                 debug_info: if session.debug_info { Some(Box::new(id.span.clone())) } else { None },
                             });
@@ -370,7 +372,7 @@ pub fn lower_expr(
                         EnumRepr::Scalar => {
                             assert!(args.is_empty());
                             bytecodes.push(Bytecode::Const {
-                                value: ExprHashOrScalar::Scalar(variant_index as u32),
+                                value: InternedValue::Scalar(variant_index as u32),
                                 dst: dst.clone(),
                                 debug_info: None,
                             });
@@ -383,7 +385,7 @@ pub fn lower_expr(
                                 debug_info: None,
                             });
                             bytecodes.push(Bytecode::Const {
-                                value: ExprHashOrScalar::Scalar(variant_index as u32),
+                                value: InternedValue::Scalar(variant_index as u32),
                                 dst: Memory::Heap {
                                     ptr: dst_ssa,
                                     offset: Offset::Static(0),

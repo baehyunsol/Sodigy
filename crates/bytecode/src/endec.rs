@@ -1,10 +1,11 @@
 use crate::{DebugInfoKind, Label, Memory, Offset, SSA};
 use sodigy_endec::{DecodeError, Endec};
-use sodigy_span::{Span, SpanHash};
+use sodigy_span::SpanHash;
 
 mod assert;
 mod bytecode;
 mod executable;
+mod expr_hash;
 mod func;
 mod r#let;
 mod object_file;

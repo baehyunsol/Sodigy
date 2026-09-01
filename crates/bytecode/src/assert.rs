@@ -32,8 +32,9 @@ impl Assert {
         let mut debug_info_count = 0;
 
         let span_ssa = session.get_ssa();
+        let keyword_span = Value::Span(mir_assert.keyword_span.clone());
         bytecodes.push(Bytecode::Const {
-            value: Value::Span(mir_assert.keyword_span.clone()),
+            value: session.intern_value(&keyword_span),
             dst: Memory::SSA(span_ssa),
             debug_info: None,
         });
@@ -82,8 +83,9 @@ impl Assert {
             // If it panics while evaluating `note`, the runtime will see the
             // `NoteDecoratorSpan` and throw an according error message.
             let span_ssa = session.get_ssa();
+            let note_decorator_span = Value::Span(note_decorator_span.clone());
             bytecodes.push(Bytecode::Const {
-                value: Value::Span(note_decorator_span.clone()),
+                value: session.intern_value(&note_decorator_span),
                 dst: Memory::SSA(span_ssa),
                 debug_info: None,
             });

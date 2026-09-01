@@ -1,6 +1,8 @@
 use crate::{
     Bytecode,
+    CodeKind,
     CodeSection,
+    InternedValue,
     Label,
     Memory,
     ObjectFile,
@@ -20,11 +22,17 @@ impl Display for CodeSection {
             lines.push(format!("// span: {span:?}"));
         }
 
+        let kind = match self.kind {
+            CodeKind::Func => "func",
+            CodeKind::Let => "global-let",
+            CodeKind::Assert => "assertion",
+        };
+        lines.push(format!("// {kind}"));
+
         lines.push(format!("#[effect({})]", self.effect.single_word()));
         lines.push(format!("#[name({:?})]", self.name));
         lines.push(format!(
-            "{} @G{}{}:",
-            self.kind.keyword(),
+            "data @G{}{}:",
             self.label.hex(12),
             match self.params {
                 Some(params) => format!("({})", (0..params).map(|i| format!("_{i}")).collect::<Vec<_>>().join(", ")),
@@ -50,7 +58,19 @@ impl Display for CodeSection {
 
 impl Display for ObjectFile {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        todo!()
+        write!(fmt, r#".data:
+{}
+
+.code:
+{}
+
+.label:
+{}
+"#,
+            todo!(),
+            self.code.iter().map(|c| c.to_string()).collect::<Vec<_>>().join("\n\n"),
+            todo!(),
+        )
     }
 }
 
@@ -155,30 +175,11 @@ impl Display for Memory {
     }
 }
 
-impl Display for Value {
+impl Display for InternedValue {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         match self {
-            Value::Scalar(n) => write!(fmt, "%s({n})"),
-            Value::Int(n) => write!(fmt, "%i({})", bi_to_string(n.is_neg, &n.nums)),
-            Value::List(elems) => write!(
-                fmt,
-                "%l({})",
-                elems.iter().map(
-                    |elem| elem.to_string()
-                ).collect::<Vec<_>>().join(", "),
-            ),
-            Value::Compound(elems) => write!(
-                fmt,
-                "%c({})",
-                elems.iter().map(
-                    |elem| elem.to_string()
-                ).collect::<Vec<_>>().join(", "),
-            ),
-            Value::FuncPointer { def_span, program_counter } => match program_counter {
-                Some(pc) => write!(fmt, "%f(@F{pc})"),
-                None => write!(fmt, "%f(@S{})", def_span.hex(12)),
-            },
-            Value::Span(s) => write!(fmt, "%sp({})", s.hex(12)),
+            InternedValue::Interned(h) => todo!(),
+            InternedValue::Scalar(n) => todo!(),
         }
     }
 }

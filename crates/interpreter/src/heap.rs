@@ -1,5 +1,5 @@
 use sodigy_bytecode::{DebugInfoKind, DropType, Value};
-use sodigy_span::{Span, SpanId};
+use sodigy_span::{SpanHash, SpanId};
 use std::collections::HashMap;
 
 #[cfg(feature="debug-heap")]
@@ -34,7 +34,7 @@ pub struct Heap {
 
     // Global values are lazy-evaluated.
     // Global values are static: once initialized, it's alive until the end of the program.
-    pub global_values: HashMap<Span, u32>,
+    pub global_values: HashMap<SpanHash, u32>,
 
     // Blocks in freelist_small are at least as big as SMALL_BLOCK_SIZE (can be bigger).
     // Each `usize` value is a pointer, where `self.data[pointer]` is a header of a block.

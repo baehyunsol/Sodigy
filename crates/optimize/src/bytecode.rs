@@ -1,8 +1,13 @@
 use crate::OptimizeLevel;
-use sodigy_bytecode::{Bytecode, Label, Memory, Session, SSA, Value};
-use sodigy_endec::Endec;
-use sodigy_mir::Intrinsic;
-use sodigy_string::hash;
+use sodigy_bytecode::{
+    Bytecode,
+    ExprHash,
+    InternedValue,
+    Memory,
+    Session,
+    Value,
+    SSA,
+};
 use std::collections::hash_map::{Entry, HashMap};
 
 #[cfg(test)]
@@ -153,7 +158,12 @@ fn optimize_local(bytecodes: &mut Vec<Bytecode>) {
         match bytecode {
             Bytecode::Const { value, dst, .. } => {
                 if let Memory::SSA(a) = dst {
-                    context.register_expression(ExprHash::from_const(value), *a);
+                    let expr_hash = match value {
+                        InternedValue::Interned(h) => *h,
+                        InternedValue::Scalar(n) => ExprHash::from_const(&Value::Scalar(*n)),
+                    };
+
+                    context.register_expression(expr_hash, *a);
                     max_ssa = max_ssa.max(*a);
                 }
             },
@@ -298,20 +308,20 @@ pub fn optimize_bytecode<'hir, 'mir>(mut session: Session<'hir, 'mir>, level: Op
     match level {
         OptimizeLevel::None => session,
         OptimizeLevel::Mild => {
-            for func in session.funcs.iter_mut() {
-                optimize_local(&mut func.bytecodes);
-                optimize_local(&mut func.bytecodes);
+            for code in session.object_file.code.iter_mut() {
+                optimize_local(&mut code.code);
+                optimize_local(&mut code.code);
             }
 
             session
         },
         OptimizeLevel::Extreme => {
-            for func in session.funcs.iter_mut() {
-                optimize_local(&mut func.bytecodes);
-                optimize_local(&mut func.bytecodes);
-                optimize_local(&mut func.bytecodes);
-                optimize_local(&mut func.bytecodes);
-                optimize_local(&mut func.bytecodes);
+            for code in session.object_file.code.iter_mut() {
+                optimize_local(&mut code.code);
+                optimize_local(&mut code.code);
+                optimize_local(&mut code.code);
+                optimize_local(&mut code.code);
+                optimize_local(&mut code.code);
             }
 
             session

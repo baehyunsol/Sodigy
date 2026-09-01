@@ -3,7 +3,6 @@ use crate::{
     DropType,
     ExprHash,
     Label,
-    Let,
     Memory,
     ObjectFile,
     SSA,

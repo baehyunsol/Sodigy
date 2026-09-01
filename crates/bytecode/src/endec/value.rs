@@ -1,4 +1,4 @@
-use crate::Value;
+use crate::{ExprHash, InternedValue, Value};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_number::BigInt;
 use sodigy_span::Span;
@@ -62,6 +62,36 @@ impl Endec for Value {
                 Ok((Value::Span(span), cursor))
             },
             Some(n @ 6..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+
+impl Endec for InternedValue {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            InternedValue::Interned(h) => {
+                buffer.push(0);
+                h.encode_impl(buffer);
+            },
+            InternedValue::Scalar(n) => {
+                buffer.push(1);
+                n.encode_impl(buffer);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => {
+                let (h, cursor) = ExprHash::decode_impl(buffer, cursor + 1)?;
+                Ok((InternedValue::Interned(h), cursor))
+            },
+            Some(1) => {
+                let (n, cursor) = u32::decode_impl(buffer, cursor + 1)?;
+                Ok((InternedValue::Scalar(n), cursor))
+            },
+            Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }
