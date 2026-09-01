@@ -11,6 +11,7 @@ mod expr;
 mod func;
 mod r#let;
 mod link;
+mod object_file;
 mod session;
 mod value;
 
@@ -23,6 +24,7 @@ pub use executable::Executable;
 pub(crate) use expr::lower_expr;
 pub use func::Func;
 pub use r#let::Let;
+pub use object_file::ObjectFile;
 pub use session::{LocalValue, Session};
 pub use value::Value;
 
@@ -495,9 +497,6 @@ pub fn lower<'hir, 'mir>(mir_session: MirSession<'hir, 'mir>) -> Session<'hir, '
         asserts.push(Assert::from_mir(assert, &mut session, true /* is_top_level */));
     }
 
-    session.lets = lets;
-    session.funcs = funcs;
-    session.asserts = asserts;
-
+    session.object_file = ObjectFile::new(&mut lets, &mut funcs, &mut asserts);
     session
 }

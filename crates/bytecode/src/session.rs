@@ -6,6 +6,7 @@ use crate::{
     Label,
     Let,
     Memory,
+    ObjectFile,
     SSA,
     dump_bytecodes,
 };
@@ -25,17 +26,12 @@ pub struct Session<'hir, 'mir> {
     pub ssa_counter: u32,
     pub ssa_map: HashMap<Span, SSA>,
 
-    pub funcs: Vec<Func>,
-
-    // only top-level ones
-    pub asserts: Vec<Assert>,
-    pub lets: Vec<Let>,
-
     // key: def_span of the built-in function (in sodigy std)
     pub intrinsics: HashMap<Span, Intrinsic>,
 
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
+    pub object_file: ObjectFile,
     pub global_context: GlobalContext<'hir, 'mir>,
     pub debug_info: bool,
 }
@@ -57,14 +53,12 @@ impl Session<'_, '_> {
             label_counter: 0,
             ssa_counter: 0,
             ssa_map: HashMap::new(),
-            funcs: vec![],
-            asserts: vec![],
-            lets: vec![],
             intrinsics: Intrinsic::ALL_WITH_LANG_ITEM.iter().map(
                 |(intrinsic, lang_item)| (mir_session.get_lang_item_span(lang_item), *intrinsic)
             ).collect(),
             errors: mir_session.errors.drain(..).collect(),
             warnings: mir_session.warnings.drain(..).collect(),
+            object_file: ObjectFile::empty(),
             global_context: mir_session.global_context,
             debug_info: true,  // TODO: make it configurable
         }
@@ -101,66 +95,5 @@ impl Session<'_, '_> {
                 ssa_reg
             },
         }
-    }
-
-    pub fn merge(&mut self, mut s: Session) {
-        self.funcs.extend(s.funcs.drain(..));
-        self.asserts.extend(s.asserts.drain(..));
-        self.lets.extend(s.lets.drain(..));
-        // TODO: Does it have to merge `.intrinsics` and `.lang_items`?
-        self.errors.extend(s.errors.drain(..));
-        self.warnings.extend(s.warnings.drain(..));
-    }
-
-    pub fn dump_bytecodes(&self) -> String {
-        let mut dumps: Vec<(&Span, String)> = vec![];
-
-        for func in self.funcs.iter() {
-            dumps.push((
-                &func.name_span,
-                dump_bytecodes(
-                    func.name,
-                    &func.name_span,
-                    func.effect.keyword(),
-                    Some(func.params),
-                    &func.bytecodes,
-                    4,
-                    &self.intermediate_dir,
-                ),
-            ));
-        }
-
-        for r#let in self.lets.iter() {
-            dumps.push((
-                &r#let.name_span,
-                dump_bytecodes(
-                    r#let.name,
-                    &r#let.name_span,
-                    "data",
-                    None,
-                    &r#let.bytecodes,
-                    4,
-                    &self.intermediate_dir,
-                ),
-            ));
-        }
-
-        for assert in self.asserts.iter() {
-            dumps.push((
-                &assert.keyword_span,
-                dump_bytecodes(
-                    assert.name,
-                    &assert.keyword_span,
-                    "assertion",
-                    None,
-                    &assert.bytecodes,
-                    4,
-                    &self.intermediate_dir,
-                ),
-            ));
-        }
-
-        dumps.sort_by_key(|(span, _)| *span);
-        dumps.into_iter().map(|(_, dump)| dump).collect::<Vec<_>>().join("\n\n")
     }
 }
