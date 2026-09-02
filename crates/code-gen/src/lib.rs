@@ -19,7 +19,7 @@ pub fn lower(
     match backend {
         // It doesn't generate extra errors/warnings!
         Backend::Bytecode => (
-            bytecode::flatten(&bytecode::link(object_files)).encode(),
+            bytecode::flatten(&mut bytecode::link(object_files)).encode(),
             errors,
             warnings,
         ),

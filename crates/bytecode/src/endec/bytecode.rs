@@ -6,7 +6,6 @@ use crate::{
     Label,
     Memory,
     SSA,
-    Value,
 };
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_error::FuncEffect;

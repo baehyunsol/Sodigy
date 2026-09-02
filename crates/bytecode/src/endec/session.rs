@@ -1,4 +1,4 @@
-use crate::{Assert, Func, Let, ObjectFile, Session};
+use crate::{ObjectFile, Session};
 use sodigy_endec::{DecodeError, DumpSession, Endec};
 use sodigy_error::{Error, Warning};
 use sodigy_mir::{GlobalContext, Intrinsic};

@@ -47,9 +47,9 @@ pub fn lower_expr(
                         },
                         NameKind::Func => {
                             let func_pointer = Value::FuncPointer {
-                                def_span: id.def_span.clone(),
+                                def_span: id.def_span.hash(),
 
-                                // `Session::link()` will fill this
+                                // `crate::link::flatten(..)` will fill this
                                 program_counter: None,
                             };
 

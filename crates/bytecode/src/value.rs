@@ -1,6 +1,6 @@
 use crate::{ExprHash, Session};
 use sodigy_number::{BigInt, Ratio, unintern_number};
-use sodigy_span::Span;
+use sodigy_span::{Span, SpanHash};
 use sodigy_string::unintern_string;
 use sodigy_token::Constant;
 use std::collections::hash_map::Entry;
@@ -17,7 +17,7 @@ pub enum Value {
     Compound(Vec<Value>),
 
     FuncPointer {
-        def_span: Span,
+        def_span: SpanHash,
         program_counter: Option<usize>,
     },
 

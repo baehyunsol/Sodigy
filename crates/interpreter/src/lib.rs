@@ -1,6 +1,7 @@
 use sodigy_bytecode::{
     Bytecode,
     Executable,
+    InternedValue,
     Label,
     Memory,
     Offset,
@@ -63,14 +64,19 @@ fn call(
 
     loop {
         #[cfg(feature="debug-bytecode")] {
-            debug::debug(&stack, heap, &executable.bytecodes, cursor, render_span_session);
+            debug::debug(&stack, heap, &executable.code, cursor, render_span_session);
         }
 
-        match &executable.bytecodes[cursor] {
+        match &executable.code[cursor] {
             Bytecode::Const { value, dst, debug_info: _ } => {
-                // let value = heap.alloc_value(value);
-                // update(dst, value, &mut stack, heap);
-                todo!()
+                let value = match value {
+                    InternedValue::Interned(h) => {
+                        let value = executable.data.get(h).unwrap();
+                        heap.alloc_value(value)
+                    },
+                    InternedValue::Scalar(n) => *n,
+                };
+                update(dst, value, &mut stack, heap);
             },
             Bytecode::Move { src, dst } => {
                 let value = read(src, &stack, heap);

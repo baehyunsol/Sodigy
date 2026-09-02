@@ -31,6 +31,8 @@ impl Display for CodeSection {
 
         lines.push(format!("#[effect({})]", self.effect.single_word()));
         lines.push(format!("#[name({:?})]", self.name));
+
+        // TODO: We're not supposed to use the term "data" here...
         lines.push(format!(
             "data @G{}{}:",
             self.label.hex(12),
@@ -82,7 +84,7 @@ impl Display for ObjectFile {
 .label:
 {}
 "#,
-            self.data.iter().map(|(h, v)| format!("%i({}) = {v};", h.hex(12))).collect::<Vec<_>>().join("\n"),
+            self.data.iter().map(|(h, v)| format!("%I{} = {v};", h.hex(12))).collect::<Vec<_>>().join("\n"),
             self.code.iter().map(|c| c.to_string()).collect::<Vec<_>>().join("\n\n"),
             labels.join("\n"),
         )
@@ -112,7 +114,7 @@ impl Display for Bytecode {
                 dump_debug_info(debug_info),
             ),
             Bytecode::Move { dst, src } => write!(fmt, "{dst} = {src};"),
-            Bytecode::Phi { pair: (x, y), dst } => write!(fmt, "{dst} = phi({x}, {y});"),
+            Bytecode::Phi { pair: (x, y), dst } => write!(fmt, "{dst} = $Phi({x}, {y});"),
             Bytecode::Jump(label) => write!(fmt, "jump {label};"),
             Bytecode::Call { func, args, dst, debug_info, effect: _ } => write!(
                 fmt,
@@ -150,7 +152,7 @@ impl Display for Bytecode {
             ),
             Bytecode::Intrinsic { intrinsic, args, dst, debug_info } => write!(
                 fmt,
-                "{dst} = intrinsic {intrinsic:?}({});{}",
+                "{dst} = ${intrinsic:?}({});{}",
                 args.iter().map(
                     |i| format!("{i}")
                 ).collect::<Vec<_>>().join(", "),
@@ -158,12 +160,12 @@ impl Display for Bytecode {
             ),
             Bytecode::InitTuple { elements, dst, debug_info } => write!(
                 fmt,
-                "{dst} = intrinsic InitTuple({elements});{}",
+                "{dst} = $InitTuple({elements});{}",
                 dump_debug_info(debug_info),
             ),
             Bytecode::InitList { elements, dst, debug_info } => write!(
                 fmt,
-                "{dst} = intrinsic InitList({elements});{}",
+                "{dst} = $InitList({elements});{}",
                 dump_debug_info(debug_info),
             ),
             _ => write!(fmt, "{self:?}"),
@@ -193,8 +195,8 @@ impl Display for Memory {
 impl Display for InternedValue {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         match self {
-            InternedValue::Interned(h) => write!(fmt, "%i({})", h.hex(12)),
-            InternedValue::Scalar(n) => write!(fmt, "%s({n})"),
+            InternedValue::Interned(h) => write!(fmt, "%I{}", h.hex(12)),
+            InternedValue::Scalar(n) => write!(fmt, "{n}#s"),
         }
     }
 }
@@ -224,7 +226,7 @@ impl Display for Value {
                 "{{{}}}",
                 es.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", "),
             ),
-            Value::FuncPointer { .. } => todo!(),
+            Value::FuncPointer { def_span, .. } => write!(fmt, "{}#f", def_span.hex(12)),
 
             // This information is lost once it's dumped.
             Value::Span(_) => write!(fmt, "#p"),
