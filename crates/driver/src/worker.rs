@@ -14,7 +14,7 @@ use crate::{
 use sodigy_endec::Endec;
 use sodigy_error::{Error as SodigyError, Warning as SodigyWarning};
 use sodigy_file::{File, FileOrStd, ModulePath};
-use sodigy_fs_api::{WriteMode, join3, write_bytes, write_string};
+use sodigy_fs_api::{WriteMode, write_bytes};
 use sodigy_hir as hir;
 use sodigy_mir::{self as mir, GlobalContext as MirGlobalContext};
 use sodigy_post_mir::MatchDump;
@@ -691,11 +691,12 @@ impl Worker {
                 modules,
                 intermediate_dir,
                 backend,
-                dump_bytecodes,
                 output_path,
             } => {
                 self.stage_start(CompileStage::CodeGen, Some("load-bytecode-modules"), None);
-                let mut merged_bytecode_session: Option<sodigy_bytecode::Session> = None;
+                let mut object_files = Vec::with_capacity(modules.len());
+                let mut errors = vec![];
+                let mut warnings = vec![];
 
                 for path in modules.keys() {
                     let file = File::from_module_path(
@@ -709,32 +710,15 @@ impl Worker {
                         Some(content_hash),
                     )?.ok_or(Error::IrCacheNotFound(CompileStage::BytecodeOptimize))?;
                     let mut bytecode_session = sodigy_bytecode::Session::decode(&bytecode_session_bytes)?;
-                    bytecode_session.intermediate_dir = intermediate_dir.clone();
-
-                    match &mut merged_bytecode_session {
-                        Some(s) => {
-                            s.merge(bytecode_session);
-                        },
-                        None => {
-                            merged_bytecode_session = Some(bytecode_session);
-                        },
-                    }
+                    object_files.push(std::mem::take(&mut bytecode_session.object_file));
+                    errors.extend(bytecode_session.errors.drain(..));
+                    warnings.extend(bytecode_session.warnings.drain(..));
                 }
 
-                let bytecode_session = merged_bytecode_session.unwrap();
                 self.stage_end(false);
 
-                if dump_bytecodes {
-                    let dump_at = join3(&intermediate_dir, "irs", "bytecodes")?;
-                    write_string(
-                        &dump_at,
-                        &bytecode_session.dump_bytecodes(),
-                        WriteMode::CreateOrTruncate,
-                    )?;
-                }
-
                 self.stage_start(CompileStage::CodeGen, Some("code-gen"), None);
-                let (code, errors, warnings) = sodigy_code_gen::lower(bytecode_session, backend);
+                let (code, errors, warnings) = sodigy_code_gen::lower(object_files, errors, warnings, backend);
                 self.stage_end(!errors.is_empty());
 
                 match output_path {

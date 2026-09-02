@@ -1,4 +1,4 @@
-use sodigy_bytecode::Session;
+use sodigy_bytecode::{self as bytecode, ObjectFile, Session};
 use sodigy_endec::Endec;
 use sodigy_error::{Error, Warning};
 
@@ -10,18 +10,19 @@ pub enum Backend {
     Bytecode,
 }
 
-pub fn lower(mut bytecode_session: Session, backend: Backend) -> (Vec<u8>, Vec<Error>, Vec<Warning>) {
+pub fn lower(
+    object_files: Vec<ObjectFile>,
+    errors: Vec<Error>,
+    warnings: Vec<Warning>,
+    backend: Backend,
+) -> (Vec<u8>, Vec<Error>, Vec<Warning>) {
     match backend {
-        Backend::Bytecode => {
-            let executable = bytecode_session.link();
-
-            // It doesn't generate extra errors/warnings!
-            (
-                executable.encode(),
-                bytecode_session.errors.drain(..).collect(),
-                bytecode_session.warnings.drain(..).collect(),
-            )
-        },
+        // It doesn't generate extra errors/warnings!
+        Backend::Bytecode => (
+            bytecode::flatten(&bytecode::link(object_files)).encode(),
+            errors,
+            warnings,
+        ),
         _ => todo!(),
     }
 }

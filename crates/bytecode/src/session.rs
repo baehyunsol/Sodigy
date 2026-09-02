@@ -66,7 +66,7 @@ impl Session<'_, '_> {
             ).collect(),
             errors: mir_session.errors.drain(..).collect(),
             warnings: mir_session.warnings.drain(..).collect(),
-            object_file: ObjectFile::empty(),
+            object_file: ObjectFile::default(),
             global_context: mir_session.global_context,
             debug_info: true,  // TODO: make it configurable
         }

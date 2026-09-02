@@ -8,3 +8,4 @@ sodigy-endec = { version = "0.1.0", path = "../endec" }
 sodigy-file = { version = "0.1.0", path = "../file" }
 sodigy-fs-api = { version = "0.1.0", path = "../fs-api" }
 sodigy-string = { version = "0.1.0", path = "../string" }
+sodigy-utils = { version = "0.1.0", path = "../utils" }

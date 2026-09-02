@@ -16,6 +16,7 @@ sodigy-session = { version = "0.1.0", path = "../session" }
 sodigy-span = { version = "0.1.0", path = "../span" }
 sodigy-string = { version = "0.1.0", path = "../string" }
 sodigy-token = { version = "0.1.0", path = "../token" }
+sodigy-utils = { version = "0.1.0", path = "../utils" }
 
 [features]
 log = ["sodigy-mir/log"]

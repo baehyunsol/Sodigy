@@ -25,6 +25,7 @@ pub use expr_hash::ExprHash;
 pub(crate) use expr::lower_expr;
 pub use func::Func;
 pub use r#let::Let;
+pub use link::{flatten, link};
 pub use object_file::{CodeKind, CodeSection, ObjectFile};
 pub use session::{LocalValue, Session};
 pub use value::{InternedValue, Value};

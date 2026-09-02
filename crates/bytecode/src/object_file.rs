@@ -96,8 +96,10 @@ impl ObjectFile {
             asserts: assert_labels,
         }
     }
+}
 
-    pub fn empty() -> ObjectFile {
+impl Default for ObjectFile {
+    fn default() -> ObjectFile {
         ObjectFile {
             data: vec![],
             code: vec![],

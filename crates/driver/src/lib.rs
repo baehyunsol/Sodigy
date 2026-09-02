@@ -146,9 +146,6 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             CliCommand::Run { optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings } |
             CliCommand::Test { optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings }
         ) => {
-            // maybe we need a finer control??
-            let dump_bytecodes = *emit_irs;
-
             // TODO: make these configurable
             let incremental_compilation = true;
             let quiet = false;
@@ -182,7 +179,6 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                 *emit_irs,
                 *dump_post_mir_log,
                 *dump_timings,
-                dump_bytecodes,
                 *graceful_shutdown,
                 *jobs,
                 *color,
@@ -221,7 +217,6 @@ pub fn init_workers_and_compile(
     emit_irs: bool,
     dump_post_mir_log: bool,
     dump_timings_flag: bool,
-    dump_bytecodes: bool,
     graceful_shutdown: u32,  // in milliseconds
     jobs: usize,
     color: ColorWhen,
@@ -246,7 +241,6 @@ pub fn init_workers_and_compile(
         custom_error_levels,
         emit_irs,
         dump_post_mir_log,
-        dump_bytecodes,
         graceful_shutdown,
         incremental_compilation,
         validate_token_spans,
@@ -338,7 +332,6 @@ fn compile(
     custom_error_levels: &HashMap<u16, CustomErrorLevel>,
     emit_irs: bool,
     dump_post_mir_log_flag: bool,
-    dump_bytecodes: bool,
     graceful_shutdown: u32,  // in milliseconds
     incremental_compilation: bool,
     validate_token_spans: ValidateTokenSpans,
@@ -530,7 +523,6 @@ fn compile(
                     ).collect(),
                     intermediate_dir: ir_dir.clone(),
                     backend,
-                    dump_bytecodes,
                     output_path: output_path.clone(),
                 },
             ))?;

@@ -1,6 +1,7 @@
 use crate::std_file::{STD_FILES, STD_FILE_INDEXES};
 use sodigy_fs_api::{FileError, join3, read_bytes};
-use sodigy_string::{InternedString, hash, intern_string, unintern_string};
+use sodigy_string::{InternedString, intern_string, unintern_string};
+use sodigy_utils::hash;
 use std::fmt;
 use std::fs::File as StdFile;
 use std::io::{Read, Write};

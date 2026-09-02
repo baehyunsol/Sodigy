@@ -1,7 +1,7 @@
 use crate::{Label, Memory, SSA, Value};
 use sodigy_endec::Endec;
 use sodigy_mir::Intrinsic;
-use sodigy_string::hash;
+use sodigy_utils::{dump_hex, hash};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ExprHash(pub(crate) u128);
@@ -44,5 +44,9 @@ impl ExprHash {
         }
 
         ExprHash(hash(&encoded))
+    }
+
+    pub fn hex(&self, l: usize) -> String {
+        dump_hex(self.0, l)
     }
 }

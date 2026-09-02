@@ -68,8 +68,9 @@ fn call(
 
         match &executable.bytecodes[cursor] {
             Bytecode::Const { value, dst, debug_info: _ } => {
-                let value = heap.alloc_value(value);
-                update(dst, value, &mut stack, heap);
+                // let value = heap.alloc_value(value);
+                // update(dst, value, &mut stack, heap);
+                todo!()
             },
             Bytecode::Move { src, dst } => {
                 let value = read(src, &stack, heap);

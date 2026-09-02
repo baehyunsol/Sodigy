@@ -1,12 +1,56 @@
-use crate::{Bytecode, Executable, Label, Session, Value};
-use sodigy_span::Span;
-use std::collections::HashMap;
+use crate::{Bytecode, Executable, Label, ObjectFile, Session, Value};
+use sodigy_span::{Span, SpanHash};
+use std::collections::hash_map::{Entry, HashMap};
+
+pub fn link(object_files: Vec<ObjectFile>) -> ObjectFile {
+    let mut data = HashMap::new();
+    let mut code = vec![];
+    let mut main_entry = None;
+    let mut asserts = vec![];
+
+    for mut object_file in object_files.into_iter() {
+        for (key, value) in object_file.data.drain(..) {
+            if let Entry::Vacant(e) = data.entry(key) {
+                e.insert(value);
+            }
+        }
+
+        // TODO: What if there are multiple object files that have a main entry?
+        if let Some(main) = object_file.main_entry {
+            main_entry = Some(main);
+        }
+
+        code.extend(object_file.code.drain(..));
+        asserts.extend(object_file.asserts.drain(..));
+    }
+
+    ObjectFile {
+        data: data.into_iter().collect(),
+        code,
+        main_entry,
+        asserts,
+    }
+}
+
+pub fn flatten(object_file: &ObjectFile) -> Executable {
+    let mut concated_bytecodes = vec![];
+    let mut label_map: HashMap<SpanHash, usize> = HashMap::new();
+    let mut func_pointer_map: HashMap<SpanHash, usize> = HashMap::new();
+
+    for code in object_file.code.iter() {
+        for (i, bytecode) in code.code.iter().enumerate() {
+            if let Bytecode::Label(label) = bytecode {
+                label_map.insert();
+            }
+        }
+    }
+
+    Executable {
+        bytecodes: concated_bytecodes,
+    }
+}
 
 impl Session<'_, '_> {
-    // TODO:
-    //    1. multiple object files to a single object file
-    //    2. flatten a single object file so that the interpreter can interpret
-
     // pub fn link(&self) -> Executable {
     //     let mut concated_bytecodes = vec![];
     //     let mut label_map: HashMap<(Span, Label), usize> = HashMap::new();

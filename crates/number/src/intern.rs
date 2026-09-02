@@ -21,7 +21,7 @@ use sodigy_fs_api::{
     read_bytes,
     write_bytes,
 };
-use sodigy_string::hash;
+use sodigy_utils::hash;
 use std::cmp::Ordering;
 use std::fmt;
 

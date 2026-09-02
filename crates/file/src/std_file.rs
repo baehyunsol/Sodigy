@@ -1,5 +1,5 @@
 use crate::{FileOrStd, ModulePath};
-use sodigy_string::hash;
+use sodigy_utils::hash;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 

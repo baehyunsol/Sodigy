@@ -6,8 +6,8 @@ use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_session::SodigySession;
 use sodigy_span::{Span, SpanId};
-use sodigy_string::hash;
 use sodigy_token::Constant;
+use sodigy_utils::hash;
 use std::collections::{HashMap, HashSet};
 
 // This enum is originally meant for type annotations, but

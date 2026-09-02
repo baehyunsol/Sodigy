@@ -47,7 +47,6 @@ pub fn runner(data: &[u8], target: &str) {
 
         false,  // dump-post-mir-log
         true,   // dump-timings
-        false,  // dump-bytecodes
         0,  // graceful-shutdown
         8,  // jobs
         ColorWhen::Never,

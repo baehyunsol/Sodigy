@@ -5,6 +5,7 @@
 // length and hash is encoded to the interned_string.
 
 use sodigy_fs_api::{FileError, join};
+use sodigy_utils::hash;
 
 mod endec;
 mod fmt;
@@ -185,17 +186,4 @@ fn intern_short_string(s: &[u8]) -> InternedString {
         *s.get(13).unwrap_or(&0),
         *s.get(14).unwrap_or(&0),
     ]))
-}
-
-pub fn hash(s: &[u8]) -> u128 {
-    let mut r = 0;
-
-    for (i, b) in s.iter().enumerate() {
-        let c = (((r >> 24) & 0x00ff_ffff) << 24) | ((i & 0xfff) << 12) as u128 | *b as u128;
-        let cc = c * c + c + 1;
-        r += cc;
-        r &= 0xffff_ffff_ffff_ffff_ffff_ffff;
-    }
-
-    r
 }

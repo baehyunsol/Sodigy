@@ -28,7 +28,7 @@ use sodigy_span::{
     RenderSpanSession,
     RenderableSpan,
 };
-use sodigy_string::hash;
+use sodigy_utils::hash;
 
 pub fn store_inter_hir_log(
     module: Option<File>,

@@ -14,7 +14,7 @@ use sodigy_fs_api::{
     set_extension,
     write_string,
 };
-use sodigy_string::hash;
+use sodigy_utils::hash;
 use std::process::Command;
 
 mod line_matcher;

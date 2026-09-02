@@ -58,6 +58,21 @@ impl Display for CodeSection {
 
 impl Display for ObjectFile {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        let mut labels = vec![];
+
+        if let Some(main_entry) = &self.main_entry {
+            labels.push(String::from("main:"));
+            labels.push(format!("    @G{}", main_entry.hex(12)));
+        }
+
+        if !self.asserts.is_empty() {
+            labels.push(String::from("asserts:"));
+
+            for assert in self.asserts.iter() {
+                labels.push(format!("    @G{}", assert.hex(12)));
+            }
+        }
+
         write!(fmt, r#".data:
 {}
 
@@ -67,9 +82,9 @@ impl Display for ObjectFile {
 .label:
 {}
 "#,
-            todo!(),
+            self.data.iter().map(|(h, v)| format!("%i({}) = {v};", h.hex(12))).collect::<Vec<_>>().join("\n"),
             self.code.iter().map(|c| c.to_string()).collect::<Vec<_>>().join("\n\n"),
-            todo!(),
+            labels.join("\n"),
         )
     }
 }
@@ -178,8 +193,8 @@ impl Display for Memory {
 impl Display for InternedValue {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         match self {
-            InternedValue::Interned(h) => todo!(),
-            InternedValue::Scalar(n) => todo!(),
+            InternedValue::Interned(h) => write!(fmt, "%i({})", h.hex(12)),
+            InternedValue::Scalar(n) => write!(fmt, "%s({n})"),
         }
     }
 }
@@ -190,6 +205,29 @@ impl Display for Label {
             Label::Local(n) => write!(fmt, "@L{n}"),
             Label::Global(s) => write!(fmt, "@G{}", s.hex(12)),
             Label::Flatten(n) => write!(fmt, "@F{n}"),
+        }
+    }
+}
+
+impl Display for Value {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        match self {
+            Value::Scalar(n) => write!(fmt, "{n}#s"),
+            Value::Int(n) => write!(fmt, "{}#n", bi_to_string(n.is_neg, &n.nums)),
+            Value::List(es) => write!(
+                fmt,
+                "[{}]",
+                es.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", "),
+            ),
+            Value::Compound(es) => write!(
+                fmt,
+                "{{{}}}",
+                es.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", "),
+            ),
+            Value::FuncPointer { .. } => todo!(),
+
+            // This information is lost once it's dumped.
+            Value::Span(_) => write!(fmt, "#p"),
         }
     }
 }
