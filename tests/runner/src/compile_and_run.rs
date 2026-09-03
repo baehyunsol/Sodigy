@@ -17,11 +17,14 @@ use sodigy_fs_api::{
 use sodigy_utils::hash;
 use std::process::Command;
 
+mod extra_tests;
 mod line_matcher;
-mod tests;
+mod main_test;
+mod utils;
 
 pub use line_matcher::{LineMatcher, match_lines};
-pub use tests::{Directive, ExpectedOutput, remove_ansi_characters};
+pub use main_test::{Directive, ExpectedOutput};
+pub use utils::remove_ansi_characters;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CompileAndRun {

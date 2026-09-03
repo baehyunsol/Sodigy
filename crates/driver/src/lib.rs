@@ -158,7 +158,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             let quiet = false;
             let verify_built_ins = false;
 
-            let (output_path, emit, backend, interpret_with_profile) = match cli_command {
+            let (output_path, emit, backend, run_with_profile) = match cli_command {
                 CliCommand::Run { backend, .. } => (
                     StoreIrAt::IntermediateDir,
                     None,
@@ -199,7 +199,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                     incremental_compilation,
                     *validate_token_spans,
                     verify_built_ins,
-                    interpret_with_profile,
+                    run_with_profile,
                     quiet,
                 ),
             }
@@ -239,7 +239,7 @@ pub fn init_workers_and_compile(
     incremental_compilation: bool,
     validate_token_spans: ValidateTokenSpans,
     verify_built_ins: bool,
-    interpret_with_profile: Option<Profile>,
+    run_with_profile: Option<Profile>,
     quiet: bool,
 ) -> Result<(), Error> {
     let started_at = Instant::now();
@@ -326,9 +326,15 @@ pub fn init_workers_and_compile(
 
     result?;
 
-    match interpret_with_profile {
-        Some(profile) => interpret(StoreIrAt::IntermediateDir, profile, &ir_dir),
-        None => Ok(()),
+    if let Some(profile) = run_with_profile {
+        match backend {
+            Some(Backend::Native) => interpret(StoreIrAt::IntermediateDir, profile, &ir_dir),
+            Some(Backend::Interpret) => interpret(StoreIrAt::IntermediateDir, profile, &ir_dir),
+            Some(Backend::MirInterpret) => interpret(StoreIrAt::IntermediateDir, profile, &ir_dir),
+            None => unreachable!(),
+        }
+    } else {
+        Ok(())
     }
 }
 
