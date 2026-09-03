@@ -690,7 +690,7 @@ impl Worker {
             Command::CodeGen {
                 modules,
                 intermediate_dir,
-                backend,
+                emit,
                 output_path,
             } => {
                 self.stage_start(CompileStage::CodeGen, Some("load-bytecode-modules"), None);
@@ -718,7 +718,7 @@ impl Worker {
                 self.stage_end(false);
 
                 self.stage_start(CompileStage::CodeGen, Some("code-gen"), None);
-                let (code, errors, warnings) = sodigy_code_gen::lower(object_files, errors, warnings, backend);
+                let (code, errors, warnings) = sodigy_code_gen::lower(object_files, errors, warnings, emit);
                 self.stage_end(!errors.is_empty());
 
                 match output_path {

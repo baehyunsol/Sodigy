@@ -3,7 +3,7 @@ use crate::{
     EmitIrOption,
     StoreIrAt,
 };
-use sodigy_code_gen::Backend;
+use sodigy_code_gen::Emit;
 use sodigy_file::{FileOrStd, ModulePath};
 use sodigy_optimize::OptimizeLevel;
 use sodigy_span::Span;
@@ -53,7 +53,7 @@ pub enum Command {
     CodeGen {
         modules: HashMap<ModulePath, Span>,
         intermediate_dir: String,
-        backend: Backend,
+        emit: Emit,
         output_path: StoreIrAt,
     },
     LoadInterHirSession {

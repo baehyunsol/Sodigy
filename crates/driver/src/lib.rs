@@ -1,4 +1,4 @@
-pub use sodigy_code_gen::Backend;
+use sodigy_code_gen::Emit;
 use sodigy_endec::Endec;
 use sodigy_error::{
     CustomErrorLevel,
@@ -76,6 +76,13 @@ pub struct ModuleCompileState {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Backend {
+    Native,
+    Interpret,
+    MirInterpret,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Profile {
     Script,
     Test,
@@ -142,52 +149,60 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             Ok(())
         },
         cli_command @ (
-            CliCommand::Build { optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings, .. } |
-            CliCommand::Run { optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings } |
-            CliCommand::Test { optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings }
+            CliCommand::Build { bytecode, optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings, .. } |
+            CliCommand::Run { bytecode, optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings, .. } |
+            CliCommand::Test { bytecode, optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings, .. }
         ) => {
             // TODO: make these configurable
             let incremental_compilation = true;
             let quiet = false;
             let verify_built_ins = false;
 
-            let (output_path, backend, interpret_with_profile) = match cli_command {
-                CliCommand::Run { .. } => (
+            let (output_path, emit, backend, interpret_with_profile) = match cli_command {
+                CliCommand::Run { backend, .. } => (
                     StoreIrAt::IntermediateDir,
-                    Backend::Bytecode,
+                    None,
+                    Some(*backend),
                     Some(Profile::Script),
                 ),
-                CliCommand::Test { .. } => (
+                CliCommand::Test { backend, .. } => (
                     StoreIrAt::IntermediateDir,
-                    Backend::Bytecode,
+                    None,
+                    Some(*backend),
                     Some(Profile::Test),
                 ),
-                CliCommand::Build { output_path, backend, .. } => (
+                CliCommand::Build { output_path, emit, .. } => (
                     StoreIrAt::File(output_path.to_string()),
-                    *backend,
+                    Some(*emit),
+                    None,
                     None,
                 ),
                 _ => todo!(),
             };
-            init_workers_and_compile(
-                src_dir,
-                output_path,
-                backend,
-                ir_dir,
-                *optimize_level,
-                custom_error_levels,
-                *emit_irs,
-                *dump_post_mir_log,
-                *dump_timings,
-                *graceful_shutdown,
-                *jobs,
-                *color,
-                incremental_compilation,
-                *validate_token_spans,
-                verify_built_ins,
-                interpret_with_profile,
-                quiet,
-            )
+
+            match bytecode {
+                Some(bytecode) => todo!(),
+                None => init_workers_and_compile(
+                    src_dir,
+                    output_path,
+                    emit,
+                    backend,
+                    ir_dir,
+                    *optimize_level,
+                    custom_error_levels,
+                    *emit_irs,
+                    *dump_post_mir_log,
+                    *dump_timings,
+                    *graceful_shutdown,
+                    *jobs,
+                    *color,
+                    incremental_compilation,
+                    *validate_token_spans,
+                    verify_built_ins,
+                    interpret_with_profile,
+                    quiet,
+                ),
+            }
         },
         CliCommand::Interpret { bytecodes_path, profile } => interpret(
             StoreIrAt::File(bytecodes_path.to_string()),
@@ -210,7 +225,8 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
 pub fn init_workers_and_compile(
     src_dir: String,
     output_path: StoreIrAt,
-    backend: Backend,
+    emit: Option<Emit>,
+    backend: Option<Backend>,
     ir_dir: String,
     optimize_level: OptimizeLevel,
     custom_error_levels: &HashMap<u16, CustomErrorLevel>,
@@ -235,6 +251,7 @@ pub fn init_workers_and_compile(
     let result = compile(
         src_dir,
         output_path,
+        emit,
         backend,
         ir_dir.clone(),
         optimize_level,
@@ -326,7 +343,8 @@ pub fn init_workers_and_compile(
 fn compile(
     src_dir: String,
     output_path: StoreIrAt,
-    backend: Backend,
+    emit: Option<Emit>,
+    backend: Option<Backend>,
     ir_dir: String,
     optimize_level: OptimizeLevel,
     custom_error_levels: &HashMap<u16, CustomErrorLevel>,
@@ -516,13 +534,22 @@ fn compile(
         }
 
         if every_bytecode_complete {
+            let emit = match (emit, backend) {
+                // The user explicitly requested what to emit.
+                (Some(e), _) => e,
+                (None, Some(Backend::Native)) => Emit::MultiC,
+                (None, Some(Backend::Interpret)) => Emit::ExecutableBytecode,
+                (None, Some(Backend::MirInterpret)) => todo!(),
+                _ => unreachable!(),
+            };
+
             workers[round_robin % workers.len()].send(MessageToWorker::Run(
                 Command::CodeGen {
                     modules: modules.values().map(
                         |module| (module.module_path.clone(), module.span.clone())
                     ).collect(),
                     intermediate_dir: ir_dir.clone(),
-                    backend,
+                    emit,
                     output_path: output_path.clone(),
                 },
             ))?;

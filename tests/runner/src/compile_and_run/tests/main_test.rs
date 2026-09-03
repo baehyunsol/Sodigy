@@ -68,7 +68,8 @@ impl CnrContext {
             }
         }
 
-        let mut args = vec!["build", "--test", "-o=target/run", "--dump-timings"];
+        // TODO: collect timings data... for all cnrs!
+        let mut args = vec!["build", "--emit=bytecode-exe", "-o=target/run", "--dump-timings"];
 
         if self.emit_irs {
             args.push("--emit-irs");
