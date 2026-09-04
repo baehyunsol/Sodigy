@@ -1,5 +1,8 @@
 use super::{CnrContext, CompileAndRun, Status};
+use crate::subprocess;
+use sodigy_fs_api::{join, read_bytes};
 
+#[derive(Debug)]
 enum ExtraTest {
     Note {
         step: usize,
@@ -12,9 +15,18 @@ enum ExtraTest {
         // and asserts that the timestamp doesn't change
         check_incremental_compilation: Option<CheckIncrementalCompilation>,
     },
-    Run {
+    RunBytecode {
         // It should start with "run", "test" or "interpret".
         args: Vec<&'static str>,
+
+        // "run" / "test"
+        key: &'static str,
+    },
+    RunFromSource {
+        // It should start with "run" or "test".
+        args: Vec<&'static str>,
+        key: &'static str,
+        check_incremental_compilation: Option<CheckIncrementalCompilation>,
     },
     Clean,  // runs `sodigy clean`
 
@@ -25,8 +37,10 @@ enum ExtraTest {
 
         note: &'static str,
     },
+    AssertEqRunResults,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum CheckIncrementalCompilation {
     All,
     BeforeOptimization,
@@ -43,7 +57,7 @@ impl CnrContext {
             return;
         }
 
-        let instructions = [
+        let instructions = vec![
             ExtraTest::Note {
                 step: 0,
                 note: "It runs every possible combination of `sodigy build`, which builds from the code files in `src/`.",
@@ -163,28 +177,196 @@ impl CnrContext {
                 note: "It runs `sodigy run --bytecode=<path>` and `sodigy test --bytecode=<path>` with bytecode files from the previous steps, and collects their outputs.",
             },
 
-            // TODO
+            ExtraTest::RunBytecode {
+                args: vec!["run", "--bytecode=bc-debug-0", "--backend=interpret"],
+                key: "run",
+            },
+            ExtraTest::RunBytecode {
+                args: vec!["run", "--bytecode=bc-debug-0", "--backend=native"],
+                key: "run",
+            },
+            ExtraTest::RunBytecode {
+                args: vec!["run", "--bytecode=bc-release-0", "--backend=interpret"],
+                key: "run",
+            },
+            ExtraTest::RunBytecode {
+                args: vec!["run", "--bytecode=bc-release-0", "--backend=native"],
+                key: "run",
+            },
+            ExtraTest::RunBytecode {
+                args: vec!["test", "--bytecode=bc-debug-0", "--backend=interpret"],
+                key: "test",
+            },
+            ExtraTest::RunBytecode {
+                args: vec!["test", "--bytecode=bc-debug-0", "--backend=native"],
+                key: "test",
+            },
+            ExtraTest::RunBytecode {
+                args: vec!["test", "--bytecode=bc-release-0", "--backend=interpret"],
+                key: "test",
+            },
+            ExtraTest::RunBytecode {
+                args: vec!["test", "--bytecode=bc-release-0", "--backend=native"],
+                key: "test",
+            },
 
             ExtraTest::Note {
                 step: 4,
-                // bcx-debug-0, bcx-release-0, c-debug-0, c-release-0, exe-debug-0, exe-release-0 -> total 6 cases
                 note: "It runs C, bytecode-exe and exe files from the previous steps. It uses the system's C compiler to compile the C files. It collects all the outputs.",
             },
+            ExtraTest::RunBytecode {
+                args: vec!["interpret", "bcx-debug-0"],
+                key: "run",
+            },
+            ExtraTest::RunBytecode {
+                args: vec!["interpret", "bcx-debug-0", "--test"],
+                key: "test",
+            },
+            ExtraTest::RunBytecode {
+                args: vec!["interpret", "bcx-release-0"],
+                key: "run",
+            },
+            ExtraTest::RunBytecode {
+                args: vec!["interpret", "bcx-release-0", "--test"],
+                key: "test",
+            },
 
-            // TODO
+            // TODO: c-debug-0, c-release-0, exe-debug-0, exe-release-0
+            //       But how do I set profile for these?
+
+            ExtraTest::AssertEqRunResults,
 
             ExtraTest::Note {
                 step: 5,
-                note: "It asserts that stdout, stderr and status-code of ALL the runs (whether C, bytecode, exe, ...) from the previous steps are identical.",
+                note: "It runs remaining possible combinations of `sodigy run` and `sodigy test` and collects their outputs.",
             },
+            ExtraTest::RunFromSource {
+                args: vec!["run", "--backend=mir-interpret"],
+                key: "run",
+            },
+            ExtraTest::RunFromSource {
+                args: vec!["run", "--backend=interpret"],
+                key: "run",
+            },
+            ExtraTest::RunFromSource {
+                args: vec!["run", "--backend=native"],
+                key: "run",
+            },
+            ExtraTest::RunFromSource {
+                args: vec!["run", "--backend=mir-interpret", "--release"],
+                key: "run",
+            },
+            ExtraTest::RunFromSource {
+                args: vec!["run", "--backend=interpret", "--release"],
+                key: "run",
+            },
+            ExtraTest::RunFromSource {
+                args: vec!["run", "--backend=native", "--release"],
+                key: "run",
+            },
+            ExtraTest::RunFromSource {
+                args: vec!["test", "--backend=mir-interpret"],
+                key: "test",
+            },
+            ExtraTest::RunFromSource {
+                args: vec!["test", "--backend=interpret"],
+                key: "test",
+            },
+            ExtraTest::RunFromSource {
+                args: vec!["test", "--backend=native"],
+                key: "test",
+            },
+            ExtraTest::RunFromSource {
+                args: vec!["test", "--backend=mir-interpret", "--release"],
+                key: "test",
+            },
+            ExtraTest::RunFromSource {
+                args: vec!["test", "--backend=interpret", "--release"],
+                key: "test",
+            },
+            ExtraTest::RunFromSource {
+                args: vec!["test", "--backend=native", "--release"],
+                key: "test",
+            },
+            ExtraTest::AssertEqRunResults,
 
-            // TODO
-
-            // TODO: `sodigy run`, `sodigy test` from `src/`. Collect their outputs. Also test incremental compilations.
+            ExtraTest::Note {
+                step: 6,
+                note: _,
+            },
+            ExtraTest::BreakIfLessThan3Files,
 
             // TODO: if there are more than 2 files, test incremental compilation more thoroughly
         ];
 
-        todo!()
+        let mut curr_step = 0;
+        let mut curr_note = String::new();
+
+        for instruction in instructions.into_iter() {
+            let instruction_str = format!("{instruction:?}");
+
+            match instruction {
+                ExtraTest::Note { step, note } => {
+                    curr_step = step;
+                    curr_note = note.to_string();
+                },
+                ExtraTest::Build { mut args, check_incremental_compilation } => {
+                    let modified_time = match check_incremental_compilation {
+                        Some(CheckIncrementalCompilation::All) => todo!(),
+                        Some(CheckIncrementalCompilation::BeforeOptimization) => todo!(),
+                        None => None,
+                    };
+                    let args = [vec!["build"], args].concat();
+
+                    if let Err(e) = subprocess::run(
+                        &self.sodigy_path,
+                        &args,
+                        &self.project_dir,
+                        30.0,
+                        false,  // dump_output
+                        true,   // check_nonzero_status
+                    ) {
+                        result.error = Some(format!("Extra cnr test failure\nstep: {curr_step}\nnote: {curr_note}\ninstruction: {instruction_str}\nerror: {e:?}\nFailed to build a sodigy project!"));
+                        return;
+                    }
+                },
+                ExtraTest::RunBytecode { args, key } => {
+                    match subprocess::run(
+                        &self.sodigy_path,
+                        &args,
+                        &self.project_dir,
+                        30.0,
+                        false,  // dump_output
+                        false,  // check_nonzero_status
+                    ) {
+                        Ok(o) => todo!(),
+                        Err(e) => {
+                            result.error = Some(format!("Extra cnr test failure\nstep: {curr_step}\nnote: {curr_note}\ninstruction: {instruction_str}\nerror: {e:?}\nFailed to run bytecode!"));
+                            return;
+                        },
+                    }
+                },
+                ExtraTest::Clean => todo!(),
+                ExtraTest::AssertEq { a, b, note } => {
+                    let path_a = join(&self.project_dir, a).unwrap();
+                    let path_b = join(&self.project_dir, b).unwrap();
+                    let (content_a, content_b) = match (read_bytes(&path_a), read_bytes(&path_b)) {
+                        (Ok(a), Ok(b)) => (String::from_utf8_lossy(&a).to_string(), String::from_utf8_lossy(&b).to_string()),
+                        (Err(e), _) => {
+                            result.error = Some(format!("Extra cnr test failure\nstep: {curr_step}\nnote: {curr_note}\ninstruction: {instruction_str}\nerror: {e:?}\nFailed to read an asserted file!"));
+                            return;
+                        },
+                        (_, Err(e)) => {
+                            result.error = Some(format!("Extra cnr test failure\nstep: {curr_step}\nnote: {curr_note}\ninstruction: {instruction_str}\nerror: {e:?}\nFailed to read an asserted file!"));
+                            return;
+                        },
+                    };
+
+                    if content_a != content_b {
+                        todo!();
+                    }
+                },
+            }
+        }
     }
 }
