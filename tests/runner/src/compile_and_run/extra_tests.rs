@@ -38,6 +38,8 @@ enum ExtraTest {
         note: &'static str,
     },
     AssertEqRunResults,
+
+    BreakIfLessThan3Files,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -240,63 +242,102 @@ impl CnrContext {
                 step: 5,
                 note: "It runs remaining possible combinations of `sodigy run` and `sodigy test` and collects their outputs.",
             },
+            ExtraTest::Clean,
             ExtraTest::RunFromSource {
                 args: vec!["run", "--backend=mir-interpret"],
                 key: "run",
+                check_incremental_compilation: None,
             },
             ExtraTest::RunFromSource {
                 args: vec!["run", "--backend=interpret"],
                 key: "run",
+                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
             },
             ExtraTest::RunFromSource {
                 args: vec!["run", "--backend=native"],
                 key: "run",
+                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
             },
             ExtraTest::RunFromSource {
                 args: vec!["run", "--backend=mir-interpret", "--release"],
                 key: "run",
+                check_incremental_compilation: Some(CheckIncrementalCompilation::BeforeOptimization),
             },
             ExtraTest::RunFromSource {
                 args: vec!["run", "--backend=interpret", "--release"],
                 key: "run",
+                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
             },
+            ExtraTest::Clean,
             ExtraTest::RunFromSource {
                 args: vec!["run", "--backend=native", "--release"],
                 key: "run",
+                check_incremental_compilation: None,
             },
             ExtraTest::RunFromSource {
                 args: vec!["test", "--backend=mir-interpret"],
                 key: "test",
+                check_incremental_compilation: Some(CheckIncrementalCompilation::BeforeOptimization),
             },
             ExtraTest::RunFromSource {
                 args: vec!["test", "--backend=interpret"],
                 key: "test",
+                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
             },
             ExtraTest::RunFromSource {
                 args: vec!["test", "--backend=native"],
                 key: "test",
+                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
             },
             ExtraTest::RunFromSource {
                 args: vec!["test", "--backend=mir-interpret", "--release"],
                 key: "test",
+                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
             },
             ExtraTest::RunFromSource {
                 args: vec!["test", "--backend=interpret", "--release"],
                 key: "test",
+                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
             },
             ExtraTest::RunFromSource {
                 args: vec!["test", "--backend=native", "--release"],
                 key: "test",
+                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
             },
             ExtraTest::AssertEqRunResults,
 
             ExtraTest::Note {
                 step: 6,
-                note: _,
+                note: "It tests multiple incremental compilation scenarios by adding, removing and editing files.",
             },
             ExtraTest::BreakIfLessThan3Files,
 
             // TODO: if there are more than 2 files, test incremental compilation more thoroughly
+            //
+            // I'll choose 3 files. I'll call them lib.sdg, foo.sdg and bar.sdg.
+            //
+            // 0. remove artifacts
+            // 0. remove foo.sdg
+            // 0. sodigy run --backend=native
+            // 0. restore foo.sdg
+            // 0. sodigy run --backend=native --release
+            // 0. add erroneous statements to bar.sdg
+            // 0. sodigy run --backend=native
+            // 0. sodigy run --backend=native
+            // 0. restore bar.sdg
+            // 0. sodigy run --backend=native --release
+            // 0. sodigy run --backend=native
+            // 0. add a tmp module (and also define it in lib.sdg)
+            // 0. sodigy test --backend=native
+            // 0. sodigy test --backend=native --release
+            // 0. add harmless statements to tmp
+            // 0. sodigy test --backend=native --release
+            // 0. add harmful statements to tmp (compile-pass, run-fail)
+            // 0. sodigy test --backend=native --release
+            // 0. sodigy test --backend=interpret
+            // 0. remove tmp.sdg and restore lib.sdg
+            // 0. sodigy test --backend=interpret --release
+            // 0. sodigy test --backend=native
         ];
 
         let mut curr_step = 0;
@@ -311,11 +352,6 @@ impl CnrContext {
                     curr_note = note.to_string();
                 },
                 ExtraTest::Build { mut args, check_incremental_compilation } => {
-                    let modified_time = match check_incremental_compilation {
-                        Some(CheckIncrementalCompilation::All) => todo!(),
-                        Some(CheckIncrementalCompilation::BeforeOptimization) => todo!(),
-                        None => None,
-                    };
                     let args = [vec!["build"], args].concat();
 
                     if let Err(e) = subprocess::run(
@@ -346,7 +382,38 @@ impl CnrContext {
                         },
                     }
                 },
-                ExtraTest::Clean => todo!(),
+                ExtraTest::RunFromSource { args, key, check_incremental_compilation } => {
+                    match subprocess::run(
+                        &self.sodigy_path,
+                        &args,
+                        &self.project_dir,
+                        30.0,
+                        false,  // dump_output
+                        false,  // check_nonzero_status
+                    ) {
+                        Ok(o) => todo!(),
+                        Err(e) => {
+                            result.error = Some(format!("Extra cnr test failure\nstep: {curr_step}\nnote: {curr_note}\ninstruction: {instruction_str}\nerror: {e:?}\nFailed to run from source code!"));
+                            return;
+                        },
+                    }
+                },
+                ExtraTest::Clean => {
+                    match subprocess::run(
+                        &self.sodigy_path,
+                        &["clean"],
+                        &self.project_dir,
+                        30.0,
+                        false,  // dump_output
+                        true,   // check_nonzero_status
+                    ) {
+                        Ok(_) => {},
+                        Err(e) => {
+                            result.error = Some(format!("Extra cnr test failure\nstep: {curr_step}\nnote: {curr_note}\ninstruction: {instruction_str}\nerror: {e:?}\nFailed to run from source code!"));
+                            return;
+                        },
+                    }
+                },
                 ExtraTest::AssertEq { a, b, note } => {
                     let path_a = join(&self.project_dir, a).unwrap();
                     let path_b = join(&self.project_dir, b).unwrap();
@@ -364,6 +431,12 @@ impl CnrContext {
 
                     if content_a != content_b {
                         todo!();
+                    }
+                },
+                ExtraTest::AssertEqRunResults => todo!(),
+                ExtraTest::BreakIfLessThan3Files => {
+                    if self.sdg_files < 3 {
+                        break;
                     }
                 },
             }
