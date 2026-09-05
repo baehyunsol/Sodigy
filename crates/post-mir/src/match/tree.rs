@@ -333,7 +333,7 @@ fn constructor_to_expr(
     match constructor {
         ExprConstructor::Range(range) => {
             let (lang_item, operand) = match (range.lhs, range.rhs) {
-                (Some(lhs), Some(rhs)) => match lhs.cmp(rhs, &session.intermediate_dir) {
+                (Some(lhs), Some(rhs)) => match lhs.cmp(rhs, &session.intermediate_dir).unwrap() {
                     Ordering::Equal if range.lhs_inclusive && range.rhs_inclusive => match range.r#type {
                         LiteralType::Int => (
                             "built_in.eq_int",
@@ -354,7 +354,7 @@ fn constructor_to_expr(
                         _ => todo!(),
                     },
                     Ordering::Less => {
-                        if range.r#type.is_int_like() && lhs.add_one() == rhs {
+                        if range.r#type.is_int_like() && lhs.add_one(&session.intermediate_dir).unwrap() == rhs {
                             // `3 < x && x <= 4` is just `x == 4`
                             match (range.r#type, range.lhs_inclusive, range.rhs_inclusive) {
                                 (LiteralType::Int, false, true) => ("built_in.eq_int", Expr::Constant(Constant::Number { n: rhs, span: Span::None })),

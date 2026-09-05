@@ -210,3 +210,15 @@ fn exclusive_post_range_int(lhs: Int) -> Range<Int> = Range {
     end_inclusive: False,
     step: 1,
 };
+
+#[associate(Int)]
+fn abs(self) -> Int = match self {
+    ..0 => -self,
+    _ => self,
+};
+
+#[associate(Int)]
+fn min(self, other: Int) -> Int = if self < other { self } else { other };
+
+#[associate(Int)]
+fn max(self, other: Int) -> Int = if self > other { self } else { other };

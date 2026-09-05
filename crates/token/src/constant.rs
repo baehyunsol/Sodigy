@@ -2,7 +2,6 @@ use sodigy_number::InternedNumber;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
-// TODO: we can derive `Copy` if `InternedNumber` does so!
 #[derive(Clone, Debug)]
 pub enum Constant {
     Number {

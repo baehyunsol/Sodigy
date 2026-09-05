@@ -17,6 +17,9 @@ use sodigy_hir::{
 #[cfg(feature = "log")]
 use crate::log::LogEntry;
 
+#[cfg(feature = "log")]
+use sodigy_error::ItemKind;
+
 impl Session {
     pub fn resolve_module(&mut self, hir_session: &mut HirSession) -> Result<(), ()> {
         let mut has_error = false;

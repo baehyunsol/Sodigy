@@ -15,7 +15,7 @@ pub fn eval_const(expr: &Expr, session: &mut Session) -> Result<Expr, ()> {
             let rhs = eval_const(rhs, session)?;
 
             match (op, rhs) {
-                (_, Expr::Constant(Constant::Number { n, .. })) => match eval_number_prefix_op(*op, op_span.clone(), &n) {
+                (_, Expr::Constant(Constant::Number { n, span })) => match eval_number_prefix_op(*op, op_span.clone(), &n, &span, &session.intermediate_dir) {
                     Ok(n) => Ok(Expr::Constant(Constant::Number { n, span: result_span.derive(SpanDeriveKind::ConstEval) })),
                     Err(es) => {
                         session.errors.extend(es);
@@ -41,7 +41,11 @@ pub fn eval_const(expr: &Expr, session: &mut Session) -> Result<Expr, ()> {
             };
 
             match (lhs, op, rhs) {
-                (Expr::Constant(Constant::Number { n: lhs, .. }), _, Expr::Constant(Constant::Number { n: rhs, .. })) => match eval_number_infix_op(*op, op_span.clone(), &lhs, &rhs, &session.intermediate_dir) {
+                (
+                    Expr::Constant(Constant::Number { n: lhs, span: lhs_span }),
+                    _,
+                    Expr::Constant(Constant::Number { n: rhs, span: rhs_span }),
+                ) => match eval_number_infix_op(*op, op_span, lhs, &lhs_span, rhs, &rhs_span, &session.intermediate_dir) {
                     Ok(n) => Ok(Expr::Constant(Constant::Number { n, span: result_span.derive(SpanDeriveKind::ConstEval) })),
                     Err(es) => {
                         session.errors.extend(es);

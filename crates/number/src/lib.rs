@@ -20,6 +20,7 @@ pub use intern::{
     intern_big_int,
     intern_number_raw,
     intern_ratio,
+    unintern_big_int,
     unintern_number,
 };
 pub use ratio::{

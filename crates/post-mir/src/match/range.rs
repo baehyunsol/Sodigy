@@ -116,7 +116,7 @@ pub fn remove_overlaps<T: Clone + Merge>(mut branches: Vec<(Range, T)>, intermed
                 (None, None) => Ordering::Equal,
                 (None, Some(_)) => Ordering::Less,
                 (Some(_), None) => Ordering::Greater,
-                (Some(a), Some(b)) => match a.cmp(b, intermediate_dir) {
+                (Some(a), Some(b)) => match a.cmp(b, intermediate_dir).unwrap() {
                     c @ (Ordering::Less | Ordering::Greater) => c,
                     Ordering::Equal => match (range1.lhs_inclusive, range2.lhs_inclusive) {
                         (true, true) | (false, false) => Ordering::Equal,
@@ -219,7 +219,7 @@ fn split_to_non_overlapping_ranges<T: Clone + Merge>(
         // if lhs is None, that's -inf
         (None, _) => (b_range.lhs, b_range.lhs_inclusive),
         (_, None) => (a_range.lhs, a_range.lhs_inclusive),
-        (Some(a_lhs), Some(b_lhs)) => match a_lhs.cmp(b_lhs, intermediate_dir) {
+        (Some(a_lhs), Some(b_lhs)) => match a_lhs.cmp(b_lhs, intermediate_dir).unwrap() {
             Ordering::Greater => (a_range.lhs, a_range.lhs_inclusive),
             Ordering::Less => (b_range.lhs, b_range.lhs_inclusive),
             Ordering::Equal => {
@@ -237,7 +237,7 @@ fn split_to_non_overlapping_ranges<T: Clone + Merge>(
         // if rhs is None, that's +inf
         (None, _) => (b_range.rhs, b_range.rhs_inclusive),
         (_, None) => (a_range.rhs, a_range.rhs_inclusive),
-        (Some(a_rhs), Some(b_rhs)) => match a_rhs.cmp(b_rhs, intermediate_dir) {
+        (Some(a_rhs), Some(b_rhs)) => match a_rhs.cmp(b_rhs, intermediate_dir).unwrap() {
             Ordering::Greater => (b_range.rhs, b_range.rhs_inclusive),
             Ordering::Less => (a_range.rhs, a_range.rhs_inclusive),
             Ordering::Equal => {
@@ -252,11 +252,11 @@ fn split_to_non_overlapping_ranges<T: Clone + Merge>(
 
     let mut overlap = match (lhs, rhs) {
         (None, _) | (_, None) => Some(Range { r#type: a_range.r#type, lhs, lhs_inclusive, rhs, rhs_inclusive }),
-        (Some(lhs_n), Some(rhs_n)) => match lhs_n.cmp(rhs_n, intermediate_dir) {
+        (Some(lhs_n), Some(rhs_n)) => match lhs_n.cmp(rhs_n, intermediate_dir).unwrap() {
             Ordering::Greater => None,
             Ordering::Less => {
                 // if it's Int, `{ lhs: a, lhs_inclusive: false, rhs: a + 1, rhs_inclusive: false }` is an empty range!
-                if a_range.r#type.is_int_like() && !lhs_inclusive && !rhs_inclusive && lhs_n.add_one() == rhs_n {
+                if a_range.r#type.is_int_like() && !lhs_inclusive && !rhs_inclusive && lhs_n.add_one(intermediate_dir).unwrap() == rhs_n {
                     None
                 }
 
@@ -276,7 +276,7 @@ fn split_to_non_overlapping_ranges<T: Clone + Merge>(
         },
     };
 
-    overlap = discard_empty_range(overlap);
+    overlap = discard_empty_range(overlap, intermediate_dir);
 
     if let Some(overlap) = overlap {
         let (a_left, a_right) = get_left_and_right(a_range, &overlap, intermediate_dir);
@@ -313,7 +313,7 @@ fn get_left_and_right(super_range: &Range, sub_range: &Range, intermediate_dir: 
             rhs: sub_range.lhs,
             rhs_inclusive: !sub_range.lhs_inclusive,
         }),
-        (Some(super_lhs), Some(sub_lhs)) => match super_lhs.cmp(sub_lhs, intermediate_dir) {
+        (Some(super_lhs), Some(sub_lhs)) => match super_lhs.cmp(sub_lhs, intermediate_dir).unwrap() {
             Ordering::Less => Some(Range {
                 r#type: super_range.r#type,
                 lhs: super_range.lhs,
@@ -350,7 +350,7 @@ fn get_left_and_right(super_range: &Range, sub_range: &Range, intermediate_dir: 
             rhs: super_range.rhs,
             rhs_inclusive: super_range.rhs_inclusive,
         }),
-        (Some(sub_rhs), Some(super_rhs)) => match sub_rhs.cmp(super_rhs, intermediate_dir) {
+        (Some(sub_rhs), Some(super_rhs)) => match sub_rhs.cmp(super_rhs, intermediate_dir).unwrap() {
             Ordering::Less => Some(Range {
                 r#type: super_range.r#type,
                 lhs: sub_range.rhs,
@@ -377,12 +377,12 @@ fn get_left_and_right(super_range: &Range, sub_range: &Range, intermediate_dir: 
         },
     };
 
-    let left = discard_empty_range(left);
-    let right = discard_empty_range(right);
+    let left = discard_empty_range(left, intermediate_dir);
+    let right = discard_empty_range(right, intermediate_dir);
     (left, right)
 }
 
-fn discard_empty_range(range: Option<Range>) -> Option<Range> {
+fn discard_empty_range(range: Option<Range>, intermediate_dir: &str) -> Option<Range> {
     match range {
         Some(Range {
             r#type,
@@ -405,7 +405,7 @@ fn discard_empty_range(range: Option<Range>) -> Option<Range> {
                     }
                 }
 
-                else if &lhs.add_one() == rhs {
+                else if &lhs.add_one(intermediate_dir).unwrap() == rhs {
                     match (lhs_inclusive, rhs_inclusive) {
                         // 3 <= x && x <= 4
                         (true, true) => range,

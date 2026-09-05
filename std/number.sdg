@@ -1,3 +1,4 @@
+use std.panic;
 use std.int.Int;
 use std.bool.Bool;
 use std.bool.Bool.{False, True};
@@ -27,18 +28,6 @@ fn eq_number(a: Number, b: Number) -> Bool = {
     }
 };
 
-// I need the definition of this function, otherwise the std will not compile.
-// But unfortunately, the compiler isn't strong enough (yet) to compile the
-// actual implementation of this function (defined below, in the comments).
-#[impl(std.op.mul)]
-fn mul_number(a: Number, b: Number) -> Number = std.panic("TODO");
-
-// Again, I need this definition for std to compile.
-#[impl(std.convert.convert)]
-fn number_to_int(n: Number) -> Int = std.panic("TODO");
-
-// TODO: The compiler isn't strong enough to compile these functions.
-/*
 fn gcd(a: Int, b: Int) -> Int = match b {
     0 => a,
     _ => gcd(b, a % b),
@@ -84,7 +73,7 @@ fn normalize(self) -> Number = {
 #[impl(std.op.add)]
 fn add_number(a: Number, b: Number) -> Number = {
     if a.is_inf() || b.is_inf() {
-        todo()
+        panic("TODO")
     }
 
     else {
@@ -104,7 +93,7 @@ fn add_number(a: Number, b: Number) -> Number = {
 #[impl(std.op.sub)]
 fn sub_number(a: Number, b: Number) -> Number = {
     if a.is_inf() || b.is_inf() {
-        todo()
+        panic("TODO")
     }
 
     else {
@@ -124,7 +113,7 @@ fn sub_number(a: Number, b: Number) -> Number = {
 #[impl(std.op.mul)]
 fn mul_number(a: Number, b: Number) -> Number = {
     if a.is_inf() || b.is_inf() {
-        todo()
+        panic("TODO")
     }
 
     else {
@@ -144,7 +133,7 @@ fn mul_number(a: Number, b: Number) -> Number = {
 #[impl(std.op.div)]
 fn div_number(a: Number, b: Number) -> Number = {
     if a.is_inf() || b.is_inf() {
-        todo()
+        panic("TODO")
     }
 
     else {
@@ -160,6 +149,12 @@ fn div_number(a: Number, b: Number) -> Number = {
         normalize(result)
     }
 };
+
+#[impl(std.convert.convert)]
+fn number_to_int(n: Number) -> Int = std.panic("TODO");
+
+// TODO: The compiler isn't strong enough to compile these functions.
+/*
 
 /// It panics if the number is negative (including negative inf).
 /// It guarantees that
@@ -264,9 +259,9 @@ let EXP_TABLE = [
     (6_044_629_098_073_145_873_530, 23),
 ];
 
-// TODO: poly generic for `to_string` function
 /// It may use scientific notation or a decimal notation.
 /// When using a decimal notation, there must be a decimal point.
+#[impl(std.convert.convert)]
 fn to_string(n: Number) -> String = match (n.numer, n.denom) {
     (0, _) => "0",
     (1, 0) => "inf",

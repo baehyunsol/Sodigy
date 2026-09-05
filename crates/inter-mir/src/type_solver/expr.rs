@@ -298,6 +298,14 @@ impl Session {
                                     generic: Span::Poly { name: *name, kind: PolySpanKind::Param(0) },
                                 };
 
+                                // `x.unwrap()` is desugared to `associated_func::unwrap::pure::1(x)`,
+                                // while `self.numer.abs()` is desugared to `associated_func::abs::pure::1(self.numer)`.
+                                let lhs_type = if fields.len() == 1 {
+                                    lhs_type.clone()
+                                } else {
+                                    self.get_type_of_field(&lhs_type, &fields[..(fields.len() - 1)]).1.unwrap()
+                                };
+
                                 if let Err(()) = self.solve_supertype(
                                     &lhs_type,
                                     &lhs_type_var,

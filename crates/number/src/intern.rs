@@ -2,8 +2,10 @@ use crate::{
     Base,
     BigInt,
     Ratio,
+    add_bi,
     add_ubi,
     bi_to_string,
+    cmp_ratio,
     div_bi,
     div_ubi,
     gcd_ubi,
@@ -110,7 +112,7 @@ impl InternedNumber {
     }
 
     #[must_use = "method returns a new number and does not mutate the original value"]
-    pub fn negate(&self) -> Self {
+    pub fn negate(&self, intermediate_dir: &str) -> Result<Self, FileError> {
         let is_integer = self.is_integer();
 
         match self.0 >> 126 {
@@ -118,9 +120,9 @@ impl InternedNumber {
                 let n = interpret_small_int(self.0);
 
                 match -n {
-                    n @ -21267647932558653966460912964485513216..=21267647932558653966460912964485513215 => InternedNumber(
+                    n @ -21267647932558653966460912964485513216..=21267647932558653966460912964485513215 => Ok(InternedNumber(
                         ((is_integer as u128) << 125) | (n as u128) & SMALL_INT_PAYLOAD_MASK,
-                    ),
+                    )),
                     _ => todo!(),
                 }
             },
@@ -128,9 +130,9 @@ impl InternedNumber {
                 let (numer, denom) = interpret_small_ratio(self.0);
 
                 match -numer {
-                    -4611686018427387904..=4611686018427387903 => InternedNumber(
+                    -4611686018427387904..=4611686018427387903 => Ok(InternedNumber(
                         ((is_integer as u128) << 125) | SMALL_RATIO | (((numer as u128) & SMALL_RATIO_NUMER_PAYLOAD_MASK) << 62) | denom as u128,
-                    ),
+                    )),
                     _ => todo!(),
                 }
             },
@@ -141,7 +143,7 @@ impl InternedNumber {
     }
 
     #[must_use = "method returns a new number and does not mutate the original value"]
-    pub fn add_one(&self) -> Self {
+    pub fn add_one(&self, intermediate_dir: &str) -> Result<Self, FileError> {
         let is_integer = self.is_integer();
 
         match self.0 >> 126 {
@@ -149,24 +151,38 @@ impl InternedNumber {
                 let n = interpret_small_int(self.0);
 
                 match n + 1 {
-                    n @ -21267647932558653966460912964485513216..=21267647932558653966460912964485513215 => InternedNumber(
+                    n @ -21267647932558653966460912964485513216..=21267647932558653966460912964485513215 => Ok(InternedNumber(
                         ((is_integer as u128) << 125) | (n as u128) & SMALL_INT_PAYLOAD_MASK,
-                    ),
+                    )),
                     _ => todo!(),
                 }
+            },
+            2 => {
+                let n: BigInt = unintern_bytes(self.0, intermediate_dir)?;
+                let (is_neg, nums) = add_bi(n.is_neg, &n.nums, false, &[1]);
+                intern_big_int(
+                    &BigInt { is_neg, nums },
+                    is_integer,
+                    intermediate_dir,
+                )
             },
             _ => todo!(),
         }
     }
 
-    pub fn cmp(self, other: InternedNumber, intermediate_dir: &str) -> Ordering {
+    pub fn cmp(self, other: InternedNumber, intermediate_dir: &str) -> Result<Ordering, FileError> {
         match (self.0 >> 126, other.0 >> 126) {
             (0, 0) => {
                 let lhs = interpret_small_int(self.0);
                 let rhs = interpret_small_int(other.0);
-                lhs.cmp(&rhs)
+                Ok(lhs.cmp(&rhs))
             },
-            _ => todo!(),
+            _ => {
+                // TODO: maybe we can do more optimizations...
+                let lhs = unintern_number(self, intermediate_dir)?;
+                let rhs = unintern_number(other, intermediate_dir)?;
+                Ok(cmp_ratio(&lhs, &rhs))
+            },
         }
     }
 }
@@ -230,6 +246,16 @@ pub fn intern_ratio(n: &Ratio, is_integer: bool, intermediate_dir: &str) -> Resu
             let id = intern_bytes(&n.encode(), intermediate_dir)? & 0xffff_ffff_ffff_ffff_ffff_ffff;
             Ok(InternedNumber(((is_integer as u128) << 125) | BIG_RATIO | id))
         },
+    }
+}
+
+pub fn unintern_big_int(n: InternedNumber, intermediate_dir: &str) -> Result<BigInt, FileError> {
+    match n.0 >> 126 {
+        0 => Ok(BigInt::from(interpret_small_int(n.0))),
+        1 => todo!(),
+        2 => Ok(unintern_bytes(n.0, intermediate_dir)?),
+        3 => todo!(),
+        _ => unreachable!(),
     }
 }
 
