@@ -18,6 +18,7 @@ pub enum CliCommand {
         output_path: String,
         emit: Emit,
         bytecode: Option<String>,
+        profile: Profile,
         optimize_level: OptimizeLevel,
         custom_error_levels: HashMap<u16, CustomErrorLevel>,
         emit_irs: bool,
@@ -82,6 +83,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_arg_flag("--color", ArgType::enum_(&["auto", "always", "never"]))
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
                 .optional_flag(&["--release"])
+                .optional_flag(&["--test"])
                 .optional_flag(&["--emit-irs"])
                 .optional_flag(&["--dump-post-mir-log"])
                 .optional_flag(&["--dump-timings"])
@@ -130,11 +132,21 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 _ => unreachable!(),
             };
 
-            let emit_irs = parsed_args.get_flag(1).is_some();
-            let dump_post_mir_log = parsed_args.get_flag(2).is_some();
-            let dump_timings = parsed_args.get_flag(3).is_some();
+            let profile = match (emit, parsed_args.get_flag(1).is_some()) {
+                (Emit::Exe | Emit::C, true) => Profile::Test,
+                (Emit::ReadableBytecode | Emit::ExecutableBytecode, true) => {
+                    // This is a cli error. You can set `--test` flag only if the emit option is `c` or `exe`.
+                    // But there's no way I can construct such CliError...
+                    todo!()
+                },
+                (_, false) => Profile::Run,
+            };
 
-            let validate_token_spans = match parsed_args.get_flag(4).as_ref().map(|s| s.as_str()) {
+            let emit_irs = parsed_args.get_flag(2).is_some();
+            let dump_post_mir_log = parsed_args.get_flag(3).is_some();
+            let dump_timings = parsed_args.get_flag(4).is_some();
+
+            let validate_token_spans = match parsed_args.get_flag(5).as_ref().map(|s| s.as_str()) {
                 Some("--no-validate-token-spans") => ValidateTokenSpans::Never,
                 Some("--validate-token-spans") => ValidateTokenSpans::Always,
                 Some("--validate-std-token-spans") => ValidateTokenSpans::OnlyStd,
@@ -151,7 +163,6 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                     Emit::ReadableBytecode => "out.sdgb",
                     Emit::ExecutableBytecode => "out.sdge",
                     Emit::C => "out.c",
-                    Emit::MultiC => unreachable!(),
                 }.to_string(),
             };
 
@@ -159,6 +170,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 output_path,
                 emit,
                 bytecode,
+                profile,
                 optimize_level,
                 custom_error_levels: HashMap::new(),  // TODO: make it configurable
                 graceful_shutdown: 300,  // TODO: make it configurable

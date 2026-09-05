@@ -1,4 +1,4 @@
-use sodigy_code_gen::Emit;
+use sodigy_code_gen::{Emit, Profile};
 use sodigy_endec::Endec;
 use sodigy_error::{
     CustomErrorLevel,
@@ -82,12 +82,6 @@ pub enum Backend {
     MirInterpret,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Profile {
-    Script,
-    Test,
-}
-
 pub fn main_() {
     let args = std::env::args().collect::<Vec<_>>();
 
@@ -158,26 +152,29 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             let quiet = false;
             let verify_built_ins = false;
 
-            let (output_path, emit, backend, run_with_profile) = match cli_command {
+            let (output_path, emit, backend, build_profile, run_profile) = match cli_command {
                 CliCommand::Run { backend, .. } => (
                     StoreIrAt::IntermediateDir,
                     None,
                     Some(*backend),
-                    Some(Profile::Script),
+                    Profile::Run,
+                    Some(Profile::Run),
                 ),
                 CliCommand::Test { backend, .. } => (
                     StoreIrAt::IntermediateDir,
                     None,
                     Some(*backend),
+                    Profile::Test,
                     Some(Profile::Test),
                 ),
-                CliCommand::Build { output_path, emit, .. } => (
+                CliCommand::Build { output_path, emit, profile, .. } => (
                     StoreIrAt::File(output_path.to_string()),
                     Some(*emit),
                     None,
+                    *profile,
                     None,
                 ),
-                _ => todo!(),
+                _ => unreachable!(),
             };
 
             match bytecode {
@@ -187,6 +184,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                     output_path,
                     emit,
                     backend,
+                    build_profile,
                     ir_dir,
                     *optimize_level,
                     custom_error_levels,
@@ -199,7 +197,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                     incremental_compilation,
                     *validate_token_spans,
                     verify_built_ins,
-                    run_with_profile,
+                    run_profile,
                     quiet,
                 ),
             }
@@ -227,6 +225,7 @@ pub fn init_workers_and_compile(
     output_path: StoreIrAt,
     emit: Option<Emit>,
     backend: Option<Backend>,
+    profile: Profile,
     ir_dir: String,
     optimize_level: OptimizeLevel,
     custom_error_levels: &HashMap<u16, CustomErrorLevel>,
@@ -253,6 +252,7 @@ pub fn init_workers_and_compile(
         output_path,
         emit,
         backend,
+        profile,
         ir_dir.clone(),
         optimize_level,
         custom_error_levels,
@@ -351,6 +351,7 @@ fn compile(
     output_path: StoreIrAt,
     emit: Option<Emit>,
     backend: Option<Backend>,
+    profile: Profile,
     ir_dir: String,
     optimize_level: OptimizeLevel,
     custom_error_levels: &HashMap<u16, CustomErrorLevel>,
@@ -543,7 +544,7 @@ fn compile(
             let emit = match (emit, backend) {
                 // The user explicitly requested what to emit.
                 (Some(e), _) => e,
-                (None, Some(Backend::Native)) => Emit::MultiC,
+                (None, Some(Backend::Native)) => Emit::Exe,
                 (None, Some(Backend::Interpret)) => Emit::ExecutableBytecode,
                 (None, Some(Backend::MirInterpret)) => todo!(),
                 _ => unreachable!(),
@@ -556,6 +557,7 @@ fn compile(
                     ).collect(),
                     intermediate_dir: ir_dir.clone(),
                     emit,
+                    profile,
                     output_path: output_path.clone(),
                 },
             ))?;
@@ -751,6 +753,7 @@ fn interpret(exe: StoreIrAt, profile: Profile, intermediate_dir: &str) -> Result
     let exe = sodigy_bytecode::Executable::decode(&exe_bytes)?;
 
     match profile {
+        Profile::Run => todo!(),
         Profile::Test => {
             let mut ever_failed = false;
 
@@ -767,7 +770,6 @@ fn interpret(exe: StoreIrAt, profile: Profile, intermediate_dir: &str) -> Result
                 return Err(Error::RuntimeError);
             }
         },
-        Profile::Script => todo!(),
     }
 
     Ok(())

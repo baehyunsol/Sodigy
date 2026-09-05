@@ -82,21 +82,37 @@ impl CnrContext {
                 check_incremental_compilation: None,
             },
             ExtraTest::Build {
-                args: vec!["--emit=c", "-o=c-debug-0"],
+                args: vec!["--emit=c", "-o=c-debug-run-0"],
                 check_incremental_compilation: Some(CheckIncrementalCompilation::BeforeOptimization),
             },
             ExtraTest::Build {
-                args: vec!["--emit=c", "-o=c-release-0", "--release"],
+                args: vec!["--emit=c", "--test", "-o=c-debug-test-0"],
+                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
+            },
+            ExtraTest::Build {
+                args: vec!["--emit=c", "-o=c-release-run-0", "--release"],
+                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
+            },
+            ExtraTest::Build {
+                args: vec!["--emit=c", "--test", "-o=c-release-test-0", "--release"],
                 check_incremental_compilation: Some(CheckIncrementalCompilation::All),
             },
             ExtraTest::Clean,
             ExtraTest::Build {
-                args: vec!["--emit=exe", "-o=exe-debug-0"],
+                args: vec!["--emit=exe", "-o=exe-debug-run-0"],
                 check_incremental_compilation: None,
             },
             ExtraTest::Build {
-                args: vec!["--emit=exe", "-o=exe-release-0", "--release"],
-                check_incremental_compilation: None,
+                args: vec!["--emit=exe", "--test", "-o=exe-debug-test-0"],
+                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
+            },
+            ExtraTest::Build {
+                args: vec!["--emit=exe", "-o=exe-release-run-0", "--release"],
+                check_incremental_compilation: Some(CheckIncrementalCompilation::BeforeOptimization),
+            },
+            ExtraTest::Build {
+                args: vec!["--emit=exe", "--test", "-o=exe-release-test-0", "--release"],
+                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
             },
 
             ExtraTest::Note {
@@ -115,12 +131,22 @@ impl CnrContext {
             },
             ExtraTest::Clean,
             ExtraTest::Build {
-                args: vec!["--emit=c", "-o=c-debug-1"],
+                args: vec!["--emit=c", "-o=c-debug-run-1"],
                 check_incremental_compilation: None,
             },
             ExtraTest::Clean,
             ExtraTest::Build {
-                args: vec!["--emit=c", "-o=c-release-1", "--release"],
+                args: vec!["--emit=c", "--test", "-o=c-debug-test-1"],
+                check_incremental_compilation: None,
+            },
+            ExtraTest::Clean,
+            ExtraTest::Build {
+                args: vec!["--emit=c", "-o=c-release-run-1", "--release"],
+                check_incremental_compilation: None,
+            },
+            ExtraTest::Clean,
+            ExtraTest::Build {
+                args: vec!["--emit=c", "--test", "-o=c-release-test-1", "--release"],
                 check_incremental_compilation: None,
             },
             ExtraTest::AssertEq {
@@ -134,14 +160,24 @@ impl CnrContext {
                 note: "`sodigy build --emit=bytecode --release` is not deterministic",
             },
             ExtraTest::AssertEq {
-                a: "c-debug-0",
-                b: "c-debug-1",
+                a: "c-debug-run-0",
+                b: "c-debug-run-1",
                 note: "`sodigy build --emit=c` is not deterministic",
             },
             ExtraTest::AssertEq {
-                a: "c-release-0",
-                b: "c-release-1",
+                a: "c-debug-test-0",
+                b: "c-debug-test-1",
+                note: "`sodigy build --emit=c --test` is not deterministic",
+            },
+            ExtraTest::AssertEq {
+                a: "c-release-run-0",
+                b: "c-release-run-1",
                 note: "`sodigy build --emit=c --release` is not deterministic",
+            },
+            ExtraTest::AssertEq {
+                a: "c-release-test-0",
+                b: "c-release-test-1",
+                note: "`sodigy build --emit=c --test --release` is not deterministic",
             },
 
             ExtraTest::Note {
@@ -175,7 +211,6 @@ impl CnrContext {
 
             ExtraTest::Note {
                 step: 3,
-                // TODO: (run, test) * (bc-debug-0, bc-release-0) * (interpret, native) -> total 8 cases
                 note: "It runs `sodigy run --bytecode=<path>` and `sodigy test --bytecode=<path>` with bytecode files from the previous steps, and collects their outputs.",
             },
 

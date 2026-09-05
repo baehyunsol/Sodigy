@@ -3,7 +3,7 @@ use crate::{
     EmitIrOption,
     StoreIrAt,
 };
-use sodigy_code_gen::Emit;
+use sodigy_code_gen::{Emit, Profile};
 use sodigy_file::{FileOrStd, ModulePath};
 use sodigy_optimize::OptimizeLevel;
 use sodigy_span::Span;
@@ -54,6 +54,7 @@ pub enum Command {
         modules: HashMap<ModulePath, Span>,
         intermediate_dir: String,
         emit: Emit,
+        profile: Profile,
         output_path: StoreIrAt,
     },
     LoadInterHirSession {
