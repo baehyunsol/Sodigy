@@ -7,7 +7,12 @@ use super::{
     render_page_and_save,
 };
 use sodigy_fs_api::{FileError, join4};
-use sodigy_inter_mir::{LogEntry, Session as InterMirSession, SolvePolyResult};
+use sodigy_inter_mir::{
+    LogEntry,
+    Monomorphization,
+    Session as InterMirSession,
+    SolvePolyResult,
+};
 use sodigy_mir::{Session as MirSession, Type, dump_field_to_string};
 use sodigy_parse::merge_field_spans;
 use sodigy_prettify::prettify;
@@ -17,6 +22,7 @@ use sodigy_span::{
     RenderSpanOption,
     RenderSpanSession,
     RenderableSpan,
+    Span,
 };
 
 pub fn dump_inter_mir_log(session: &InterMirSession, mir_session: &MirSession) -> Result<(), FileError> {
@@ -334,6 +340,11 @@ pub fn dump_inter_mir_log(session: &InterMirSession, mir_session: &MirSession) -
                     short: String::from("(...)"),
                     long: Some(String::from_utf8(prettify(format!("{monomorphization:?}").into_bytes())).unwrap()),
                 });
+                input.push(Value {
+                    name: String::from("generics"),
+                    short: render_monomorphization_generics(monomorphization, session),
+                    long: None,
+                });
 
                 spans.push(RenderableSpan {
                     span: func.name_span.clone(),
@@ -360,6 +371,49 @@ pub fn dump_inter_mir_log(session: &InterMirSession, mir_session: &MirSession) -
                 }
 
                 ("monomorphize_func", *id)
+            },
+            LogEntry::MonomorphizeStructStart { id, r#struct, monomorphization } => {
+                input.push(Value {
+                    name: String::from("struct"),
+                    short: r#struct.name.unintern_or_default(&session.intermediate_dir),
+                    long: Some(String::from_utf8(prettify(format!("{struct:?}").into_bytes())).unwrap()),
+                });
+                input.push(Value {
+                    name: String::from("monomorphization"),
+                    short: String::from("(...)"),
+                    long: Some(String::from_utf8(prettify(format!("{monomorphization:?}").into_bytes())).unwrap()),
+                });
+                input.push(Value {
+                    name: String::from("generics"),
+                    short: render_monomorphization_generics(monomorphization, session),
+                    long: None,
+                });
+
+                spans.push(RenderableSpan {
+                    span: r#struct.name_span.clone(),
+                    auxiliary: true,
+                    note: Some(String::from("struct")),
+                });
+                spans.push(RenderableSpan {
+                    span: monomorphization.def_span.clone(),
+                    auxiliary: true,
+                    note: Some(String::from("monomorphization.def_span")),
+                });
+                spans.push(RenderableSpan {
+                    span: monomorphization.call_span.clone(),
+                    auxiliary: true,
+                    note: Some(String::from("monomorphization.call_span")),
+                });
+
+                for (span, r#type) in monomorphization.generics.iter() {
+                    spans.push(RenderableSpan {
+                        span: span.clone(),
+                        auxiliary: true,
+                        note: Some(session.render_type(r#type)),
+                    });
+                }
+
+                ("monomorphize_struct", *id)
             },
             LogEntry::CheckAllTypesInferedStart { id } => ("check_all_types_infered", *id),
             _ => unreachable!(),
@@ -589,6 +643,15 @@ pub fn dump_inter_mir_log(session: &InterMirSession, mir_session: &MirSession) -
 
                 (false, vec![])
             },
+            LogEntry::MonomorphizeStructEnd { result, .. } => {
+                output.push(Value {
+                    name: String::from("result"),
+                    short: String::from("(...)"),
+                    long: Some(String::from_utf8(prettify(format!("{result:?}").into_bytes())).unwrap()),
+                });
+
+                (false, vec![])
+            },
             LogEntry::CheckAllTypesInferedEnd { has_error, last_errors, .. } => (*has_error, last_errors.clone()),
             _ => unreachable!(),
         };
@@ -656,4 +719,14 @@ pub fn dump_inter_mir_log(session: &InterMirSession, mir_session: &MirSession) -
 
     render_map_and_save(&calls, &log_dir)?;
     Ok(())
+}
+
+fn render_monomorphization_generics(monomorphization: &Monomorphization, session: &InterMirSession) -> String {
+    let mut generics: Vec<(Span, Type)> = monomorphization.generics.clone().into_iter().collect();
+    generics.sort_by_key(|(s, _)| s.clone());
+
+    let generics: Vec<String> = generics.iter().map(
+        |(span, r#type)| format!("{}={}", session.span_to_string(span).unwrap_or_else(|| String::from("????")), session.render_type(r#type))
+    ).collect();
+    format!("{{{}}}", generics.join(", "))
 }

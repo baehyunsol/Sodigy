@@ -1,11 +1,26 @@
 use super::Monomorphization;
-use crate::Session;
+use crate::{LogId, Session, write_log};
 use sodigy_hir::{self as hir, StructShape};
 use sodigy_mir::{Struct, StructField};
 use std::collections::HashSet;
 
+#[cfg(feature = "log")]
+use crate::LogEntry;
+
 impl Session {
     pub fn monomorphize_struct(&mut self, r#struct: &Struct, monomorphization: &Monomorphization) -> Struct {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::MonomorphizeStructStart {
+            id: _id.unwrap(),
+            r#struct: r#struct.clone(),
+            monomorphization: monomorphization.clone(),
+        });
+
         let new_struct_span = r#struct.name_span.monomorphize(monomorphization.id);
         let mut new_fields = Vec::with_capacity(r#struct.fields.len());
 
@@ -25,12 +40,19 @@ impl Session {
             });
         }
 
-        Struct {
+        let result = Struct {
             name: r#struct.name,
             name_span: new_struct_span,
             fields: new_fields,
             generics: vec![],
-        }
+        };
+
+        write_log!(self, LogEntry::MonomorphizeStructEnd {
+            id: _id.unwrap(),
+            result: result.clone(),
+            // TODO: log intermediate_types
+        });
+        result
     }
 
     pub fn monomorphize_struct_shape(&mut self, struct_shape: &StructShape, monomorphization: &Monomorphization) -> StructShape {
