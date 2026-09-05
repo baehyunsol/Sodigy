@@ -1,64 +1,14 @@
-// TODO: I want it to be in std when it's stable.
-
-fn isqrt(n: Int) -> Int = match n {
-    ..0 => std.panic("argument of isqrt must be non-negative"),
-    ..9 => isqrt_dumb(n),
-    _ => isqrt_iter(n, isqrt_dumb(n)),
-};
-
-fn isqrt_dumb(n: Int) -> Int = match n {
-    ..0 => std.panic("argument of isqrt must be non-negative"),
-    0 | 1 => n,
-    _ => {
-        let nl = n.ilog2();
-        let ss = 1 << (nl >> 1);
-
-        if nl % 2 == 1 {
-            // 362 = isqrt(0x20000)
-            (ss * 362) >> 8
-        } else {
-            ss
-        }
-    },
-};
-
-fn isqrt_iter(n: Int, s: Int) -> Int = {
-    let ss = s * s;
-
-    if n >= ss {
-        let d = n - ss;
-        let r = 2 * s + 1;
-
-        if d < r {
-            s
-        }
-
-        else {
-            isqrt_iter(n, s + d / r)
-        }
-    }
-
-    else {
-        let d = ss - n;
-        let r = 2 * s - 1;
-
-        if d <= r {
-            s - 1
-        }
-
-        else {
-            isqrt_iter(n, s - d / r)
-        }
-    }
-};
+use std.bool.{Bool, Bool.True};
+use std.int.Int;
+use std.option.Option.{None, Some};
 
 fn check_isqrt(n: Int) -> Bool = {
-    let s = isqrt(n);
+    let s = n.isqrt();
     s * s <= n && n < (s + 1) * (s + 1)
 };
 
 fn assert_isqrt_multi(ns: [Int]) = match ns.find(\n => !check_isqrt(n)) {
-    Some($w) => std.panic(f"isqrt({w}) is wrong!! (got {isqrt(w)})"),
+    Some($w) => std.panic(f"isqrt({w}) is wrong!! (got {w.isqrt()})"),
     None => True,
 };
 

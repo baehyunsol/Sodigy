@@ -1,5 +1,7 @@
 use std.bool.Bool;
+use std.r#fn.Fn;
 use std.int.Int;
+use std.option.{Option, Option.{None, Some}};
 use std.scalar.Scalar;
 
 #[built_in]
@@ -65,3 +67,9 @@ fn append_list<T>(ls: [T], v: T) -> [T];
 #[impl(std.op.prepend)]
 #[lang_item("built_in.prepend_list")]
 fn prepend_list<T>(v: T, ls: [T]) -> [T];
+
+#[associate([T])]
+fn find<T>(self, f: Fn(T) -> Bool) -> Option<T> = match self {
+    [] => None,
+    [$x] ++ $xs => if f(x) { Some(x) } else { xs.find(f) },
+};

@@ -1,0 +1,82 @@
+use std.int.Int;
+use std.number.{Number, gcd};
+
+#[impl(std.op.add)]
+fn add_number(a: Number, b: Number) -> Number = {
+    if a.is_inf() || b.is_inf() {
+        std.panic("TODO")
+    }
+
+    else {
+        let new_numer = a.numer * b.denom + b.numer * a.denom;
+        let new_denom = a.denom * b.denom;
+        let r = gcd(new_numer, new_denom);
+
+        let result = Number {
+            denom: new_denom / r,
+            numer: new_numer / r,
+        };
+
+        result.normalize()
+    }
+};
+
+#[impl(std.op.sub)]
+fn sub_number(a: Number, b: Number) -> Number = {
+    if a.is_inf() || b.is_inf() {
+        std.panic("TODO")
+    }
+
+    else {
+        let new_numer = a.numer * b.denom - b.numer * a.denom;
+        let new_denom = a.denom * b.denom;
+        let r = gcd(new_numer, new_denom);
+
+        let result = Number {
+            denom: new_denom / r,
+            numer: new_numer / r,
+        };
+
+        result.normalize()
+    }
+};
+
+#[impl(std.op.mul)]
+fn mul_number(a: Number, b: Number) -> Number = {
+    if a.is_inf() || b.is_inf() {
+        std.panic("TODO")
+    }
+
+    else {
+        let new_numer = a.numer * b.numer;
+        let new_denom = a.denom * b.denom;
+        let r = gcd(new_numer, new_denom);
+
+        let result = Number {
+            denom: new_denom / r,
+            numer: new_numer / r,
+        };
+
+        result.normalize()
+    }
+};
+
+#[impl(std.op.div)]
+fn div_number(a: Number, b: Number) -> Number = {
+    if a.is_inf() || b.is_inf() {
+        std.panic("TODO")
+    }
+
+    else {
+        let new_numer = a.numer * b.denom;
+        let new_denom = a.denom * b.numer;
+        let r = gcd(new_numer, new_denom);
+
+        let result = Number {
+            denom: new_denom / r,
+            numer: new_numer / r,
+        };
+
+        result.normalize()
+    }
+};

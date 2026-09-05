@@ -1,0 +1,73 @@
+use std.int.Int;
+use std.scalar.Scalar;
+
+mod isqrt_tests;
+
+#[built_in]
+#[lang_item("built_in.ilog2_int")]
+fn ilog2_built_in(n: Int) -> Scalar;
+
+#[associate(Int)]
+fn ilog2(n) -> Int = match n {
+    ..1 => std.panic("argument of ilog2 must be positive"),
+    _ => ilog2_built_in(n) as <Int>,
+};
+
+fn isqrt_dumb(n: Int) -> Int = match n {
+    ..0 => std.panic("argument of isqrt must be non-negative"),
+    0 | 1 => n,
+    _ => {
+        let nl = n.ilog2();
+        let ss = 1 << (nl >> 1);
+
+        if nl % 2 == 1 {
+            // 362 = isqrt(0x20000)
+            (ss * 362) >> 8
+        } else {
+            ss
+        }
+    },
+};
+
+fn isqrt_iter(n: Int, s: Int) -> Int = {
+    let ss = s * s;
+
+    if n >= ss {
+        let d = n - ss;
+        let r = 2 * s + 1;
+
+        if d < r {
+            s
+        } else {
+            isqrt_iter(n, s + d / r)
+        }
+    } else {
+        let d = ss - n;
+        let r = 2 * s - 1;
+
+        if d <= r {
+            s - 1
+        } else {
+            isqrt_iter(n, s - d / r)
+        }
+    }
+};
+
+#[associate(Int)]
+fn isqrt(self) -> Int = match self {
+    ..0 => std.panic("argument of isqrt must be non-negative"),
+    ..9 => isqrt_dumb(self),
+    _ => isqrt_iter(self, isqrt_dumb(self)),
+};
+
+#[associate(Int)]
+fn abs(self) -> Int = match self {
+    ..0 => -self,
+    _ => self,
+};
+
+#[associate(Int)]
+fn min(self, other: Int) -> Int = if self < other { self } else { other };
+
+#[associate(Int)]
+fn max(self, other: Int) -> Int = if self > other { self } else { other };

@@ -1,0 +1,21 @@
+use std.number.{Number, gcd};
+
+/// It panics if the number is negative (including negative inf).
+/// It guarantees that
+/// 1. If you convert it to decimal, at least 19 digits are correct.
+/// 2. `sqrt(n * n) == n` unless `n * n` panics.
+///    - TODO: I'm not sure about this for truncated numbers.
+fn sqrt(n: Number) -> Number = {
+    // if `n` is `-inf`, `.isqrt()` would panic.
+    // if `n` is `inf`, `denom_sqrt` would be 0 and the result would be `inf`.
+    let numer_sqrt = (n.numer << 128).isqrt();
+    let denom_sqrt = (n.denom << 128).isqrt();
+    let r = gcd(numer_sqrt, denom_sqrt);
+
+    let result = Number {
+        numer: numer_sqrt / r,
+        denom: denom_sqrt / r,
+    };
+
+    result.normalize()
+};

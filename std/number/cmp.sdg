@@ -1,0 +1,13 @@
+use std.bool.{Bool, Bool.{False, True}};
+use std.number.Number;
+
+#[impl(std.op.eq)]
+fn eq_number(a: Number, b: Number) -> Bool = {
+    if a.is_inf() || b.is_inf() {
+        False
+    }
+
+    else {
+        a.denom == b.denom && a.numer == b.numer
+    }
+};

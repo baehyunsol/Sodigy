@@ -1,0 +1,32 @@
+use std.bool.Bool;
+use std.int.Int;
+
+#[built_in]
+#[impl(std.op.lt)]
+#[lang_item("built_in.lt_int")]
+fn lt_int(a: Int, b: Int) -> Bool;
+
+#[built_in]
+#[impl(std.op.eq)]
+#[lang_item("built_in.eq_int")]
+fn eq_int(a: Int, b: Int) -> Bool;
+
+#[built_in]
+#[impl(std.op.gt)]
+#[lang_item("built_in.gt_int")]
+fn gt_int(a: Int, b: Int) -> Bool;
+
+// Sodigy can run fine without these because `std.op.leq`, `std.op.neq` and
+// `std.op.geq` has a default implementation. But the compiler needs a lang
+// item for leq_int, so it's implemented here.
+#[impl(std.op.leq)]
+#[lang_item("fn.leq_int")]
+fn leq_int(a: Int, b: Int) -> Bool = !gt_int(a, b);
+
+#[impl(std.op.neq)]
+#[lang_item("fn.neq_int")]
+fn neq_int(a: Int, b: Int) -> Bool = !eq_int(a, b);
+
+#[impl(std.op.geq)]
+#[lang_item("fn.geq_int")]
+fn geq_int(a: Int, b: Int) -> Bool = !lt_int(a, b);
