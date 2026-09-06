@@ -1,3 +1,4 @@
+use std.option.{Option, Option.None};
 use std.result.Result;
 use std.string.String;
 use std.r#type.type_name;
@@ -6,14 +7,18 @@ struct ConversionError<T> = {
     value: T,
     source_type: String,
     target_type: String,
+    message: Option<String>,
 };
 
-fn conversion_error<From, To>(value: From) -> ConversionError<From> = ConversionError {
+fn conversion_error<From, To>(value: From, message: Option<String> = None) -> ConversionError<From> = ConversionError {
     // TODO: impl shorthand
     value: value,
 
     source_type: type_name!(From),
     target_type: type_name!(To),
+
+    // TODO: impl shorthand
+    message: message,
 };
 
 #[impl(convert)]

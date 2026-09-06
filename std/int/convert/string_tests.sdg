@@ -1,0 +1,43 @@
+use std.int.Int;
+use std.string.String;
+
+fn roundtrip(n: Int) = {
+    let s = n as <String>;
+    let nn = (s as? <Int>).unwrap();
+
+    nn == n
+};
+
+#[name("int-string-roundtrip-test-0")]
+assert roundtrip(0);
+#[name("int-string-roundtrip-test-1")]
+assert roundtrip(-0);
+#[name("int-string-roundtrip-test-2")]
+assert roundtrip(1);
+#[name("int-string-roundtrip-test-3")]
+assert roundtrip(-1);
+#[name("int-string-roundtrip-test-4")]
+assert roundtrip(2);
+#[name("int-string-roundtrip-test-5")]
+assert roundtrip(-2);
+#[name("int-string-roundtrip-test-6")]
+assert roundtrip(300);
+#[name("int-string-roundtrip-test-7")]
+assert roundtrip(-300);
+#[name("int-string-roundtrip-test-8")]
+assert roundtrip(30000);
+#[name("int-string-roundtrip-test-9")]
+assert roundtrip(-30000);
+#[name("int-string-roundtrip-test-10")]
+assert roundtrip(12345678910111213141516171819);
+#[name("int-string-roundtrip-test-11")]
+assert roundtrip(-12345678910111213141516171819);
+
+#[name("int-string-conversion-failure-0")]
+assert ("" as? <Int>).is_error();
+#[name("int-string-conversion-failure-1")]
+assert ("00" as? <Int>).is_error();
+#[name("int-string-conversion-failure-2")]
+assert ("--1" as? <Int>).is_error();
+#[name("int-string-conversion-failure-3")]
+assert ("123x456" as? <Int>).is_error();

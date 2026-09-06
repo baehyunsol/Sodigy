@@ -1,6 +1,10 @@
 use std.int.Int;
 use std.scalar.Scalar;
 
+mod div_tests;
+mod euclid_tests;
+mod tests;
+
 // I wanted `fn neg_int(x) = x * -1;`... but that's an infinite recursion!
 #[built_in]
 #[impl(std.op.neg)]
