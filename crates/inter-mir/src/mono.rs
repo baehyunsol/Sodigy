@@ -109,7 +109,8 @@ impl Session {
                         Entry::Vacant(e) => {
                             // TODO: If the def_span is StructInit, EnumInit or ListInit, we have to
                             //       push the type to `types_to_monomorphize`.
-                            compile_error!();
+                            //       -> `Session::solve_expr` has to collect this!
+                            compile_error!("TODO");
 
                             e.insert(GenericCall {
                                 call: call.clone(),
