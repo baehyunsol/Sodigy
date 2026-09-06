@@ -1,4 +1,5 @@
 use std.bool.{Bool, Bool.False, Bool.True};
+use std.r#fn.Fn;
 
 enum Result<T, E> = {
     Ok(T),
@@ -28,4 +29,10 @@ fn eq_result<T, E>(a: Result<T, E>, b: Result<T, E>) -> Bool = match (a, b) {
     (Result.Ok($a), Result.Ok($b)) => a == b,
     (Result.Error($a), Result.Error($b)) => a == b,
     _ => False,
+};
+
+#[associate(Result<T, E>)]
+fn map<T, E, U>(self, f: Fn(T) -> U) -> Result<U, E> = match self {
+    Result.Ok($v) => Result.Ok(f(v)),
+    Result.Error($e) => Result.Error(e),
 };

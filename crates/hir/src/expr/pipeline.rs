@@ -92,7 +92,7 @@ pub fn replace_dollar(
         },
         ast::Expr::FormattedString { elements, .. } => {
             for element in elements.iter_mut() {
-                if let ast::ExprOrString::Expr(expr) = element {
+                if let ast::ExprOrString::Expr { expr, .. } = element {
                     replace_dollar(
                         expr,
                         ident,

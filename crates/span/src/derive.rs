@@ -64,7 +64,7 @@ impl SpanDeriveKind {
             SpanDeriveKind::MatchScrutinee(_) => None,
             SpanDeriveKind::ConcatPatternRest => Some("It is desugared to a rest pattern."),
             SpanDeriveKind::ConcatPatternList => Some("It is desugared to a list pattern."),
-            SpanDeriveKind::FStringToString => Some("It is desugared to `convert.<_, String>(..)`."),
+            SpanDeriveKind::FStringToString => None,
             SpanDeriveKind::FStringConcat => Some("It is desugared to a `++` operator."),
             SpanDeriveKind::ConvertError => None,
             SpanDeriveKind::UnwrapTryConvert => None,

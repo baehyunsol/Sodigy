@@ -17,7 +17,7 @@ use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::{self as ast, ConversionKind, Field, merge_field_spans};
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
-use sodigy_token::{Constant, InfixOp, PostfixOp, PrefixOp};
+use sodigy_token::{Constant, Formatter, InfixOp, PostfixOp, PrefixOp};
 
 mod pipeline;
 use pipeline::replace_dollar;
@@ -150,9 +150,9 @@ impl Expr {
 
                 for ast_element in ast_elements.iter() {
                     match ast_element {
-                        ast::ExprOrString::Expr(e) => match Expr::from_ast(e, session) {
-                            Ok(e) => {
-                                elements.push(ExprOrString::Expr(e));
+                        ast::ExprOrString::Expr { expr, formatter } => match Expr::from_ast(expr, session) {
+                            Ok(expr) => {
+                                elements.push(ExprOrString::Expr { expr, formatter: *formatter });
                             },
                             Err(()) => {
                                 has_error = true;
@@ -554,6 +554,6 @@ fn name_lambda_function(span: &Span, map_dir: &str) -> InternedString {
 
 #[derive(Clone, Debug)]
 pub enum ExprOrString {
-    Expr(Expr),
+    Expr { expr: Expr, formatter: Option<Formatter> },
     String { s: InternedString, span: Span },
 }

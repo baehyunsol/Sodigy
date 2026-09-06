@@ -4,6 +4,7 @@ mod bytes;
 mod char;
 mod convert;
 mod r#fn;
+mod format;
 mod int;
 mod io;
 mod list;

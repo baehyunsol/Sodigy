@@ -40,7 +40,7 @@ impl Token {
             TokenKind::FormattedString { elements, .. } => {
                 for element in elements.iter_mut() {
                     match element {
-                        TokensOrString::Tokens { tokens, span } => {
+                        TokensOrString::Tokens { tokens, span, formatter: _ } => {
                             for token in tokens.iter_mut() {
                                 token.offset_span(offset);
                             }
@@ -229,10 +229,20 @@ impl TokenKind {
 pub enum TokensOrString {
     Tokens {
         tokens: Vec<Token>,
+        formatter: Option<Formatter>,
         span: Span,
     },
     String {
         s: InternedString,
         span: Span,
     },
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Formatter {
+    // {:?}
+    Debug,
+
+    LowerHex,
+    UpperHex,
 }

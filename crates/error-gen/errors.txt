@@ -1,5 +1,6 @@
 InvalidNumberLiteral/0/Error
 InvalidStringLiteralPrefix/5/Error
+InvalidStringFormatter/6/Error
 EmptyIdent/10/Error
 InvalidCharacterInIdent/15/Error
 WrongNumberOfQuotesInRawStringLiteral/20/Error

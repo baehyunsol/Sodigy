@@ -1,14 +1,14 @@
 # [derive(Clone, Debug, Eq, Hash, PartialEq)] pub enum ErrorKind {
-    InvalidNumberLiteral, InvalidStringLiteralPrefix(Vec<u8>), EmptyIdent,
-    InvalidCharacterInIdent(char), WrongNumberOfQuotesInRawStringLiteral,
-    UnterminatedStringLiteral, NotAllowedCharInFormattedString(u8),
-    UnmatchedBraceInFormattedString, EmptyBraceInFormattedString, DotDotDot,
-    InvalidCharLiteral, InvalidCharLiteralPrefix(Vec<u8>),
-    UnterminatedCharLiteral, InvalidByteLiteral, InvalidEscape,
-    EmptyCharLiteral, UnterminatedBlockComment, InvalidUtf8,
-    InvalidUnicodeCharacter, InvalidUnicodeEscape, UnmatchedGroup
-    { expected: u8, got: u8 }, TooManyQuotes, UnclosedDelimiter(u8),
-    UnexpectedByte(u8), UnexpectedToken
+    InvalidNumberLiteral, InvalidStringLiteralPrefix(Vec<u8>),
+    InvalidStringFormatter, EmptyIdent, InvalidCharacterInIdent(char),
+    WrongNumberOfQuotesInRawStringLiteral, UnterminatedStringLiteral,
+    NotAllowedCharInFormattedString(u8), UnmatchedBraceInFormattedString,
+    EmptyBraceInFormattedString, DotDotDot, InvalidCharLiteral,
+    InvalidCharLiteralPrefix(Vec<u8>), UnterminatedCharLiteral,
+    InvalidByteLiteral, InvalidEscape, EmptyCharLiteral,
+    UnterminatedBlockComment, InvalidUtf8, InvalidUnicodeCharacter,
+    InvalidUnicodeEscape, UnmatchedGroup { expected: u8, got: u8 },
+    TooManyQuotes, UnclosedDelimiter(u8), UnexpectedByte(u8), UnexpectedToken
     { expected: ErrorToken, got: ErrorToken }, WildcardNotAllowed,
     UnexpectedEof { expected: ErrorToken }, UnexpectedEog
     { expected: ErrorToken }, MissingDocComment, DocCommentNotAllowed,
@@ -94,10 +94,11 @@
         match self
         {
             ErrorKind :: InvalidNumberLiteral => 0u16, ErrorKind ::
-            InvalidStringLiteralPrefix(_,) => 5u16, ErrorKind :: EmptyIdent =>
-            10u16, ErrorKind :: InvalidCharacterInIdent(_,) => 15u16,
-            ErrorKind :: WrongNumberOfQuotesInRawStringLiteral => 20u16,
-            ErrorKind :: UnterminatedStringLiteral => 25u16, ErrorKind ::
+            InvalidStringLiteralPrefix(_,) => 5u16, ErrorKind ::
+            InvalidStringFormatter => 6u16, ErrorKind :: EmptyIdent => 10u16,
+            ErrorKind :: InvalidCharacterInIdent(_,) => 15u16, ErrorKind ::
+            WrongNumberOfQuotesInRawStringLiteral => 20u16, ErrorKind ::
+            UnterminatedStringLiteral => 25u16, ErrorKind ::
             NotAllowedCharInFormattedString(_,) => 30u16, ErrorKind ::
             UnmatchedBraceInFormattedString => 35u16, ErrorKind ::
             EmptyBraceInFormattedString => 40u16, ErrorKind :: DotDotDot =>
@@ -217,9 +218,10 @@
         {
             ErrorKind :: InvalidNumberLiteral => ErrorLevel :: Error,
             ErrorKind :: InvalidStringLiteralPrefix(_,) => ErrorLevel ::
-            Error, ErrorKind :: EmptyIdent => ErrorLevel :: Error, ErrorKind
-            :: InvalidCharacterInIdent(_,) => ErrorLevel :: Error, ErrorKind
-            :: WrongNumberOfQuotesInRawStringLiteral => ErrorLevel :: Error,
+            Error, ErrorKind :: InvalidStringFormatter => ErrorLevel :: Error,
+            ErrorKind :: EmptyIdent => ErrorLevel :: Error, ErrorKind ::
+            InvalidCharacterInIdent(_,) => ErrorLevel :: Error, ErrorKind ::
+            WrongNumberOfQuotesInRawStringLiteral => ErrorLevel :: Error,
             ErrorKind :: UnterminatedStringLiteral => ErrorLevel :: Error,
             ErrorKind :: NotAllowedCharInFormattedString(_,) => ErrorLevel ::
             Error, ErrorKind :: UnmatchedBraceInFormattedString => ErrorLevel
@@ -367,8 +369,9 @@
             { buffer.push(0u8); buffer.push(0u8); }, ErrorKind ::
             InvalidStringLiteralPrefix(t0,) =>
             { buffer.push(0u8); buffer.push(5u8); t0.encode_impl(buffer); },
-            ErrorKind :: EmptyIdent =>
-            { buffer.push(0u8); buffer.push(10u8); }, ErrorKind ::
+            ErrorKind :: InvalidStringFormatter =>
+            { buffer.push(0u8); buffer.push(6u8); }, ErrorKind :: EmptyIdent
+            => { buffer.push(0u8); buffer.push(10u8); }, ErrorKind ::
             InvalidCharacterInIdent(t0,) =>
             { buffer.push(0u8); buffer.push(15u8); t0.encode_impl(buffer); },
             ErrorKind :: WrongNumberOfQuotesInRawStringLiteral =>
@@ -753,7 +756,8 @@
                 let (t0, cursor) = Vec :: < u8 > ::
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: InvalidStringLiteralPrefix(t0,), cursor))
-            }, 10u16 => Ok((ErrorKind :: EmptyIdent, cursor)), 15u16 =>
+            }, 6u16 => Ok((ErrorKind :: InvalidStringFormatter, cursor)),
+            10u16 => Ok((ErrorKind :: EmptyIdent, cursor)), 15u16 =>
             {
                 let (t0, cursor) = char :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: InvalidCharacterInIdent(t0,), cursor))

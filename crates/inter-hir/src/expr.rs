@@ -183,8 +183,8 @@ impl Session {
                 let mut has_error = false;
 
                 for element in elements.iter_mut() {
-                    if let ExprOrString::Expr(e) = element {
-                        if let Err(()) = self.resolve_expr(e) {
+                    if let ExprOrString::Expr { expr, formatter: _ } = element {
+                        if let Err(()) = self.resolve_expr(expr) {
                             has_error = true;
                         }
                     }
@@ -414,8 +414,8 @@ impl Session {
                 let mut has_error = false;
 
                 for element in elements.iter() {
-                    if let ExprOrString::Expr(e) = element {
-                        if let Err(()) = self.check_expr_path(e) {
+                    if let ExprOrString::Expr { expr, formatter: _ } = element {
+                        if let Err(()) = self.check_expr_path(expr) {
                             has_error = true;
                         }
                     }

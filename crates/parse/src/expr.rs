@@ -20,6 +20,7 @@ use sodigy_string::InternedString;
 use sodigy_token::{
     Constant,
     Delim,
+    Formatter,
     InfixOp,
     Keyword,
     PostfixOp,
@@ -320,12 +321,12 @@ impl<'t, 's> Tokens<'t, 's> {
                         TokensOrString::String { s, span } => {
                             elements.push(ExprOrString::String { s: *s, span: span.clone() });
                         },
-                        TokensOrString::Tokens { tokens, span } => {
+                        TokensOrString::Tokens { tokens, formatter, span } => {
                             let mut tokens = Tokens::new(tokens, span.end(), false, self.intermediate_dir);
                             let expr = tokens.parse_expr(true)?;
 
                             // TODO: make sure that there's no remaining tokens
-                            elements.push(ExprOrString::Expr(expr));
+                            elements.push(ExprOrString::Expr { expr, formatter: *formatter });
                         },
                     }
                 }
@@ -859,7 +860,7 @@ impl<'t, 's> Tokens<'t, 's> {
 
 #[derive(Clone, Debug)]
 pub enum ExprOrString {
-    Expr(Expr),
+    Expr { expr: Expr, formatter: Option<Formatter> },
     String { s: InternedString, span: Span },
 }
 

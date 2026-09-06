@@ -35,7 +35,7 @@ impl Expr {
                 let mut errors = vec![];
 
                 for element in elements.iter() {
-                    if let ExprOrString::Expr(expr) = element {
+                    if let ExprOrString::Expr { expr, formatter: _ } = element {
                         if let Err(e) = expr.check(intermediate_dir) {
                             errors.extend(e);
                         }

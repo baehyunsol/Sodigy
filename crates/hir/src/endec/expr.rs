@@ -15,7 +15,7 @@ use sodigy_endec::{DecodeError, Endec};
 use sodigy_parse::{ConversionKind, Field};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
-use sodigy_token::{Constant, InfixOp, PostfixOp, PrefixOp};
+use sodigy_token::{Constant, Formatter, InfixOp, PostfixOp, PrefixOp};
 
 impl Endec for Expr {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
@@ -228,9 +228,10 @@ impl Endec for Expr {
 impl Endec for ExprOrString {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            ExprOrString::Expr(e) => {
+            ExprOrString::Expr { expr, formatter } => {
                 buffer.push(0);
-                e.encode_impl(buffer);
+                expr.encode_impl(buffer);
+                formatter.encode_impl(buffer);
             },
             ExprOrString::String { s, span } => {
                 buffer.push(1);
@@ -243,8 +244,9 @@ impl Endec for ExprOrString {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         match buffer.get(cursor) {
             Some(0) => {
-                let (e, cursor) = Expr::decode_impl(buffer, cursor + 1)?;
-                Ok((ExprOrString::Expr(e), cursor))
+                let (expr, cursor) = Expr::decode_impl(buffer, cursor + 1)?;
+                let (formatter, cursor) = Option::<Formatter>::decode_impl(buffer, cursor)?;
+                Ok((ExprOrString::Expr { expr, formatter }, cursor))
             },
             Some(1) => {
                 let (s, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;

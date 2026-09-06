@@ -2,6 +2,7 @@ use std.byte.Byte;
 use std.char.Char;
 use std.convert.{ConversionError, conversion_error};
 use std.int.Int;
+use std.option.Option.Some;
 use std.result.{Result, Result.{Error, Ok}};
 use std.scalar.Scalar;
 use std.string.String;
@@ -48,10 +49,10 @@ fn int_to_string(n: Int) -> String = match n {
 
 #[impl(std.convert.try_convert)]
 fn string_to_int(s: String) -> Result<Int, ConversionError<String>> = match s {
-    "" => Error(),
+    "" => Error(conversion_error(s)),
     "-" ++ $s => string_to_int_impl(s).map(\n => -n),
     "0" => Ok(0),
-    "0" ++ _ => Error(),
+    "0" ++ _ => Error(conversion_error(s)),
     _ => string_to_int_impl(s),
 };
 
@@ -67,5 +68,5 @@ fn string_to_int_impl(s: String) -> Result<Int, ConversionError<String>> = match
     $s ++ "7" => string_to_int_impl(s).map(\n => n * 10 + 7),
     $s ++ "8" => string_to_int_impl(s).map(\n => n * 10 + 8),
     $s ++ "9" => string_to_int_impl(s).map(\n => n * 10 + 9),
-    [$c] ++ _ => Error(conversion_error(value=s, message=Some(f"\'{c}\' is an invalid character for an integer literal."))),
+    [$c] ++ _ => Error(conversion_error(value=s, message=Some(f"{c:?} is an invalid character for an integer literal."))),
 };

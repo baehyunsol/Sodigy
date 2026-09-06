@@ -6,7 +6,15 @@ use sodigy_file::File;
 use sodigy_number::{Base, InternedNumber, intern_number_raw};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, intern_string};
-use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind, TokensOrString};
+use sodigy_token::{
+    Delim,
+    Keyword,
+    Formatter,
+    Punct,
+    Token,
+    TokenKind,
+    TokensOrString,
+};
 use std::num::IntErrorKind;
 
 mod endec;
@@ -1783,6 +1791,7 @@ impl Session {
     fn lex_formatted_string(&mut self) -> Result<(), Error> {
         assert!(matches!(self.input_bytes.get(self.cursor), Some(b'{')));
         let mut value_end = 0;
+        let mut formatter = None;
 
         for i in (self.cursor + 1).. {
             match self.input_bytes.get(i) {
@@ -1793,8 +1802,16 @@ impl Session {
                         note: None,
                     });
                 },
-                Some(b':') => {
-                    return Err(Error::todo(30190, "formatter in f-string", Span::range(self.file, i as u32, i as u32 + 1)));
+                Some(b':') => match parse_formatter(self.file, &self.input_bytes, i) {
+                    Ok(Some((f, j))) => {
+                        formatter = Some(f);
+                        value_end = j;
+                        break;
+                    },
+                    Ok(None) => {},
+                    Err(e) => {
+                        return Err(e);
+                    },
                 },
                 Some(b'}') => {
                     value_end = i;
@@ -1838,6 +1855,7 @@ impl Session {
 
         self.fstring_buffer.push(TokensOrString::Tokens {
             tokens: tmp_session.tokens,
+            formatter,
             span: Span::range(
                 self.file,
                 self.cursor as u32,
@@ -1944,4 +1962,35 @@ fn group_tokens_recursive(tokens: &[Token]) -> Vec<Token> {
     }
 
     result
+}
+
+// Ok(Some((formatter, index))): There's a valid formatter. It also returns the index of '}' character.
+// Ok(None): There's no formatter.
+// Err(e): It seems like a formatter, but there's a syntax error.
+fn parse_formatter(file: File, bytes: &[u8], index: usize) -> Result<Option<(Formatter, usize)>, Error> {
+    assert_eq!(bytes[index], b':');
+
+    // Currently, every formatter is a single-character.
+    match (bytes.get(index + 1), bytes.get(index + 2)) {
+        (Some(c), Some(b'}')) => match c {
+            b'?' => Ok(Some((Formatter::Debug, index + 2))),
+            b'x' => Ok(Some((Formatter::LowerHex, index + 2))),
+            b'X' => Ok(Some((Formatter::UpperHex, index + 2))),
+            _ => Err(Error {
+                kind: ErrorKind::InvalidStringFormatter,
+                spans: Span::range(file, index as u32, 2).simple_error(),
+                note: None,
+            }),
+        },
+        (Some(b'}'), _) => Err(Error {
+            kind: ErrorKind::InvalidStringFormatter,
+            spans: vec![RenderableSpan {
+                span: Span::range(file, index as u32, 1),
+                auxiliary: false,
+                note: Some(String::from("Expected a string formatter, but got nothing. How about removing this ':' character?")),
+            }],
+            note: None,
+        }),
+        _ => Ok(None),
+    }
 }

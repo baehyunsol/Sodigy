@@ -155,6 +155,7 @@ impl Pattern {
     // - `"asdf"` -> `['a', 'b', 'c', 'd']`
     // - `b"asdf"` -> `[b'a', b'b', b'c', b'd']`
     // - `[$a] ++ [$b]` -> `[$a, $b]`
+    // - `$a ++ _` -> [$a, ..]
     pub fn to_list_pattern(self, is_lhs: bool, intermediate_dir: &str) -> Result<PatternKind, Vec<Error>> {
         let mut errors = vec![];
 
@@ -215,6 +216,17 @@ impl Pattern {
                 }
             },
             l @ PatternKind::List { .. } => l.clone(),
+            PatternKind::Wildcard(span) => PatternKind::List {
+                elements: vec![],
+                rest: Some(Box::new(RestPattern {
+                    span: span.derive(SpanDeriveKind::ConcatPatternRest),
+                    index: 0,
+                    name: None,
+                    name_span: None,
+                })),
+                group_span: span.derive(SpanDeriveKind::ConcatPatternList),
+                is_lowered_from_concat: true,
+            },
             p => {
                 errors.push(Error {
                     kind: ErrorKind::InvalidConcatPattern,

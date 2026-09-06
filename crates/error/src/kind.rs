@@ -26,6 +26,7 @@ error_kinds!(
     // error variant,                                              index,    Error | Warning
     (InvalidNumberLiteral,                                             0,    Error),
     (InvalidStringLiteralPrefix(Vec<u8>),                              5,    Error),
+    (InvalidStringFormatter,                                           6,    Error),
     (EmptyIdent,                                                      10,    Error),
     (InvalidCharacterInIdent(char),                                   15,    Error),
     (WrongNumberOfQuotesInRawStringLiteral,                           20,    Error),

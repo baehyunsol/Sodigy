@@ -15,7 +15,7 @@ use sodigy_parse::{ConversionKind, Field, merge_field_spans};
 use sodigy_session::SodigySession;
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
-use sodigy_token::{Constant, InfixOp};
+use sodigy_token::{Constant, Formatter, InfixOp};
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
@@ -486,42 +486,9 @@ impl Expr {
 
                             elements.push(e);
                         },
-                        hir::ExprOrString::Expr(e) => match Expr::from_hir(e, session) {
-                            Ok(e) => {
-                                let derived_span = e.error_span_wide().derive(SpanDeriveKind::FStringToString);
-
-                                // converts `x` to `convert.<_, String>(x)`.
-                                let e = Expr::Call {
-                                    func: Callable::Static {
-                                        def_span: session.get_lang_item_span("fn.convert"),
-                                        span: derived_span.clone(),
-                                    },
-                                    args: vec![e],
-                                    arg_group_span: derived_span.clone(),
-                                    types: Some(Dotfish {
-                                        types: vec![
-                                            {
-                                                session.wildcard_spans.push(derived_span.clone());
-                                                Type::Var { def_span: derived_span.clone(), is_return: false }
-                                            },
-                                            Type::Data {
-                                                constructor_def_span: session.get_lang_item_span_id("type.List"),
-                                                constructor_span: derived_span.clone(),
-                                                args: Some(vec![Type::Data {
-                                                    constructor_def_span: session.get_lang_item_span_id("type.Char"),
-                                                    constructor_span: derived_span.clone(),
-                                                    args: None,
-                                                    group_span: None,
-                                                }]),
-                                                group_span: Some(Span::None),
-                                            },
-                                        ],
-                                        group_span: Span::None,
-                                    }),
-                                    given_keyword_args: vec![],
-                                };
-
-                                elements.push(e);
+                        hir::ExprOrString::Expr { expr, formatter } => match Expr::from_hir(expr, session) {
+                            Ok(expr) => {
+                                elements.push(lower_formatted_string(expr, *formatter, session));
                             },
                             Err(()) => {
                                 has_error = true;
@@ -1218,6 +1185,62 @@ fn concat_strings(mut strings: Vec<Expr>, session: &Session) -> Expr {
                 types: None,
                 given_keyword_args: vec![],
             }
+        },
+    }
+}
+
+fn lower_formatted_string(
+    expr: Expr,
+    formatter: Option<Formatter>,
+    session: &mut Session,
+) -> Expr {
+    let derived_span = expr.error_span_wide().derive(SpanDeriveKind::FStringToString);
+
+    match formatter {
+        Some(f) => {
+            let def_span = match f {
+                Formatter::Debug => session.get_lang_item_span("fn.format_debug"),
+                Formatter::LowerHex => session.get_lang_item_span("fn.format_lower_hex"),
+                Formatter::UpperHex => session.get_lang_item_span("fn.format_upper_hex"),
+            };
+
+            Expr::Call {
+                func: Callable::Static { def_span, span: derived_span.clone() },
+                args: vec![expr],
+                arg_group_span: derived_span.clone(),
+                types: None,
+                given_keyword_args: vec![],
+            }
+        },
+        // converts `x` to `convert.<_, String>(x)`.
+        None => Expr::Call {
+            func: Callable::Static {
+                def_span: session.get_lang_item_span("fn.convert"),
+                span: derived_span.clone(),
+            },
+            args: vec![expr],
+            arg_group_span: derived_span.clone(),
+            types: Some(Dotfish {
+                types: vec![
+                    {
+                        session.wildcard_spans.push(derived_span.clone());
+                        Type::Var { def_span: derived_span.clone(), is_return: false }
+                    },
+                    Type::Data {
+                        constructor_def_span: session.get_lang_item_span_id("type.List"),
+                        constructor_span: derived_span.clone(),
+                        args: Some(vec![Type::Data {
+                            constructor_def_span: session.get_lang_item_span_id("type.Char"),
+                            constructor_span: derived_span.clone(),
+                            args: None,
+                            group_span: None,
+                        }]),
+                        group_span: Some(Span::None),
+                    },
+                ],
+                group_span: Span::None,
+            }),
+            given_keyword_args: vec![],
         },
     }
 }

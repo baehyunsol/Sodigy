@@ -1,0 +1,103 @@
+use std.bool.{Bool, Bool.{False, True}};
+use std.char.Char;
+use std.int.Int;
+use std.string.String;
+
+#[poly]
+#[lang_item("fn.format_debug")]
+fn format_debug<T>(x: T) -> String;
+
+#[impl(format_debug)]
+fn format_debug_char(ch: Char) -> String = match ch {
+    '\0' => "'\\0'",
+    '\t' => "'\\t'",
+    '\n' => "'\\n'",
+    '\r' => "'\\r'",
+    '\\' => "'\\\\'",
+    '\'' => "'\\\''",
+    $ch if is_printable(ch) => ['\'', ch, '\''],
+    ..='\xff' => f"'\\x{ch as <Int> / 16:x}{ch as <Int> % 16:x}'",
+    _ => f"'\\u{{{ch as <Int>:x}}}'",
+};
+
+// I printed characters in rust playground and made this list manually...
+// Maybe there are mistakes.
+fn is_printable(ch: Char) -> Bool = match ch {
+    '\0' | '\t' | '\n' | '\r' |
+    '\x20'..'\x7f' |
+    '\xa1'..'\u{300}' |
+    '\u{370}'..'\u{483}' |
+    '\u{490}'..'\u{590}' |
+    '\u{5d0}'..'\u{5eb}' |
+    '\u{606}'..'\u{610}' |
+    '\u{61b}'..'\u{6d6}' |
+    '\u{6ef}'..'\u{730}' |
+    '\u{74d}'..'\u{7a6}' |
+    '\u{7c0}'..'\u{816}' |
+    '\u{830}'..'\u{859}' |
+    '\u{8a0}'..'\u{8ca}' |
+
+    // There are tons of printable characters in this range,
+    // but I'm too lazy to write them...
+
+    'ぁ'..='ゖ' |
+    'ァ'..='ヺ' |
+    'ㄱ'..='ㅣ' |
+    '㐀'..='鿿' |
+    '가'..='힣' |
+    '☀'..='❤' |
+    '🌀'..='🙏' |
+    '🚀'..='🛼' |
+    '🤌'..='🫸' => True,
+
+    _ => False,
+};
+
+#[poly]
+#[lang_item("fn.format_lower_hex")]
+fn format_lower_hex<T>(x: T) -> String;
+
+#[impl(format_lower_hex)]
+fn format_lower_hex_int(n: Int) -> String = match n {
+    ..0 => "-" ++ format_lower_hex_int(-n),
+    0 => "0",
+    1 => "1",
+    2 => "2",
+    3 => "3",
+    4 => "4",
+    5 => "5",
+    6 => "6",
+    7 => "7",
+    8 => "8",
+    9 => "9",
+    10 => "a",
+    11 => "b",
+    12 => "c",
+    13 => "d",
+    14 => "e",
+    15 => "f",
+    _ => format_lower_hex_int(n / 16) ++ format_lower_hex_int(n % 16),
+};
+
+#[poly]
+#[lang_item("fn.format_upper_hex")]
+fn format_upper_hex_int<T>(n: T) -> String = match n {
+    ..0 => "-" ++ format_upper_hex_int(-n),
+    0 => "0",
+    1 => "1",
+    2 => "2",
+    3 => "3",
+    4 => "4",
+    5 => "5",
+    6 => "6",
+    7 => "7",
+    8 => "8",
+    9 => "9",
+    10 => "A",
+    11 => "B",
+    12 => "C",
+    13 => "D",
+    14 => "E",
+    15 => "F",
+    _ => format_upper_hex_int(n / 16) ++ format_upper_hex_int(n % 16),
+};

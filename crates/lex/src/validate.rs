@@ -1,6 +1,6 @@
 use crate::Session;
 use sodigy_string::unintern_string;
-use sodigy_token::{Token, TokenKind, TokensOrString};
+use sodigy_token::{Formatter, Token, TokenKind, TokensOrString};
 
 impl Session {
     // It panics if it fails to validate!
@@ -83,10 +83,26 @@ fn validate_spans_worker(
 
                 for element in elements.iter() {
                     match element {
-                        TokensOrString::Tokens { tokens, span } => {
+                        TokensOrString::Tokens { tokens, formatter, span } => {
                             let (offset, length) = span.get_offset_and_length().unwrap();
                             assert_eq!(file_content[offset as usize], b'{');
                             assert_eq!(file_content[(offset + length) as usize - 1], b'}');
+
+                            if let Some(formatter) = formatter {
+                                let last = (offset + length) as usize;
+
+                                match formatter {
+                                    Formatter::Debug => {
+                                        assert_eq!(&file_content[(last - 3)..(last - 1)], b":?");
+                                    },
+                                    Formatter::LowerHex => {
+                                        assert_eq!(&file_content[(last - 3)..(last - 1)], b":x");
+                                    },
+                                    Formatter::UpperHex => {
+                                        assert_eq!(&file_content[(last - 3)..(last - 1)], b":X");
+                                    },
+                                }
+                            }
 
                             validate_spans_worker(file_content, tokens, intermediate_dir);
                         },
@@ -108,6 +124,10 @@ fn validate_spans_worker(
                                         i += 2;
                                     },
                                     (Some(b'}'), _) => unreachable!(),
+                                    (Some(b'\\'), Some(c)) if !raw => {
+                                        span_code_processed.push(*c);
+                                        i += 2;
+                                    },
                                     (Some(c), _) => {
                                         span_code_processed.push(*c);
                                         i += 1;
