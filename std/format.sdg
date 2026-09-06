@@ -3,6 +3,8 @@ use std.char.Char;
 use std.int.Int;
 use std.string.String;
 
+mod tests;
+
 #[poly]
 #[lang_item("fn.format_debug")]
 fn format_debug<T>(x: T) -> String;

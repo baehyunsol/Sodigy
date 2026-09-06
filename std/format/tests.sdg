@@ -1,0 +1,15 @@
+use std.bool.Bool.True;
+use std.option.Option.{None, Some};
+
+#[name("format-debug-char-test")]
+assert match [
+    ('\0', "'\\0'"),
+    ('\x01', "'\\x01'"),
+    ('a', "'a'"),
+    ('\u{ac00}', "'가'"),
+    ('\u{abff}', "'\\u{abff}'"),
+    ('가', "'가'"),
+].find(\p => f"{p._0:?}" != p._1) {
+    Some(($c, $answer)) => std.panic(f"expected: {answer}, got: {c:?}"),
+    None => True,
+};
