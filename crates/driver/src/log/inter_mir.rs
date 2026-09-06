@@ -415,6 +415,49 @@ pub fn dump_inter_mir_log(session: &InterMirSession, mir_session: &MirSession) -
 
                 ("monomorphize_struct", *id)
             },
+            LogEntry::MonomorphizeEnumStart { id, r#enum, monomorphization } => {
+                input.push(Value {
+                    name: String::from("enum"),
+                    short: r#enum.name.unintern_or_default(&session.intermediate_dir),
+                    long: Some(String::from_utf8(prettify(format!("{enum:?}").into_bytes())).unwrap()),
+                });
+                input.push(Value {
+                    name: String::from("monomorphization"),
+                    short: String::from("(...)"),
+                    long: Some(String::from_utf8(prettify(format!("{monomorphization:?}").into_bytes())).unwrap()),
+                });
+                input.push(Value {
+                    name: String::from("generics"),
+                    short: render_monomorphization_generics(monomorphization, session),
+                    long: None,
+                });
+
+                spans.push(RenderableSpan {
+                    span: r#enum.name_span.clone(),
+                    auxiliary: true,
+                    note: Some(String::from("enum")),
+                });
+                spans.push(RenderableSpan {
+                    span: monomorphization.def_span.clone(),
+                    auxiliary: true,
+                    note: Some(String::from("monomorphization.def_span")),
+                });
+                spans.push(RenderableSpan {
+                    span: monomorphization.call_span.clone(),
+                    auxiliary: true,
+                    note: Some(String::from("monomorphization.call_span")),
+                });
+
+                for (span, r#type) in monomorphization.generics.iter() {
+                    spans.push(RenderableSpan {
+                        span: span.clone(),
+                        auxiliary: true,
+                        note: Some(session.render_type(r#type)),
+                    });
+                }
+
+                ("monomorphize_enum", *id)
+            },
             LogEntry::CheckAllTypesInferedStart { id } => ("check_all_types_infered", *id),
             _ => unreachable!(),
         };
@@ -644,6 +687,15 @@ pub fn dump_inter_mir_log(session: &InterMirSession, mir_session: &MirSession) -
                 (false, vec![])
             },
             LogEntry::MonomorphizeStructEnd { result, .. } => {
+                output.push(Value {
+                    name: String::from("result"),
+                    short: String::from("(...)"),
+                    long: Some(String::from_utf8(prettify(format!("{result:?}").into_bytes())).unwrap()),
+                });
+
+                (false, vec![])
+            },
+            LogEntry::MonomorphizeEnumEnd { result, .. } => {
                 output.push(Value {
                     name: String::from("result"),
                     short: String::from("(...)"),

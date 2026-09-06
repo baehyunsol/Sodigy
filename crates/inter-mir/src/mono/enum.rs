@@ -1,9 +1,12 @@
 use super::Monomorphization;
-use crate::Session;
+use crate::{LogId, Session, write_log};
 use sodigy_hir::{self as hir, EnumShape};
 use sodigy_mir::{Enum, EnumVariant, EnumVariantFields, StructField, Type};
 use sodigy_span::Span;
 use std::collections::HashSet;
+
+#[cfg(feature = "log")]
+use crate::LogEntry;
 
 impl Session {
     pub fn monomorphize_enum(
@@ -12,6 +15,18 @@ impl Session {
         monomorphization: &Monomorphization,
         types_to_monomorphize: &mut Vec<(Type, Span)>,
     ) -> Enum {
+        let _id = if cfg!(feature = "log") {
+            Some(LogId::new())
+        } else {
+            None
+        };
+
+        write_log!(self, LogEntry::MonomorphizeEnumStart {
+            id: _id.unwrap(),
+            r#enum: r#enum.clone(),
+            monomorphization: monomorphization.clone(),
+        });
+
         let new_enum_span = r#enum.name_span.monomorphize(monomorphization.id);
         let mut new_variants = Vec::with_capacity(r#enum.variants.len());
 
@@ -58,12 +73,18 @@ impl Session {
             });
         }
 
-        Enum {
+        let result = Enum {
             name: r#enum.name,
             name_span: new_enum_span,
             generics: vec![],
             variants: new_variants,
-        }
+        };
+
+        write_log!(self, LogEntry::MonomorphizeEnumEnd {
+            id: _id.unwrap(),
+            result: result.clone(),
+        });
+        result
     }
 
     pub fn monomorphize_enum_shape(&mut self, enum_shape: &EnumShape, monomorphization: &Monomorphization) -> EnumShape {

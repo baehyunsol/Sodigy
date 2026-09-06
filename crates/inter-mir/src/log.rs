@@ -9,7 +9,7 @@ use crate::{
 };
 use sodigy_error::Error;
 use sodigy_hir::{EnumShape, Pattern, Poly, StructShape};
-use sodigy_mir::{Assert, Dotfish, Expr, Func, Let, Type, Struct};
+use sodigy_mir::{Assert, Dotfish, Enum, Expr, Func, Let, Type, Struct};
 use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_parse::Field;
 use sodigy_span::Span;
@@ -195,6 +195,15 @@ pub enum LogEntry {
         id: LogId,
         result: Struct,
     },
+    MonomorphizeEnumStart {
+        id: LogId,
+        r#enum: Enum,
+        monomorphization: Monomorphization,
+    },
+    MonomorphizeEnumEnd {
+        id: LogId,
+        result: Enum,
+    },
     CheckAllTypesInferedStart {
         id: LogId,
     },
@@ -237,6 +246,8 @@ impl LogEntry {
             LogEntry::MonomorphizeFuncEnd { id, .. } |
             LogEntry::MonomorphizeStructStart { id, .. } |
             LogEntry::MonomorphizeStructEnd { id, .. } |
+            LogEntry::MonomorphizeEnumStart { id, .. } |
+            LogEntry::MonomorphizeEnumEnd { id, .. } |
             LogEntry::CheckAllTypesInferedStart { id, .. } |
             LogEntry::CheckAllTypesInferedEnd { id, .. } => *id,
         }
