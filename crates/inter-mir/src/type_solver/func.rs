@@ -2,13 +2,22 @@ use crate::{LogId, Session, Type, write_log};
 use crate::error::{ErrorContext, TypeError, TypeWarning};
 use sodigy_error::{FuncEffect, TypeVarInfo};
 use sodigy_mir::Func;
+use sodigy_span::Span;
 use std::collections::HashMap;
 
 #[cfg(feature = "log")]
 use crate::LogEntry;
 
 impl Session {
-    pub fn solve_func(&mut self, func: &Func) -> (Option<Type>, bool /* has_error */) {
+    pub fn solve_func(
+        &mut self,
+        func: &Func,
+
+        // Let's say there's `fn foo(ls: Foo<Int>) = { .. };`. Then we have to
+        // make sure that `Foo<Int>` is monomorphized. It collects such types
+        // and later pass them to the monomorphizor.
+        types_to_monomorphize: &mut Vec<(Type, Span)>,
+    ) -> (Option<Type>, bool /* has_error */) {
         let _id = if cfg!(feature = "log") {
             Some(LogId::new())
         } else {
@@ -25,6 +34,10 @@ impl Session {
 
         for param in func.params.iter() {
             span_to_name_map.push((param.name_span.clone(), param.name));
+
+            if let Some(r#type) = self.types.get(&param.name_span) && r#type.has_to_be_monomorphized() {
+                types_to_monomorphize.push((r#type.clone(), param.name_span.clone()));
+            }
         }
 
         let span_to_name_map = span_to_name_map.into_iter().collect::<HashMap<_, _>>();
@@ -44,6 +57,10 @@ impl Session {
                     };
                     self.add_type_var(type_var.clone(), type_var_name);
                     self.add_type_var_ref(type_var, Type::Var { def_span: func.name_span.clone(), is_return: true });
+                }
+
+                if r#return.has_to_be_monomorphized() {
+                    types_to_monomorphize.push((*r#return.clone(), func.type_annot_span.clone().unwrap_or(Span::None)));
                 }
 
                 (

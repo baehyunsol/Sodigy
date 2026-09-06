@@ -1,0 +1,12 @@
+struct Foo<T> = {
+    x: [T],
+};
+
+#[associate(Foo<T>)]
+fn foo_len<T>(self) -> Int = self.x.len();
+
+fn bar(f: Foo<Char>) -> Int = f.foo_len();
+fn baz(f: Foo<Byte>) -> Int = f.foo_len();
+
+assert bar(Foo { x: [] }) == 0;
+assert baz(Foo { x: [] }) == 0;

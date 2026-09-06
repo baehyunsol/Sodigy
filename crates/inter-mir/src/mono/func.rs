@@ -14,10 +14,11 @@ impl Session {
         func: &Func,
         monomorphization: &Monomorphization,
 
-        // `monomorphize_func` might introduce intermediate_types.
+        // `monomorphize_func` might introduce intermediate types.
         // For example, when you monomorphize `fn foo<T>(x: Bar<T>)` with `T=[Char]`,
         // you have to monomorphize not only `[Char]`, but also `Bar<[Char]>`.
-        intermediate_types: &mut Vec<(Type, Span)>,
+        // So, it collects such intermediate types.
+        types_to_monomorphize: &mut Vec<(Type, Span)>,
     ) -> Func {
         assert!(func.origin != FuncOrigin::Monomorphization);
 
@@ -47,7 +48,7 @@ impl Session {
             let new_param_type = self.monomorphize_type(&old_param_type, &HashSet::new(), monomorphization);
 
             if new_param_type.has_to_be_monomorphized() {
-                intermediate_types.push((new_param_type.clone(), new_param.name_span.clone()));
+                types_to_monomorphize.push((new_param_type.clone(), new_param.name_span.clone()));
             }
 
             self.types.insert(new_param.name_span.clone(), new_param_type);
@@ -60,7 +61,7 @@ impl Session {
         let new_type = self.monomorphize_type(&old_type, &HashSet::new(), monomorphization);
 
         if new_type.has_to_be_monomorphized() {
-            intermediate_types.push((new_type.clone(), new_name_span.clone()));
+            types_to_monomorphize.push((new_type.clone(), new_name_span.clone()));
         }
 
         self.monomorphize_expr(&mut new_value, &wildcard_spans, monomorphization);

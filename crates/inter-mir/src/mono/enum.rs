@@ -1,11 +1,17 @@
 use super::Monomorphization;
 use crate::Session;
 use sodigy_hir::{self as hir, EnumShape};
-use sodigy_mir::{Enum, EnumVariant, EnumVariantFields, StructField};
+use sodigy_mir::{Enum, EnumVariant, EnumVariantFields, StructField, Type};
+use sodigy_span::Span;
 use std::collections::HashSet;
 
 impl Session {
-    pub fn monomorphize_enum(&mut self, r#enum: &Enum, monomorphization: &Monomorphization) -> Enum {
+    pub fn monomorphize_enum(
+        &mut self,
+        r#enum: &Enum,
+        monomorphization: &Monomorphization,
+        types_to_monomorphize: &mut Vec<(Type, Span)>,
+    ) -> Enum {
         let new_enum_span = r#enum.name_span.monomorphize(monomorphization.id);
         let mut new_variants = Vec::with_capacity(r#enum.variants.len());
 
@@ -13,6 +19,11 @@ impl Session {
             let new_variant_span = variant.name_span.monomorphize(monomorphization.id);
             let old_variant_type = self.types.get(&variant.name_span).unwrap();
             let new_variant_type = self.monomorphize_type(&old_variant_type.clone(), &HashSet::new(), monomorphization);
+
+            if new_variant_type.has_to_be_monomorphized() {
+                types_to_monomorphize.push((new_variant_type.clone(), new_variant_span.clone()));
+            }
+
             self.types.insert(new_variant_span.clone(), new_variant_type);
 
             let new_fields = match &variant.fields {
@@ -22,6 +33,11 @@ impl Session {
                         let new_name_span = field.name_span.monomorphize(monomorphization.id);
                         let old_type = self.types.get(&field.name_span).unwrap().clone();
                         let new_type = self.monomorphize_type(&old_type, &HashSet::new(), monomorphization);
+
+                        if new_type.has_to_be_monomorphized() {
+                            types_to_monomorphize.push((new_type.clone(), new_name_span.clone()));
+                        }
+
                         self.types.insert(new_name_span, new_type);
                     }
 

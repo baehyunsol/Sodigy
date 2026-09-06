@@ -45,9 +45,6 @@ pub struct MonomorphizePlan {
     pub generic_args_map: HashMap<Span, Vec<Type>>,
 
     pub monomorphizations: Vec<Monomorphization>,
-
-    // extra types to monomorphize
-    pub intermediate_types: Vec<(Type, Span /* call_span, for error messages */)>,
 }
 
 #[derive(Clone, Debug)]
@@ -69,7 +66,12 @@ pub struct Monomorphization {
 }
 
 impl Session {
-    pub fn get_mono_plan(&mut self, poly_solver: &HashMap<Span, PolySolver>, mir_session: &MirSession) -> Result<MonomorphizePlan, ()> {
+    pub fn get_mono_plan(
+        &mut self,
+        poly_solver: &HashMap<Span, PolySolver>,
+        mir_session: &MirSession,
+        types_to_monomorphize: &mut Vec<(Type, Span)>,
+    ) -> Result<MonomorphizePlan, ()> {
         let mut generic_calls: HashMap<Span, GenericCall> = HashMap::new();
         let mut has_error = false;
 
@@ -126,7 +128,6 @@ impl Session {
         let mut generic_args_map: HashMap<Span, Vec<Type>> = HashMap::new();
 
         let mut monomorphizations = vec![];
-        let mut intermediate_types = vec![];
 
         for generic_call in generic_calls.values() {
             match self.try_solve_poly(poly_solver, generic_call) {
@@ -153,11 +154,11 @@ impl Session {
 
                     // When we monomorphize `eq<Foo<Int>>(..)`, we also have to monomorphize `Foo<Int>`.
                     //
-                    // TODO: I guess it's adding A LOT of duplicate types to `intermediate_types`.
+                    // TODO: I guess it's adding A LOT of duplicate types to `types_to_monomorphize`.
                     //       We have to deduplicate it. Maybe using `.flatten()`?
                     for r#type in sorted_generics.iter() {
                         if r#type.has_to_be_monomorphized() {
-                            intermediate_types.push(((*r#type).clone(), generic_call.call.clone()));
+                            types_to_monomorphize.push(((*r#type).clone(), generic_call.call.clone()));
                         }
                     }
 
@@ -215,7 +216,6 @@ impl Session {
                 dispatch_map,
                 generic_args_map,
                 monomorphizations,
-                intermediate_types,
             })
         }
     }

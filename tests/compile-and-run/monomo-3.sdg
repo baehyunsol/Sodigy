@@ -1,0 +1,29 @@
+//% run-fail
+
+// I want to make sure that `Bar<Baz<Int>>` and `Bar<Baz<Char>>` are monomorphized.
+
+struct Foo<T> = {
+    bar1: Bar<Baz<T>>,
+    bar2: Bar<Baz<Char>>,
+};
+
+struct Bar<T> = {
+    x: T,
+};
+
+#[associate(Bar<T>)]
+fn dump_bar<T>(self) -> String = type_name_of_value!(self.x);
+
+struct Baz<T> = {
+    x: T,
+};
+
+#[associate(Baz<T>)]
+fn dump_baz<T>(self) -> String = type_name_of_value!(self.x);
+
+let foo: Foo<Int> = std.panic("");
+
+assert foo.bar1.dump_bar() == "Baz<Int>";
+assert foo.bar2.dump_bar() == "Baz<Char>";
+assert foo.bar1.x.dump_baz() == "Int";
+assert foo.bar2.x.dump_baz() == "Char";

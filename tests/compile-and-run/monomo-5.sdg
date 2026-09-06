@@ -1,0 +1,5 @@
+struct Foo = { b: Bar<Char> };
+struct Bar<T> = { x: T };
+
+let foo: Foo = std.panic("");
+assert type_name_of_value!(foo.b) == "Bar<Char>";

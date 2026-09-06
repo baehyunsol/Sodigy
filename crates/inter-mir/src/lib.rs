@@ -60,11 +60,12 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
 
         session.blocked_type_vars = HashSet::new();
         session.maybe_type_errors = vec![];
+        let mut types_to_monomorphize = vec![];
 
         for func in mir_session.funcs.iter() {
             // We'll check generic functions after monomorphization.
             if func.generics.is_empty() && !func.built_in {
-                if let (_, true) = session.solve_func(func) {
+                if let (_, true) = session.solve_func(func, &mut types_to_monomorphize) {
                     has_error = true;
                 }
             }
@@ -124,7 +125,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
             };
         }
 
-        match session.get_mono_plan(&poly_solver, mir_session) {
+        match session.get_mono_plan(&poly_solver, mir_session, &mut types_to_monomorphize) {
             Ok(mut plan) => {
                 for monomorphization in plan.monomorphizations.drain(..) {
                     if session.monomorphizations.contains_key(&monomorphization.id) {
@@ -133,7 +134,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
 
                     if let Some(index) = session.funcs_rev.get(&monomorphization.def_span) {
                         let func = &mir_session.funcs[*index];
-                        let new_func = session.monomorphize_func(func, &monomorphization, &mut plan.intermediate_types);
+                        let new_func = session.monomorphize_func(func, &monomorphization, &mut types_to_monomorphize);
                         register_monomorphized_func(monomorphization, new_func, &mut session, mir_session);
                     }
 
@@ -143,7 +144,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                         }
 
                         let r#struct = &mir_session.structs[*index];
-                        let new_struct = session.monomorphize_struct(r#struct, &monomorphization);
+                        let new_struct = session.monomorphize_struct(r#struct, &monomorphization, &mut types_to_monomorphize);
                         let struct_shape = session.struct_shapes.get(&monomorphization.def_span).unwrap().clone();
                         let new_struct_shape = session.monomorphize_struct_shape(&struct_shape, &monomorphization);
                         register_monomorphized_struct(monomorphization, new_struct, new_struct_shape, &mut session, mir_session);
@@ -161,7 +162,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                             }
                         }
 
-                        let new_enum = session.monomorphize_enum(r#enum, &monomorphization);
+                        let new_enum = session.monomorphize_enum(r#enum, &monomorphization, &mut types_to_monomorphize);
                         let enum_shape = session.enum_shapes.get(&monomorphization.def_span).unwrap().clone();
                         let new_enum_shape = session.monomorphize_enum_shape(&enum_shape, &monomorphization);
                         register_monomorphized_enum(monomorphization, new_enum, new_enum_shape, &mut session, mir_session);
@@ -173,8 +174,8 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                     }
                 }
 
-                for (intermediate_type, call_span) in plan.intermediate_types.drain(..) {
-                    for (def_span_id, args) in intermediate_type.get_intermediate_types() {
+                while let Some((m_type, call_span)) = types_to_monomorphize.pop() {
+                    for (def_span_id, args) in m_type.get_intermediate_types() {
                         let def_span = Span::Range(def_span_id);  // Span without monomorphization.
                         let monomorphization_id = get_monomorphization_id_owned(def_span_id, &args).unwrap();
 
@@ -201,7 +202,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                                 is_intermediate: true,
                                 generics,
                             };
-                            let new_struct = session.monomorphize_struct(r#struct, &monomorphization);
+                            let new_struct = session.monomorphize_struct(r#struct, &monomorphization, &mut types_to_monomorphize);
                             let struct_shape = session.struct_shapes.get(&monomorphization.def_span).unwrap().clone();
                             let new_struct_shape = session.monomorphize_struct_shape(&struct_shape, &monomorphization);
                             register_monomorphized_struct(monomorphization.clone(), new_struct, new_struct_shape, &mut session, mir_session);
@@ -232,7 +233,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                                 }
                             }
 
-                            let new_enum = session.monomorphize_enum(r#enum, &monomorphization);
+                            let new_enum = session.monomorphize_enum(r#enum, &monomorphization, &mut types_to_monomorphize);
                             let enum_shape = session.enum_shapes.get(&monomorphization.def_span).unwrap().clone();
                             let new_enum_shape = session.monomorphize_enum_shape(&enum_shape, &monomorphization);
                             register_monomorphized_enum(monomorphization, new_enum, new_enum_shape, &mut session, mir_session);
