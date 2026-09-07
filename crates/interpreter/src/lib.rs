@@ -261,6 +261,15 @@ fn call(
                     let result = ilog2_ubi(rhs);
                     update(dst, result, &mut stack, heap);
                 },
+                Intrinsic::AddScalar => todo!(),
+                Intrinsic::SubScalar => {
+                    let lhs = *stack.ssa.get(&args[0]).unwrap();
+                    let rhs = *stack.ssa.get(&args[1]).unwrap();
+                    update(dst, lhs - rhs, &mut stack, heap);
+                },
+                Intrinsic::MulScalar => todo!(),
+                Intrinsic::DivScalar => todo!(),
+                Intrinsic::RemScalar => todo!(),
                 Intrinsic::LtScalar |
                 Intrinsic::EqScalar |
                 Intrinsic::GtScalar => {
@@ -429,7 +438,16 @@ fn read(src: &Memory, stack: &Stack, heap: &Heap) -> u32 {
             };
             heap.data[(ptr + offset) as usize]
         },
-        Memory::List { ptr, offset } => todo!(),
+        Memory::List { ptr, offset } => {
+            let ptr = *stack.ssa.get(ptr).unwrap() as usize;
+            let offset = match offset {
+                Offset::Static(i) => *i,
+                Offset::Dynamic(p) => read(p, stack, heap),
+            };
+            let data_ptr = heap.data[ptr];
+            let start = heap.data[ptr + 1];
+            heap.data[(data_ptr + start + offset + 1) as usize]
+        },
         Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
     }
 }

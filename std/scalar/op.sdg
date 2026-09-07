@@ -33,6 +33,20 @@ fn div_scalar(a: Scalar, b: Scalar) -> Scalar = {
 };
 
 #[built_in]
+#[lang_item("built_in.rem_scalar")]
+fn rem_scalar_built_in(a: Scalar, b: Scalar) -> Scalar;
+
+#[impl(std.op.rem)]
+fn rem_scalar(a: Scalar, b: Scalar) -> Scalar = {
+    #[always]
+    #[note(f"zero division: {a} % {b}")]
+    // TODO: There's no way to represent scalar 0 literal, so I'm converting it to Int...
+    assert b as <Int> != 0;
+
+    rem_scalar_built_in(a, b)
+};
+
+#[built_in]
 #[lang_item("built_in.bit_and_scalar")]
 fn bit_and_scalar(a: Scalar, b: Scalar) -> Scalar;
 

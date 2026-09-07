@@ -813,17 +813,56 @@ fn to_field_expr(expr: &Expr, fields: &[PatternField], session: &Session) -> Exp
     if let Some(list_index_at) = fields.iter().position(|field| matches!(field, PatternField::ListIndex(_))) {
         let pre = to_field_expr(expr, &fields[..list_index_at], session);
         let PatternField::ListIndex(index) = fields[list_index_at] else { unreachable!() };
-        // TODO: maybe we need `Constant::Scalar`
-        let index = Expr::Constant(Constant::Char { ch: u32::try_from(index).unwrap(), span: Span::None });
-        let expr = Expr::Call {
-            func: Callable::Static {
-                def_span: session.get_lang_item_span("built_in.index_list"),
-                span: Span::None,
+
+        let expr = match index {
+            // ListIndex(-n) -> index_list(pre, pre.len() - n)
+            ..0 => Expr::Call {
+                func: Callable::Static {
+                    def_span: session.get_lang_item_span("built_in.index_list"),
+                    span: Span::None,
+                },
+                args: vec![
+                    pre.clone(),
+                    Expr::Call {
+                        func: Callable::Static {
+                            def_span: session.get_lang_item_span("built_in.sub_scalar"),
+                            span: Span::None,
+                        },
+                        args: vec![
+                            Expr::Call {
+                                func: Callable::Static {
+                                    def_span: session.get_lang_item_span("built_in.len_list"),
+                                    span: Span::None,
+                                },
+                                args: vec![pre],
+                                arg_group_span: Span::None,
+                                types: None,
+                                given_keyword_args: vec![],
+                            },
+                            Expr::Constant(Constant::Scalar((-index) as u32)),
+                        ],
+                        arg_group_span: Span::None,
+                        types: None,
+                        given_keyword_args: vec![],
+                    },
+                ],
+                arg_group_span: Span::None,
+                types: None,
+                given_keyword_args: vec![],
             },
-            args: vec![pre, index],
-            arg_group_span: Span::None,
-            types: None,
-            given_keyword_args: vec![],
+            0.. => {
+                let index = Expr::Constant(Constant::Scalar(index as u32));
+                Expr::Call {
+                    func: Callable::Static {
+                        def_span: session.get_lang_item_span("built_in.index_list"),
+                        span: Span::None,
+                    },
+                    args: vec![pre, index],
+                    arg_group_span: Span::None,
+                    types: None,
+                    given_keyword_args: vec![],
+                }
+            },
         };
 
         if list_index_at + 1 < fields.len() {
