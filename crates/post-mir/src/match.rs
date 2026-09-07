@@ -428,13 +428,21 @@ fn read_field_of_pattern(
                             Some(rest) => rest.index,
                             None => elements.len(),
                         };
+                        let elements_after_rest = match rest {
+                            Some(rest) => elements.len() - rest.index,
+                            None => elements.len(),
+                        };
 
                         if *i >= 0 && (*i as usize) < rest_index {
                             curr_pattern = &elements[*i as usize];
                         }
 
+                        else if *i < 0 && (-*i) as usize <= elements_after_rest {
+                            curr_pattern = &elements[(elements.len() as i64 + *i) as usize]
+                        }
+
                         else {
-                            todo!()
+                            curr_pattern = &wildcard;
                         }
                     },
                     PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => {
@@ -689,7 +697,12 @@ pub enum NameBindingOffset {
     // let $x + 1 = foo();
     Number(InternedNumber),
 
-    // let [$x, $xs @ ..] = foo();
+    // let [_, $xs @ ..] = foo();
+    // In `Slice(a, b)`, `a` is greater than or equal to 0
+    // and `b` is less than or equal to 0.
+    // So, `Slice(1, -1)` is a slice excluding the first and
+    // the last element. `Slice(1, 0)` is a slice from the
+    // second element to the end.
     Slice(i64, i64),
 }
 

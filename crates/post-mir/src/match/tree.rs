@@ -175,7 +175,46 @@ impl DecisionTree {
                             given_keyword_args: vec![],
                         };
                     },
-                    NameBindingOffset::Slice(start, end) => todo!(),
+                    NameBindingOffset::Slice(start, end) => {
+                        assert!(*end < 0);
+
+                        // new_value = slice_list(new_value, start, new_value.len() - (-end));
+                        new_value = Expr::Call {
+                            func: Callable::Static {
+                                def_span: session.get_lang_item_span("built_in.slice_list"),
+                                span: Span::None,
+                            },
+                            args: vec![
+                                new_value.clone(),
+                                Expr::Constant(Constant::Scalar(*start as u32)),
+                                Expr::Call {
+                                    func: Callable::Static {
+                                        def_span: session.get_lang_item_span("built_in.sub_scalar"),
+                                        span: Span::None,
+                                    },
+                                    args: vec![
+                                        Expr::Call {
+                                            func: Callable::Static {
+                                                def_span: session.get_lang_item_span("built_in.len_list"),
+                                                span: Span::None,
+                                            },
+                                            args: vec![new_value],
+                                            arg_group_span: Span::None,
+                                            types: None,
+                                            given_keyword_args: vec![],
+                                        },
+                                        Expr::Constant(Constant::Scalar((-*end) as u32)),
+                                    ],
+                                    arg_group_span: Span::None,
+                                    types: None,
+                                    given_keyword_args: vec![],
+                                },
+                            ],
+                            arg_group_span: Span::None,
+                            types: None,
+                            given_keyword_args: vec![],
+                        };
+                    },
                 };
 
                 let new_value_type = type_of(&new_value, session.global_context.clone()).unwrap();

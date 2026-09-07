@@ -1,0 +1,41 @@
+use std.int.Int;
+use std.scalar.Scalar;
+
+#[built_in]
+#[impl(std.op.add)]
+#[lang_item("built_in.add_scalar")]
+fn add_scalar(a: Scalar, b: Scalar) -> Scalar;
+
+#[built_in]
+#[impl(std.op.sub)]
+#[lang_item("built_in.sub_scalar")]
+fn sub_scalar(a: Scalar, b: Scalar) -> Scalar;
+
+#[built_in]
+#[impl(std.op.mul)]
+#[lang_item("built_in.mul_scalar")]
+fn mul_scalar(a: Scalar, b: Scalar) -> Scalar;
+
+/// It doesn't check whether `b` is 0 or not.
+/// If `b` is 0, something bad (can be worse than `panic`) will happen.
+#[built_in]
+#[lang_item("built_in.div_scalar")]
+fn div_scalar_built_in(a: Scalar, b: Scalar) -> Scalar;
+
+#[impl(std.op.div)]
+fn div_scalar(a: Scalar, b: Scalar) -> Scalar = {
+    #[always]
+    #[note(f"zero division: {a} / {b}")]
+    // TODO: There's no way to represent scalar 0 literal, so I'm converting it to Int...
+    assert b as <Int> != 0;
+
+    div_scalar_built_in(a, b)
+};
+
+#[built_in]
+#[lang_item("built_in.bit_and_scalar")]
+fn bit_and_scalar(a: Scalar, b: Scalar) -> Scalar;
+
+#[built_in]
+#[lang_item("built_in.bit_or_scalar")]
+fn bit_or_scalar(a: Scalar, b: Scalar) -> Scalar;
