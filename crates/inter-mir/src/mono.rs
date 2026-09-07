@@ -107,11 +107,6 @@ impl Session {
                             e.get_mut().generics.insert(generic.clone(), r#type);
                         },
                         Entry::Vacant(e) => {
-                            // TODO: If the def_span is StructInit, EnumInit or ListInit, we have to
-                            //       push the type to `types_to_monomorphize`.
-                            //       -> `Session::solve_expr` has to collect this!
-                            compile_error!("TODO");
-
                             e.insert(GenericCall {
                                 call: call.clone(),
                                 def: self.generic_to_def_span.get(generic).unwrap().clone(),
