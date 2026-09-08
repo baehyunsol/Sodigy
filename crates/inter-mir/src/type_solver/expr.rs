@@ -1004,11 +1004,10 @@ impl Session {
                 }
             },
             Expr::Macro { kind, .. } => match &**kind {
-                MacroKind::IncludeString { .. } |
+                MacroKind::Hardcode { r#type, .. } => (Some(r#type.clone()), false),
                 MacroKind::TypeName { .. } |
                 MacroKind::File |
                 MacroKind::ModulePath => (Some(string_type(&self.lang_items)), false),
-                MacroKind::IncludeBytes { .. } => (Some(bytes_type(&self.lang_items)), false),
                 MacroKind::TypeNameOfValue { value } => {
                     let has_error = self.solve_expr(value, impure_calls).1;
                     (Some(string_type(&self.lang_items)), has_error)

@@ -160,8 +160,7 @@ impl Expr {
                 }
             },
             Expr::Macro { kind, .. } => match &mut **kind {
-                MacroKind::IncludeString { .. } |
-                MacroKind::IncludeBytes { .. } |
+                MacroKind::Hardcode { .. } |
                 MacroKind::TypeName { .. } |
                 MacroKind::NumberOfVariants { .. } |
                 MacroKind::NumberOfFields { .. } |

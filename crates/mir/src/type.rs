@@ -763,12 +763,11 @@ pub fn type_of(expr: &Expr, global_context: GlobalContext) -> Option<Type> {
             _ => panic!("TODO: {func:?}"),
         },
         Expr::Macro { kind, .. } => match &**kind {
-            MacroKind::IncludeString { .. } |
+            MacroKind::Hardcode { r#type, .. } => Some(r#type.clone()),
             MacroKind::TypeName { .. } |
             MacroKind::TypeNameOfValue { .. } |
             MacroKind::File |
             MacroKind::ModulePath => Some(string_type(global_context.lang_items.as_ref().unwrap())),
-            MacroKind::IncludeBytes { .. } => Some(bytes_type(global_context.lang_items.as_ref().unwrap())),
             MacroKind::NumberOfVariants { .. } |
             MacroKind::NumberOfFields { .. } |
             MacroKind::Line |

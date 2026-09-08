@@ -147,8 +147,7 @@ impl Session {
                 }
             },
             Expr::Macro { kind, .. } => match &**kind {
-                MacroKind::IncludeString { .. } |
-                MacroKind::IncludeBytes { .. } |
+                MacroKind::Hardcode { .. } |
                 MacroKind::TypeName { .. } |
                 MacroKind::NumberOfVariants { .. } |
                 MacroKind::NumberOfFields { .. } |

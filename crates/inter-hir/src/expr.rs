@@ -252,14 +252,13 @@ impl Session {
                 _ => Err(()),
             },
             Expr::Macro { kind, .. } => match &mut **kind {
+                MacroKind::Hardcode { r#type, path: _ } |
                 MacroKind::TypeName { r#type } |
                 MacroKind::NumberOfVariants { r#type } |
                 MacroKind::NumberOfFields { r#type } |
                 MacroKind::NameOfVariants { r#type } |
                 MacroKind::NameOfFields { r#type } => self.resolve_type(r#type, &mut vec![]),
                 MacroKind::TypeNameOfValue { value } => self.resolve_expr(value),
-                MacroKind::IncludeString { .. } |
-                MacroKind::IncludeBytes { .. } |
                 MacroKind::File |
                 MacroKind::ModulePath |
                 MacroKind::Line |
@@ -488,14 +487,13 @@ impl Session {
                 _ => Err(()),
             },
             Expr::Macro { kind, .. } => match &**kind {
+                MacroKind::Hardcode { path: _, r#type } |
                 MacroKind::TypeName { r#type } |
                 MacroKind::NumberOfVariants { r#type } |
                 MacroKind::NumberOfFields { r#type } |
                 MacroKind::NameOfVariants { r#type } |
                 MacroKind::NameOfFields { r#type } => self.check_type_annot_path(r#type),
                 MacroKind::TypeNameOfValue { value } => self.check_expr_path(value),
-                MacroKind::IncludeString { .. } |
-                MacroKind::IncludeBytes { .. } |
                 MacroKind::File |
                 MacroKind::ModulePath |
                 MacroKind::Line |

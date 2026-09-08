@@ -4,11 +4,9 @@ use sodigy_string::InternedString;
 
 #[derive(Clone, Debug)]
 pub enum MacroKind {
-    IncludeString {
+    Hardcode {
         path: InternedString,
-    },
-    IncludeBytes {
-        path: InternedString,
+        r#type: Type,
     },
     TypeName {
         r#type: Type,
@@ -37,8 +35,7 @@ pub enum MacroKind {
 impl MacroKind {
     pub fn from_hir(hir_macro: &hir::MacroKind, session: &mut Session) -> Result<MacroKind, ()> {
         match hir_macro {
-            hir::MacroKind::IncludeString { path } => Ok(MacroKind::IncludeString { path: *path }),
-            hir::MacroKind::IncludeBytes { path } => Ok(MacroKind::IncludeBytes { path: *path }),
+            hir::MacroKind::Hardcode { path, r#type } => Ok(MacroKind::Hardcode { path: *path, r#type: Type::from_hir(r#type, session)? }),
             hir::MacroKind::TypeName { r#type } => Ok(MacroKind::TypeName { r#type: Type::from_hir(r#type, session)? }),
             hir::MacroKind::TypeNameOfValue { value } => Ok(MacroKind::TypeNameOfValue { value: Expr::from_hir(value, session)? }),
             hir::MacroKind::NumberOfVariants { r#type } => Ok(MacroKind::NumberOfVariants { r#type: Type::from_hir(r#type, session)? }),
@@ -54,8 +51,7 @@ impl MacroKind {
 
     pub fn macro_name(&self) -> &'static str {
         match self {
-            MacroKind::IncludeString { .. } => "include_string",
-            MacroKind::IncludeBytes { .. } => "include_bytes",
+            MacroKind::Hardcode { .. } => "hardcode",
             MacroKind::TypeName { .. } => "type_name",
             MacroKind::TypeNameOfValue { .. } => "type_name_of_value",
             MacroKind::NumberOfVariants { .. } => "number_of_variants",

@@ -7,8 +7,7 @@ use sodigy_token::Constant;
 
 pub fn lower_macro(kind: &MacroKind, macro_span: &Span, session: &mut Session) -> Result<Expr, ()> {
     match kind {
-        MacroKind::IncludeString { path } |
-        MacroKind::IncludeBytes { path } => todo!(),
+        MacroKind::Hardcode { path, r#type } => todo!(),
         MacroKind::TypeName { r#type } => {
             let r#type = render_type(
                 r#type,

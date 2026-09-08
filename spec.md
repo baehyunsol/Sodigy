@@ -589,8 +589,8 @@ Also note that `exit` is an impure function. My intention is that 1) you `panic`
 
 ## Macros
 
-- `include_string!(path: String) -> String`
-- `include_bytes!(path: String) -> Bytes`
+- `hardcode!(path: String, t: Type) -> t`
+  - Currently, supported types are `Bytes`, `String`, `Option<Bytes>` and `Option<String>`.
 - `type_name!(t: Type) -> String`
 - `type_name_of_value!(v: Expr) -> String`
 - `number_of_variants!(t: Type) -> Int`

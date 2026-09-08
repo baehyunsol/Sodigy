@@ -321,10 +321,10 @@ pub fn dump_expr<S: SodigySession>(
             lines.push(&format!("{}!(", kind.macro_name()));
 
             match &**kind {
-                MacroKind::IncludeString { path } |
-                MacroKind::IncludeBytes { path } => {
+                MacroKind::Hardcode { path, r#type } => {
                     let path = path.unintern_or_default(session.intermediate_dir());
-                    lines.push(&format!("{path:?}"));
+                    lines.push(&format!("{path:?}, "));
+                    dump_type(r#type, lines, session);
                 },
                 MacroKind::TypeName { r#type } |
                 MacroKind::NumberOfVariants { r#type } |

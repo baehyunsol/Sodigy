@@ -137,12 +137,11 @@ impl Session {
                 *group_span = group_span.monomorphize(monomorphization.id);
 
                 match &mut **kind {
-                    MacroKind::IncludeString { .. } |
-                    MacroKind::IncludeBytes { .. } |
                     MacroKind::File |
                     MacroKind::ModulePath |
                     MacroKind::Line |
                     MacroKind::Column => {},
+                    MacroKind::Hardcode { r#type, path: _ } |
                     MacroKind::TypeName { r#type } |
                     MacroKind::NumberOfVariants { r#type } |
                     MacroKind::NumberOfFields { r#type } |

@@ -6,11 +6,9 @@ use sodigy_token::{Token, TokenKind};
 
 #[derive(Clone, Debug)]
 pub enum MacroKind {
-    IncludeString {
+    Hardcode {
         path: InternedString,
-    },
-    IncludeBytes {
-        path: InternedString,
+        r#type: Type,
     },
     TypeName {
         r#type: Type,

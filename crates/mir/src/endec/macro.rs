@@ -5,49 +5,46 @@ use sodigy_string::InternedString;
 impl Endec for MacroKind {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            MacroKind::IncludeString { path } => {
+            MacroKind::Hardcode { path, r#type } => {
                 buffer.push(0);
                 path.encode_impl(buffer);
-            },
-            MacroKind::IncludeBytes { path } => {
-                buffer.push(1);
-                path.encode_impl(buffer);
+                r#type.encode_impl(buffer);
             },
             MacroKind::TypeName { r#type } => {
-                buffer.push(2);
+                buffer.push(1);
                 r#type.encode_impl(buffer);
             },
             MacroKind::TypeNameOfValue { value } => {
-                buffer.push(3);
+                buffer.push(2);
                 value.encode_impl(buffer);
             },
             MacroKind::NumberOfVariants { r#type } => {
-                buffer.push(4);
+                buffer.push(3);
                 r#type.encode_impl(buffer);
             },
             MacroKind::NumberOfFields { r#type } => {
-                buffer.push(5);
+                buffer.push(4);
                 r#type.encode_impl(buffer);
             },
             MacroKind::NameOfVariants { r#type } => {
-                buffer.push(6);
+                buffer.push(5);
                 r#type.encode_impl(buffer);
             },
             MacroKind::NameOfFields { r#type } => {
-                buffer.push(7);
+                buffer.push(6);
                 r#type.encode_impl(buffer);
             },
             MacroKind::File => {
-                buffer.push(8);
+                buffer.push(7);
             },
             MacroKind::ModulePath => {
-                buffer.push(9);
+                buffer.push(8);
             },
             MacroKind::Line => {
-                buffer.push(10);
+                buffer.push(9);
             },
             MacroKind::Column => {
-                buffer.push(11);
+                buffer.push(10);
             },
         }
     }
@@ -56,41 +53,38 @@ impl Endec for MacroKind {
         match buffer.get(cursor) {
             Some(0) => {
                 let (path, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
-                Ok((MacroKind::IncludeString { path }, cursor))
+                let (r#type, cursor) = Type::decode_impl(buffer, cursor)?;
+                Ok((MacroKind::Hardcode { path, r#type }, cursor))
             },
             Some(1) => {
-                let (path, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
-                Ok((MacroKind::IncludeBytes { path }, cursor))
-            },
-            Some(2) => {
                 let (r#type, cursor) = Type::decode_impl(buffer, cursor + 1)?;
                 Ok((MacroKind::TypeName { r#type }, cursor))
             },
-            Some(3) => {
+            Some(2) => {
                 let (value, cursor) = Expr::decode_impl(buffer, cursor + 1)?;
                 Ok((MacroKind::TypeNameOfValue { value }, cursor))
             },
-            Some(4) => {
+            Some(3) => {
                 let (r#type, cursor) = Type::decode_impl(buffer, cursor + 1)?;
                 Ok((MacroKind::NumberOfVariants { r#type }, cursor))
             },
-            Some(5) => {
+            Some(4) => {
                 let (r#type, cursor) = Type::decode_impl(buffer, cursor + 1)?;
                 Ok((MacroKind::NumberOfFields { r#type }, cursor))
             },
-            Some(6) => {
+            Some(5) => {
                 let (r#type, cursor) = Type::decode_impl(buffer, cursor + 1)?;
                 Ok((MacroKind::NameOfVariants { r#type }, cursor))
             },
-            Some(7) => {
+            Some(6) => {
                 let (r#type, cursor) = Type::decode_impl(buffer, cursor + 1)?;
                 Ok((MacroKind::NameOfFields { r#type }, cursor))
             },
-            Some(8) => Ok((MacroKind::File, cursor + 1)),
-            Some(9) => Ok((MacroKind::ModulePath, cursor + 1)),
-            Some(10) => Ok((MacroKind::Line, cursor + 1)),
-            Some(11) => Ok((MacroKind::Column, cursor + 1)),
-            Some(n @ 12..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(7) => Ok((MacroKind::File, cursor + 1)),
+            Some(8) => Ok((MacroKind::ModulePath, cursor + 1)),
+            Some(9) => Ok((MacroKind::Line, cursor + 1)),
+            Some(10) => Ok((MacroKind::Column, cursor + 1)),
+            Some(n @ 11..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }
