@@ -278,18 +278,17 @@ impl Func {
                     }
 
                     else {
-                        match &param.type_annot {
-                            Some(r#type) => {
-                                let w = r#type.get_wildcard_spans();
+                        if let Some(r#type) = &param.type_annot {
+                            let w = r#type.get_wildcard_spans();
 
-                                if !w.is_empty() {
-                                    missing_type_annots.push(i as i64);
-                                    wildcard_spans.extend(w);
-                                }
-                            },
-                            None => {
+                            if !w.is_empty() {
                                 missing_type_annots.push(i as i64);
-                            },
+                                wildcard_spans.extend(w);
+                            }
+                        }
+
+                        else if ast_param.type_annot.is_none() {
+                            missing_type_annots.push(i as i64);
                         }
                     }
 

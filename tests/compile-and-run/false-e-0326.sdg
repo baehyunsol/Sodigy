@@ -1,0 +1,4 @@
+//% compile-error == 1
+
+// This is not (e-0326).
+fn foo<T>(x: T, _: Y) -> T = x;
