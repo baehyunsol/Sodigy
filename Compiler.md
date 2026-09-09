@@ -1,1 +1,1 @@
-Read `crates/driver/src/compile_stage.rs`
+Read `crates/stages/src/lib.rs`

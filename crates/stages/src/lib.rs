@@ -87,6 +87,17 @@ pub const COMPILE_STAGES: [CompileStage; 13] = [
     CompileStage::CodeGen,
 ];
 
+#[derive(Clone, Copy, Debug)]
+pub enum StageExtra {
+    Lex,
+    GroupTokens,
+    ValidateSpans,
+
+    ParseSessionFromLexSession,
+    Parse,
+    CheckParse,
+}
+
 impl CompileStage {
     pub fn is_parallel(&self) -> bool {
         match self {
@@ -103,6 +114,19 @@ impl CompileStage {
             CompileStage::Bytecode => true,
             CompileStage::BytecodeOptimize => true,
             CompileStage::CodeGen => false,
+        }
+    }
+}
+
+impl StageExtra {
+    pub fn render(&self) -> &'static str {
+        match self {
+            StageExtra::Lex => "lex",
+            StageExtra::GroupTokens => "group_tokens",
+            StageExtra::ValidateSpans => "validate_spans",
+            StageExtra::ParseSessionFromLexSession => "parse_session_from_lex_session",
+            StageExtra::Parse => "parse",
+            StageExtra::CheckParse => "check_parse",
         }
     }
 }

@@ -19,6 +19,7 @@ use sodigy_hir as hir;
 use sodigy_mir::{self as mir, GlobalContext as MirGlobalContext};
 use sodigy_post_mir::MatchDump;
 use sodigy_span::Span;
+use sodigy_timings::TimingsSession;
 use std::sync::{Arc, RwLock, mpsc};
 use std::thread::{self, JoinHandle};
 use std::time::Instant;
@@ -134,11 +135,7 @@ fn init_worker_and_channel(id: usize) -> Channel {
 /// purpose is logging.
 pub struct Worker {
     pub id: WorkerId,
-    pub born_at: Instant,
-    pub timings_log: Vec<TimingsEntry>,
-    pub log_file: Option<String>,
-    pub curr_stage: Option<(CompileStage, Option<String>, Option<String>, u64)>,
-    pub curr_stage_error: bool,
+    pub timings: TimingsSession,
 }
 
 fn worker_loop(
@@ -148,16 +145,20 @@ fn worker_loop(
 ) -> Result<(), Error> {
     let mut worker = Worker {
         id: worker_id,
-        born_at: Instant::now(),
-        timings_log: vec![],
+        timings: TimingsSession {
+            worker_id: worker_id.0,
+            born_at: Instant::now(),
+            timings_log: vec![],
 
-        // NOTE: Currently, there's no API that sets this value.
-        //       You have to hard-code the log file and re-compile it...
-        // log_file: Some(String::from("log")),
-        log_file: None,
+            // NOTE: Currently, there's no API that sets this value.
+            //       You have to hard-code the log file and re-compile it...
+            // log_file: Some(String::from("log")),
+            log_file: None,
 
-        curr_stage: None,
-        curr_stage_error: false,
+            curr_stage: None,
+            curr_stage_error: false,
+            module: None,
+        },
     };
     let mut global_context = GlobalContext::new();
 
@@ -210,6 +211,7 @@ impl Worker {
                 stop_after,
                 validate_token_spans,
             } => {
+                self.timings_session.input_module_path = Some(input_module_path.to_string());
                 let (is_std, file) = match &input_file_path {
                     FileOrStd::File(path) => (
                         false,
@@ -241,20 +243,19 @@ impl Worker {
                         s.intermediate_dir = intermediate_dir.clone();
                         s
                     } else {
-                        self.stage_start(CompileStage::Load, None, Some(input_module_path.to_string()));
+                        self.stage_start(CompileStage::Load, None);
                         let bytes = file.read_bytes(&intermediate_dir)?.ok_or(Error::MiscError)?;
                         self.stage_end(false);
 
-                        self.stage_start(CompileStage::Lex, None, Some(input_module_path.to_string()));
                         let lex_session = sodigy_lex::lex(
                             file,
                             bytes,
                             intermediate_dir.clone(),
                             is_std,
                             validate_token_spans.to_boolean(is_std),
+                            &mut self.timings_session,
                         );
                         let file_span = lex_session.file_span();
-                        self.stage_end(!lex_session.errors.is_empty());
 
                         emit_irs_if_has_to(
                             &lex_session,
@@ -275,7 +276,7 @@ impl Worker {
                             return compile_error_if_not_empty(&lex_session.errors);
                         }
 
-                        self.stage_start(CompileStage::Parse, None, Some(input_module_path.to_string()));
+                        self.stage_start(CompileStage::Parse, None);
                         let parse_session = sodigy_parse::parse(lex_session, file_span);
                         self.stage_end(!parse_session.errors.is_empty());
 

@@ -1,0 +1,8 @@
+[package]
+name = "sodigy-timings"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sodigy-fs-api = { version = "0.1.0", path = "../fs-api" }
+sodigy-stages = { version = "0.1.0", path = "../stages" }

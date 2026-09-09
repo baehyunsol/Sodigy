@@ -22,13 +22,13 @@ use sodigy_fs_api::{
 };
 pub use sodigy_optimize::OptimizeLevel;
 use sodigy_span::{Color, Span};
+use sodigy_stages::{CompileStage, StageExtra};
 use std::collections::HashMap;
 use std::sync::mpsc;
 use std::time::Instant;
 
 mod cli;
 mod command;
-mod compile_stage;
 mod error;
 mod global_context;
 mod ir_store;
@@ -40,7 +40,6 @@ mod tests;
 
 pub use cli::{CliCommand, ColorWhen};
 pub use command::{Command, ValidateTokenSpans};
-pub use compile_stage::CompileStage;
 pub use error::Error;
 pub use ir_store::{EmitIrOption, StoreIrAt};
 
