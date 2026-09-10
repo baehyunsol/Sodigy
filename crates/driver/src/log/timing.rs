@@ -1,8 +1,9 @@
 use crate::{Error, Worker, WorkerId};
 use sodigy_fs_api::{WriteMode, join, write_string};
-use sodigy_stages::Stage;
+use sodigy_stages::{Stage, Substage};
 use sodigy_timings::TimingsEntry;
-use std::collections::{HashMap, HashSet};
+use std::collections::hash_map::{Entry, HashMap};
+use std::collections::hash_set::HashSet;
 
 mod graph;
 
@@ -93,10 +94,11 @@ const FRAME_COUNT: usize = 4096;
 struct Stats {
     start: u64,
     end: u64,
-    longest_stage_frames: usize,
-    longest_stage: Option<TimingsEntry>,
     total_stages: usize,
     total_modules: usize,
+    times_all: Vec<(TimingsEntry, u64)>,
+    substage_per_stage: HashMap<Stage, HashSet<Substage>>,
+    times_per_stage: HashMap<Stage, Vec<(TimingsEntry, u64)>>,
 }
 
 // VIBE NOTE: I don't know much about html/css, so GEMINI and KIMI-K2.5 (both via Perplexity) did a lot of work.
@@ -301,10 +303,12 @@ fn into_rows(
     let mut rows = Vec::with_capacity(worker_ids.len());
     let mut start_min = u64::MAX;
     let mut end_max = 0;
-    let mut longest_stage_frames = 0;
-    let mut longest_stage = None;
     let mut total_stages = 0;
     let mut all_modules = HashSet::new();
+    let mut times_all: Vec<(TimingsEntry, u64)> = vec![];
+
+    let mut substage_per_stage: HashMap<Stage, HashSet<Substage>> = HashMap::new();
+    let mut times_per_stage: HashMap<(Stage, Option<Substage>), Vec<u64>> = HashMap::new();
 
     for entries in timings.values() {
         for entry in entries.iter() {
@@ -323,6 +327,28 @@ fn into_rows(
         match timings.get(worker_id) {
             Some(entries) => {
                 for entry in entries.iter() {
+                    times_all.push((entry.clone(), entry.end - entry.start));
+
+                    if let Some(substage) = entry.substage {
+                        match substage_per_stage.entry(entry.stage) {
+                            Entry::Occupied(mut e) => {
+                                e.get_mut().insert(substage);
+                            },
+                            Entry::Vacant(e) => {
+                                e.insert([substage].into_iter().collect());
+                            },
+                        }
+                    }
+
+                    match times_per_stage.entry((entry.stage, entry.substage)) {
+                        Entry::Occupied(mut e) => {
+                            e.get_mut().push((entry.clone(), entry.end - entry.start));
+                        },
+                        Entry::Vacant(e) => {
+                            e.insert(vec![(entry.clone(), entry.end - entry.start)]);
+                        },
+                    }
+
                     if let Some(stages) = &stages && !stages.contains(&entry.stage) {
                         continue;
                     }
@@ -345,11 +371,6 @@ fn into_rows(
                     if let Some(module) = &entry.module {
                         all_modules.insert(module.to_string());
                     }
-
-                    if frame_end - frame_start > longest_stage_frames {
-                        longest_stage_frames = frame_end - frame_start;
-                        longest_stage = Some(entry.clone());
-                    }
                 }
             },
             None => {
@@ -365,10 +386,11 @@ fn into_rows(
         Stats {
             start: start_min,
             end: end_max,
-            longest_stage_frames,
-            longest_stage,
             total_stages,
             total_modules: all_modules.len(),
+            times_all,
+            substage_per_stage,
+            times_per_stage,
         },
     )
 }
