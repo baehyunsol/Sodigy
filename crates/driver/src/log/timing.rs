@@ -1,7 +1,8 @@
-use crate::{CompileStage, Error, Worker, WorkerId};
+use crate::{Error, Worker, WorkerId};
 use sodigy_fs_api::{WriteMode, join, write_string};
+use sodigy_stages::Stage;
+use sodigy_timings::TimingsEntry;
 use std::collections::{HashMap, HashSet};
-use std::time::Instant;
 
 mod graph;
 
@@ -112,7 +113,7 @@ fn dump_timings_html(
     }
 
     let mut curr_stage = vec![None; worker_ids.len()];
-    let mut frames_per_stage: HashMap<CompileStage, usize> = HashMap::new();
+    let mut frames_per_stage: HashMap<Stage, usize> = HashMap::new();
     let mut total_frames = 0;
 
     for frame in 0..FRAME_COUNT {
@@ -196,9 +197,9 @@ fn dump_timings_html(
     let mut radio_buttons = vec![];
 
     for (stages, id) in [
-        (vec![CompileStage::Load, CompileStage::Lex, CompileStage::Parse, CompileStage::Hir], "hir"),
-        (vec![CompileStage::PostHir, CompileStage::Mir], "mir"),
-        (vec![CompileStage::PostMir, CompileStage::MirOptimize, CompileStage::Bytecode, CompileStage::BytecodeOptimize], "bytecode"),
+        (vec![Stage::Load, Stage::Lex, Stage::Parse, Stage::Hir], "hir"),
+        (vec![Stage::PostHir, Stage::Mir], "mir"),
+        (vec![Stage::PostMir, Stage::MirOptimize, Stage::Bytecode, Stage::BytecodeOptimize], "bytecode"),
     ] {
         let (rows, stats) = into_rows(Some(stages), worker_ids, timings);
 
@@ -297,7 +298,7 @@ If you don't see lex, parse and hir stages, it's likely because incremental comp
 }
 
 fn into_rows(
-    stages: Option<Vec<CompileStage>>,
+    stages: Option<Vec<Stage>>,
     worker_ids: &[WorkerId],
     timings: &HashMap<WorkerId, Vec<TimingsEntry>>,
 ) -> (Vec<Row>, Stats) {

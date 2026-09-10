@@ -22,7 +22,8 @@ use sodigy_fs_api::{
 };
 pub use sodigy_optimize::OptimizeLevel;
 use sodigy_span::{Color, Span};
-use sodigy_stages::{CompileStage, StageExtra};
+use sodigy_stages::{STAGES, Stage};
+use sodigy_timings::TimingsEntry;
 use std::collections::HashMap;
 use std::sync::mpsc;
 use std::time::Instant;
@@ -44,11 +45,9 @@ pub use error::Error;
 pub use ir_store::{EmitIrOption, StoreIrAt};
 
 use cli::parse_args;
-use compile_stage::COMPILE_STAGES;
 use global_context::GlobalContext;
 use ir_store::{emit_irs_if_has_to, get_cached_ir};
 use log::{
-    TimingsEntry,
     dump_inter_hir_log,
     dump_inter_mir_log,
     dump_post_mir_log,
@@ -70,7 +69,7 @@ pub struct ModuleCompileState {
     pub module_path: ModulePath,
     pub file_path: FileOrStd,
     pub span: Span,
-    pub compile_stage: CompileStage,
+    pub compile_stage: Stage,
     pub running: bool,
 }
 
@@ -370,16 +369,16 @@ fn compile(
     let mut modules: HashMap<ModulePath, ModuleCompileState> = HashMap::new();
     let emit_irs = if emit_irs {
         [
-            CompileStage::Lex,
-            CompileStage::Parse,
-            CompileStage::Hir,
-            CompileStage::InterHir,
-            CompileStage::Mir,
-            CompileStage::InterMir,
-            CompileStage::PostMir,
-            CompileStage::MirOptimize,
-            CompileStage::Bytecode,
-            CompileStage::BytecodeOptimize,
+            Stage::Lex,
+            Stage::Parse,
+            Stage::Hir,
+            Stage::InterHir,
+            Stage::Mir,
+            Stage::InterMir,
+            Stage::PostMir,
+            Stage::MirOptimize,
+            Stage::Bytecode,
+            Stage::BytecodeOptimize,
         ].into_iter().map(
             |stage| EmitIrOption {
                 stage,
@@ -407,7 +406,7 @@ fn compile(
         module_path: lib_module_path,
         file_path: lib_file_path,
         span: Span::Lib,
-        compile_stage: CompileStage::Load,
+        compile_stage: Stage::Load,
         running: false,
     });
     init_ir_dir(&ir_dir, incremental_compilation)?;
@@ -419,7 +418,7 @@ fn compile(
             module_path: std_module_path,
             file_path: std_file_path,
             span: Span::Std,
-            compile_stage: CompileStage::Load,
+            compile_stage: Stage::Load,
             running: false,
         },
     );
@@ -440,7 +439,7 @@ fn compile(
         let mut every_bytecode_complete = true;
 
         for module in modules.values_mut() {
-            if let (CompileStage::Load, false) = (module.compile_stage, module.running) {
+            if let (Stage::Load, false) = (module.compile_stage, module.running) {
                 // An edge case:
                 //    1. `PerFileIr { module: lib, stop_after: Hir }` found modules, and sent `AddModule` to master.
                 //    2. The master already collected `AddModule`, so it reached this branch.
@@ -456,13 +455,13 @@ fn compile(
                         find_modules: true,
                         emit_ir_options: emit_irs.clone_and_push(
                             EmitIrOption {
-                                stage: CompileStage::Hir,
+                                stage: Stage::Hir,
                                 store: StoreIrAt::IntermediateDir,
                                 human_readable: false,
                             },
                         ),
                         dump_post_mir_log: dump_post_mir_log_flag,
-                        stop_after: CompileStage::Hir,
+                        stop_after: Stage::Hir,
                         validate_token_spans,
                     },
                 )) {
@@ -473,19 +472,19 @@ fn compile(
                 }
 
                 round_robin += 1;
-                module.compile_stage = CompileStage::Hir;
+                module.compile_stage = Stage::Hir;
                 module.running = true;
             }
 
-            if (module.compile_stage, module.running) != (CompileStage::Hir, false) {
+            if (module.compile_stage, module.running) != (Stage::Hir, false) {
                 every_hir_complete = false;
             }
 
-            if (module.compile_stage, module.running) != (CompileStage::Mir, false) {
+            if (module.compile_stage, module.running) != (Stage::Mir, false) {
                 every_mir_complete = false;
             }
 
-            if (module.compile_stage, module.running) != (CompileStage::BytecodeOptimize, false) {
+            if (module.compile_stage, module.running) != (Stage::BytecodeOptimize, false) {
                 every_bytecode_complete = false;
             }
         }
@@ -499,7 +498,7 @@ fn compile(
                     intermediate_dir: ir_dir.clone(),
                     emit_ir_options: emit_irs.clone_and_push(
                         EmitIrOption {
-                            stage: CompileStage::InterHir,
+                            stage: Stage::InterHir,
                             store: StoreIrAt::IntermediateDir,
                             human_readable: false,
                         },
@@ -509,7 +508,7 @@ fn compile(
             round_robin += 1;
 
             for module in modules.values_mut() {
-                module.compile_stage = CompileStage::InterHir;
+                module.compile_stage = Stage::InterHir;
                 module.running = true;
             }
         }
@@ -523,7 +522,7 @@ fn compile(
                     intermediate_dir: ir_dir.clone(),
                     emit_ir_options: emit_irs.clone_and_push(
                         EmitIrOption {
-                            stage: CompileStage::InterMir,
+                            stage: Stage::InterMir,
                             store: StoreIrAt::IntermediateDir,
                             human_readable: false,
                         },
@@ -534,7 +533,7 @@ fn compile(
             round_robin += 1;
 
             for module in modules.values_mut() {
-                module.compile_stage = CompileStage::InterMir;
+                module.compile_stage = Stage::InterMir;
                 module.running = true;
             }
         }
@@ -563,7 +562,7 @@ fn compile(
             round_robin += 1;
 
             for module in modules.values_mut() {
-                module.compile_stage = CompileStage::CodeGen;
+                module.compile_stage = Stage::CodeGen;
                 module.running = true;
             }
         }
@@ -595,7 +594,7 @@ fn compile(
                                     module_path: path,
                                     file_path,
                                     span,
-                                    compile_stage: CompileStage::Load,
+                                    compile_stage: Stage::Load,
                                     running: false,
                                 },
                             );
@@ -614,7 +613,7 @@ fn compile(
 
                         if !errors.is_empty() || has_forbidden_warning(warnings, custom_error_levels) {
                             // There's only 1 worker, so graceful shutdown doesn't make sense!
-                            if compile_stage == CompileStage::InterHir || compile_stage == CompileStage::InterMir {
+                            if compile_stage == Stage::InterHir || compile_stage == Stage::InterMir {
                                 return Err(Error::CompileError);
                             }
 
@@ -626,7 +625,7 @@ fn compile(
                         }
 
                         match (compile_stage, module_path) {
-                            (CompileStage::InterHir, None) => {
+                            (Stage::InterHir, None) => {
                                 for worker in workers.iter() {
                                     worker.send(MessageToWorker::Run(
                                         Command::LoadInterHirSession { intermediate_dir: ir_dir.clone() },
@@ -634,7 +633,7 @@ fn compile(
                                 }
 
                                 for module in modules.values_mut() {
-                                    module.compile_stage = CompileStage::InterHir;
+                                    module.compile_stage = Stage::InterHir;
                                     module.running = false;
 
                                     workers[round_robin % workers.len()].send(MessageToWorker::Run(
@@ -646,20 +645,20 @@ fn compile(
                                             find_modules: false,
                                             emit_ir_options: emit_irs.clone_and_push(
                                                 EmitIrOption {
-                                                    stage: CompileStage::Mir,
+                                                    stage: Stage::Mir,
                                                     store: StoreIrAt::IntermediateDir,
                                                     human_readable: false,
                                                 },
                                             ),
                                             dump_post_mir_log: dump_post_mir_log_flag,
-                                            stop_after: CompileStage::Mir,
+                                            stop_after: Stage::Mir,
                                             validate_token_spans,
                                         },
                                     ))?;
                                     round_robin += 1;
                                 }
                             },
-                            (CompileStage::InterMir, None) => {
+                            (Stage::InterMir, None) => {
                                 for worker in workers.iter() {
                                     worker.send(MessageToWorker::Run(
                                         Command::LoadMirGlobalContext { intermediate_dir: ir_dir.clone() },
@@ -667,7 +666,7 @@ fn compile(
                                 }
 
                                 for module in modules.values_mut() {
-                                    module.compile_stage = CompileStage::InterMir;
+                                    module.compile_stage = Stage::InterMir;
                                     module.running = false;
 
                                     workers[round_robin % workers.len()].send(MessageToWorker::Run(
@@ -679,13 +678,13 @@ fn compile(
                                             find_modules: false,
                                             emit_ir_options: emit_irs.clone_and_push(
                                                 EmitIrOption {
-                                                    stage: CompileStage::BytecodeOptimize,
+                                                    stage: Stage::BytecodeOptimize,
                                                     store: StoreIrAt::IntermediateDir,
                                                     human_readable: false,
                                                 },
                                             ),
                                             dump_post_mir_log: dump_post_mir_log_flag,
-                                            stop_after: CompileStage::BytecodeOptimize,
+                                            stop_after: Stage::BytecodeOptimize,
                                             validate_token_spans,
                                         },
                                     ))?;
@@ -693,7 +692,7 @@ fn compile(
                                 }
                             },
                             // Everything is complete!
-                            (CompileStage::CodeGen, None) => {
+                            (Stage::CodeGen, None) => {
                                 return Ok(());
                             },
                             (_, Some(module_path)) => {
@@ -742,9 +741,9 @@ fn interpret(exe: StoreIrAt, profile: Profile, intermediate_dir: &str) -> Result
         StoreIrAt::File(f) => read_bytes(&f)?,
         StoreIrAt::IntermediateDir => get_cached_ir(
             intermediate_dir,
-            CompileStage::CodeGen,
+            Stage::CodeGen,
             None,
-        )?.ok_or(Error::IrCacheNotFound(CompileStage::CodeGen))?,
+        )?.ok_or(Error::IrCacheNotFound(Stage::CodeGen))?,
     };
 
     // `emit_irs_if_has_to` will encode `Vec<u8>` twice...
@@ -821,14 +820,14 @@ fn init_ir_dir(
         create_dir_all(&ir_dir)?;
     }
 
-    for stage in COMPILE_STAGES {
+    for stage in STAGES {
         let dir_path = &join(&ir_dir, &format!("{stage:?}").to_lowercase())?;
 
         // We have to reuse irs from previous compilations -> incremental compilation.
         // But we should not use Mirs from previous ones, because mirs are generated
         // after inter-hir.
         // TODO: We have to reuse everything if nothing's changed.
-        if stage > CompileStage::Hir || !incremental_compilation {
+        if stage > Stage::Hir || !incremental_compilation {
             if exists(dir_path) {
                 remove_dir_all(dir_path)?;
             }

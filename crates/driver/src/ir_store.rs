@@ -1,4 +1,4 @@
-use crate::{CompileStage, Error};
+use crate::Error;
 use sodigy_endec::{DumpSession, Endec};
 use sodigy_fs_api::{
     FileError,
@@ -10,6 +10,7 @@ use sodigy_fs_api::{
     read_bytes,
     write_bytes,
 };
+use sodigy_stages::Stage;
 
 /// The compiler stores irs (or result) in various places.
 /// 1. It can store the output to user-given path.
@@ -23,7 +24,7 @@ pub enum StoreIrAt {
 
 #[derive(Clone, Debug)]
 pub struct EmitIrOption {
-    pub stage: CompileStage,
+    pub stage: Stage,
     pub store: StoreIrAt,
     pub human_readable: bool,
 }
@@ -31,7 +32,7 @@ pub struct EmitIrOption {
 pub fn emit_irs_if_has_to<T: Endec + DumpSession>(
     session: &T,
     emit_ir_options: &[EmitIrOption],
-    finished_stage: CompileStage,
+    finished_stage: Stage,
     content_hash: Option<u128>,
     intermediate_dir: &str,
 ) -> Result<(), Error> {
@@ -106,7 +107,7 @@ pub fn emit_irs_if_has_to<T: Endec + DumpSession>(
 
 pub fn get_cached_ir(
     intermediate_dir: &str,
-    stage: CompileStage,
+    stage: Stage,
     content_hash: Option<u128>,
 ) -> Result<Option<Vec<u8>>, FileError> {
     let path = join4(

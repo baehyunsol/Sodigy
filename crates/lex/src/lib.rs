@@ -5,7 +5,7 @@ use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_file::File;
 use sodigy_number::{Base, InternedNumber, intern_number_raw};
 use sodigy_span::{RenderableSpan, Span};
-use sodigy_stages::{CompileStage, StageExtra};
+use sodigy_stages::{Stage, Substage};
 use sodigy_string::{InternedString, intern_string};
 use sodigy_timings::TimingsSession;
 use sodigy_token::{
@@ -98,7 +98,7 @@ pub fn lex(
         warnings: vec![],
     };
 
-    timings_session.stage_start(CompileStage::Lex, Some(StageExtra::Lex));
+    timings_session.stage_start(Stage::Lex, Some(Substage::Lex));
 
     loop {
         match session.step() {
@@ -114,13 +114,13 @@ pub fn lex(
     timings_session.stage_end(!session.errors.is_empty());
 
     if session.errors.is_empty() {
-        timings_session.stage_start(CompileStage::Lex, Some(StageExtra::GroupTokens));
+        timings_session.stage_start(Stage::Lex, Some(Substage::GroupTokens));
         session.group_tokens();
         timings_session.stage_end(!session.errors.is_empty());
     }
 
     if validate_spans {
-        timings_session.stage_start(CompileStage::Lex, Some(StageExtra::ValidateSpans));
+        timings_session.stage_start(Stage::Lex, Some(Substage::ValidateSpans));
         session.validate_spans();
         timings_session.stage_end(!session.errors.is_empty());
     }

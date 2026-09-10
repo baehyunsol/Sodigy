@@ -6,7 +6,9 @@ use crate::mono::GenericCall;
 use sodigy_error::{Error, FuncEffect, Warning};
 use sodigy_mir::{EnumVariantFields, Expr, Session as MirSession, Type, get_monomorphization_id_owned};
 use sodigy_span::Span;
+use sodigy_stages::{Stage, Substage};
 use sodigy_string::InternedString;
+use sodigy_timings::TimingsSession;
 use std::collections::{HashMap, HashSet};
 
 mod endec;
@@ -31,11 +33,14 @@ pub use session::Session;
 #[cfg(test)]
 pub(crate) use poly::RenderStateMachine;
 
-// There are 2 sessions and it's a mess.
+// There are 3 sessions and it's a mess.
 // 1. The function reads/updates `.funcs`, `.lets` and `.asserts` of `mir_session`.
 // 2. The function reads `.type_assertions` of `mir_session`.
 // 3. The function doesn't read/update any other field of `mir_session`.
-pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
+pub fn solve_type(
+    mir_session: &mut MirSession<'_, '_>,
+    timings_session: &mut TimingsSession,
+) -> Session {
     let mut has_error = false;
     let mut session = Session::from_mir_session(mir_session);
     let mut poly_solver = HashMap::new();
@@ -45,6 +50,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
     // Their type information is collected by `Struct::from_hir` and `Enum::from_hir`.
 
     for i in 0..32 {
+        timings_session.stage_start(Stage::InterMir, Some(Substage::TypeSolveLoop(i)));
         write_log!(session, LogEntry::TypeSolveLoopStart(i));
 
         if i == 31 {
@@ -55,6 +61,8 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
             // If there's an infinite loop in the user code (not in the sodigy compiler),
             // that must be caught eariler.
             session.errors.push(Error::ice(132301, Span::None));
+            write_log!(session, LogEntry::TypeSolveLoopEnd(i));
+            timings_session.stage_end(true);
             break;
         }
 
@@ -109,6 +117,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
         // -> an erroneous monomorphization might generate very unreadable error messages
         if has_error {
             write_log!(session, LogEntry::TypeSolveLoopEnd(i));
+            timings_session.stage_end(true);
             break;
         }
 
@@ -120,6 +129,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                 Err(()) => {
                     has_error = true;
                     write_log!(session, LogEntry::TypeSolveLoopEnd(i));
+                    timings_session.stage_end(true);
                     break;
                 },
             };
@@ -294,12 +304,14 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                     }
 
                     write_log!(session, LogEntry::TypeSolveLoopEnd(i));
+                    timings_session.stage_end(has_error);
                     continue;
                 }
             },
             Err(()) => {
                 has_error = true;
                 write_log!(session, LogEntry::TypeSolveLoopEnd(i));
+                timings_session.stage_end(true);
                 break;
             },
         }
@@ -312,6 +324,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
             if session.blocked_type_vars.len() < prev_blocked_type_var_count {
                 prev_blocked_type_var_count = session.blocked_type_vars.len();
                 write_log!(session, LogEntry::TypeSolveLoopEnd(i));
+                timings_session.stage_end(has_error);
                 continue;
             }
 
@@ -331,6 +344,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
         }
 
         write_log!(session, LogEntry::TypeSolveLoopEnd(i));
+        timings_session.stage_end(has_error);
         break;
     }
 
@@ -347,17 +361,18 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
         session.apply_never_types();
 
         if let Err(()) = session.check_all_types_infered() {
-            // has_error = true;
+            has_error = true;
         }
 
         // If the solver has failed to infer some types, it's dangerous to check type assertions.
         // Checking type assertions may solve type variables, which may introduce false-positives.
         else if let Err(()) = session.check_type_assertions(&mir_session.type_assertions) {
-            // has_error = true;
+            has_error = true;
         }
     }
 
     // FIXME: It's too expensive...
+    timings_session.stage_start(Stage::InterMir, Some(Substage::InitSpanStringMap));
     session.init_span_string_map(
         &mir_session.lets,
         &mir_session.funcs,
@@ -366,6 +381,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
         &mir_session.asserts,
         &mir_session.aliases,
     );
+    timings_session.stage_end(false);
 
     #[cfg(feature = "log")]
     session.render_poly_solver_state_machines();

@@ -1,5 +1,7 @@
 use sodigy_lex::Session as LexSession;
 use sodigy_span::Span;
+use sodigy_stages::{Stage, Substage};
+use sodigy_timings::TimingsSession;
 
 mod alias;
 mod assert;
@@ -63,10 +65,17 @@ pub fn parse(
 
     // Span of the entire file.
     file_span: Span,
+
+    timings_session: &mut TimingsSession,
 ) -> Session {
+    timings_session.stage_start(Stage::Parse, Some(Substage::ParseSessionFromLexSession));
     let mut session = Session::from_lex_session(&lex_session);
+    timings_session.stage_end(false);
+
     let last_span = lex_session.tokens.last().map(|t| t.span.end()).unwrap_or(Span::None);
     let mut tokens = Tokens::new(&lex_session.tokens, last_span, true, &lex_session.intermediate_dir);
+
+    timings_session.stage_start(Stage::Parse, Some(Substage::Parse));
     let ast = match tokens.parse_block(
         true, // top-level
         file_span,
@@ -74,14 +83,18 @@ pub fn parse(
         Ok(ast) => ast,
         Err(errors) => {
             session.errors = errors;
+            timings_session.stage_end(true);
             return session;
         },
     };
+    timings_session.stage_end(false);
+    timings_session.stage_start(Stage::Parse, Some(Substage::CheckParse));
 
     if let Err(errors) = ast.check(true /* is_top_level */, &session.intermediate_dir) {
         session.errors = errors;
     }
 
+    timings_session.stage_end(!session.errors.is_empty());
     session.ast = ast;
     session
 }

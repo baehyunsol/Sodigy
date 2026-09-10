@@ -3,9 +3,12 @@ use sodigy_error::{Error, ErrorKind};
 use sodigy_hir::{Expr, Path};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::RenderableSpan;
+use sodigy_stages::{Stage, Substage};
+use sodigy_timings::TimingsSession;
 
 impl Session {
-    pub fn resolve_poly(&mut self) -> Result<(), ()> {
+    pub fn resolve_poly(&mut self, timings_session: &mut TimingsSession) -> Result<(), ()> {
+        timings_session.stage_start(Stage::InterHir, Some(Substage::ResolvePoly));
         let mut has_error = false;
 
         for (mut path, impl_span) in self.poly_impls.clone().into_iter() {
@@ -80,6 +83,8 @@ impl Session {
                 },
             }
         }
+
+        timings_session.stage_end(has_error);
 
         if has_error {
             Err(())

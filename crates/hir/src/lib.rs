@@ -1,4 +1,6 @@
 use sodigy_parse::Session as ParseSession;
+use sodigy_stages::{Stage, Substage};
+use sodigy_timings::TimingsSession;
 
 // In sodigy_lex and sodigy_parse, the functions return `Result<T, Vec<Error>>`, and errors are handled by `?` operator.
 // That means
@@ -112,14 +114,20 @@ pub use r#use::Use;
 
 pub use sodigy_parse::Generic;
 
-pub fn lower(parse_session: ParseSession) -> Session {
+pub fn lower(parse_session: ParseSession, timings_session: &mut TimingsSession) -> Session {
+    timings_session.stage_start(Stage::Hir, Some(Substage::HirSessionFromParseSession));
     let mut session = Session::from_parse_session(&parse_session);
+    timings_session.stage_end(false);
+
+    timings_session.stage_start(Stage::Hir, Some(Substage::HirFromAst));
     let mut top_level_block = match Block::from_ast(&parse_session.ast, &mut session) {
         Ok(block) => block,
         Err(()) => {
+            timings_session.stage_end(true);
             return session;
         },
     };
+    timings_session.stage_end(false);
 
     for r#let in top_level_block.lets.drain(..) {
         session.lets.push(r#let);
@@ -129,6 +137,8 @@ pub fn lower(parse_session: ParseSession) -> Session {
         session.asserts.push(assert);
     }
 
+    timings_session.stage_start(Stage::Hir, Some(Substage::SubstituteClosures));
     session.substitute_closures();
+    timings_session.stage_end(false);
     session
 }

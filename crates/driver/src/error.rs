@@ -1,6 +1,6 @@
-use crate::CompileStage;
 use sodigy_endec::DecodeError;
 use sodigy_fs_api::FileError;
+use sodigy_stages::Stage;
 
 /// It decides the exit code of the compiler process.
 #[derive(Debug)]
@@ -16,7 +16,7 @@ pub enum Error {
     FileError(FileError),
     DecodeError(DecodeError),
     MpscError,
-    IrCacheNotFound(CompileStage),
+    IrCacheNotFound(Stage),
 
     /// Errors other than the above errors.
     MiscError,

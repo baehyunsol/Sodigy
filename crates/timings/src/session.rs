@@ -1,6 +1,6 @@
 use crate::TimingsEntry;
 use sodigy_fs_api::{WriteMode, write_string};
-use sodigy_stages::{CompileStage, StageExtra};
+use sodigy_stages::{Stage, Substage};
 use std::time::Instant;
 
 pub struct TimingsSession {
@@ -8,9 +8,9 @@ pub struct TimingsSession {
     pub worker_id: usize,
 
     pub born_at: Instant,
-    pub timings_log: Vec<TimingsEntry>,
+    pub log: Vec<TimingsEntry>,
     pub log_file: Option<String>,
-    pub curr_stage: Option<(CompileStage, Option<StageExtra>, Option<String>, u64)>,
+    pub curr_stage: Option<(Stage, Option<Substage>, Option<String>, u64)>,
     pub curr_stage_error: bool,
 
     // The caller will set this before calling `.stage_start()`.
@@ -22,7 +22,7 @@ impl TimingsSession {
         TimingsSession {
             worker_id: 0,
             born_at: Instant::now(),
-            timings_log: vec![],
+            log: vec![],
             log_file: None,
             curr_stage: None,
             curr_stage_error: false,
@@ -30,23 +30,23 @@ impl TimingsSession {
         }
     }
 
-    pub fn stage_start(&mut self, stage: CompileStage, stage_extra: Option<StageExtra>) {
+    pub fn stage_start(&mut self, stage: Stage, substage: Option<Substage>) {
         assert!(self.curr_stage.is_none());
         let timestamp = Instant::now().duration_since(self.born_at).as_micros() as u64;
-        let stage_extra_r = if let Some(e) = &stage_extra { format!(" ({})", e.render()) } else { String::new() };
-        self.write_log(&format!("stage start{stage_extra_r} {:?}", (stage, &self.module)));
-        self.curr_stage = Some((stage, stage_extra, self.module.clone(), timestamp));
+        let substage_r = if let Some(e) = &substage { format!(" ({})", e.render()) } else { String::new() };
+        self.write_log(&format!("stage start{substage_r} {:?}", (stage, &self.module)));
+        self.curr_stage = Some((stage, substage, self.module.clone(), timestamp));
         self.curr_stage_error = false;
     }
 
     pub fn stage_end(&mut self, has_error: bool) {
-        if let Some((stage, stage_extra, module, start)) = self.curr_stage.take() {
+        if let Some((stage, substage, module, start)) = self.curr_stage.take() {
             let timestamp = Instant::now().duration_since(self.born_at).as_micros() as u64;
-            let stage_extra_r = if let Some(e) = &stage_extra { format!(" ({})", e.render()) } else { String::new() };
-            self.write_log(&format!("stage end{stage_extra_r} {:?}{}", (stage, &module), if self.curr_stage_error { " (has_error)" } else { "" }));
-            self.timings_log.push(TimingsEntry {
+            let substage_r = if let Some(e) = &substage { format!(" ({})", e.render()) } else { String::new() };
+            self.write_log(&format!("stage end{substage_r} {:?}{}", (stage, &module), if self.curr_stage_error { " (has_error)" } else { "" }));
+            self.log.push(TimingsEntry {
                 stage,
-                stage_extra,
+                substage,
                 module,
                 start,
                 end: timestamp,

@@ -9,6 +9,8 @@ use sodigy_hir::{
 };
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::{RenderableSpan, Span};
+use sodigy_stages::{Stage, Substage};
+use sodigy_timings::TimingsSession;
 use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "log")]
@@ -18,7 +20,7 @@ use crate::log::LogEntry;
 const ALIAS_RESOLVE_RECURSION_LIMIT: usize = 64;
 
 impl Session {
-    pub fn resolve_alias(&mut self) -> Result<(), ()> {
+    pub fn resolve_alias(&mut self, timings_session: &mut TimingsSession) -> Result<(), ()> {
         let _id = if cfg!(feature = "log") {
             Some(LogId::new())
         } else {
@@ -29,7 +31,7 @@ impl Session {
             id: _id.unwrap(),
         });
 
-        let result = self.resolve_alias_();
+        let result = self.resolve_alias_(timings_session);
 
         write_log!(self, LogEntry::ResolveAliasEnd {
             id: _id.unwrap(),
@@ -52,7 +54,7 @@ impl Session {
     // We have to do this before resolving aliases in expressions and type annotations.
     // We have to do this globally.
     // Also, there can be an infinite loop, so we have to set some kinda recursion limit.
-    fn resolve_alias_(&mut self) -> Result<(), ()> {
+    fn resolve_alias_(&mut self, timings_session: &mut TimingsSession) -> Result<(), ()> {
         let mut nested_name_aliases = HashMap::new();
         let mut nested_type_aliases = HashMap::new();
         let mut name_aliases_to_type_aliases = vec![];
@@ -60,7 +62,9 @@ impl Session {
         let mut has_error = false;
 
         for i in 0..(ALIAS_RESOLVE_RECURSION_LIMIT + 1) {
+            timings_session.stage_start(Stage::InterHir, Some(Substage::ResolveAliasLoop(i)));
             write_log!(self, LogEntry::ResolveAliasLoopStart(i as u32));
+
             let mut emergency_escape = false;
 
             for (name_span, mut alias) in self.type_aliases.clone().into_iter() {
@@ -108,6 +112,7 @@ impl Session {
             }
 
             write_log!(self, LogEntry::ResolveAliasLoopEnd(i as u32));
+            timings_session.stage_end(has_error);
 
             if i == ALIAS_RESOLVE_RECURSION_LIMIT || emergency_escape {
                 suspicious_spans = suspicious_spans.into_iter().collect::<HashSet<_>>().into_iter().collect();

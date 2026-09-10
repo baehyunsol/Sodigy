@@ -16,11 +16,13 @@ use sodigy_hir::{
 };
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_span::{PolySpanKind, Span};
+use sodigy_stages::{Stage, Substage};
 use sodigy_string::{InternedString, intern_string};
+use sodigy_timings::TimingsSession;
 use std::collections::hash_map::{Entry, HashMap};
 
 impl Session {
-    pub fn resolve_associated_items(&mut self) -> Result<(), ()> {
+    pub fn resolve_associated_items(&mut self, timings_session: &mut TimingsSession) -> Result<(), ()> {
         fn get_def_span(associated_item: &AssociatedItem, r#type: &Type) -> Result<Span, Error> {
             match r#type {
                 Type::Path(path) | Type::Param { constructor: path, .. } => {
@@ -56,6 +58,7 @@ impl Session {
             }
         }
 
+        timings_session.stage_start(Stage::InterHir, Some(Substage::ResolveAssociatedItems));
         let mut has_error = false;
         let mut associated_items = self.associated_items.drain(..).collect::<Vec<_>>();
 
@@ -261,6 +264,8 @@ impl Session {
                 },
             }
         }
+
+        timings_session.stage_end(has_error);
 
         if has_error {
             Err(())

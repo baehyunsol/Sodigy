@@ -11,5 +11,7 @@ sodigy-lex = { version = "0.1.0", path = "../lex" }
 sodigy-name-analysis = { version = "0.1.0", path = "../name-analysis" }
 sodigy-prettify = { version = "0.1.0", path = "../prettify" }
 sodigy-span = { version = "0.1.0", path = "../span" }
+sodigy-stages = { version = "0.1.0", path = "../stages" }
 sodigy-string = { version = "0.1.0", path = "../string" }
+sodigy-timings = { version = "0.1.0", path = "../timings" }
 sodigy-token = { version = "0.1.0", path = "../token" }

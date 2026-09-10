@@ -1,5 +1,5 @@
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CompileStage {
+pub enum Stage {
     /// When the compiler encounters a module definition (e.g. `mod foo;`), it checks
     /// whether the corresponding file (e.g. `src/foo.sdg`) exists. If the file is
     /// found, the module enters this stage.
@@ -71,62 +71,104 @@ pub enum CompileStage {
     CodeGen,
 }
 
-pub const COMPILE_STAGES: [CompileStage; 13] = [
-    CompileStage::Load,
-    CompileStage::Lex,
-    CompileStage::Parse,
-    CompileStage::Hir,
-    CompileStage::InterHir,
-    CompileStage::PostHir,
-    CompileStage::Mir,
-    CompileStage::InterMir,
-    CompileStage::PostMir,
-    CompileStage::MirOptimize,
-    CompileStage::Bytecode,
-    CompileStage::BytecodeOptimize,
-    CompileStage::CodeGen,
+pub const STAGES: [Stage; 13] = [
+    Stage::Load,
+    Stage::Lex,
+    Stage::Parse,
+    Stage::Hir,
+    Stage::InterHir,
+    Stage::PostHir,
+    Stage::Mir,
+    Stage::InterMir,
+    Stage::PostMir,
+    Stage::MirOptimize,
+    Stage::Bytecode,
+    Stage::BytecodeOptimize,
+    Stage::CodeGen,
 ];
 
 #[derive(Clone, Copy, Debug)]
-pub enum StageExtra {
+pub enum Substage {
+    // lex
     Lex,
     GroupTokens,
     ValidateSpans,
 
+    // parse
     ParseSessionFromLexSession,
     Parse,
     CheckParse,
+
+    // hir
+    HirSessionFromParseSession,
+    HirFromAst,
+    SubstituteClosures,
+
+    // inter-hir
+    LoadHirModules,
+    ResolveAliasLoop(usize),
+    ResolveAssociatedItems,
+    ResolvePoly,
+    StoreInterHirLog,
+
+    // inter-mir
+    LoadMirModules,
+    TypeSolveLoop(usize),
+    InitSpanStringMap,
+    StoreMonomorphizationInfo,
+    DumpInterMirLog,
+    PropagateMirUpdates,
+
+    // code-gen
+    LoadBytecodeModules,
+    CodeGen,
 }
 
-impl CompileStage {
+impl Stage {
     pub fn is_parallel(&self) -> bool {
         match self {
-            CompileStage::Load => true,
-            CompileStage::Lex => true,
-            CompileStage::Parse => true,
-            CompileStage::Hir => true,
-            CompileStage::InterHir => false,
-            CompileStage::PostHir => true,
-            CompileStage::Mir => true,
-            CompileStage::InterMir => false,
-            CompileStage::PostMir => true,
-            CompileStage::MirOptimize => true,
-            CompileStage::Bytecode => true,
-            CompileStage::BytecodeOptimize => true,
-            CompileStage::CodeGen => false,
+            Stage::Load => true,
+            Stage::Lex => true,
+            Stage::Parse => true,
+            Stage::Hir => true,
+            Stage::InterHir => false,
+            Stage::PostHir => true,
+            Stage::Mir => true,
+            Stage::InterMir => false,
+            Stage::PostMir => true,
+            Stage::MirOptimize => true,
+            Stage::Bytecode => true,
+            Stage::BytecodeOptimize => true,
+            Stage::CodeGen => false,
         }
     }
 }
 
-impl StageExtra {
-    pub fn render(&self) -> &'static str {
+impl Substage {
+    pub fn render(&self) -> String {
         match self {
-            StageExtra::Lex => "lex",
-            StageExtra::GroupTokens => "group_tokens",
-            StageExtra::ValidateSpans => "validate_spans",
-            StageExtra::ParseSessionFromLexSession => "parse_session_from_lex_session",
-            StageExtra::Parse => "parse",
-            StageExtra::CheckParse => "check_parse",
+            Substage::Lex => String::from("lex"),
+            Substage::GroupTokens => String::from("group_tokens"),
+            Substage::ValidateSpans => String::from("validate_spans"),
+            Substage::ParseSessionFromLexSession => String::from("parse_session_from_lex_session"),
+            Substage::Parse => String::from("parse"),
+            Substage::CheckParse => String::from("check_parse"),
+            Substage::HirSessionFromParseSession => String::from("hir_session_from_parse_session"),
+            Substage::HirFromAst => String::from("hir_from_ast"),
+            Substage::SubstituteClosures => String::from("substitute_closures"),
+            Substage::LoadHirModules => String::from("load_hir_modules"),
+            Substage::ResolveAliasLoop(i) => format!("resolve_alias_loop_{i}"),
+            Substage::ResolveAssociatedItems => String::from("resolve_associated_items"),
+            Substage::ResolvePoly => String::from("resolve_poly"),
+            Substage::StoreInterHirLog => String::from("store_inter_hir_log"),
+            Substage::LoadMirModules => String::from("load_mir_modules"),
+            Substage::TypeSolveLoop(i) => format!("type_solve_loop_{i}"),
+            Substage::InitSpanStringMap => String::from("init_span_string_map"),
+            Substage::StoreMonomorphizationInfo => String::from("store_monomorphization_info"),
+            Substage::DumpInterMirLog => String::from("dump_inter_mir_log"),
+            Substage::PropagateMirUpdates => String::from("propagate_mir_updates"),
+            Substage::LoadBytecodeModules => String::from("load_bytecode_modules"),
+            Substage::CodeGen => String::from("code_gen"),
         }
     }
 }

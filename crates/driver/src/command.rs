@@ -1,12 +1,9 @@
-use crate::{
-    CompileStage,
-    EmitIrOption,
-    StoreIrAt,
-};
+use crate::{EmitIrOption, StoreIrAt};
 use sodigy_code_gen::{Emit, Profile};
 use sodigy_file::{FileOrStd, ModulePath};
 use sodigy_optimize::OptimizeLevel;
 use sodigy_span::Span;
+use sodigy_stages::Stage;
 use std::collections::HashMap;
 
 // Read `crates/driver/src/compile_stage.rs` for more information.
@@ -28,7 +25,7 @@ pub enum Command {
 
         emit_ir_options: Vec<EmitIrOption>,
         dump_post_mir_log: bool,
-        stop_after: CompileStage,
+        stop_after: Stage,
         validate_token_spans: ValidateTokenSpans,
     },
     // Collects HIRs and runs InterHir stage.

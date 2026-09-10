@@ -26,7 +26,7 @@ mod timing;
 pub use inter_hir::{dump_inter_hir_log, store_inter_hir_log};
 pub use inter_mir::dump_inter_mir_log;
 pub use post_mir::dump_post_mir_log;
-pub use timing::{TimingsEntry, dump_timings};
+pub use timing::dump_timings;
 
 const STYLE: &str = include_str!("log/style.css");
 

@@ -1,9 +1,9 @@
-use sodigy_stages::{CompileStage, StageExtra};
+use sodigy_stages::{Stage, Substage};
 
 #[derive(Clone, Debug)]
 pub struct TimingsEntry {
-    pub stage: CompileStage,
-    pub stage_extra: Option<StageExtra>,
+    pub stage: Stage,
+    pub substage: Option<Substage>,
     pub module: Option<String>,
     pub has_error: bool,
 
