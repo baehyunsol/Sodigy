@@ -1,0 +1,5 @@
+//% compile-error == 1
+
+fn foo<T>(x: T) -> T = x;
+
+let x = foo;
