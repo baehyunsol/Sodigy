@@ -495,6 +495,7 @@ impl Worker {
                 intermediate_dir,
                 emit_ir_options,
             } => {
+                self.timings.module = None;
                 self.timings.stage_start(Stage::InterHir, Some(Substage::LoadHirModules));
                 let mut inter_hir_session = sodigy_inter_hir::Session::new(&intermediate_dir);
 
@@ -563,6 +564,7 @@ impl Worker {
                 emit_ir_options,
                 verify_built_ins,
             } => {
+                self.timings.module = None;
                 self.timings.stage_start(Stage::InterMir, Some(Substage::LoadMirModules));
                 let mut merged_mir_session: Option<mir::Session> = None;
 
@@ -690,6 +692,7 @@ impl Worker {
                 profile,
                 output_path,
             } => {
+                self.timings.module = None;
                 self.timings.stage_start(Stage::CodeGen, Some(Substage::LoadBytecodeModules));
                 let mut object_files = Vec::with_capacity(modules.len());
                 let mut errors = vec![];

@@ -46,6 +46,7 @@ fn dump_timings_json(worker_ids: &[WorkerId], timings: &HashMap<WorkerId, Vec<Ti
         for (j, entry) in entries.iter().enumerate() {
             lines.push(format!("            {{"));
             lines.push(format!("                \"stage\": {:?},", format!("{:?}", entry.stage)));
+            lines.push(format!("                \"substage\": {:?},", if let Some(substage) = entry.substage { format!("{:?}", substage.render()) } else { String::from("null") }));
             lines.push(format!("                \"module\": {},", if let Some(module) = &entry.module { format!("{module:?}") } else { String::from("null") }));
             lines.push(format!("                \"has_error\": {},", entry.has_error));
             lines.push(format!("                \"start\": {},", entry.start));
@@ -165,18 +166,13 @@ fn dump_timings_html(
     );
 
     let legend = {
-        let mut elements = vec![];
-        let mut compile_stages = frames_per_stage.keys().collect::<Vec<_>>();
-        compile_stages.sort();
-
-        for compile_stage in compile_stages.iter() {
-            let frames = *frames_per_stage.get(compile_stage).unwrap();
-            let percentage = (frames * 100_000 / total_frames) as f64 / 1000.0;
-            elements.push(format!(r#"<li><span class="legend {compile_stage:?}">{compile_stage:?}</span>: {percentage:.2}%</li>"#));
-        }
-
-        let elements = elements.concat();
-        format!("<ul>{elements}</ul>")
+        // I want a per-stage stats. If a stage has substages, it has to be per-substage stats.
+        // 1. top 5 longest modules
+        // 2. average elapsed time
+        // 3. average of top 5 longest modules
+        //
+        // Other than the per-stage stats, I want the top 5 longest work.
+        todo!();
     };
 
     let style = include_str!("timing/style.css");
