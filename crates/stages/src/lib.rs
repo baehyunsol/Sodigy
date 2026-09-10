@@ -106,14 +106,14 @@ pub enum Substage {
 
     // inter-hir
     LoadHirModules,
-    ResolveAliasLoop(usize),
+    ResolveAliasLoop(u32),
     ResolveAssociatedItems,
     ResolvePoly,
     StoreInterHirLog,
 
     // inter-mir
     LoadMirModules,
-    TypeSolveLoop(usize),
+    TypeSolveLoop(u32),
     InitSpanStringMap,
     StoreMonomorphizationInfo,
     DumpInterMirLog,

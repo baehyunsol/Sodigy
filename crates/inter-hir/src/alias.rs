@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 use crate::log::LogEntry;
 
 // TODO: make it configurable
-const ALIAS_RESOLVE_RECURSION_LIMIT: usize = 64;
+const ALIAS_RESOLVE_RECURSION_LIMIT: u32 = 64;
 
 impl Session {
     pub fn resolve_alias(&mut self, timings_session: &mut TimingsSession) -> Result<(), ()> {
