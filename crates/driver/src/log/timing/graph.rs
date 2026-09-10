@@ -10,7 +10,7 @@ pub fn render_graph(id: &str, rows: &[Row], start: u64, end: u64, canvas_size: u
 
         for i in 1..label_count {
             let label = i as u64 * (end - start) / label_count as u64 + start;
-            let label = render_micro_seconds(label);
+            let label = render_micro_seconds(label, label + 1 /* we don't color this */);
             let left = i * canvas_size / label_count;
             labels.push(format!(r#"<span class="x-label" style="left: {}px;">{label}</span>"#, left - 30));
             labels.push(format!(r#"<span class="x-label-marker" style="left: {left}px;"></span>"#));

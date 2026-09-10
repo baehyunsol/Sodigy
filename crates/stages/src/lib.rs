@@ -87,7 +87,7 @@ pub const STAGES: [Stage; 13] = [
     Stage::CodeGen,
 ];
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Substage {
     // lex
     Lex,

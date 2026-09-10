@@ -1,6 +1,6 @@
 use crate::{Error, Worker, WorkerId};
 use sodigy_fs_api::{WriteMode, join, write_string};
-use sodigy_stages::{Stage, Substage};
+use sodigy_stages::{Stage, STAGES, Substage};
 use sodigy_timings::TimingsEntry;
 use std::collections::hash_map::{Entry, HashMap};
 use std::collections::hash_set::HashSet;
@@ -94,11 +94,12 @@ const FRAME_COUNT: usize = 4096;
 struct Stats {
     start: u64,
     end: u64,
+    too_long: u64,
     total_stages: usize,
     total_modules: usize,
     times_all: Vec<(TimingsEntry, u64)>,
     substage_per_stage: HashMap<Stage, HashSet<Substage>>,
-    times_per_stage: HashMap<Stage, Vec<(TimingsEntry, u64)>>,
+    times_per_stage: HashMap<(Stage, Option<Substage>), Vec<(TimingsEntry, u64)>>,
 }
 
 // VIBE NOTE: I don't know much about html/css, so GEMINI and KIMI-K2.5 (both via Perplexity) did a lot of work.
@@ -140,16 +141,35 @@ fn dump_timings_html(
         }
     }
 
-    let longest_stage_str = if let Some(longest_stage) = &stats.longest_stage {
-        format!(
-            r#"<li>longest stage: <span class="legend {:?}">{:?}</span>{}, took {}</li>"#,
-            longest_stage.stage,
-            longest_stage.stage,
-            if let Some(module) = &longest_stage.module { format!(" ({module})") } else { String::new() },
-            render_micro_seconds(stats.longest_stage_frames as u64 * (stats.end - stats.start) / FRAME_COUNT as u64),
-        )
-    } else {
+    let longest_stages = if stats.times_all.is_empty() {
         String::new()
+    } else {
+        let longest_stages = if stats.times_all.len() > 5 {
+            stats.times_all[..5].to_vec()
+        } else {
+            stats.times_all.to_vec()
+        };
+        let longest_stages: Vec<String> = longest_stages.iter().map(
+            |(t, s)| format!(
+                r#"<li><span class="legend {:?}">{:?}</span>: {}{}{}</li>"#,
+                t.stage,
+                t.stage,
+                if let Some(substage) = t.substage {
+                    format!("{}, ", substage.render())
+                } else {
+                    String::new()
+                },
+                render_micro_seconds(*s, u64::MAX /* we don't color this */),
+                if let Some(module) = &t.module {
+                    format!(" ({module})")
+                } else {
+                    String::new()
+                },
+            )
+        ).collect();
+        let longest_stages = longest_stages.concat();
+
+        format!("<li>longest stages<ul>{longest_stages}</ul></li>")
     };
 
     let stats_str = format!(r#"
@@ -158,23 +178,100 @@ fn dump_timings_html(
     <li>total workers: {}</li>
     <li>total modules: {}</li>
     <li>total stages: {}</li>
-    {longest_stage_str}
+    {longest_stages}
 </ul>
 "#,
-        render_micro_seconds(stats.end - stats.start),
+        render_micro_seconds(stats.end - stats.start, u64::MAX  /* we don't color this */),
         worker_ids.len(),
         stats.total_modules,
         stats.total_stages,
     );
 
-    let legend = {
+    let per_stage_stats = {
         // I want a per-stage stats. If a stage has substages, it has to be per-substage stats.
         // 1. top 5 longest modules
         // 2. average elapsed time
         // 3. average of top 5 longest modules
         //
         // Other than the per-stage stats, I want the top 5 longest work.
-        todo!();
+        let mut buffer = vec![];
+
+        for stage in STAGES.iter() {
+            let mut substages: Vec<Substage> = stats.substage_per_stage.get(stage).unwrap_or(&HashSet::new()).iter().map(|s| *s).collect();
+            let mut modules = 0;
+            let mut longest_stages: Vec<String> = vec![];
+            let mut stage_stats = String::new();
+            substages.sort();
+
+            if substages.is_empty() {
+                let times: Vec<(TimingsEntry, u64)> = stats.times_per_stage.get(&(*stage, None)).unwrap_or(&vec![]).to_vec();
+                modules += times.len();
+
+                for (e, t) in times.iter().take(5) {
+                    longest_stages.push(format!(
+                        "<li>{}: {}</li>",
+                        if let Some(module) = &e.module { module } else { "_" },
+                        render_micro_seconds(*t, stats.too_long),
+                    ));
+                }
+
+                if !times.is_empty() {
+                    stage_stats = format!(
+                        " (avg: {}, min: {}, max: {})",
+                        render_micro_seconds((times.iter().map(|(_, t)| *t).sum::<u64>() as f64 / times.len() as f64) as u64, stats.too_long),
+                        render_micro_seconds(times.last().unwrap().1, stats.too_long),
+                        render_micro_seconds(times.first().unwrap().1, stats.too_long),
+                    );
+                }
+            } else {
+                for substage in substages.iter() {
+                    let times: Vec<(TimingsEntry, u64)> = stats.times_per_stage.get(&(*stage, Some(*substage))).unwrap_or(&vec![]).to_vec();
+                    modules += times.len();
+
+                    if !times.is_empty() {
+                        let substage_stats = format!(
+                            " (avg: {}, min: {}, max: {})",
+                            render_micro_seconds((times.iter().map(|(_, t)| *t).sum::<u64>() as f64 / times.len() as f64) as u64, stats.too_long),
+                            render_micro_seconds(times.last().unwrap().1, stats.too_long),
+                            render_micro_seconds(times.first().unwrap().1, stats.too_long),
+                        );
+
+                        longest_stages.push(format!("<li>{}{substage_stats}<ul>", substage.render()));
+
+                        for (e, t) in times.iter().take(5) {
+                            longest_stages.push(format!(
+                                "<li>{}: {}</li>",
+                                if let Some(module) = &e.module { module } else { "_" },
+                                render_micro_seconds(*t, stats.too_long),
+                            ));
+                        }
+
+                        longest_stages.push(String::from("</ul></li>"));
+                    }
+                }
+            }
+
+            if modules == 0 {
+                continue;
+            }
+
+            buffer.push(format!(
+                r#"
+<li>
+    <span class="legend {stage:?}">{stage:?}</span>
+    <ul>
+        <li>modules * substages: {modules}</li>
+        <li>substages: {}</li>
+        <li>longest stages{stage_stats}<ul>{}</ul></li>
+    </ul>
+</li>
+                "#,
+                substages.len(),
+                longest_stages.concat(),
+            ));
+        }
+
+        format!("<ul>{}</ul>", buffer.concat())
     };
 
     let style = include_str!("timing/style.css");
@@ -277,14 +374,12 @@ updateGraph();
 <h2>Stats</h2>
 <div id="stats">{stats_str}</div>
 <h2>Stages</h2>
-<div id="legend">{legend}</div>
+<div id="per-stage-stats">{per_stage_stats}</div>
+
 <p>
-It doesn't measure the elapsed time of each stage because it's too difficult to do so.
-There are multiple modules, multiple workers and multiple stages. Some stages are parallel.
+Make sure to check if incremental compilation is enabled!
 </p>
-<p>
-If you don't see lex, parse and hir stages, it's likely because incremental compilation is enabled.
-</p>
+
 <h2>Timings</h2>
 {radios}
 {}
@@ -308,7 +403,7 @@ fn into_rows(
     let mut times_all: Vec<(TimingsEntry, u64)> = vec![];
 
     let mut substage_per_stage: HashMap<Stage, HashSet<Substage>> = HashMap::new();
-    let mut times_per_stage: HashMap<(Stage, Option<Substage>), Vec<u64>> = HashMap::new();
+    let mut times_per_stage: HashMap<(Stage, Option<Substage>), Vec<(TimingsEntry, u64)>> = HashMap::new();
 
     for entries in timings.values() {
         for entry in entries.iter() {
@@ -381,11 +476,23 @@ fn into_rows(
         rows.push(row);
     }
 
+    times_all.sort_by_key(|(_, t)| u64::MAX - *t);
+    let too_long = match times_all.len() {
+        // too small sample to threshold
+        0..5 => u64::MAX,
+        _ => times_all[times_all.len() / 4].1,
+    };
+
+    for ts in times_per_stage.values_mut() {
+        ts.sort_by_key(|(_, t)| u64::MAX - *t);
+    }
+
     (
         rows,
         Stats {
             start: start_min,
             end: end_max,
+            too_long,
             total_stages,
             total_modules: all_modules.len(),
             times_all,
@@ -395,10 +502,12 @@ fn into_rows(
     )
 }
 
-fn render_micro_seconds(us: u64) -> String {
+fn render_micro_seconds(us: u64, threshold: u64) -> String {
+    let class = if us > threshold { r#" class="color-red""# } else { "" };
+
     if us < 100_000 {
-        format!("{:.2}ms", us as f64 / 1000.0)
+        format!("<span{class}>{:.2}ms</span>", us as f64 / 1000.0)
     } else {
-        format!("{:.2}s", us as f64 / 1_000_000.0)
+        format!("<span{class}>{:.2}s</span>", us as f64 / 1_000_000.0)
     }
 }
