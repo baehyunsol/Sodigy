@@ -7,46 +7,30 @@ use std.string.String;
 // TODO: I have to implement ZST and Void.
 //       Then all the functions here have to return Void.
 
-// This is an impure function, but I didn't mark it so in order to implement `debug`.
 #[built_in]
 #[lang_item("built_in.print")]
-fn print_built_in(v: String) -> Void;
+ndet proc print(v: String) -> Void;
 
 #[built_in]
 #[lang_item("built_in.eprint")]
-fn eprint_built_in(v: String) -> Void;
+ndet proc eprint(v: String) -> Void;
 
-#[unused_effect]
-pub proc print(v: String) -> Void = print_built_in(v);
+#[built_in]
+#[lang_item("built_in.debug")]
+fn debug_built_in(v: String) -> Void;
 
-#[unused_effect]
-pub proc eprint(v: String) -> Void = eprint_built_in(v);
-
-// TODO: remove this function before 1.0 release
 // This is a debug-only function. Don't use this for actual printing!
 fn debug<T>(
     v: T,
     prefix: String = "",
     suffix: String = "\n",
-    stderr: Bool = False,
 ) -> T = {
     // The `do` keyword exists exactly for this purpose, but we can't use it
     // because we're in a pure context...
-    if stderr {
-        blackbox((
-            eprint_built_in(prefix),
-            eprint_built_in(v as <String>),
-            eprint_built_in(suffix),
-            v,
-        ))._3
-    }
-
-    else {
-        blackbox((
-            print_built_in(prefix),
-            print_built_in(v as <String>),
-            print_built_in(suffix),
-            v,
-        ))._3
-    }
+    blackbox((
+        debug_built_in(prefix),
+        debug_built_in(v as <String>),
+        debug_built_in(suffix),
+        v,
+    ))._3
 };

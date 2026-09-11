@@ -365,7 +365,7 @@ fn call(
                     // TODO: clean up stack and heap
                     return Err(());
                 },
-                Intrinsic::Print | Intrinsic::EPrint => {
+                Intrinsic::Print | Intrinsic::EPrint | Intrinsic::Debug => {
                     let chars_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;
                     let chars = inspect_list(&heap.data, chars_ptr);
                     let chars = chars.iter().map(
@@ -373,7 +373,7 @@ fn call(
                     ).collect::<Vec<_>>().into_iter().collect::<String>();
 
                     match intrinsic {
-                        Intrinsic::Print => {
+                        Intrinsic::Print | Intrinsic::Debug => {
                             print!("{chars}");
                         },
                         Intrinsic::EPrint => {
