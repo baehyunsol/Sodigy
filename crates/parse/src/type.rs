@@ -179,9 +179,37 @@ impl<'t, 's> Tokens<'t, 's> {
                             });
                         },
                         (
-                            Some(Token { kind: TokenKind::Ident(id), span }),
-                            Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. }),
-                        ) => todo!(),  // maybe func
+                            Some(Token { kind: TokenKind::Ident(id), span: span1 }),
+                            Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span: span2 }),
+                        ) => {
+                            path.push((*id, span1.clone()));
+                            let group_span = span2.clone();
+                            let mut param_tokens = Tokens::new(tokens, span2.end(), false, self.intermediate_dir);
+                            let params = param_tokens.parse_types()?;
+
+                            self.cursor += 2;
+                            self.match_and_pop(TokenKind::Punct(Punct::ReturnType))?;
+                            let r#return = self.parse_type()?;
+
+                            return Ok(Type::Func {
+                                fn_constructor: Path {
+                                    id: path[0].0,
+                                    id_span: path[0].1.clone(),
+                                    fields: path[1..].iter().zip(dot_spans.iter()).map(
+                                        |((id, id_span), dot_span)| Field::Name {
+                                            name: *id,
+                                            name_span: id_span.clone(),
+                                            dot_span: dot_span.clone(),
+                                            is_from_alias: false,
+                                        },
+                                    ).collect(),
+                                    dotfish: vec![None; path.len()],
+                                },
+                                group_span,
+                                params,
+                                r#return: Box::new(r#return),
+                            });
+                        },
                         (Some(Token { kind: TokenKind::Ident(id), span }), _) => {
                             path.push((*id, span.clone()));
                             self.cursor += 1;
