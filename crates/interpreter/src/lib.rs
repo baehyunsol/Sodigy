@@ -119,7 +119,7 @@ fn call(
             },
             Bytecode::CallDynamic { func, args, dst, debug_info: _, effect: _ } => {
                 let new_stack = Stack::from_args(args, &stack);
-                let pc = read(func, &stack, heap);
+                let pc = *stack.ssa.get(func).unwrap();
 
                 match dst {
                     Some(dst) => {

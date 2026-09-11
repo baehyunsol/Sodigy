@@ -24,7 +24,7 @@ impl ExprHash {
         ExprHash(hash(&encoded))
     }
 
-    pub fn from_dynamic_func_call(f: &Memory, args: &[SSA]) -> ExprHash {
+    pub fn from_dynamic_func_call(f: SSA, args: &[SSA]) -> ExprHash {
         let mut encoded = vec![2];
         f.encode_impl(&mut encoded);
 

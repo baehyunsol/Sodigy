@@ -202,14 +202,14 @@ fn optimize_local(bytecodes: &mut Vec<Bytecode>) {
                 }
             },
             Bytecode::CallDynamic { func, args, dst, .. } => {
-                context.count_use(func);
+                context.count_use(&Memory::SSA(*func));
 
                 for arg in args.iter() {
                     context.count_use(&Memory::SSA(*arg));
                 }
 
                 if let Some(Memory::SSA(a)) = dst {
-                    context.register_expression(ExprHash::from_dynamic_func_call(func, args), *a);
+                    context.register_expression(ExprHash::from_dynamic_func_call(*func, args), *a);
                     max_ssa = max_ssa.max(*a);
                 }
             },

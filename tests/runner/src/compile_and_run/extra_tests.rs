@@ -40,6 +40,7 @@ enum ExtraTest {
     AssertEqRunResults,
 
     BreakIfLessThan3Files,
+    Break,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -76,6 +77,10 @@ impl CnrContext {
                 args: vec!["--emit=bytecode-exe", "-o=bcx-debug-0"],
                 check_incremental_compilation: Some(CheckIncrementalCompilation::All),
             },
+
+            // TODO: remaining features are TODO
+            ExtraTest::Break,
+
             ExtraTest::Clean,
             ExtraTest::Build {
                 args: vec!["--emit=bytecode-exe", "-o=bcx-release-0", "--release"],
@@ -387,6 +392,7 @@ impl CnrContext {
                     curr_note = note.to_string();
                 },
                 ExtraTest::Build { mut args, check_incremental_compilation } => {
+                    // TODO: check_incremental_compilation
                     let args = [vec!["build"], args].concat();
 
                     if let Err(e) = subprocess::run(
@@ -418,6 +424,7 @@ impl CnrContext {
                     }
                 },
                 ExtraTest::RunFromSource { args, key, check_incremental_compilation } => {
+                    // TODO: check_incremental_compilation
                     match subprocess::run(
                         &self.sodigy_path,
                         &args,
@@ -474,6 +481,7 @@ impl CnrContext {
                         break;
                     }
                 },
+                ExtraTest::Break => break,
             }
         }
     }

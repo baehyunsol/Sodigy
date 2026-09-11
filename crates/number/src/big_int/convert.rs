@@ -1,5 +1,5 @@
 use super::BigInt;
-use crate::{div_ubi, gt_ubi, rem_ubi};
+use crate::{div_ubi, gt_ubi, rem_ubi, shr_ubi};
 
 impl From<u128> for BigInt {
     fn from(n: u128) -> BigInt {
@@ -206,6 +206,32 @@ pub fn ubi_to_string(ns: &[u32]) -> String {
     }
 
     digits.push(ns[0].to_string());
+    digits.into_iter().rev().collect::<Vec<_>>().concat()
+}
+
+pub fn bi_to_hex_string(neg: bool, ns: &[u32]) -> String {
+    let n = ubi_to_hex_string(ns);
+
+    if neg {
+        format!("-{n}")
+    }
+
+    else {
+        n
+    }
+}
+
+pub fn ubi_to_hex_string(ns: &[u32]) -> String {
+    let mut ns = ns.to_vec();
+    let mut digits = vec![];
+
+    while ns.len() > 1 || ns[0] > 0x100_0000 {
+        let r = ns[0] & 0xff_ffff;
+        ns = shr_ubi(&ns, 24);
+        digits.push(format!("{r:06x}"));
+    }
+
+    digits.push(format!("{:x}", ns[0]));
     digits.into_iter().rev().collect::<Vec<_>>().concat()
 }
 

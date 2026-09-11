@@ -317,7 +317,7 @@ pub fn lower_expr(
                             };
 
                             bytecodes.push(Bytecode::CallDynamic {
-                                func: Memory::SSA(func_ssa),
+                                func: func_ssa,
                                 args: arg_ssa_regs,
                                 dst: if is_tail_call { None } else { Some(dst) },
                                 debug_info: if session.debug_info { Some(Box::new(f.error_span_wide())) } else { None },

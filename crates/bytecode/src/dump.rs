@@ -10,7 +10,7 @@ use crate::{
     SSA,
     Value,
 };
-use sodigy_number::bi_to_string;
+use sodigy_number::bi_to_hex_string;
 use sodigy_span::Span;
 use std::fmt::{Display, Error, Formatter};
 
@@ -32,9 +32,8 @@ impl Display for CodeSection {
         lines.push(format!("#[effect({})]", self.effect.single_word()));
         lines.push(format!("#[name({:?})]", self.name));
 
-        // TODO: We're not supposed to use the term "data" here...
         lines.push(format!(
-            "data @G{}{}:",
+            "code @G{}{}:",
             self.label.hex(12),
             match self.params {
                 Some(params) => format!("({})", (0..params).map(|i| format!("_{i}")).collect::<Vec<_>>().join(", ")),
@@ -84,7 +83,7 @@ impl Display for ObjectFile {
 .label:
 {}
 "#,
-            self.data.iter().map(|(h, v)| format!("%I{} = {v};", h.hex(12))).collect::<Vec<_>>().join("\n"),
+            self.data.iter().map(|(h, v)| format!("    %I{} = {v};", h.hex(12))).collect::<Vec<_>>().join("\n"),
             self.code.iter().map(|c| c.to_string()).collect::<Vec<_>>().join("\n\n"),
             labels.join("\n"),
         )
@@ -127,7 +126,7 @@ impl Display for Bytecode {
             ),
             Bytecode::CallDynamic { func, args, dst, debug_info, effect: _ } => write!(
                 fmt,
-                "{}dyn_call ({func})({});{}",
+                "{}dyn_call {func}({});{}",
                 if let Some(dst) = dst { format!("{dst} = ") } else { String::from("return ") },
                 args.iter().map(
                     |i| format!("{i}")
@@ -214,8 +213,8 @@ impl Display for Label {
 impl Display for Value {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         match self {
-            Value::Scalar(n) => write!(fmt, "{n}#s"),
-            Value::Int(n) => write!(fmt, "{}#n", bi_to_string(n.is_neg, &n.nums)),
+            Value::Scalar(n) => write!(fmt, "{n:x}#s"),
+            Value::Int(n) => write!(fmt, "{}#n", bi_to_hex_string(n.is_neg, &n.nums)),
             Value::List(es) => write!(
                 fmt,
                 "[{}]",

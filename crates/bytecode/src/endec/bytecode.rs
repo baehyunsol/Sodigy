@@ -140,7 +140,7 @@ impl Endec for Bytecode {
                 Ok((Bytecode::Call { func, args, dst, debug_info, effect }, cursor))
             },
             Some(5) => {
-                let (func, cursor) = Memory::decode_impl(buffer, cursor + 1)?;
+                let (func, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<SSA>::decode_impl(buffer, cursor)?;
                 let (dst, cursor) = Option::<Memory>::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;

@@ -82,7 +82,7 @@ pub enum Bytecode {
     },
 
     CallDynamic {
-        func: Memory,    // function pointer
+        func: SSA,    // function pointer
         args: Vec<SSA>,
 
         // The returned value is stored here.
@@ -359,7 +359,7 @@ impl Bytecode {
                 apply_ssa_alias_args(args, ssa_alias, heap_ssa_alias);
             },
             Bytecode::CallDynamic { func, args, .. } => {
-                apply_ssa_alias(func, ssa_alias, heap_ssa_alias);
+                *func = *ssa_alias.get(func).unwrap_or(&func);
                 apply_ssa_alias_args(args, ssa_alias, heap_ssa_alias);
             },
             Bytecode::JumpIf { value, .. } => {

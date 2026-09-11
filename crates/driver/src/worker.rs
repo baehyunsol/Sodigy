@@ -10,6 +10,7 @@ use crate::{
     get_cached_ir,
     store_inter_hir_log,
 };
+use sodigy_code_gen::Emit;
 use sodigy_endec::Endec;
 use sodigy_error::{Error as SodigyError, Warning as SodigyWarning};
 use sodigy_file::{File, FileOrStd, ModulePath};
@@ -723,7 +724,13 @@ impl Worker {
 
                 match output_path {
                     StoreIrAt::File(f) => {
-                        write_bytes(&f, &code.encode(), WriteMode::CreateOrTruncate)?;
+                        let code = match emit {
+                            Emit::Exe |
+                            Emit::ReadableBytecode |
+                            Emit::C => code,
+                            Emit::ExecutableBytecode => code.encode(),
+                        };
+                        write_bytes(&f, &code, WriteMode::CreateOrTruncate)?;
                     },
                     StoreIrAt::IntermediateDir => {
                         emit_irs_if_has_to(
