@@ -1,3 +1,4 @@
+use sodigy_bytecode::parse_bytecode;
 use sodigy_code_gen::{Emit, Profile};
 use sodigy_endec::Endec;
 use sodigy_error::{
@@ -94,6 +95,9 @@ pub fn main_() {
                     Error::CompileError => {
                         // The errors are already dumped!
                     },
+                    Error::BytecodeParseError(e) => {
+                        eprintln!("BytecodeParseError: {e:?}");
+                    },
                     Error::FileError(e) => {
                         eprintln!("FileError: {e:?}");
                     },
@@ -176,7 +180,11 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             };
 
             match bytecode {
-                Some(bytecode) => todo!(),
+                Some(bytecode) => {
+                    let bytecode = read_bytes(bytecode)?;
+                    let object_file = parse_bytecode(&bytecode)?;
+                    todo!()
+                },
                 None => init_workers_and_compile(
                     src_dir,
                     output_path,

@@ -13,6 +13,7 @@ mod func;
 mod r#let;
 mod link;
 mod object_file;
+mod parse;
 mod session;
 mod value;
 
@@ -27,6 +28,7 @@ pub use func::Func;
 pub use r#let::Let;
 pub use link::{flatten, link};
 pub use object_file::{CodeKind, CodeSection, ObjectFile};
+pub use parse::{BytecodeParseError, parse as parse_bytecode};
 pub use session::{LocalValue, Session};
 pub use value::{InternedValue, Value};
 

@@ -1,3 +1,4 @@
+use sodigy_bytecode::BytecodeParseError;
 use sodigy_endec::DecodeError;
 use sodigy_fs_api::FileError;
 use sodigy_stages::Stage;
@@ -13,6 +14,7 @@ pub enum Error {
     /// to do with Sodigy.
     CompileError,
 
+    BytecodeParseError(BytecodeParseError),
     FileError(FileError),
     DecodeError(DecodeError),
     MpscError,
@@ -36,6 +38,12 @@ impl Error {
             // the other variants are subject to change.
             _ => 13,
         }
+    }
+}
+
+impl From<BytecodeParseError> for Error {
+    fn from(e: BytecodeParseError) -> Error {
+        Error::BytecodeParseError(e)
     }
 }
 
