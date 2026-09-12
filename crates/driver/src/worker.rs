@@ -13,7 +13,7 @@ use crate::{
 use sodigy_code_gen::Emit;
 use sodigy_endec::Endec;
 use sodigy_error::{Error as SodigyError, Warning as SodigyWarning};
-use sodigy_file::{File, FileOrStd, ModulePath};
+use sodigy_file::{File, FileOrStd, ModulePath, std_root};
 use sodigy_fs_api::{WriteMode, write_bytes};
 use sodigy_hir as hir;
 use sodigy_mir::{self as mir, GlobalContext as MirGlobalContext};
@@ -449,7 +449,8 @@ impl Worker {
                 }
 
                 self.timings.stage_start(Stage::Bytecode, None);
-                let bytecode_session = sodigy_bytecode::lower(optimized_mir_session);
+                let lower_built_ins = input_file_path == std_root().1;
+                let bytecode_session = sodigy_bytecode::lower(optimized_mir_session, lower_built_ins);
                 self.timings.stage_end(!bytecode_session.errors.is_empty());
 
                 emit_irs_if_has_to(

@@ -194,7 +194,7 @@ impl File {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum FileOrStd {
     File(String),
     Std(u32),

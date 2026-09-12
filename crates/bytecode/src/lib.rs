@@ -1,6 +1,7 @@
 use sodigy_error::FuncEffect;
 use sodigy_mir::{Intrinsic, Session as MirSession};
 use sodigy_span::{Span, SpanHash};
+use sodigy_utils::camel_to_snake;
 use std::collections::HashMap;
 
 mod assert;
@@ -483,7 +484,10 @@ impl Bytecode {
     }
 }
 
-pub fn lower<'hir, 'mir>(mir_session: MirSession<'hir, 'mir>) -> Session<'hir, 'mir> {
+pub fn lower<'hir, 'mir>(
+    mir_session: MirSession<'hir, 'mir>,
+    lower_built_ins: bool,
+) -> Session<'hir, 'mir> {
     let mut session = Session::from_mir(mir_session.clone());
     let mut lets = Vec::with_capacity(mir_session.lets.len());
     let mut funcs = Vec::with_capacity(mir_session.funcs.len());
@@ -508,5 +512,32 @@ pub fn lower<'hir, 'mir>(mir_session: MirSession<'hir, 'mir>) -> Session<'hir, '
         &mut session.data_section,
         &mir_session.intermediate_dir,
     );
+
+    // We need code sections for built-ins when we want to create function pointers
+    // for built-in functions.
+    if lower_built_ins {
+        for (intrinsic, lang_item) in Intrinsic::ALL_WITH_LANG_ITEM.iter() {
+            let def_span = mir_session.global_context.get_lang_item_span(lang_item);
+            session.object_file.code.push(CodeSection {
+                label: def_span.hash(),
+                span: Some(def_span.clone()),
+                kind: CodeKind::Func,
+                name: camel_to_snake(&format!("{intrinsic:?}")),
+                params: Some(intrinsic.num_params()),
+                effect: intrinsic.effect(),
+                code: vec![
+                    Bytecode::Intrinsic {
+                        intrinsic: *intrinsic,
+                        args: (0..intrinsic.num_params()).map(
+                            |i| SSA(i as u32)
+                        ).collect(),
+                        dst: Memory::Return,
+                        debug_info: None,
+                    },
+                ],
+            });
+        }
+    }
+
     session
 }

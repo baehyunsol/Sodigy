@@ -33,3 +33,24 @@ pub fn hash(s: &[u8]) -> u128 {
 
     r
 }
+
+pub fn camel_to_snake(s: &str) -> String {
+    let mut buffer = Vec::with_capacity(s.len() + 1);
+
+    for (i, b) in s.as_bytes().iter().enumerate() {
+        match *b {
+            b'A'..=b'Z' if i == 0 => {
+                buffer.push(*b + 32);
+            },
+            b'A'..=b'Z' => {
+                buffer.push(b'_');
+                buffer.push(*b + 32);
+            },
+            b => {
+                buffer.push(b);
+            },
+        }
+    }
+
+    String::from_utf8(buffer).unwrap()
+}
