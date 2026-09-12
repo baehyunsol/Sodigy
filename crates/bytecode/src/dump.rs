@@ -30,7 +30,7 @@ impl Display for CodeSection {
         lines.push(format!("// {kind}"));
 
         lines.push(format!("#[effect({})]", self.effect.single_word()));
-        lines.push(format!("#[name({:?})]", self.name));
+        lines.push(format!("#[name({})]", self.name));
 
         lines.push(format!(
             "code @G{}{}:",

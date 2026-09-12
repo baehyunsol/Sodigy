@@ -90,6 +90,29 @@ impl From<i64> for BigInt {
     }
 }
 
+impl TryFrom<&BigInt> for u128 {
+    type Error = ();
+
+    fn try_from(n: &BigInt) -> Result<u128, ()> {
+        match &n.nums[..] {
+            _ if n.is_neg => Err(()),
+            [a] => {
+                Ok(*a as u128)
+            },
+            [a, b] => {
+                Ok(*a as u128 | ((*b as u128) << 32))
+            },
+            [a, b, c] => {
+                Ok(*a as u128 | ((*b as u128) << 32) | ((*c as u128) << 64))
+            },
+            [a, b, c, d] => {
+                Ok(*a as u128 | ((*b as u128) << 32) | ((*c as u128) << 64) | ((*d as u128) << 96))
+            },
+            _ => Err(()),
+        }
+    }
+}
+
 impl TryFrom<&BigInt> for i128 {
     type Error = ();
 

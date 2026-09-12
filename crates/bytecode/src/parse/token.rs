@@ -5,4 +5,8 @@ pub enum Token {
     Semicolon,
     InternedValue(u128),
     Value(Value),
+    Decorator {
+        ident: Vec<u8>,
+        args: Vec<Vec<u8>>,
+    },
 }

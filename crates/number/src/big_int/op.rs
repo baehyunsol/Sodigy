@@ -348,3 +348,17 @@ pub fn shr_ubi(lhs: &[u32], rhs: u32) -> Vec<u32> {
         _ => todo!(),
     }
 }
+
+pub fn and_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {
+    let len = lhs.len().max(rhs.len());
+    (0..len).map(
+        |i| lhs.get(i).unwrap_or(&0) & rhs.get(i).unwrap_or(&0)
+    ).collect()
+}
+
+pub fn or_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {
+    let len = lhs.len().max(rhs.len());
+    (0..len).map(
+        |i| lhs.get(i).unwrap_or(&0) | rhs.get(i).unwrap_or(&0)
+    ).collect()
+}

@@ -7,10 +7,17 @@ pub enum BytecodeParseError {
         got: u8,
         cursor: usize,
     },
+    UnexpectedEnd,
     FailedToParseHex {
         cursor: usize,
     },
     FailedToParseValue {
+        cursor: usize,
+    },
+    FailedToParseIdent {
+        cursor: usize,
+    },
+    IntRangeError {
         cursor: usize,
     },
     MissingSection(Section),
