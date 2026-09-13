@@ -4,7 +4,6 @@ use sodigy_bytecode::{
     InternedValue,
     Label,
     Memory,
-    Offset,
     Value,
 };
 use sodigy_mir::Intrinsic;
@@ -432,21 +431,13 @@ fn read(src: &Memory, stack: &Stack, heap: &Heap) -> u32 {
         Memory::SSA(i) => *stack.ssa.get(i).unwrap(),
         Memory::Heap { ptr, offset } => {
             let ptr = *stack.ssa.get(ptr).unwrap();
-            let offset = match offset {
-                Offset::Static(i) => *i,
-                Offset::Dynamic(p) => read(p, stack, heap),
-            };
-            heap.data[(ptr + offset) as usize]
+            heap.data[(ptr + *offset) as usize]
         },
         Memory::List { ptr, offset } => {
             let ptr = *stack.ssa.get(ptr).unwrap() as usize;
-            let offset = match offset {
-                Offset::Static(i) => *i,
-                Offset::Dynamic(p) => read(p, stack, heap),
-            };
             let data_ptr = heap.data[ptr];
             let start = heap.data[ptr + 1];
-            heap.data[(data_ptr + start + offset + 1) as usize]
+            heap.data[(data_ptr + start + *offset + 1) as usize]
         },
         Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
     }
@@ -462,22 +453,13 @@ fn update(dst: &Memory, value: u32, stack: &mut Stack, heap: &mut Heap) {
         },
         Memory::Heap { ptr, offset } => {
             let ptr = *stack.ssa.get(ptr).unwrap();
-            let offset = match offset {
-                Offset::Static(i) => *i,
-                Offset::Dynamic(p) => read(p, stack, heap),
-            };
-
-            heap.data[(ptr + offset) as usize] = value;
+            heap.data[(ptr + *offset) as usize] = value;
         },
         Memory::List { ptr, offset } => {
             let ptr = *stack.ssa.get(ptr).unwrap() as usize;
-            let offset = match offset {
-                Offset::Static(i) => *i,
-                Offset::Dynamic(p) => read(p, stack, heap),
-            };
             let data_ptr = heap.data[ptr];
             let start = heap.data[ptr + 1];
-            heap.data[(data_ptr + start + offset + 1) as usize] = value;
+            heap.data[(data_ptr + start + *offset + 1) as usize] = value;
         },
         Memory::Global(s) => {
             heap.global_values.insert(s.clone(), value);
