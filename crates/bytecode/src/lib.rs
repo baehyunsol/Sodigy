@@ -193,7 +193,7 @@ pub enum Memory {
 
     Heap {
         ptr: SSA,
-        offset: Offset,
+        offset: u32,
     },
 
     // `Memory::Heap` and `Memory::List` may or may not be identical.
@@ -201,7 +201,7 @@ pub enum Memory {
     // do optimizations for lists.
     List {
         ptr: SSA,
-        offset: Offset,
+        offset: u32,
     },
 
     // Top-level `let` statements.
@@ -211,8 +211,8 @@ pub enum Memory {
 impl Memory {
     pub fn get_heap_index(&self) -> Option<(SSA, u32)> {
         match self {
-            Memory::Heap { ptr: a, offset: Offset::Static(b) } |
-            Memory::List { ptr: a, offset: Offset::Static(b) } => Some((*a, *b)),
+            Memory::Heap { ptr, offset } |
+            Memory::List { ptr, offset } => Some((*ptr, *offset)),
             _ => None,
         }
     }
@@ -226,12 +226,6 @@ pub enum Label {
     // Labels are flattened by `crate::link::flatten(..)`.
     // After flattened, every label in the executable has a unique id.
     Flatten(usize),
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Offset {
-    Static(u32),
-    Dynamic(Box<Memory>),
 }
 
 // TODO: it should be in mir... right?
@@ -309,7 +303,7 @@ impl Bytecode {
                 Memory::SSA(i) => {
                     *i = *ssa_alias.get(i).unwrap_or(i);
                 },
-                Memory::Heap { ptr: a, offset: Offset::Static(b) } => {
+                Memory::Heap { ptr: a, offset: b } => {
                     if let Some(c) = heap_ssa_alias.get(&(*a, *b)) {
                         *src = Memory::SSA(*ssa_alias.get(c).unwrap_or(c));
                     }
@@ -318,10 +312,7 @@ impl Bytecode {
                         *a = *ssa_alias.get(a).unwrap_or(a);
                     }
                 },
-                Memory::Heap { ptr, .. } => {
-                    *ptr = *ssa_alias.get(ptr).unwrap_or(ptr);
-                },
-                Memory::List { ptr: a, offset: Offset::Static(b) } => {
+                Memory::List { ptr: a, offset: b } => {
                     if let Some(c) = heap_ssa_alias.get(&(*a, *b)) {
                         *src = Memory::SSA(*ssa_alias.get(c).unwrap_or(c));
                     }
@@ -329,9 +320,6 @@ impl Bytecode {
                     else {
                         *a = *ssa_alias.get(a).unwrap_or(a);
                     }
-                },
-                Memory::List { ptr, .. } => {
-                    *ptr = *ssa_alias.get(ptr).unwrap_or(ptr);
                 },
                 Memory::Global(_) => {},
             }

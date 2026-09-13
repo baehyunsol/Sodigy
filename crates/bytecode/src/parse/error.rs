@@ -17,6 +17,9 @@ pub enum BytecodeParseError {
     FailedToParseIdent {
         cursor: usize,
     },
+    FailedToParseIdents {
+        cursor: usize,
+    },
     IntRangeError {
         cursor: usize,
     },
@@ -25,4 +28,10 @@ pub enum BytecodeParseError {
         cursor: usize,
     },
     DuplicateSection(Section),
+    InvalidLabelPrefix {
+        cursor: usize,
+    },
+    InvalidMemory {
+        cursor: usize,
+    },
 }

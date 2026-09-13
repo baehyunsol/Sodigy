@@ -1,6 +1,6 @@
-use super::{BytecodeParseError, Section, Token};
-use crate::Value;
-use sodigy_number::{BigInt, or_ubi, shl_ubi};
+use super::{BytecodeParseError, Keyword, Section, Token};
+use crate::{Label, Memory, SSA, Value};
+use sodigy_number::{BigInt, add_ubi, mul_ubi, or_ubi, shl_ubi};
 use sodigy_span::{Span, SpanHash};
 
 pub fn lex(b: &[u8]) -> Result<[Vec<Token>; 3], BytecodeParseError> {
@@ -151,7 +151,7 @@ fn lex_code_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), 
 
                 let (ident, new_cursor) = lex_ident(b, cursor)?;
                 cursor = new_cursor;
-                let (args, new_cursor) = lex_idents(b, cursor)?;
+                let (args, new_cursor) = lex_idents_in_group(b, cursor)?;
                 cursor = new_cursor;
 
                 match b.get(cursor) {
@@ -174,6 +174,91 @@ fn lex_code_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), 
                     ident,
                     args,
                 });
+            },
+            (Some(b'@'), _) => {
+                cursor += 1;
+
+                match b.get(cursor) {
+                    Some(prefix @ (b'L' | b'G' | b'F')) => {
+                        let prefix = *prefix;
+                        cursor += 1;
+                        let int_start_cursor = cursor;
+                        let (n, new_cursor) = lex_hex(b, cursor)?;
+                        cursor = new_cursor;
+
+                        let label = match prefix {
+                            b'L' => match u32::try_from(&n) {
+                                Ok(n) => Label::Local(n),
+                                _ => {
+                                    return Err(BytecodeParseError::IntRangeError { cursor: int_start_cursor });
+                                },
+                            },
+                            b'G' => match u128::try_from(&n) {
+                                Ok(n) => Label::Global(SpanHash(n)),
+                                _ => {
+                                    return Err(BytecodeParseError::IntRangeError { cursor: int_start_cursor });
+                                },
+                            },
+                            b'F' => match usize::try_from(&n) {
+                                Ok(n) => Label::Flatten(n),
+                                _ => {
+                                    return Err(BytecodeParseError::IntRangeError { cursor: int_start_cursor });
+                                },
+                            },
+                            _ => unreachable!(),
+                        };
+
+                        tokens.push(Token::Label(label));
+                    },
+                    _ => {
+                        return Err(BytecodeParseError::InvalidLabelPrefix { cursor });
+                    },
+                }
+            },
+            (Some(b'_'), Some(b'0'..=b'9')) => {
+                cursor += 1;
+                let int_start_cursor = cursor;
+                let (i, new_cursor) = lex_decimal(b, cursor)?;
+                cursor = new_cursor;
+
+                match u32::try_from(&i) {
+                    Ok(i) => {
+                        tokens.push(Token::Memory(Memory::SSA(SSA(i))));
+                    },
+                    Err(_) => {
+                        return Err(BytecodeParseError::IntRangeError { cursor: int_start_cursor });
+                    },
+                }
+            },
+            (Some(b'_'), Some(b'r')) => {
+                cursor += 2;
+
+                match (b.get(cursor), b.get(cursor + 1)) {
+                    (Some(b'e'), Some(b't')) => {
+                        cursor += 2;
+                        tokens.push(Token::Memory(Memory::Return));
+                    },
+                    _ => {
+                        return Err(BytecodeParseError::InvalidMemory { cursor: cursor - 2 });
+                    },
+                }
+            },
+            (Some(b'_'), Some(b'g')) => todo!(),
+            (Some(b'_'), _) => {
+                return Err(BytecodeParseError::InvalidMemory { cursor });
+            },
+            (Some(b'a'..=b'z' | b'A'..=b'Z'), _) => {
+                let (ident, new_cursor) = lex_ident(b, cursor)?;
+                cursor = new_cursor;
+
+                let token = match &ident[..] {
+                    b"call" => Token::Keyword(Keyword::Call),
+                    b"code" => Token::Keyword(Keyword::Code),
+                    b"if" => Token::Keyword(Keyword::If),
+                    b"jump" => Token::Keyword(Keyword::Jump),
+                    _ => todo!(),  // an error?
+                };
+                tokens.push(token);
             },
             _ => todo!(),
         }
@@ -199,6 +284,38 @@ fn lex_label_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize),
                 return Ok((tokens, cursor));
             },
             _ => todo!(),
+        }
+    }
+}
+
+fn lex_decimal(b: &[u8], mut cursor: usize) -> Result<(BigInt, usize), BytecodeParseError> {
+    let mut nums = vec![0];
+    let mut is_neg = false;
+
+    match b.get(cursor) {
+        Some(b'0'..=b'9') => {},
+        Some(b'-') => {
+            is_neg = true;
+            cursor += 1;
+        },
+        _ => {
+            return Err(BytecodeParseError::FailedToParseHex { cursor });
+        },
+    }
+
+    loop {
+        match b.get(cursor) {
+            Some(b @ b'0'..=b'9') => {
+                nums = mul_ubi(&nums, &[10]);
+                nums = add_ubi(&nums, &[(*b - b'0') as u32]);
+                cursor += 1;
+            },
+            _ => {
+                return Ok((
+                    BigInt { is_neg, nums },
+                    cursor,
+                ));
+            },
         }
     }
 }
@@ -377,6 +494,75 @@ fn lex_ident(b: &[u8], mut cursor: usize) -> Result<(Vec<u8>, usize), BytecodePa
     }
 }
 
-fn lex_idents(b: &[u8], mut cursor: usize) -> Result<(Vec<Vec<u8>>, usize), BytecodeParseError> {
-    todo!()
+fn lex_idents_in_group(b: &[u8], mut cursor: usize) -> Result<(Vec<Vec<u8>>, usize), BytecodeParseError> {
+    let (start, end) = match b.get(cursor) {
+        Some(b'(') => (b'(', b')'),
+        Some(b'[') => (b'[', b']'),
+        Some(b'{') => (b'{', b'}'),
+        _ => {
+            return Err(BytecodeParseError::FailedToParseIdents { cursor });
+        },
+    };
+
+    cursor += 1;
+    let mut idents = vec![];
+    let mut expecting_ident = true;
+
+    loop {
+        if expecting_ident {
+            match (b.get(cursor), b.get(cursor + 1)) {
+                (Some(b' ' | b'\n' | b'\t' | b'\r'), _) => {
+                    cursor += 1;
+                },
+                (Some(b'/'), Some(b'/')) => {
+                    cursor += 2;
+
+                    while let Some(b) = b.get(cursor) && *b != b'\n' {
+                        cursor += 1;
+                    }
+                },
+                (Some(b), _) if *b == end => {
+                    cursor += 1;
+                    break;
+                },
+                (Some(_), _) => {
+                    let (ident, new_cursor) = lex_ident(b, cursor)?;
+                    cursor = new_cursor;
+                    idents.push(ident);
+                    expecting_ident = false;
+                },
+                (None, _) => {
+                    return Err(BytecodeParseError::FailedToParseIdents { cursor });
+                },
+            }
+        }
+
+        else {
+            match (b.get(cursor), b.get(cursor + 1)) {
+                (Some(b' ' | b'\n' | b'\t' | b'\r'), _) => {
+                    cursor += 1;
+                },
+                (Some(b'/'), Some(b'/')) => {
+                    cursor += 2;
+
+                    while let Some(b) = b.get(cursor) && *b != b'\n' {
+                        cursor += 1;
+                    }
+                },
+                (Some(b), _) if *b == end => {
+                    cursor += 1;
+                    break;
+                },
+                (Some(b','), _) => {
+                    cursor += 1;
+                    expecting_ident = true;
+                },
+                (Some(_) | None, _) => {
+                    return Err(BytecodeParseError::FailedToParseIdents { cursor });
+                },
+            }
+        }
+    }
+
+    Ok((idents, cursor))
 }

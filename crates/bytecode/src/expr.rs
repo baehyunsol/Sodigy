@@ -4,7 +4,6 @@ use crate::{
     InternedValue,
     Label,
     Memory,
-    Offset,
     Session,
     SSA,
     Value,
@@ -353,7 +352,7 @@ pub fn lower_expr(
                             bytecodes,
                             Memory::Heap {
                                 ptr: dst_ssa.unwrap(),
-                                offset: Offset::Static(i as u32),
+                                offset: i as u32,
                             },
                             /* is_tail_call: */ false,
                         );
@@ -388,7 +387,7 @@ pub fn lower_expr(
                                 value: InternedValue::Scalar(variant_index as u32),
                                 dst: Memory::Heap {
                                     ptr: dst_ssa,
-                                    offset: Offset::Static(0),
+                                    offset: 0,
                                 },
                                 debug_info: None,
                             });
@@ -400,7 +399,7 @@ pub fn lower_expr(
                                     bytecodes,
                                     Memory::Heap {
                                         ptr: dst_ssa,
-                                        offset: Offset::Static(i as u32 + 1),
+                                        offset: i as u32 + 1,
                                     },
                                     /* is_tail_call: */ false,
                                 );
@@ -434,7 +433,7 @@ pub fn lower_expr(
                             bytecodes,
                             Memory::List {
                                 ptr: dst_ssa.unwrap(),
-                                offset: Offset::Static(i as u32),
+                                offset: i as u32,
                             },
                             /* is_tail_call: */ false,
                         );
@@ -464,7 +463,7 @@ fn lower_field_read(
                     ptr: src,
 
                     // NOTE: There are no negative index because post-mir already lowered them
-                    offset: Offset::Static(*i as u32),
+                    offset: *i as u32,
                 },
                 dst: Memory::SSA(dst),
             });
@@ -476,7 +475,7 @@ fn lower_field_read(
 
                     // Without the niche optimization, an enum is a tuple, where the first element
                     // is the variant discriminant, and the other elements are the payload.
-                    offset: Offset::Static(*payload as u32 + 1),
+                    offset: *payload as u32 + 1,
                 },
                 dst: Memory::SSA(dst),
             });

@@ -6,7 +6,6 @@ use crate::{
     Label,
     Memory,
     ObjectFile,
-    Offset,
     SSA,
     Value,
 };
@@ -178,14 +177,10 @@ impl Display for Memory {
             Memory::Return => write!(fmt, "_ret"),
             Memory::SSA(i) => write!(fmt, "{i}"),
             Memory::Heap { ptr, offset } => match offset {
-                Offset::Static(0) => write!(fmt, "*{ptr}"),
-                Offset::Static(i) => write!(fmt, "*({ptr} + {i})"),
-                Offset::Dynamic(p) => write!(fmt, "*({ptr} + *({p}))"),
+                0 => write!(fmt, "*{ptr}"),
+                i => write!(fmt, "*({ptr} + {i})"),
             },
-            Memory::List { ptr, offset } => match offset {
-                Offset::Static(i) => write!(fmt, "{ptr}[{i}]"),
-                Offset::Dynamic(p) => write!(fmt, "{ptr}[{p}]"),
-            },
+            Memory::List { ptr, offset } => write!(fmt, "{ptr}[{offset}]"),
             Memory::Global(s) => write!(fmt, "_g{}", s.hex(12)),
         }
     }
@@ -195,7 +190,7 @@ impl Display for InternedValue {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         match self {
             InternedValue::Interned(h) => write!(fmt, "%I{}", h.hex(12)),
-            InternedValue::Scalar(n) => write!(fmt, "{n}#s"),
+            InternedValue::Scalar(n) => write!(fmt, "{n:x}#s"),
         }
     }
 }
@@ -203,9 +198,9 @@ impl Display for InternedValue {
 impl Display for Label {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         match self {
-            Label::Local(n) => write!(fmt, "@L{n}"),
+            Label::Local(n) => write!(fmt, "@L{n:x}"),
             Label::Global(s) => write!(fmt, "@G{}", s.hex(12)),
-            Label::Flatten(n) => write!(fmt, "@F{n}"),
+            Label::Flatten(n) => write!(fmt, "@F{n:x}"),
         }
     }
 }

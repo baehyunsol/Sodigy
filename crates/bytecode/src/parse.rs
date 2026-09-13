@@ -8,7 +8,7 @@ mod token;
 mod tests;
 
 pub use error::BytecodeParseError;
-use token::Token;
+use token::{Keyword, Token};
 
 pub fn parse(b: &[u8]) -> Result<ObjectFile, BytecodeParseError> {
     let [data, code, entries] = lex::lex(b)?;

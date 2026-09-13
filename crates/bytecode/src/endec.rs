@@ -1,4 +1,4 @@
-use crate::{DebugInfoKind, Label, Memory, Offset, SSA};
+use crate::{DebugInfoKind, Label, Memory, SSA};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::SpanHash;
 
@@ -59,12 +59,12 @@ impl Endec for Memory {
             },
             Some(2) => {
                 let (ptr, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
-                let (offset, cursor) = Offset::decode_impl(buffer, cursor)?;
+                let (offset, cursor) = u32::decode_impl(buffer, cursor)?;
                 Ok((Memory::Heap { ptr, offset }, cursor))
             },
             Some(3) => {
                 let (ptr, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
-                let (offset, cursor) = Offset::decode_impl(buffer, cursor)?;
+                let (offset, cursor) = u32::decode_impl(buffer, cursor)?;
                 Ok((Memory::List { ptr, offset }, cursor))
             },
             Some(4) => {
@@ -110,36 +110,6 @@ impl Endec for Label {
                 Ok((Label::Flatten(n), cursor))
             },
             Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
-            None => Err(DecodeError::UnexpectedEof),
-        }
-    }
-}
-
-impl Endec for Offset {
-    fn encode_impl(&self, buffer: &mut Vec<u8>) {
-        match self {
-            Offset::Static(n) => {
-                buffer.push(0);
-                n.encode_impl(buffer);
-            },
-            Offset::Dynamic(src) => {
-                buffer.push(1);
-                src.encode_impl(buffer);
-            },
-        }
-    }
-
-    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        match buffer.get(cursor) {
-            Some(0) => {
-                let (n, cursor) = u32::decode_impl(buffer, cursor + 1)?;
-                Ok((Offset::Static(n), cursor))
-            },
-            Some(1) => {
-                let (src, cursor) = Box::<Memory>::decode_impl(buffer, cursor + 1)?;
-                Ok((Offset::Dynamic(src), cursor))
-            },
-            Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }
