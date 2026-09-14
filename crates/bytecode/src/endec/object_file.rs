@@ -5,7 +5,9 @@ use crate::{
     CodeSection,
     ExprHash,
     Label,
+    Memory,
     ObjectFile,
+    SSA,
     Terminator,
     Value,
 };
@@ -97,5 +99,65 @@ impl Endec for BasicBlock {
         let (terminator_debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
 
         Ok((BasicBlock { label, code, terminator, terminator_debug_info }, cursor))
+    }
+}
+
+impl Endec for Terminator {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            Terminator::Jump(label) => {
+                buffer.push(0);
+                label.encode_impl(buffer);
+            },
+            Terminator::TailCall { func, args } => {
+                buffer.push(1);
+                func.encode_impl(buffer);
+                args.encode_impl(buffer);
+            },
+            Terminator::TailCallDynamic { func, args } => {
+                buffer.push(2);
+                func.encode_impl(buffer);
+                args.encode_impl(buffer);
+            },
+            Terminator::JumpIf(value, label) => {
+                buffer.push(3);
+                value.encode_impl(buffer);
+                label.encode_impl(buffer);
+            },
+            Terminator::Return(src) => {
+                buffer.push(4);
+                src.encode_impl(buffer);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => {
+                let (label, cursor) = Label::decode_impl(buffer, cursor + 1)?;
+                Ok((Terminator::Jump(label), cursor))
+            },
+            Some(1) => {
+                let (func, cursor) = Label::decode_impl(buffer, cursor + 1)?;
+                let (args, cursor) = Vec::<SSA>::decode_impl(buffer, cursor)?;
+                Ok((Terminator::TailCall { func, args }, cursor))
+            },
+            Some(2) => {
+                let (func, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
+                let (args, cursor) = Vec::<SSA>::decode_impl(buffer, cursor)?;
+                Ok((Terminator::TailCallDynamic { func, args }, cursor))
+            },
+            Some(3) => {
+                let (value, cursor) = Memory::decode_impl(buffer, cursor + 1)?;
+                let (label, cursor) = Label::decode_impl(buffer, cursor)?;
+                Ok((Terminator::JumpIf(value, label), cursor))
+            },
+            Some(4) => {
+                let (src, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
+                Ok((Terminator::Return(src), cursor))
+            },
+            Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
     }
 }

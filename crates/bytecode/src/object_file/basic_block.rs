@@ -11,6 +11,8 @@ pub struct BasicBlock {
 
 pub enum Terminator {
     Jump(Label),
+
+    // TODO: do we need FuncEffect? I don't know...
     TailCall {
         func: Label,
         args: Vec<SSA>,
@@ -19,6 +21,7 @@ pub enum Terminator {
         func: SSA,
         args: Vec<SSA>,
     },
+
     JumpIf(Memory, Label),
     Return(SSA),
 }
