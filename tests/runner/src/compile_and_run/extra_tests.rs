@@ -77,29 +77,25 @@ impl CnrContext {
                 args: vec!["--emit=bytecode-exe", "-o=bcx-debug-0"],
                 check_incremental_compilation: Some(CheckIncrementalCompilation::All),
             },
-
-            // TODO: remaining features are TODO
-            ExtraTest::Break,
-
             ExtraTest::Clean,
             ExtraTest::Build {
                 args: vec!["--emit=bytecode-exe", "-o=bcx-release-0", "--release"],
                 check_incremental_compilation: None,
             },
             ExtraTest::Build {
-                args: vec!["--emit=c", "-o=c-debug-run-0"],
+                args: vec!["--emit=rust", "-o=rs-debug-run-0"],
                 check_incremental_compilation: Some(CheckIncrementalCompilation::BeforeOptimization),
             },
             ExtraTest::Build {
-                args: vec!["--emit=c", "--test", "-o=c-debug-test-0"],
+                args: vec!["--emit=rust", "--test", "-o=rs-debug-test-0"],
                 check_incremental_compilation: Some(CheckIncrementalCompilation::All),
             },
             ExtraTest::Build {
-                args: vec!["--emit=c", "-o=c-release-run-0", "--release"],
+                args: vec!["--emit=rust", "-o=rs-release-run-0", "--release"],
                 check_incremental_compilation: Some(CheckIncrementalCompilation::All),
             },
             ExtraTest::Build {
-                args: vec!["--emit=c", "--test", "-o=c-release-test-0", "--release"],
+                args: vec!["--emit=rust", "--test", "-o=rs-release-test-0", "--release"],
                 check_incremental_compilation: Some(CheckIncrementalCompilation::All),
             },
             ExtraTest::Clean,
@@ -136,22 +132,22 @@ impl CnrContext {
             },
             ExtraTest::Clean,
             ExtraTest::Build {
-                args: vec!["--emit=c", "-o=c-debug-run-1"],
+                args: vec!["--emit=rust", "-o=rs-debug-run-1"],
                 check_incremental_compilation: None,
             },
             ExtraTest::Clean,
             ExtraTest::Build {
-                args: vec!["--emit=c", "--test", "-o=c-debug-test-1"],
+                args: vec!["--emit=rust", "--test", "-o=rs-debug-test-1"],
                 check_incremental_compilation: None,
             },
             ExtraTest::Clean,
             ExtraTest::Build {
-                args: vec!["--emit=c", "-o=c-release-run-1", "--release"],
+                args: vec!["--emit=rust", "-o=rs-release-run-1", "--release"],
                 check_incremental_compilation: None,
             },
             ExtraTest::Clean,
             ExtraTest::Build {
-                args: vec!["--emit=c", "--test", "-o=c-release-test-1", "--release"],
+                args: vec!["--emit=rust", "--test", "-o=rs-release-test-1", "--release"],
                 check_incremental_compilation: None,
             },
             ExtraTest::AssertEq {
@@ -165,24 +161,24 @@ impl CnrContext {
                 note: "`sodigy build --emit=bytecode --release` is not deterministic",
             },
             ExtraTest::AssertEq {
-                a: "c-debug-run-0",
-                b: "c-debug-run-1",
-                note: "`sodigy build --emit=c` is not deterministic",
+                a: "rs-debug-run-0",
+                b: "rs-debug-run-1",
+                note: "`sodigy build --emit=rust` is not deterministic",
             },
             ExtraTest::AssertEq {
-                a: "c-debug-test-0",
-                b: "c-debug-test-1",
-                note: "`sodigy build --emit=c --test` is not deterministic",
+                a: "rs-debug-test-0",
+                b: "rs-debug-test-1",
+                note: "`sodigy build --emit=rust --test` is not deterministic",
             },
             ExtraTest::AssertEq {
-                a: "c-release-run-0",
-                b: "c-release-run-1",
-                note: "`sodigy build --emit=c --release` is not deterministic",
+                a: "rs-release-run-0",
+                b: "rs-release-run-1",
+                note: "`sodigy build --emit=rust --release` is not deterministic",
             },
             ExtraTest::AssertEq {
-                a: "c-release-test-0",
-                b: "c-release-test-1",
-                note: "`sodigy build --emit=c --test --release` is not deterministic",
+                a: "rs-release-test-0",
+                b: "rs-release-test-1",
+                note: "`sodigy build --emit=rust --test --release` is not deterministic",
             },
 
             ExtraTest::Note {
@@ -194,7 +190,7 @@ impl CnrContext {
                 check_incremental_compilation: None,
             },
             ExtraTest::Build {
-                args: vec!["--bytecode=bc-debug-0", "--emit=c", "-o=c-debug-2"],
+                args: vec!["--bytecode=bc-debug-0", "--emit=rust", "-o=rs-debug-2"],
                 check_incremental_compilation: None,
             },
             ExtraTest::Build {
@@ -206,7 +202,7 @@ impl CnrContext {
                 check_incremental_compilation: None,
             },
             ExtraTest::Build {
-                args: vec!["--bytecode=bc-release-0", "--emit=c", "-o=c-release-2"],
+                args: vec!["--bytecode=bc-release-0", "--emit=rust", "-o=rs-release-2"],
                 check_incremental_compilation: None,
             },
             ExtraTest::Build {
@@ -273,8 +269,7 @@ impl CnrContext {
                 key: "test",
             },
 
-            // TODO: c-debug-0, c-release-0, exe-debug-0, exe-release-0
-            //       But how do I set profile for these?
+            // TODO: rs-debug-run-0, rs-debug-test-0, rs-release-run-0, rs-release-test-0, exe-debug-run-0, exe-debug-test-0, exe-release-run-0, exe-release-test-0
 
             ExtraTest::AssertEqRunResults,
 
