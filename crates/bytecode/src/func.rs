@@ -18,7 +18,9 @@ impl Func {
     pub fn from_mir(mir_func: &mir::Func, session: &mut Session) -> Func {
         session.label_counter = 0;
         session.ssa_map = HashMap::new();
-        let mut bytecodes = vec![];
+        let mut bytecodes = vec![
+            Bytecode::Label(session.get_local_label()),
+        ];
 
         for (i, param) in mir_func.params.iter().enumerate() {
             session.ssa_map.insert(

@@ -728,7 +728,7 @@ impl Worker {
                         let code = match emit {
                             Emit::Exe |
                             Emit::ReadableBytecode |
-                            Emit::C => code,
+                            Emit::Rust => code,
                             Emit::ExecutableBytecode => code.encode(),
                         };
                         write_bytes(&f, &code, WriteMode::CreateOrTruncate)?;

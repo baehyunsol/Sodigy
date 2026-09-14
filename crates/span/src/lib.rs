@@ -22,7 +22,7 @@ pub use render::{
     render_spans,
 };
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct SpanHash(pub u128);
 
 impl SpanHash {

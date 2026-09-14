@@ -3,6 +3,7 @@ use crate::{
     Bytecode,
     ExprHash,
     Func,
+    Label,
     Let,
     Value,
 };
@@ -10,6 +11,10 @@ use sodigy_error::FuncEffect;
 use sodigy_span::{Span, SpanHash};
 use sodigy_string::unintern_string;
 use std::collections::HashMap;
+
+mod basic_block;
+
+pub use basic_block::{BasicBlock, Terminator, to_basic_blocks};
 
 pub struct ObjectFile {
     pub data: Vec<(ExprHash, Value)>,
@@ -29,7 +34,7 @@ pub struct CodeSection {
     pub name: String,
     pub params: Option<usize>,
     pub effect: FuncEffect,
-    pub code: Vec<Bytecode>,
+    pub basic_blocks: HashMap<Label, BasicBlock>,
 }
 
 pub enum CodeKind {
@@ -59,7 +64,7 @@ impl ObjectFile {
                 name: String::from_utf8_lossy(&unintern_string(func.name, intermediate_dir).unwrap().unwrap()).to_string(),
                 params: Some(func.params),
                 effect: func.effect.clone(),
-                code: std::mem::take(&mut func.bytecodes),
+                basic_blocks: to_basic_blocks(&mut func.bytecodes),
             });
         }
 
@@ -71,7 +76,7 @@ impl ObjectFile {
                 name: String::from_utf8_lossy(&unintern_string(r#let.name, intermediate_dir).unwrap().unwrap()).to_string(),
                 params: None,
                 effect: FuncEffect::Fn,
-                code: std::mem::take(&mut r#let.bytecodes),
+                basic_blocks: to_basic_blocks(&mut r#let.bytecodes),
             });
         }
 
@@ -85,7 +90,7 @@ impl ObjectFile {
                 name: String::from_utf8_lossy(&unintern_string(assert.name, intermediate_dir).unwrap().unwrap()).to_string(),
                 params: None,
                 effect: FuncEffect::Fn,
-                code: std::mem::take(&mut assert.bytecodes),
+                basic_blocks: to_basic_blocks(&mut assert.bytecodes),
             });
         }
 

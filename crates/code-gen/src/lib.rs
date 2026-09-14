@@ -2,7 +2,7 @@ use sodigy_bytecode::{self as bytecode, ObjectFile};
 use sodigy_endec::Endec;
 use sodigy_error::{Error, Warning};
 
-mod c;
+mod rust;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Profile {
@@ -15,7 +15,7 @@ pub enum Emit {
     Exe,  // WIP
     ReadableBytecode,
     ExecutableBytecode,
-    C,  // WIP
+    Rust,  // WIP
 }
 
 pub fn lower(
@@ -37,8 +37,8 @@ pub fn lower(
             errors,
             warnings,
         ),
-        Emit::C => (
-            c::lower(
+        Emit::Rust => (
+            rust::lower(
                 bytecode::link(object_files),
                 profile,
             ).code.into_bytes(),

@@ -1,4 +1,5 @@
 use crate::{
+    BasicBlock,
     Bytecode,
     CodeKind,
     CodeSection,
@@ -39,16 +40,13 @@ impl Display for CodeSection {
                 None => String::new(),
             },
         ));
-        lines.push(String::from("    label @start:"));
 
-        for bytecode in self.code.iter() {
-            match bytecode {
-                Bytecode::Label(_) => {
-                    lines.push(format!("    {bytecode}"));
-                },
-                _ => {
-                    lines.push(format!("        {bytecode}"));
-                },
+        let mut basic_blocks: Vec<(&Label, &BasicBlock)> = self.basic_blocks.iter().collect();
+        basic_blocks.sort_by_key(|(label, _)| label.clone());
+
+        for (_, basic_block) in basic_blocks.iter() {
+            for line in basic_block.to_string().lines() {
+                lines.push(format!("    {line}"));
             }
         }
 
@@ -86,6 +84,12 @@ impl Display for ObjectFile {
             self.code.iter().map(|c| c.to_string()).collect::<Vec<_>>().join("\n\n"),
             labels.join("\n"),
         )
+    }
+}
+
+impl Display for BasicBlock {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        todo!()
     }
 }
 

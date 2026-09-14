@@ -28,7 +28,13 @@ pub(crate) use expr::lower_expr;
 pub use func::Func;
 pub use r#let::Let;
 pub use link::{flatten, link};
-pub use object_file::{CodeKind, CodeSection, ObjectFile};
+pub use object_file::{
+    BasicBlock,
+    CodeKind,
+    CodeSection,
+    ObjectFile,
+    Terminator,
+};
 pub use parse::{BytecodeParseError, parse as parse_bytecode};
 pub use session::{LocalValue, Session};
 pub use value::{InternedValue, Value};
@@ -218,7 +224,7 @@ impl Memory {
     }
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Label {
     Local(u32),
     Global(SpanHash /* def_span of the item */),
@@ -513,16 +519,24 @@ pub fn lower<'hir, 'mir>(
                 name: camel_to_snake(&format!("{intrinsic:?}")),
                 params: Some(intrinsic.num_params()),
                 effect: intrinsic.effect(),
-                code: vec![
-                    Bytecode::Intrinsic {
-                        intrinsic: *intrinsic,
-                        args: (0..intrinsic.num_params()).map(
-                            |i| SSA(i as u32)
-                        ).collect(),
-                        dst: Memory::Return,
-                        debug_info: None,
+                basic_blocks: [(
+                    Label::Local(0),
+                    BasicBlock {
+                        label: Label::Local(0),
+                        code: vec![
+                            Bytecode::Intrinsic {
+                                intrinsic: *intrinsic,
+                                args: (0..intrinsic.num_params()).map(
+                                    |i| SSA(i as u32)
+                                ).collect(),
+                                dst: Memory::SSA(SSA(intrinsic.num_params() as u32 + 1)),
+                                debug_info: None,
+                            },
+                        ],
+                        terminator: Terminator::Return(SSA(intrinsic.num_params() as u32 + 1)),
+                        terminator_debug_info: None,
                     },
-                ],
+                )].into_iter().collect(),
             });
         }
     }

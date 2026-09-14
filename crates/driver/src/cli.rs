@@ -78,7 +78,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
         Some("build") => {
             let parsed_args = ArgParser::new()
                 .optional_arg_flag("--output", ArgType::String)
-                .optional_arg_flag("--emit", ArgType::enum_(&["exe", "bytecode", "bytecode-exe", "c"]))
+                .optional_arg_flag("--emit", ArgType::enum_(&["exe", "bytecode", "bytecode-exe", "rust"]))
                 .optional_arg_flag("--bytecode", ArgType::String)
                 .optional_arg_flag("--color", ArgType::enum_(&["auto", "always", "never"]))
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
@@ -107,7 +107,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 Some("exe") => Emit::Exe,
                 Some("bytecode") => Emit::ReadableBytecode,
                 Some("bytecode-exe") => Emit::ExecutableBytecode,
-                Some("c") => Emit::C,
+                Some("rust") => Emit::Rust,
                 None => Emit::Exe,  // default
                 _ => unreachable!(),
             };
@@ -133,7 +133,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             };
 
             let profile = match (emit, parsed_args.get_flag(1).is_some()) {
-                (Emit::Exe | Emit::C, true) => Profile::Test,
+                (Emit::Exe | Emit::Rust, true) => Profile::Test,
                 (Emit::ReadableBytecode | Emit::ExecutableBytecode, true) => {
                     // This is a cli error. You can set `--test` flag only if the emit option is `c` or `exe`.
                     // But there's no way I can construct such CliError...
@@ -162,7 +162,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                     Emit::Exe => if cfg!(target_os = "windows") { "out.exe" } else { "out" },
                     Emit::ReadableBytecode => "out.sdgb",
                     Emit::ExecutableBytecode => "out.sdge",
-                    Emit::C => "out.c",
+                    Emit::Rust => "out.rs",
                 }.to_string(),
             };
 

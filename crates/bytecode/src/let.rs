@@ -18,7 +18,9 @@ impl Let {
     pub fn from_mir(mir_let: &mir::Let, session: &mut Session) -> Let {
         session.label_counter = 0;
         session.ssa_counter = 0;
-        let mut bytecodes = vec![];
+        let mut bytecodes = vec![
+            Bytecode::Label(session.get_local_label()),
+        ];
         let return_ssa = session.get_ssa();
 
         lower_expr(

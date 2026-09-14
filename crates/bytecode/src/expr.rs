@@ -98,6 +98,7 @@ pub fn lower_expr(
         },
         Expr::If(If { if_span, cond, true_value, false_value, .. }) => {
             let eval_true_value = session.get_local_label();
+            let eval_false_value = session.get_local_label();
             let return_expr = session.get_local_label();
             let cond_ssa = session.get_ssa();
             let true_ssa = session.get_ssa();
@@ -114,13 +115,14 @@ pub fn lower_expr(
                 label: eval_true_value.clone(),
                 debug_info: if session.debug_info { Some(Box::new(if_span.clone())) } else { None },
             });
+            bytecodes.push(Bytecode::Label(eval_false_value));
             lower_expr(false_value, session, bytecodes, Memory::SSA(false_ssa), is_tail_call);
 
             if !is_tail_call {
                 bytecodes.push(Bytecode::Jump(return_expr.clone()));
             }
 
-            bytecodes.push(Bytecode::Label(eval_true_value.clone()));
+            bytecodes.push(Bytecode::Label(eval_true_value));
             lower_expr(true_value, session, bytecodes, Memory::SSA(true_ssa), is_tail_call);
 
             if !is_tail_call {

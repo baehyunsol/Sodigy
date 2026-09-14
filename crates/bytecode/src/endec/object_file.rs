@@ -1,14 +1,18 @@
 use crate::{
+    BasicBlock,
     Bytecode,
     CodeKind,
     CodeSection,
     ExprHash,
+    Label,
     ObjectFile,
+    Terminator,
     Value,
 };
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_error::FuncEffect;
 use sodigy_span::{Span, SpanHash};
+use std::collections::HashMap;
 
 impl Endec for ObjectFile {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
@@ -36,7 +40,7 @@ impl Endec for CodeSection {
         self.name.encode_impl(buffer);
         self.params.encode_impl(buffer);
         self.effect.encode_impl(buffer);
-        self.code.encode_impl(buffer);
+        self.basic_blocks.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
@@ -46,9 +50,9 @@ impl Endec for CodeSection {
         let (name, cursor) = String::decode_impl(buffer, cursor)?;
         let (params, cursor) = Option::<usize>::decode_impl(buffer, cursor)?;
         let (effect, cursor) = FuncEffect::decode_impl(buffer, cursor)?;
-        let (code, cursor) = Vec::<Bytecode>::decode_impl(buffer, cursor)?;
+        let (basic_blocks, cursor) = HashMap::<Label, BasicBlock>::decode_impl(buffer, cursor)?;
 
-        Ok((CodeSection { label, span, kind, name, params, effect, code }, cursor))
+        Ok((CodeSection { label, span, kind, name, params, effect, basic_blocks }, cursor))
     }
 }
 
@@ -75,5 +79,23 @@ impl Endec for CodeKind {
             Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
+    }
+}
+
+impl Endec for BasicBlock {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.label.encode_impl(buffer);
+        self.code.encode_impl(buffer);
+        self.terminator.encode_impl(buffer);
+        self.terminator_debug_info.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (label, cursor) = Label::decode_impl(buffer, cursor)?;
+        let (code, cursor) = Vec::<Bytecode>::decode_impl(buffer, cursor)?;
+        let (terminator, cursor) = Terminator::decode_impl(buffer, cursor)?;
+        let (terminator_debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
+
+        Ok((BasicBlock { label, code, terminator, terminator_debug_info }, cursor))
     }
 }
