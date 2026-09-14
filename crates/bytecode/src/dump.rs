@@ -8,6 +8,7 @@ use crate::{
     Memory,
     ObjectFile,
     SSA,
+    Terminator,
     Value,
 };
 use sodigy_number::bi_to_hex_string;
@@ -89,7 +90,43 @@ impl Display for ObjectFile {
 
 impl Display for BasicBlock {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        todo!()
+        let code = self.code.iter().map(
+            |c| format!("    {c}")
+        ).collect::<Vec<_>>().join("\n");
+
+        write!(fmt, r#"
+label {}:
+{code}
+    {}{}
+"#,
+            self.label,
+            self.terminator,
+            dump_debug_info(&self.terminator_debug_info),
+        )
+    }
+}
+
+impl Display for Terminator {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        match self {
+            Terminator::Jump(label) => write!(fmt, "jump {label};"),
+            Terminator::TailCall { func, args } => write!(
+                fmt,
+                "return {func}({});",
+                args.iter().map(
+                    |i| format!("{i}")
+                ).collect::<Vec<_>>().join(", "),
+            ),
+            Terminator::TailCallDynamic { func, args } => write!(
+                fmt,
+                "return {func}({});",
+                args.iter().map(
+                    |i| format!("{i}")
+                ).collect::<Vec<_>>().join(", "),
+            ),
+            Terminator::JumpIf(value, label) => write!(fmt, "if {value} {{ jump {label}; }}"),
+            Terminator::Return(ssa) => write!(fmt, "return {ssa};"),
+        }
     }
 }
 
@@ -101,14 +138,6 @@ impl Display for SSA {
 
 impl Display for Bytecode {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        fn dump_debug_info(debug_info: &Option<Box<Span>>) -> String {
-            match debug_info {
-                Some(span) if **span == Span::None => String::new(),
-                Some(span) => format!("  // {span:?}"),
-                None => String::new(),
-            }
-        }
-
         match self {
             Bytecode::Const { dst, value, debug_info } => write!(
                 fmt,
@@ -229,5 +258,13 @@ impl Display for Value {
             // This information is lost once it's dumped.
             Value::Span(_) => write!(fmt, "#p"),
         }
+    }
+}
+
+fn dump_debug_info(debug_info: &Option<Box<Span>>) -> String {
+    match debug_info {
+        Some(span) if **span == Span::None => String::new(),
+        Some(span) => format!("  // {span:?}"),
+        None => String::new(),
     }
 }

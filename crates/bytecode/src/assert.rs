@@ -28,7 +28,9 @@ impl Assert {
             session.ssa_counter = 0;
         }
 
-        let mut bytecodes = vec![];
+        let mut bytecodes = vec![
+            Bytecode::Label(session.get_local_label()),
+        ];
         let mut debug_info_count = 0;
 
         let span_ssa = session.get_ssa();

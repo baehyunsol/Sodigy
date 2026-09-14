@@ -103,5 +103,6 @@ pub fn to_basic_blocks(bytecodes: &mut Vec<Bytecode>) -> HashMap<Label, BasicBlo
         }
     }
 
+    assert!(curr_code.is_empty());
     basic_blocks
 }
