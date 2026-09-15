@@ -112,7 +112,7 @@ fn call(
                             heap.alloc_value(value)
                         },
                         InternedValue::Scalar(n) => *n,
-                        InternedValue::FuncPointer(_) => todo!(),
+                        InternedValue::FuncPointer(p) => heap.alloc_func_pointer(*p),
                     };
                     update(dst, value, &mut stack, heap);
                 },
@@ -131,6 +131,7 @@ fn call(
                 Bytecode::Jump(_) => unreachable!(),
                 Bytecode::Call { func, args, dst, debug_info: _, effect: _ } => {
                     let new_stack = Stack::from_args(args, &stack);
+
                     match dst {
                         Some(dst) => {
                             let value = match tail_call_loop(new_stack, heap, object_file, *func) {
@@ -149,7 +150,29 @@ fn call(
                         None => unreachable!(),
                     }
                 },
-                Bytecode::CallDynamic { func, args, dst, debug_info: _, effect: _ } => todo!(),
+                Bytecode::CallDynamic { func, args, dst, debug_info: _, effect: _ } => {
+                    let new_stack = Stack::from_args(args, &stack);
+                    let func = stack.ssa.get(func).unwrap();
+                    let func = heap.func_pointers_rev.get(func).unwrap();
+
+                    match dst {
+                        Some(dst) => {
+                            let value = match tail_call_loop(new_stack, heap, object_file, GlobalLabel::new(*func)) {
+                                CallResult::Return(n) => n,
+                                CallResult::TailCall { .. } => unreachable!(),
+                                CallResult::Exit => {
+                                    return CallResult::Exit;
+                                },
+                                CallResult::Panic => {
+                                    return CallResult::Panic;
+                                },
+                            };
+                            update(dst, value, &mut stack, heap);
+                        },
+                        // tail call
+                        None => unreachable!(),
+                    }
+                },
                 Bytecode::JumpIf { .. } => unreachable!(),
                 Bytecode::TryInitGlobal { .. } => unreachable!(),
                 Bytecode::Label(_) => unreachable!(),

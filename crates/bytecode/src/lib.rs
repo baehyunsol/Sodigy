@@ -110,7 +110,7 @@ pub enum Bytecode {
         debug_info: Option<Box<Span>>,
     },
 
-    // If the global value `def_span` is not initialized, it calls the function `global`.
+    // If the global value is not initialized, it calls the function `global`.
     // The function will initialize the global value and return. Then, it jumps to `label`.
     // If it's already initialized, it just jumps to `label`.
     TryInitGlobal {
@@ -236,6 +236,10 @@ impl LocalLabel {
 pub struct GlobalLabel(SpanHash);
 
 impl GlobalLabel {
+    pub fn new(s: SpanHash) -> Self {
+        GlobalLabel(s)
+    }
+
     pub fn hex(&self, l: usize) -> String {
         self.0.hex(l)
     }

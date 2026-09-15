@@ -1,6 +1,6 @@
 use sodigy_bytecode::{DebugInfoKind, DropType, Value};
 use sodigy_span::{SpanHash, SpanId};
-use std::collections::HashMap;
+use std::collections::hash_map::{Entry, HashMap};
 
 #[cfg(feature="debug-heap")]
 mod debug;
@@ -36,6 +36,10 @@ pub struct Heap {
     // Global values are static: once initialized, it's alive until the end of the program.
     pub global_values: HashMap<SpanHash, u32>,
 
+    // Func pointers are also lazy-evaluated.
+    pub func_pointers: HashMap<SpanHash, u32>,
+    pub func_pointers_rev: HashMap<u32, SpanHash>,
+
     // Blocks in freelist_small are at least as big as SMALL_BLOCK_SIZE (can be bigger).
     // Each `usize` value is a pointer, where `self.data[pointer]` is a header of a block.
     pub freelist_small: Vec<usize>,
@@ -49,9 +53,11 @@ pub struct Heap {
 impl Heap {
     pub fn new() -> Heap {
         Heap {
+            data: vec![],
             debug_info: vec![],
             global_values: HashMap::new(),
-            data: vec![],
+            func_pointers: HashMap::new(),
+            func_pointers_rev: HashMap::new(),
             freelist_small: vec![],
             freelist_medium: vec![],
             freelist_large: vec![],
@@ -78,6 +84,19 @@ impl Heap {
             self.freelist_large.push(self.data.len() + 2);
             self.data.push(LARGE_BLOCK_SIZE as u32);
             self.data.extend(vec![0; LARGE_BLOCK_SIZE + 1]);
+        }
+    }
+
+    pub fn alloc_func_pointer(&mut self, f: SpanHash) -> u32 {
+        let new_index = self.func_pointers.len() as u32;
+
+        match self.func_pointers.entry(f) {
+            Entry::Occupied(e) => *e.get(),
+            Entry::Vacant(e) => {
+                e.insert(new_index);
+                self.func_pointers_rev.insert(new_index, f);
+                new_index
+            },
         }
     }
 
