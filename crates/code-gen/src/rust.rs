@@ -1,5 +1,5 @@
 use crate::Profile;
-use sodigy_bytecode::{Bytecode, CodeSection, ObjectFile};
+use sodigy_bytecode::{Bytecode, CodeSection, ObjectFile, Terminator};
 
 pub struct RustModule {
     pub code: String,
@@ -30,6 +30,13 @@ fn lower_code(code: CodeSection) -> String {
         }
     }
 
+    let basic_blocks_inspection = inspect_basic_blocks(&code.basic_blocks);
+    let basic_block_count = match (code.basic_blocks.get(&Label::Local(0)), code.basic_blocks.len()) {
+        (_, 1) => BasicBlockCount::Single,
+        (Some(BasicBlock { terminator: Terminator::JumpIf(_, _), .. }), 3) => BasicBlockCount::Triple,
+        _ => BasicBlockCount::Multi,
+    };
+
     for code in code.basic_blocks.iter() {
         todo!()
     }
@@ -42,4 +49,12 @@ unsafe fn {name}({params}) -> CodeResult {{{body}}}
 
 fn lower_bytecode(b: &Bytecode) -> String {
     todo!()
+}
+
+fn inspect_basic_blocks(basic_blocks: &HashMap<Label, BasicBlock>) -> BasicBlocksInspection {
+    for (label, basic_block) in basic_blocks.iter() {
+        for bytecode in basic_block.code.iter() {
+            if let Some(ssa) = bytecode.
+        }
+    }
 }

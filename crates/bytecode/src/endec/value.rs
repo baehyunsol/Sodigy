@@ -22,10 +22,9 @@ impl Endec for Value {
                 buffer.push(3);
                 vs.encode_impl(buffer);
             },
-            Value::FuncPointer { def_span, program_counter } => {
+            Value::FuncPointer(def_span) => {
                 buffer.push(4);
                 def_span.encode_impl(buffer);
-                program_counter.encode_impl(buffer);
             },
             Value::Span(span) => {
                 buffer.push(5);
@@ -54,8 +53,7 @@ impl Endec for Value {
             },
             Some(4) => {
                 let (def_span, cursor) = SpanHash::decode_impl(buffer, cursor + 1)?;
-                let (program_counter, cursor) = Option::<usize>::decode_impl(buffer, cursor)?;
-                Ok((Value::FuncPointer { def_span, program_counter }, cursor))
+                Ok((Value::FuncPointer(def_span), cursor))
             },
             Some(5) => {
                 let (span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
@@ -78,6 +76,10 @@ impl Endec for InternedValue {
                 buffer.push(1);
                 n.encode_impl(buffer);
             },
+            InternedValue::FuncPointer(h) => {
+                buffer.push(2);
+                h.encode_impl(buffer);
+            },
         }
     }
 
@@ -91,7 +93,11 @@ impl Endec for InternedValue {
                 let (n, cursor) = u32::decode_impl(buffer, cursor + 1)?;
                 Ok((InternedValue::Scalar(n), cursor))
             },
-            Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(2) => {
+                let (h, cursor) = SpanHash::decode_impl(buffer, cursor + 1)?;
+                Ok((InternedValue::FuncPointer(h), cursor))
+            },
+            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

@@ -1,5 +1,5 @@
 use super::{BytecodeParseError, Keyword, Section, Token};
-use crate::{Label, Memory, SSA, Value};
+use crate::{GlobalLabel, LocalLabel, Memory, SSA, Value};
 use sodigy_number::{BigInt, add_ubi, mul_ubi, or_ubi, shl_ubi};
 use sodigy_span::{Span, SpanHash};
 
@@ -179,36 +179,29 @@ fn lex_code_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), 
                 cursor += 1;
 
                 match b.get(cursor) {
-                    Some(prefix @ (b'L' | b'G' | b'F')) => {
+                    Some(prefix @ (b'L' | b'G')) => {
                         let prefix = *prefix;
                         cursor += 1;
                         let int_start_cursor = cursor;
                         let (n, new_cursor) = lex_hex(b, cursor)?;
                         cursor = new_cursor;
 
-                        let label = match prefix {
+                        let token = match prefix {
                             b'L' => match u32::try_from(&n) {
-                                Ok(n) => Label::Local(n),
+                                Ok(n) => Token::LocalLabel(LocalLabel(n)),
                                 _ => {
                                     return Err(BytecodeParseError::IntRangeError { cursor: int_start_cursor });
                                 },
                             },
                             b'G' => match u128::try_from(&n) {
-                                Ok(n) => Label::Global(SpanHash(n)),
-                                _ => {
-                                    return Err(BytecodeParseError::IntRangeError { cursor: int_start_cursor });
-                                },
-                            },
-                            b'F' => match usize::try_from(&n) {
-                                Ok(n) => Label::Flatten(n),
+                                Ok(n) => Token::GlobalLabel(GlobalLabel(SpanHash(n))),
                                 _ => {
                                     return Err(BytecodeParseError::IntRangeError { cursor: int_start_cursor });
                                 },
                             },
                             _ => unreachable!(),
                         };
-
-                        tokens.push(Token::Label(label));
+                        tokens.push(token);
                     },
                     _ => {
                         return Err(BytecodeParseError::InvalidLabelPrefix { cursor });
@@ -445,13 +438,7 @@ fn lex_value(b: &[u8], mut cursor: usize) -> Result<(Value, usize), BytecodePars
 
             match (b.get(cursor), b.get(cursor + 1)) {
                 (Some(b'#'), Some(b'f')) => match u128::try_from(&value) {
-                    Ok(s) => Ok((
-                        Value::FuncPointer {
-                            def_span: SpanHash(s),
-                            program_counter: None,
-                        },
-                        cursor + 2,
-                    )),
+                    Ok(s) => Ok((Value::FuncPointer(SpanHash(s)), cursor + 2)),
                     Err(_) => Err(BytecodeParseError::IntRangeError { cursor: int_start_cursor }),
                 },
                 (Some(b'#'), Some(b'n')) => Ok((Value::Int(value), cursor + 2)),

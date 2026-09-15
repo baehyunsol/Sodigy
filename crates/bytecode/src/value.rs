@@ -16,10 +16,7 @@ pub enum Value {
     List(Vec<Value>),
     Compound(Vec<Value>),
 
-    FuncPointer {
-        def_span: SpanHash,
-        program_counter: Option<usize>,
-    },
+    FuncPointer(SpanHash),
 
     // It's only used for some debug information.
     // The runtime may implement a span-renderer, or completely ignore this.
@@ -30,6 +27,7 @@ pub enum Value {
 pub enum InternedValue {
     Interned(ExprHash),
     Scalar(u32),
+    FuncPointer(SpanHash),
 }
 
 impl Session<'_, '_> {
@@ -85,6 +83,7 @@ impl Session<'_, '_> {
     pub fn intern_value(&mut self, v: &Value) -> InternedValue {
         match v {
             Value::Scalar(n) => InternedValue::Scalar(*n),
+            Value::FuncPointer(h) => InternedValue::FuncPointer(*h),
             _ => {
                 let expr_hash = ExprHash::from_const(v);
                 self.data_section.insert(expr_hash, v.clone());

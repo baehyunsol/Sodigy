@@ -1,4 +1,4 @@
-use crate::{Label, Memory, SSA, Value};
+use crate::{GlobalLabel, Memory, SSA, Value};
 use sodigy_endec::Endec;
 use sodigy_mir::Intrinsic;
 use sodigy_utils::{dump_hex, hash};
@@ -13,7 +13,7 @@ impl ExprHash {
         ExprHash(hash(&encoded))
     }
 
-    pub fn from_func_call(f: &Label, args: &[SSA]) -> ExprHash {
+    pub fn from_func_call(f: &GlobalLabel, args: &[SSA]) -> ExprHash {
         let mut encoded = vec![1];
         f.encode_impl(&mut encoded);
 

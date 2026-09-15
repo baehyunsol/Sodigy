@@ -3,8 +3,9 @@ use crate::{
     Bytecode,
     CodeKind,
     CodeSection,
+    GlobalLabel,
     InternedValue,
-    Label,
+    LocalLabel,
     Memory,
     ObjectFile,
     SSA,
@@ -35,14 +36,14 @@ impl Display for CodeSection {
 
         lines.push(format!(
             "code @G{}{}:",
-            self.label.hex(12),
+            self.label.0.hex(12),
             match self.params {
                 Some(params) => format!("({})", (0..params).map(|i| format!("_{i}")).collect::<Vec<_>>().join(", ")),
                 None => String::new(),
             },
         ));
 
-        let mut basic_blocks: Vec<(&Label, &BasicBlock)> = self.basic_blocks.iter().collect();
+        let mut basic_blocks: Vec<(&LocalLabel, &BasicBlock)> = self.basic_blocks.iter().collect();
         basic_blocks.sort_by_key(|(label, _)| label.clone());
 
         for (_, basic_block) in basic_blocks.iter() {
@@ -124,7 +125,7 @@ impl Display for Terminator {
                     |i| format!("{i}")
                 ).collect::<Vec<_>>().join(", "),
             ),
-            Terminator::JumpIf(value, label) => write!(fmt, "if {value} {{ jump {label}; }}"),
+            Terminator::JumpIf { value, t, f } => write!(fmt, "if {value} {{ jump {t}; }} else {{ jump {f}; }}"),
             Terminator::Return(ssa) => write!(fmt, "return {ssa};"),
         }
     }
@@ -165,9 +166,9 @@ impl Display for Bytecode {
                 ).collect::<Vec<_>>().join(", "),
                 dump_debug_info(debug_info),
             ),
-            Bytecode::JumpIf { value, label, debug_info } => write!(
+            Bytecode::JumpIf { value, t, f, debug_info } => write!(
                 fmt,
-                "if {value} {{ jump {label}; }}{}",
+                "if {value} {{ jump {t}; }} else {{ jump {f}; }}{}",
                 dump_debug_info(debug_info),
             ),
             Bytecode::InitOrJump { def_span, func, label } => write!(
@@ -224,17 +225,20 @@ impl Display for InternedValue {
         match self {
             InternedValue::Interned(h) => write!(fmt, "%I{}", h.hex(12)),
             InternedValue::Scalar(n) => write!(fmt, "{n:x}#s"),
+            InternedValue::FuncPointer(def_span) => write!(fmt, "{}#f", def_span.hex(12)),
         }
     }
 }
 
-impl Display for Label {
+impl Display for LocalLabel {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        match self {
-            Label::Local(n) => write!(fmt, "@L{n:x}"),
-            Label::Global(s) => write!(fmt, "@G{}", s.hex(12)),
-            Label::Flatten(n) => write!(fmt, "@F{n:x}"),
-        }
+        write!(fmt, "@L{:x}", self.0)
+    }
+}
+
+impl Display for GlobalLabel {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        write!(fmt, "@G{}", self.0.hex(12))
     }
 }
 
@@ -253,7 +257,7 @@ impl Display for Value {
                 "{{{}}}",
                 es.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", "),
             ),
-            Value::FuncPointer { def_span, .. } => write!(fmt, "{}#f", def_span.hex(12)),
+            Value::FuncPointer(def_span) => write!(fmt, "{}#f", def_span.hex(12)),
 
             // This information is lost once it's dumped.
             Value::Span(_) => write!(fmt, "#p"),

@@ -2,8 +2,9 @@ use crate::{
     Bytecode,
     DebugInfoKind,
     DropType,
+    GlobalLabel,
     InternedValue,
-    Label,
+    LocalLabel,
     Memory,
     SSA,
 };
@@ -51,10 +52,11 @@ impl Endec for Bytecode {
                 debug_info.encode_impl(buffer);
                 effect.encode_impl(buffer);
             },
-            Bytecode::JumpIf { value, label, debug_info } => {
+            Bytecode::JumpIf { value, t, f, debug_info } => {
                 buffer.push(6);
                 value.encode_impl(buffer);
-                label.encode_impl(buffer);
+                t.encode_impl(buffer);
+                f.encode_impl(buffer);
                 debug_info.encode_impl(buffer);
             },
             Bytecode::InitOrJump { def_span, func, label } => {
@@ -128,11 +130,11 @@ impl Endec for Bytecode {
                 Ok((Bytecode::Phi { pair, dst }, cursor))
             },
             Some(3) => {
-                let (dst, cursor) = Label::decode_impl(buffer, cursor + 1)?;
+                let (dst, cursor) = LocalLabel::decode_impl(buffer, cursor + 1)?;
                 Ok((Bytecode::Jump(dst), cursor))
             },
             Some(4) => {
-                let (func, cursor) = Label::decode_impl(buffer, cursor + 1)?;
+                let (func, cursor) = GlobalLabel::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<SSA>::decode_impl(buffer, cursor)?;
                 let (dst, cursor) = Option::<Memory>::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
@@ -149,18 +151,19 @@ impl Endec for Bytecode {
             },
             Some(6) => {
                 let (value, cursor) = Memory::decode_impl(buffer, cursor + 1)?;
-                let (label, cursor) = Label::decode_impl(buffer, cursor)?;
+                let (t, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
+                let (f, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
-                Ok((Bytecode::JumpIf { value, label, debug_info }, cursor))
+                Ok((Bytecode::JumpIf { value, t, f, debug_info }, cursor))
             },
             Some(7) => {
                 let (def_span, cursor) = SpanHash::decode_impl(buffer, cursor + 1)?;
-                let (func, cursor) = Label::decode_impl(buffer, cursor)?;
-                let (label, cursor) = Label::decode_impl(buffer, cursor)?;
+                let (func, cursor) = GlobalLabel::decode_impl(buffer, cursor)?;
+                let (label, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::InitOrJump { def_span, func, label }, cursor))
             },
             Some(8) => {
-                let (label, cursor) = Label::decode_impl(buffer, cursor + 1)?;
+                let (label, cursor) = LocalLabel::decode_impl(buffer, cursor + 1)?;
                 Ok((Bytecode::Label(label), cursor))
             },
             Some(9) => {

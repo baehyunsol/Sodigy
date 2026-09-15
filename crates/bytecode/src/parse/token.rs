@@ -1,4 +1,4 @@
-use crate::{Label, Memory, Value};
+use crate::{GlobalLabel, LocalLabel, Memory, Value};
 
 pub enum Token {
     Assign,
@@ -10,7 +10,8 @@ pub enum Token {
         ident: Vec<u8>,
         args: Vec<Vec<u8>>,
     },
-    Label(Label),
+    LocalLabel(LocalLabel),
+    GlobalLabel(GlobalLabel),
     Memory(Memory),
 }
 

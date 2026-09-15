@@ -3,8 +3,9 @@ use crate::{
     Bytecode,
     ExprHash,
     Func,
-    Label,
+    GlobalLabel,
     Let,
+    LocalLabel,
     Value,
 };
 use sodigy_error::FuncEffect;
@@ -25,7 +26,7 @@ pub struct ObjectFile {
 
 // It can be a func, an assertion or a global let.
 pub struct CodeSection {
-    pub label: SpanHash,
+    pub label: GlobalLabel,
 
     // debug info
     pub span: Option<Span>,
@@ -34,7 +35,7 @@ pub struct CodeSection {
     pub name: String,
     pub params: Option<usize>,
     pub effect: FuncEffect,
-    pub basic_blocks: HashMap<Label, BasicBlock>,
+    pub basic_blocks: HashMap<LocalLabel, BasicBlock>,
 }
 
 pub enum CodeKind {
@@ -58,7 +59,7 @@ impl ObjectFile {
 
         for mut func in funcs.drain(..) {
             code.push(CodeSection {
-                label: func.name_span.hash(),
+                label: GlobalLabel(func.name_span.hash()),
                 span: Some(func.name_span.clone()),
                 kind: CodeKind::Func,
                 name: String::from_utf8_lossy(&unintern_string(func.name, intermediate_dir).unwrap().unwrap()).to_string(),
@@ -70,7 +71,7 @@ impl ObjectFile {
 
         for mut r#let in lets.drain(..) {
             code.push(CodeSection {
-                label: r#let.name_span.hash(),
+                label: GlobalLabel(r#let.name_span.hash()),
                 span: Some(r#let.name_span.clone()),
                 kind: CodeKind::Let,
                 name: String::from_utf8_lossy(&unintern_string(r#let.name, intermediate_dir).unwrap().unwrap()).to_string(),
@@ -81,8 +82,8 @@ impl ObjectFile {
         }
 
         for mut assert in asserts.drain(..) {
-            let label = assert.keyword_span.hash();
-            assert_labels.push(label);
+            let label = GlobalLabel(assert.keyword_span.hash());
+            assert_labels.push(label.0);
             code.push(CodeSection {
                 label,
                 span: Some(assert.keyword_span.clone()),

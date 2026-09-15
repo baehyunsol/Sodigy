@@ -1,8 +1,9 @@
 use crate::{
     Assert,
     Bytecode,
+    GlobalLabel,
     InternedValue,
-    Label,
+    LocalLabel,
     Memory,
     Session,
     SSA,
@@ -34,24 +35,18 @@ pub fn lower_expr(
                             let value_inited = session.get_local_label();
                             bytecodes.push(Bytecode::InitOrJump {
                                 def_span: id.def_span.hash(),
-                                func: Label::Global(id.def_span.hash()),
+                                func: GlobalLabel(id.def_span.hash()),
                                 label: value_inited.clone(),
                             });
                             bytecodes.push(Bytecode::Move {
                                 src: Memory::Return,
                                 dst: Memory::Global(id.def_span.hash()),
                             });
-                            bytecodes.push(Bytecode::Label(value_inited.clone()));
+                            bytecodes.push(Bytecode::Label(value_inited));
                             Memory::Global(id.def_span.hash())
                         },
                         NameKind::Func => {
-                            let func_pointer = Value::FuncPointer {
-                                def_span: id.def_span.hash(),
-
-                                // `crate::link::flatten(..)` will fill this
-                                program_counter: None,
-                            };
-
+                            let func_pointer = Value::FuncPointer(id.def_span.hash());
                             bytecodes.push(Bytecode::Const {
                                 value: session.intern_value(&func_pointer),
                                 dst: dst.clone(),
@@ -112,7 +107,8 @@ pub fn lower_expr(
             );
             bytecodes.push(Bytecode::JumpIf {
                 value: Memory::SSA(cond_ssa),
-                label: eval_true_value.clone(),
+                t: eval_true_value,
+                f: eval_false_value,
                 debug_info: if session.debug_info { Some(Box::new(if_span.clone())) } else { None },
             });
             bytecodes.push(Bytecode::Label(eval_false_value));
@@ -287,7 +283,7 @@ pub fn lower_expr(
                                 }
                             },
                             None => {
-                                let func = Label::Global(def_span.hash());
+                                let func = GlobalLabel(def_span.hash());
                                 let effect = match session.global_context.func_shapes.unwrap().get(def_span) {
                                     Some(FuncShape { effect, .. }) => Box::new(effect.clone()),
                                     _ => unreachable!(),

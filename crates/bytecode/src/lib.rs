@@ -7,7 +7,6 @@ use std::collections::HashMap;
 mod assert;
 mod dump;
 mod endec;
-mod executable;
 mod expr;
 mod expr_hash;
 mod func;
@@ -22,12 +21,11 @@ mod value;
 mod tests;
 
 pub use assert::Assert;
-pub use executable::Executable;
 pub use expr_hash::ExprHash;
 pub(crate) use expr::lower_expr;
 pub use func::Func;
 pub use r#let::Let;
-pub use link::{flatten, link};
+pub use link::link;
 pub use object_file::{
     BasicBlock,
     CodeKind,
@@ -74,10 +72,10 @@ pub enum Bytecode {
         dst: Memory,
     },
 
-    Jump(Label),
+    Jump(LocalLabel),
 
     Call {
-        func: Label,
+        func: GlobalLabel,
         args: Vec<SSA>,
 
         // The returned value is stored here.
@@ -104,10 +102,11 @@ pub enum Bytecode {
         effect: Box<FuncEffect>,
     },
 
-    // Jumps if the `value` is 1.
+    // Jumps if the `value` is non-zero.
     JumpIf {
         value: Memory,
-        label: Label,
+        t: LocalLabel,
+        f: LocalLabel,
         debug_info: Option<Box<Span>>,
     },
 
@@ -115,12 +114,12 @@ pub enum Bytecode {
     // Otherwise, it jumps to `label`.
     InitOrJump {
         def_span: SpanHash,
-        func: Label,
-        label: Label,
+        func: GlobalLabel,
+        label: LocalLabel,
     },
 
     // Definition of a label.
-    Label(Label),
+    Label(LocalLabel),
 
     Return(SSA),
 
@@ -224,15 +223,11 @@ impl Memory {
     }
 }
 
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum Label {
-    Local(u32),
-    Global(SpanHash /* def_span of the item */),
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct LocalLabel(u32);
 
-    // Labels are flattened by `crate::link::flatten(..)`.
-    // After flattened, every label in the executable has a unique id.
-    Flatten(usize),
-}
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct GlobalLabel(SpanHash);
 
 // TODO: it should be in mir... right?
 #[derive(Clone, Debug)]
@@ -513,16 +508,16 @@ pub fn lower<'hir, 'mir>(
         for (intrinsic, lang_item) in Intrinsic::ALL_WITH_LANG_ITEM.iter() {
             let def_span = mir_session.global_context.get_lang_item_span(lang_item);
             session.object_file.code.push(CodeSection {
-                label: def_span.hash(),
+                label: GlobalLabel(def_span.hash()),
                 span: Some(def_span.clone()),
                 kind: CodeKind::Func,
                 name: camel_to_snake(&format!("{intrinsic:?}")),
                 params: Some(intrinsic.num_params()),
                 effect: intrinsic.effect(),
                 basic_blocks: [(
-                    Label::Local(0),
+                    LocalLabel(0),
                     BasicBlock {
-                        label: Label::Local(0),
+                        label: LocalLabel(0),
                         code: vec![
                             Bytecode::Intrinsic {
                                 intrinsic: *intrinsic,

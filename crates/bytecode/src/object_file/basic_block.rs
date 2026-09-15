@@ -1,20 +1,20 @@
-use crate::{Bytecode, Memory, Label, SSA};
+use crate::{Bytecode, GlobalLabel, LocalLabel, Memory, SSA};
 use sodigy_span::Span;
 use std::collections::HashMap;
 
 pub struct BasicBlock {
-    pub label: Label,
+    pub label: LocalLabel,
     pub code: Vec<Bytecode>,
     pub terminator: Terminator,
     pub terminator_debug_info: Option<Box<Span>>,
 }
 
 pub enum Terminator {
-    Jump(Label),
+    Jump(LocalLabel),
 
     // TODO: do we need FuncEffect? I don't know...
     TailCall {
-        func: Label,
+        func: GlobalLabel,
         args: Vec<SSA>,
     },
     TailCallDynamic {
@@ -22,11 +22,15 @@ pub enum Terminator {
         args: Vec<SSA>,
     },
 
-    JumpIf(Memory, Label),
+    JumpIf {
+        value: Memory,
+        t: LocalLabel,
+        f: LocalLabel,
+    },
     Return(SSA),
 }
 
-pub fn to_basic_blocks(bytecodes: &mut Vec<Bytecode>) -> HashMap<Label, BasicBlock> {
+pub fn to_basic_blocks(bytecodes: &mut Vec<Bytecode>) -> HashMap<LocalLabel, BasicBlock> {
     let mut basic_blocks = HashMap::new();
     let mut curr_label = None;
     let mut curr_code = vec![];
@@ -69,20 +73,31 @@ pub fn to_basic_blocks(bytecodes: &mut Vec<Bytecode>) -> HashMap<Label, BasicBlo
                 );
                 curr_label = None;
             },
-            Bytecode::JumpIf { value, label, debug_info } => {
+            Bytecode::JumpIf { value, t, f, debug_info } => {
                 basic_blocks.insert(
                     curr_label.clone().unwrap(),
                     BasicBlock {
                         label: curr_label.unwrap(),
                         code: std::mem::take(&mut curr_code),
-                        terminator: Terminator::JumpIf(value, label),
+                        terminator: Terminator::JumpIf { value, t, f },
                         terminator_debug_info: debug_info,
                     },
                 );
                 curr_label = None;
             },
             Bytecode::Label(label) => {
-                assert_eq!(curr_label, None);
+                if curr_label.is_some() {
+                    basic_blocks.insert(
+                        curr_label.clone().unwrap(),
+                        BasicBlock {
+                            label: curr_label.unwrap(),
+                            code: std::mem::take(&mut curr_code),
+                            terminator: Terminator::Jump(label.clone()),
+                            terminator_debug_info: None,
+                        },
+                    );
+                }
+
                 curr_label = Some(label);
             },
             Bytecode::Return(src) => {

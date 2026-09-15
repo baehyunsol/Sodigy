@@ -72,13 +72,16 @@ impl Assert {
         );
 
         let no_panic = session.get_local_label();
+        let do_panic = session.get_local_label();
         bytecodes.push(Bytecode::JumpIf {
             value: Memory::SSA(value_ssa),
-            label: no_panic.clone(),
+            t: no_panic,
+            f: do_panic,
 
             // I don't think we need debug_info for this because we already have the span of the `assert` keyword.
             debug_info: None,
         });
+        bytecodes.push(Bytecode::Label(do_panic));
 
         // We don't pop_debug_info for error notes because notes are evaluated only if the assertion has failed.
         if let (Some(note), Some(note_decorator_span)) = (&mir_assert.note, &mir_assert.note_decorator_span) {
@@ -131,6 +134,10 @@ impl Assert {
                 dst: Memory::Return,  // don't care
                 debug_info: None,
             });
+
+            // This bytecode is unreachable.
+            // But without this, `to_basic_blocks` won't work.
+            bytecodes.push(Bytecode::Return(crate::SSA(0)));
         }
 
         Assert {

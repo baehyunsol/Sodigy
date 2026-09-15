@@ -4,7 +4,8 @@ use crate::{
     CodeKind,
     CodeSection,
     ExprHash,
-    Label,
+    GlobalLabel,
+    LocalLabel,
     Memory,
     ObjectFile,
     SSA,
@@ -46,13 +47,13 @@ impl Endec for CodeSection {
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        let (label, cursor) = SpanHash::decode_impl(buffer, cursor)?;
+        let (label, cursor) = GlobalLabel::decode_impl(buffer, cursor)?;
         let (span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (kind, cursor) = CodeKind::decode_impl(buffer, cursor)?;
         let (name, cursor) = String::decode_impl(buffer, cursor)?;
         let (params, cursor) = Option::<usize>::decode_impl(buffer, cursor)?;
         let (effect, cursor) = FuncEffect::decode_impl(buffer, cursor)?;
-        let (basic_blocks, cursor) = HashMap::<Label, BasicBlock>::decode_impl(buffer, cursor)?;
+        let (basic_blocks, cursor) = HashMap::<LocalLabel, BasicBlock>::decode_impl(buffer, cursor)?;
 
         Ok((CodeSection { label, span, kind, name, params, effect, basic_blocks }, cursor))
     }
@@ -93,7 +94,7 @@ impl Endec for BasicBlock {
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        let (label, cursor) = Label::decode_impl(buffer, cursor)?;
+        let (label, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
         let (code, cursor) = Vec::<Bytecode>::decode_impl(buffer, cursor)?;
         let (terminator, cursor) = Terminator::decode_impl(buffer, cursor)?;
         let (terminator_debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
@@ -119,10 +120,11 @@ impl Endec for Terminator {
                 func.encode_impl(buffer);
                 args.encode_impl(buffer);
             },
-            Terminator::JumpIf(value, label) => {
+            Terminator::JumpIf { value, t, f } => {
                 buffer.push(3);
                 value.encode_impl(buffer);
-                label.encode_impl(buffer);
+                t.encode_impl(buffer);
+                f.encode_impl(buffer);
             },
             Terminator::Return(src) => {
                 buffer.push(4);
@@ -134,11 +136,11 @@ impl Endec for Terminator {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         match buffer.get(cursor) {
             Some(0) => {
-                let (label, cursor) = Label::decode_impl(buffer, cursor + 1)?;
+                let (label, cursor) = LocalLabel::decode_impl(buffer, cursor + 1)?;
                 Ok((Terminator::Jump(label), cursor))
             },
             Some(1) => {
-                let (func, cursor) = Label::decode_impl(buffer, cursor + 1)?;
+                let (func, cursor) = GlobalLabel::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<SSA>::decode_impl(buffer, cursor)?;
                 Ok((Terminator::TailCall { func, args }, cursor))
             },
@@ -149,8 +151,9 @@ impl Endec for Terminator {
             },
             Some(3) => {
                 let (value, cursor) = Memory::decode_impl(buffer, cursor + 1)?;
-                let (label, cursor) = Label::decode_impl(buffer, cursor)?;
-                Ok((Terminator::JumpIf(value, label), cursor))
+                let (t, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
+                let (f, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
+                Ok((Terminator::JumpIf { value, t, f }, cursor))
             },
             Some(4) => {
                 let (src, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
