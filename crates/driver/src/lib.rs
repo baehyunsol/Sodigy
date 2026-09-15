@@ -756,7 +756,7 @@ fn interpret(exe: StoreIrAt, profile: Profile, intermediate_dir: &str) -> Result
 
     // `emit_irs_if_has_to` will encode `Vec<u8>` twice...
     let exe_bytes = Vec::<u8>::decode(&exe_bytes)?;
-    let exe = sodigy_bytecode::Executable::decode(&exe_bytes)?;
+    let exe = sodigy_bytecode::ObjectFile::decode(&exe_bytes)?;
 
     match profile {
         Profile::Run => todo!(),

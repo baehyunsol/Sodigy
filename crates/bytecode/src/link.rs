@@ -9,7 +9,7 @@ pub fn link(object_files: Vec<ObjectFile>) -> ObjectFile {
     let mut asserts = vec![];
 
     for mut object_file in object_files.into_iter() {
-        for (key, value) in object_file.data.drain(..) {
+        for (key, value) in object_file.data.drain() {
             if let Entry::Vacant(e) = data.entry(key) {
                 e.insert(value);
             }
@@ -20,13 +20,13 @@ pub fn link(object_files: Vec<ObjectFile>) -> ObjectFile {
             main_entry = Some(main);
         }
 
-        code.extend(object_file.code.drain(..));
+        code.extend(object_file.code.drain());
         asserts.extend(object_file.asserts.drain(..));
     }
 
     ObjectFile {
-        data: data.into_iter().collect(),
-        code,
+        data,
+        code: code.into_iter().collect(),
         main_entry,
         asserts,
     }

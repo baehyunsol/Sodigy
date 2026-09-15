@@ -4,7 +4,7 @@ use sodigy_span::Span;
 use sodigy_string::InternedString;
 
 /// It's for top-level let statements. It's like a function with no parameters.
-/// It returns the evaluated value.
+/// It evaluates the value, stores it to `Memory::Global(def_span)` and return the value.
 ///
 /// It doesn't check whether it's already initialized or not. That's caller's responsibility.
 #[derive(Clone, Debug)]
@@ -30,6 +30,10 @@ impl Let {
             Memory::SSA(return_ssa),
             /* is_tail_call: */ false,
         );
+        bytecodes.push(Bytecode::Move {
+            src: Memory::SSA(return_ssa),
+            dst: Memory::Global(mir_let.name_span.hash()),
+        });
         bytecodes.push(Bytecode::Return(return_ssa));
 
         Let {

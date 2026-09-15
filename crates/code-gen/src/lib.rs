@@ -33,7 +33,7 @@ pub fn lower(
             warnings,
         ),
         Emit::ExecutableBytecode => (
-            bytecode::flatten(&mut bytecode::link(object_files)).encode(),
+            bytecode::link(object_files).encode(),
             errors,
             warnings,
         ),

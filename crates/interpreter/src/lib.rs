@@ -1,10 +1,13 @@
 use sodigy_bytecode::{
     BasicBlock,
     Bytecode,
+    CodeSection,
+    ExprHash,
     GlobalLabel,
     InternedValue,
     LocalLabel,
     Memory,
+    ObjectFile,
     Terminator,
     Value,
 };
@@ -25,6 +28,7 @@ use sodigy_number::{
     sub_bi,
 };
 use sodigy_span::RenderSpanSession;
+use std::collections::HashMap;
 
 // TODO: remove or fix this
 #[cfg(feature="debug-bytecode")]
@@ -45,10 +49,12 @@ pub fn interpret(object_file: &ObjectFile, label: GlobalLabel, intermediate_dir:
     }
 
     match result {
-        Ok(_) => Ok(()),
+        CallResult::Return(_) |
+        CallResult::Exit => Ok(()),
+        CallResult::TailCall { .. } => unreachable!(),
 
         // TODO: dump debug info!
-        Err(()) => Err(()),
+        CallResult::Panic => Err(()),
     }
 }
 
@@ -57,18 +63,23 @@ fn tail_call_loop(
     heap: &mut Heap,
     object_file: &ObjectFile,
     mut label: GlobalLabel,
-) -> Result<u32, ()> {
-
+) -> CallResult {
     loop {
         let basic_blocks = &object_file.code.get(&label).unwrap().basic_blocks;
 
-        match call(stack, heap, basic_blocks) {
+        match call(stack, heap, object_file, basic_blocks) {
             CallResult::Return(n) => {
-                return Ok(n);
+                return CallResult::Return(n);
             },
             CallResult::TailCall { func, stack: new_stack } => {
                 stack = new_stack;
                 label = func;
+            },
+            CallResult::Exit => {
+                return CallResult::Exit;
+            },
+            CallResult::Panic => {
+                return CallResult::Panic;
             },
         }
     }
@@ -77,14 +88,17 @@ fn tail_call_loop(
 enum CallResult {
     Return(u32),
     TailCall { func: GlobalLabel, stack: Stack },
+    Exit,
+    Panic,
 }
 
 fn call(
     mut stack: Stack,
     heap: &mut Heap,
+    object_file: &ObjectFile,
     basic_blocks: &HashMap<LocalLabel, BasicBlock>,
 ) -> CallResult {
-    let mut curr_label = LocalLabel(0);
+    let mut curr_label = LocalLabel::start();
 
     loop {
         let curr_basic_block: &BasicBlock = basic_blocks.get(&curr_label).unwrap();
@@ -94,10 +108,11 @@ fn call(
                 Bytecode::Const { value, dst, debug_info: _ } => {
                     let value = match value {
                         InternedValue::Interned(h) => {
-                            let value = executable.data.get(h).unwrap();
+                            let value = object_file.data.get(h).unwrap();
                             heap.alloc_value(value)
                         },
                         InternedValue::Scalar(n) => *n,
+                        InternedValue::FuncPointer(_) => todo!(),
                     };
                     update(dst, value, &mut stack, heap);
                 },
@@ -116,52 +131,27 @@ fn call(
                 Bytecode::Jump(_) => unreachable!(),
                 Bytecode::Call { func, args, dst, debug_info: _, effect: _ } => {
                     let new_stack = Stack::from_args(args, &stack);
-                    let pc = match func {
-                        Label::Flatten(i) => *i,
-                        _ => unreachable!(),
-                    };
-
                     match dst {
                         Some(dst) => {
-                            let value = call(new_stack, heap, executable, pc as usize, render_span_session)?;
+                            let value = match tail_call_loop(new_stack, heap, object_file, *func) {
+                                CallResult::Return(n) => n,
+                                CallResult::TailCall { .. } => unreachable!(),
+                                CallResult::Exit => {
+                                    return CallResult::Exit;
+                                },
+                                CallResult::Panic => {
+                                    return CallResult::Panic;
+                                },
+                            };
                             update(dst, value, &mut stack, heap);
                         },
                         // tail call
                         None => unreachable!(),
                     }
                 },
-                Bytecode::CallDynamic { func, args, dst, debug_info: _, effect: _ } => {
-                    let new_stack = Stack::from_args(args, &stack);
-                    let pc = *stack.ssa.get(func).unwrap();
-
-                    match dst {
-                        Some(dst) => {
-                            let value = call(new_stack, heap, executable, pc as usize, render_span_session)?;
-                            update(dst, value, &mut stack, heap);
-                        },
-                        // tail call
-                        None => unreachable!(),
-                    }
-                },
+                Bytecode::CallDynamic { func, args, dst, debug_info: _, effect: _ } => todo!(),
                 Bytecode::JumpIf { .. } => unreachable!(),
-                Bytecode::InitOrJump { def_span, func, label } => {
-                    if heap.global_values.contains_key(def_span) {
-                        match label {
-                            Label::Flatten(i) => {
-                                cursor = *i;
-                                continue;
-                            },
-                            _ => unreachable!(),
-                        }
-                    } else {
-                        match func {
-                            Label::Flatten(i) => {
-                                stack.r#return = call(Stack::new(), heap, executable, *i, render_span_session)?;
-                            },
-                            _ => unreachable!(),
-                        }
-                    }
-                },
+                Bytecode::TryInitGlobal { .. } => unreachable!(),
                 Bytecode::Label(_) => unreachable!(),
                 Bytecode::Return(_) => unreachable!(),
                 Bytecode::Update { src, size, index, value, dst } => {
@@ -354,11 +344,11 @@ fn call(
                     Intrinsic::PrependList => todo!(),
                     Intrinsic::Exit => {
                         // TODO: clean up stack and heap
-                        return Ok(0);
+                        return CallResult::Exit;
                     },
                     Intrinsic::Panic => {
                         // TODO: clean up stack and heap
-                        return Err(());
+                        return CallResult::Panic;
                     },
                     Intrinsic::Print | Intrinsic::EPrint | Intrinsic::Debug => {
                         let chars_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;
@@ -422,7 +412,9 @@ fn call(
             Terminator::Jump(label) => {
                 curr_label = *label;
             },
-            Terminator::TailCall { func, args } => todo!(),
+            Terminator::TailCall { func, args } => {
+                return CallResult::TailCall { func: *func, stack: Stack::from_args(args, &stack) };
+            },
             Terminator::TailCallDynamic { func, args } => todo!(),
             Terminator::JumpIf { value, t, f } => {
                 let value = *stack.ssa.get(value).unwrap();
@@ -433,6 +425,7 @@ fn call(
                     curr_label = *f;
                 }
             },
+            Terminator::TryInitGlobal { global, label } => todo!(),
             Terminator::Return(src) => {
                 return CallResult::Return(*stack.ssa.get(src).unwrap());
             },

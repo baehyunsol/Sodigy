@@ -3,6 +3,7 @@ use crate::{
     Bytecode,
     CodeKind,
     CodeSection,
+    ExprHash,
     GlobalLabel,
     InternedValue,
     LocalLabel,
@@ -15,6 +16,47 @@ use crate::{
 use sodigy_number::bi_to_hex_string;
 use sodigy_span::Span;
 use std::fmt::{Display, Error, Formatter};
+
+impl Display for ObjectFile {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        let mut labels = vec![];
+
+        if let Some(main_entry) = &self.main_entry {
+            labels.push(String::from("main:"));
+            labels.push(format!("    @G{}", main_entry.hex(12)));
+        }
+
+        if !self.asserts.is_empty() {
+            labels.push(String::from("asserts:"));
+
+            for assert in self.asserts.iter() {
+                labels.push(format!("    @G{}", assert.1.hex(12)));
+            }
+        }
+
+        let mut data: Vec<(&ExprHash, &Value)> = self.data.iter().collect();
+        data.sort_by_key(|(h, _)| **h);
+        let data = data.iter().map(|(h, v)| format!("    %I{} = {v};", h.hex(12))).collect::<Vec<_>>();
+
+        let mut code: Vec<(&GlobalLabel, &CodeSection)> = self.code.iter().collect();
+        code.sort_by_key(|(g, _)| **g);
+        let code = code.iter().map(|(_, c)| c.to_string()).collect::<Vec<_>>();
+
+        write!(fmt, r#".data:
+{}
+
+.code:
+{}
+
+.label:
+{}
+"#,
+            data.join("\n"),
+            code.join("\n\n"),
+            labels.join("\n"),
+        )
+    }
+}
 
 impl Display for CodeSection {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
@@ -56,39 +98,6 @@ impl Display for CodeSection {
     }
 }
 
-impl Display for ObjectFile {
-    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        let mut labels = vec![];
-
-        if let Some(main_entry) = &self.main_entry {
-            labels.push(String::from("main:"));
-            labels.push(format!("    @G{}", main_entry.hex(12)));
-        }
-
-        if !self.asserts.is_empty() {
-            labels.push(String::from("asserts:"));
-
-            for assert in self.asserts.iter() {
-                labels.push(format!("    @G{}", assert.hex(12)));
-            }
-        }
-
-        write!(fmt, r#".data:
-{}
-
-.code:
-{}
-
-.label:
-{}
-"#,
-            self.data.iter().map(|(h, v)| format!("    %I{} = {v};", h.hex(12))).collect::<Vec<_>>().join("\n"),
-            self.code.iter().map(|c| c.to_string()).collect::<Vec<_>>().join("\n\n"),
-            labels.join("\n"),
-        )
-    }
-}
-
 impl Display for BasicBlock {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         let code = self.code.iter().map(
@@ -126,14 +135,13 @@ impl Display for Terminator {
                 ).collect::<Vec<_>>().join(", "),
             ),
             Terminator::JumpIf { value, t, f } => write!(fmt, "if {value} {{ jump {t}; }} else {{ jump {f}; }}"),
+            Terminator::TryInitGlobal { global, label } => write!(
+                fmt,
+                "if !is_init(_g{}) {{ call {global}(); }} jump {label};",
+                global.0.hex(12),
+            ),
             Terminator::Return(ssa) => write!(fmt, "return {ssa};"),
         }
-    }
-}
-
-impl Display for SSA {
-    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        write!(fmt, "_{}", self.0)
     }
 }
 
@@ -171,10 +179,10 @@ impl Display for Bytecode {
                 "if {value} {{ jump {t}; }} else {{ jump {f}; }}{}",
                 dump_debug_info(debug_info),
             ),
-            Bytecode::InitOrJump { def_span, func, label } => write!(
+            Bytecode::TryInitGlobal { global, label } => write!(
                 fmt,
-                "if is_init(_g{}) {{ jump {label}; }} else {{ call {func}(); }}",
-                def_span.hex(12),
+                "if !is_init(_g{}) {{ call {global}(); }} jump {label};",
+                global.0.hex(12),
             ),
             Bytecode::Label(label) => write!(fmt, "label {label}:"),
             Bytecode::Return(ssa) => write!(fmt, "return {ssa};"),
@@ -217,6 +225,12 @@ impl Display for Memory {
             Memory::List { ptr, offset } => write!(fmt, "{ptr}[{offset}]"),
             Memory::Global(s) => write!(fmt, "_g{}", s.hex(12)),
         }
+    }
+}
+
+impl Display for SSA {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        write!(fmt, "_{}", self.0)
     }
 }
 

@@ -104,22 +104,18 @@ pub enum Bytecode {
 
     // Jumps if the `value` is non-zero.
     JumpIf {
-        value: Memory,
+        value: SSA,
         t: LocalLabel,
         f: LocalLabel,
         debug_info: Option<Box<Span>>,
     },
 
     // If the global value `def_span` is not initialized, it calls the function `global`.
-    // The function will initialize the global value and return. Then, it jumps to `label1`.
-    // If it's already initialized, it just jumps to `label2`.
+    // The function will initialize the global value and return. Then, it jumps to `label`.
+    // If it's already initialized, it just jumps to `label`.
     TryInitGlobal {
-        // TODO: Why do we need def_span?
-        def_span: SpanHash,
-
         global: GlobalLabel,
-        label1: LocalLabel,
-        label2: LocalLabel,
+        label: LocalLabel,
     },
 
     // Definition of a label.
@@ -230,8 +226,20 @@ impl Memory {
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct LocalLabel(u32);
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+impl LocalLabel {
+    pub fn start() -> Self {
+        LocalLabel(0)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct GlobalLabel(SpanHash);
+
+impl GlobalLabel {
+    pub fn hex(&self, l: usize) -> String {
+        self.0.hex(l)
+    }
+}
 
 // TODO: it should be in mir... right?
 #[derive(Clone, Debug)]
@@ -358,11 +366,9 @@ impl Bytecode {
                 *func = *ssa_alias.get(func).unwrap_or(&func);
                 apply_ssa_alias_args(args, ssa_alias, heap_ssa_alias);
             },
-            Bytecode::JumpIf { value, .. } => {
-                apply_ssa_alias(value, ssa_alias, heap_ssa_alias);
-            },
             Bytecode::TryInitGlobal { .. } => {},
             Bytecode::Label(_) => {},
+            Bytecode::JumpIf { value: a, .. } |
             Bytecode::Return(a) => {
                 *a = *ssa_alias.get(a).unwrap_or(a);
             },
@@ -398,7 +404,6 @@ impl Bytecode {
 
         match self {
             Bytecode::Const { dst: memory, .. } |
-            Bytecode::JumpIf { value: memory, .. } |
             Bytecode::InitTuple { dst: memory, .. } |
             Bytecode::InitList { dst: memory, .. } |
             Bytecode::PushDebugInfo { src: memory, .. } => {
@@ -417,8 +422,9 @@ impl Bytecode {
             Bytecode::CallDynamic { args, .. } => {
                 indexes.extend(args.to_vec());
             },
-            Bytecode::Return(n) => {
-                indexes.push(*n);
+            Bytecode::JumpIf { value, .. } |
+            Bytecode::Return(value) => {
+                indexes.push(*value);
             },
             Bytecode::Update { src, value, dst, .. } => {
                 indexes.push(*src);
@@ -511,32 +517,36 @@ pub fn lower<'hir, 'mir>(
     if lower_built_ins {
         for (intrinsic, lang_item) in Intrinsic::ALL_WITH_LANG_ITEM.iter() {
             let def_span = mir_session.global_context.get_lang_item_span(lang_item);
-            session.object_file.code.push(CodeSection {
-                label: GlobalLabel(def_span.hash()),
-                span: Some(def_span.clone()),
-                kind: CodeKind::Func,
-                name: camel_to_snake(&format!("{intrinsic:?}")),
-                params: Some(intrinsic.num_params()),
-                effect: intrinsic.effect(),
-                basic_blocks: [(
-                    LocalLabel(0),
-                    BasicBlock {
-                        label: LocalLabel(0),
-                        code: vec![
-                            Bytecode::Intrinsic {
-                                intrinsic: *intrinsic,
-                                args: (0..intrinsic.num_params()).map(
-                                    |i| SSA(i as u32)
-                                ).collect(),
-                                dst: Memory::SSA(SSA(intrinsic.num_params() as u32 + 1)),
-                                debug_info: None,
-                            },
-                        ],
-                        terminator: Terminator::Return(SSA(intrinsic.num_params() as u32 + 1)),
-                        terminator_debug_info: None,
-                    },
-                )].into_iter().collect(),
-            });
+            let label = GlobalLabel(def_span.hash());
+            session.object_file.code.insert(
+                label,
+                CodeSection {
+                    label,
+                    span: Some(def_span.clone()),
+                    kind: CodeKind::Func,
+                    name: camel_to_snake(&format!("{intrinsic:?}")),
+                    params: Some(intrinsic.num_params()),
+                    effect: intrinsic.effect(),
+                    basic_blocks: [(
+                        LocalLabel(0),
+                        BasicBlock {
+                            label: LocalLabel(0),
+                            code: vec![
+                                Bytecode::Intrinsic {
+                                    intrinsic: *intrinsic,
+                                    args: (0..intrinsic.num_params()).map(
+                                        |i| SSA(i as u32)
+                                    ).collect(),
+                                    dst: Memory::SSA(SSA(intrinsic.num_params() as u32 + 1)),
+                                    debug_info: None,
+                                },
+                            ],
+                            terminator: Terminator::Return(SSA(intrinsic.num_params() as u32 + 1)),
+                            terminator_debug_info: None,
+                        },
+                    )].into_iter().collect(),
+                },
+            );
         }
     }
 

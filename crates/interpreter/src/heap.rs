@@ -174,7 +174,7 @@ impl Heap {
 
                 ptr
             },
-            Value::FuncPointer { program_counter, .. } => program_counter.unwrap() as u32,
+            Value::FuncPointer(def_span) => todo!(),
             Value::Span(span) => match span.id() {
                 Some(SpanId(id)) => {
                     let ptr = self.alloc(4);

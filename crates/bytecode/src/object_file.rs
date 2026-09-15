@@ -18,10 +18,10 @@ mod basic_block;
 pub use basic_block::{BasicBlock, Terminator, to_basic_blocks};
 
 pub struct ObjectFile {
-    pub data: Vec<(ExprHash, Value)>,
-    pub code: Vec<CodeSection>,
-    pub main_entry: Option<SpanHash>,
-    pub asserts: Vec<SpanHash>,
+    pub data: HashMap<ExprHash, Value>,
+    pub code: HashMap<GlobalLabel, CodeSection>,
+    pub main_entry: Option<GlobalLabel>,
+    pub asserts: Vec<(String, GlobalLabel)>,
 }
 
 // It can be a func, an assertion or a global let.
@@ -52,47 +52,58 @@ impl ObjectFile {
         data_section: &mut HashMap<ExprHash, Value>,
         intermediate_dir: &str,
     ) -> ObjectFile {
-        let mut code = Vec::with_capacity(lets.len() + funcs.len() + asserts.len());
-        let mut data: Vec<(ExprHash, Value)> = data_section.drain().collect();
+        let mut code = HashMap::with_capacity(lets.len() + funcs.len() + asserts.len());
+        let mut data: HashMap<_, _> = data_section.drain().collect();
         let mut assert_labels = Vec::with_capacity(asserts.len());
-        data.sort_by_key(|(h, _)| *h);
 
         for mut func in funcs.drain(..) {
-            code.push(CodeSection {
-                label: GlobalLabel(func.name_span.hash()),
-                span: Some(func.name_span.clone()),
-                kind: CodeKind::Func,
-                name: String::from_utf8_lossy(&unintern_string(func.name, intermediate_dir).unwrap().unwrap()).to_string(),
-                params: Some(func.params),
-                effect: func.effect.clone(),
-                basic_blocks: to_basic_blocks(&mut func.bytecodes),
-            });
+            let label = GlobalLabel(func.name_span.hash());
+            code.insert(
+                label,
+                CodeSection {
+                    label,
+                    span: Some(func.name_span.clone()),
+                    kind: CodeKind::Func,
+                    name: String::from_utf8_lossy(&unintern_string(func.name, intermediate_dir).unwrap().unwrap()).to_string(),
+                    params: Some(func.params),
+                    effect: func.effect.clone(),
+                    basic_blocks: to_basic_blocks(&mut func.bytecodes),
+                },
+            );
         }
 
         for mut r#let in lets.drain(..) {
-            code.push(CodeSection {
-                label: GlobalLabel(r#let.name_span.hash()),
-                span: Some(r#let.name_span.clone()),
-                kind: CodeKind::Let,
-                name: String::from_utf8_lossy(&unintern_string(r#let.name, intermediate_dir).unwrap().unwrap()).to_string(),
-                params: None,
-                effect: FuncEffect::Fn,
-                basic_blocks: to_basic_blocks(&mut r#let.bytecodes),
-            });
+            let label = GlobalLabel(r#let.name_span.hash());
+            code.insert(
+                label,
+                CodeSection {
+                    label,
+                    span: Some(r#let.name_span.clone()),
+                    kind: CodeKind::Let,
+                    name: String::from_utf8_lossy(&unintern_string(r#let.name, intermediate_dir).unwrap().unwrap()).to_string(),
+                    params: None,
+                    effect: FuncEffect::Fn,
+                    basic_blocks: to_basic_blocks(&mut r#let.bytecodes),
+                },
+            );
         }
 
         for mut assert in asserts.drain(..) {
+            let name = String::from_utf8_lossy(&unintern_string(assert.name, intermediate_dir).unwrap().unwrap()).to_string();
             let label = GlobalLabel(assert.keyword_span.hash());
-            assert_labels.push(label.0);
-            code.push(CodeSection {
+            assert_labels.push((name.clone(), label));
+            code.insert(
                 label,
-                span: Some(assert.keyword_span.clone()),
-                kind: CodeKind::Assert,
-                name: String::from_utf8_lossy(&unintern_string(assert.name, intermediate_dir).unwrap().unwrap()).to_string(),
-                params: None,
-                effect: FuncEffect::Fn,
-                basic_blocks: to_basic_blocks(&mut assert.bytecodes),
-            });
+                CodeSection {
+                    label,
+                    span: Some(assert.keyword_span.clone()),
+                    kind: CodeKind::Assert,
+                    name,
+                    params: None,
+                    effect: FuncEffect::Fn,
+                    basic_blocks: to_basic_blocks(&mut assert.bytecodes),
+                },
+            );
         }
 
         ObjectFile {
@@ -107,8 +118,8 @@ impl ObjectFile {
 impl Default for ObjectFile {
     fn default() -> ObjectFile {
         ObjectFile {
-            data: vec![],
-            code: vec![],
+            data: HashMap::new(),
+            code: HashMap::new(),
             main_entry: None,
             asserts: vec![],
         }

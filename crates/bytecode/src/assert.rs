@@ -74,7 +74,7 @@ impl Assert {
         let no_panic = session.get_local_label();
         let do_panic = session.get_local_label();
         bytecodes.push(Bytecode::JumpIf {
-            value: Memory::SSA(value_ssa),
+            value: value_ssa,
             t: no_panic,
             f: do_panic,
 

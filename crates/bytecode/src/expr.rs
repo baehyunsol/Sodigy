@@ -32,20 +32,9 @@ pub fn lower_expr(
                 None => match &id.origin {
                     NameOrigin::Foreign { kind } | NameOrigin::Local { kind } => match kind {
                         NameKind::Let { is_top_level: true } => {
-                            let not_init = session.get_local_label();
-                            let already_init = session.get_local_label();
-                            bytecodes.push(Bytecode::TryInitGlobal {
-                                def_span: id.def_span.hash(),
-                                global: GlobalLabel(id.def_span.hash()),
-                                label1: not_init,
-                                label2: already_init,
-                            });
-                            bytecodes.push(Bytecode::Label(not_init));
-                            bytecodes.push(Bytecode::Move {
-                                src: Memory::Return,
-                                dst: Memory::Global(id.def_span.hash()),
-                            });
-                            bytecodes.push(Bytecode::Label(already_init));
+                            let label = session.get_local_label();
+                            bytecodes.push(Bytecode::TryInitGlobal { global: GlobalLabel(id.def_span.hash()), label });
+                            bytecodes.push(Bytecode::Label(label));
                             Memory::Global(id.def_span.hash())
                         },
                         NameKind::Func => {
@@ -109,7 +98,7 @@ pub fn lower_expr(
                 /* is_tail_call: */ false,
             );
             bytecodes.push(Bytecode::JumpIf {
-                value: Memory::SSA(cond_ssa),
+                value: cond_ssa,
                 t: eval_true_value,
                 f: eval_false_value,
                 debug_info: if session.debug_info { Some(Box::new(if_span.clone())) } else { None },

@@ -59,12 +59,10 @@ impl Endec for Bytecode {
                 f.encode_impl(buffer);
                 debug_info.encode_impl(buffer);
             },
-            Bytecode::TryInitGlobal { def_span, global, label1, label2 } => {
+            Bytecode::TryInitGlobal { global, label } => {
                 buffer.push(7);
-                def_span.encode_impl(buffer);
                 global.encode_impl(buffer);
-                label1.encode_impl(buffer);
-                label2.encode_impl(buffer);
+                label.encode_impl(buffer);
             },
             Bytecode::Label(label) => {
                 buffer.push(8);
@@ -151,18 +149,16 @@ impl Endec for Bytecode {
                 Ok((Bytecode::CallDynamic { func, args, dst, debug_info, effect }, cursor))
             },
             Some(6) => {
-                let (value, cursor) = Memory::decode_impl(buffer, cursor + 1)?;
+                let (value, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
                 let (t, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
                 let (f, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::JumpIf { value, t, f, debug_info }, cursor))
             },
             Some(7) => {
-                let (def_span, cursor) = SpanHash::decode_impl(buffer, cursor + 1)?;
-                let (global, cursor) = GlobalLabel::decode_impl(buffer, cursor)?;
-                let (label1, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
-                let (label2, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
-                Ok((Bytecode::TryInitGlobal { def_span, global, label1, label2 }, cursor))
+                let (global, cursor) = GlobalLabel::decode_impl(buffer, cursor + 1)?;
+                let (label, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
+                Ok((Bytecode::TryInitGlobal { global, label }, cursor))
             },
             Some(8) => {
                 let (label, cursor) = LocalLabel::decode_impl(buffer, cursor + 1)?;

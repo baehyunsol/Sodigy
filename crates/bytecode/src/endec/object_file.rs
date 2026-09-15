@@ -26,10 +26,10 @@ impl Endec for ObjectFile {
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        let (data, cursor) = Vec::<(ExprHash, Value)>::decode_impl(buffer, cursor)?;
-        let (code, cursor) = Vec::<CodeSection>::decode_impl(buffer, cursor)?;
-        let (main_entry, cursor) = Option::<SpanHash>::decode_impl(buffer, cursor)?;
-        let (asserts, cursor) = Vec::<SpanHash>::decode_impl(buffer, cursor)?;
+        let (data, cursor) = HashMap::<ExprHash, Value>::decode_impl(buffer, cursor)?;
+        let (code, cursor) = HashMap::<GlobalLabel, CodeSection>::decode_impl(buffer, cursor)?;
+        let (main_entry, cursor) = Option::<GlobalLabel>::decode_impl(buffer, cursor)?;
+        let (asserts, cursor) = Vec::<(String, GlobalLabel)>::decode_impl(buffer, cursor)?;
 
         Ok((ObjectFile { data, code, main_entry, asserts }, cursor))
     }
@@ -126,12 +126,10 @@ impl Endec for Terminator {
                 t.encode_impl(buffer);
                 f.encode_impl(buffer);
             },
-            Terminator::TryInitGlobal { def_span, global, label1, label2 } => {
+            Terminator::TryInitGlobal { global, label } => {
                 buffer.push(4);
-                def_span.encode_impl(buffer);
                 global.encode_impl(buffer);
-                label1.encode_impl(buffer);
-                label2.encode_impl(buffer);
+                label.encode_impl(buffer);
             },
             Terminator::Return(src) => {
                 buffer.push(5);
@@ -157,16 +155,15 @@ impl Endec for Terminator {
                 Ok((Terminator::TailCallDynamic { func, args }, cursor))
             },
             Some(3) => {
-                let (value, cursor) = Memory::decode_impl(buffer, cursor + 1)?;
+                let (value, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
                 let (t, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
                 let (f, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
                 Ok((Terminator::JumpIf { value, t, f }, cursor))
             },
             Some(4) => {
                 let (global, cursor) = GlobalLabel::decode_impl(buffer, cursor + 1)?;
-                let (label1, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
-                let (label2, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
-                Ok((Terminator::TryInitGlobal { global, label1, label2 }, cursor))
+                let (label, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
+                Ok((Terminator::TryInitGlobal { global, label }, cursor))
             },
             Some(5) => {
                 let (src, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
