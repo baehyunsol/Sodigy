@@ -59,11 +59,12 @@ impl Endec for Bytecode {
                 f.encode_impl(buffer);
                 debug_info.encode_impl(buffer);
             },
-            Bytecode::InitOrJump { def_span, func, label } => {
+            Bytecode::TryInitGlobal { def_span, global, label1, label2 } => {
                 buffer.push(7);
                 def_span.encode_impl(buffer);
-                func.encode_impl(buffer);
-                label.encode_impl(buffer);
+                global.encode_impl(buffer);
+                label1.encode_impl(buffer);
+                label2.encode_impl(buffer);
             },
             Bytecode::Label(label) => {
                 buffer.push(8);
@@ -158,9 +159,10 @@ impl Endec for Bytecode {
             },
             Some(7) => {
                 let (def_span, cursor) = SpanHash::decode_impl(buffer, cursor + 1)?;
-                let (func, cursor) = GlobalLabel::decode_impl(buffer, cursor)?;
-                let (label, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
-                Ok((Bytecode::InitOrJump { def_span, func, label }, cursor))
+                let (global, cursor) = GlobalLabel::decode_impl(buffer, cursor)?;
+                let (label1, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
+                let (label2, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
+                Ok((Bytecode::TryInitGlobal { def_span, global, label1, label2 }, cursor))
             },
             Some(8) => {
                 let (label, cursor) = LocalLabel::decode_impl(buffer, cursor + 1)?;

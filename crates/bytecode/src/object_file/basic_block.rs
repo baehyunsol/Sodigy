@@ -27,6 +27,11 @@ pub enum Terminator {
         t: LocalLabel,
         f: LocalLabel,
     },
+    TryInitGlobal {
+        global: GlobalLabel,
+        label1: LocalLabel,
+        label2: LocalLabel,
+    },
     Return(SSA),
 }
 
@@ -81,6 +86,18 @@ pub fn to_basic_blocks(bytecodes: &mut Vec<Bytecode>) -> HashMap<LocalLabel, Bas
                         code: std::mem::take(&mut curr_code),
                         terminator: Terminator::JumpIf { value, t, f },
                         terminator_debug_info: debug_info,
+                    },
+                );
+                curr_label = None;
+            },
+            Bytecode::TryInitGlobal { def_span: _, global, label1, label2 } => {
+                basic_blocks.insert(
+                    curr_label.clone().unwrap(),
+                    BasicBlock {
+                        label: curr_label.unwrap(),
+                        code: std::mem::take(&mut curr_code),
+                        terminator: Terminator::TryInitGlobal { global, label1, label2 },
+                        terminator_debug_info: None,
                     },
                 );
                 curr_label = None;

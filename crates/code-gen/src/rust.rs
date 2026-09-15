@@ -50,11 +50,3 @@ unsafe fn {name}({params}) -> CodeResult {{{body}}}
 fn lower_bytecode(b: &Bytecode) -> String {
     todo!()
 }
-
-fn inspect_basic_blocks(basic_blocks: &HashMap<Label, BasicBlock>) -> BasicBlocksInspection {
-    for (label, basic_block) in basic_blocks.iter() {
-        for bytecode in basic_block.code.iter() {
-            if let Some(ssa) = bytecode.
-        }
-    }
-}

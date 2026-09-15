@@ -126,8 +126,15 @@ impl Endec for Terminator {
                 t.encode_impl(buffer);
                 f.encode_impl(buffer);
             },
-            Terminator::Return(src) => {
+            Terminator::TryInitGlobal { def_span, global, label1, label2 } => {
                 buffer.push(4);
+                def_span.encode_impl(buffer);
+                global.encode_impl(buffer);
+                label1.encode_impl(buffer);
+                label2.encode_impl(buffer);
+            },
+            Terminator::Return(src) => {
+                buffer.push(5);
                 src.encode_impl(buffer);
             },
         }
@@ -156,10 +163,16 @@ impl Endec for Terminator {
                 Ok((Terminator::JumpIf { value, t, f }, cursor))
             },
             Some(4) => {
+                let (global, cursor) = GlobalLabel::decode_impl(buffer, cursor + 1)?;
+                let (label1, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
+                let (label2, cursor) = LocalLabel::decode_impl(buffer, cursor)?;
+                Ok((Terminator::TryInitGlobal { global, label1, label2 }, cursor))
+            },
+            Some(5) => {
                 let (src, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
                 Ok((Terminator::Return(src), cursor))
             },
-            Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 6..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

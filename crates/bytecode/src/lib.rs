@@ -110,12 +110,16 @@ pub enum Bytecode {
         debug_info: Option<Box<Span>>,
     },
 
-    // If the global value `def_span` is not initialized, it calls the function `func`.
-    // Otherwise, it jumps to `label`.
-    InitOrJump {
+    // If the global value `def_span` is not initialized, it calls the function `global`.
+    // The function will initialize the global value and return. Then, it jumps to `label1`.
+    // If it's already initialized, it just jumps to `label2`.
+    TryInitGlobal {
+        // TODO: Why do we need def_span?
         def_span: SpanHash,
-        func: GlobalLabel,
-        label: LocalLabel,
+
+        global: GlobalLabel,
+        label1: LocalLabel,
+        label2: LocalLabel,
     },
 
     // Definition of a label.
@@ -273,7 +277,7 @@ impl Bytecode {
             Bytecode::CallDynamic { dst, .. } => dst.as_ref(),
             Bytecode::Jump(_) |
             Bytecode::JumpIf { .. } |
-            Bytecode::InitOrJump { .. } |
+            Bytecode::TryInitGlobal { .. } |
             Bytecode::Label(_) |
             Bytecode::Return(_) |
             Bytecode::PushDebugInfo { .. } |
@@ -357,7 +361,7 @@ impl Bytecode {
             Bytecode::JumpIf { value, .. } => {
                 apply_ssa_alias(value, ssa_alias, heap_ssa_alias);
             },
-            Bytecode::InitOrJump { .. } => {},
+            Bytecode::TryInitGlobal { .. } => {},
             Bytecode::Label(_) => {},
             Bytecode::Return(a) => {
                 *a = *ssa_alias.get(a).unwrap_or(a);
@@ -426,7 +430,7 @@ impl Bytecode {
                 memories.push(dst.clone());
             },
             Bytecode::Jump(_) |
-            Bytecode::InitOrJump { .. } |
+            Bytecode::TryInitGlobal { .. } |
             Bytecode::Label(_) |
             Bytecode::PopDebugInfo => {},
         }
@@ -466,7 +470,7 @@ impl Bytecode {
             Bytecode::CallDynamic { effect, .. } => matches!(&**effect, FuncEffect::Fn | FuncEffect::NdetFn),
 
             // as of now, all the `let` statements are pure
-            Bytecode::InitOrJump { .. } => false,
+            Bytecode::TryInitGlobal { .. } => false,
 
             Bytecode::Intrinsic { intrinsic, .. } => matches!(intrinsic.effect(), FuncEffect::Fn | FuncEffect::NdetFn),
         }

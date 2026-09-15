@@ -32,17 +32,20 @@ pub fn lower_expr(
                 None => match &id.origin {
                     NameOrigin::Foreign { kind } | NameOrigin::Local { kind } => match kind {
                         NameKind::Let { is_top_level: true } => {
-                            let value_inited = session.get_local_label();
-                            bytecodes.push(Bytecode::InitOrJump {
+                            let not_init = session.get_local_label();
+                            let already_init = session.get_local_label();
+                            bytecodes.push(Bytecode::TryInitGlobal {
                                 def_span: id.def_span.hash(),
-                                func: GlobalLabel(id.def_span.hash()),
-                                label: value_inited.clone(),
+                                global: GlobalLabel(id.def_span.hash()),
+                                label1: not_init,
+                                label2: already_init,
                             });
+                            bytecodes.push(Bytecode::Label(not_init));
                             bytecodes.push(Bytecode::Move {
                                 src: Memory::Return,
                                 dst: Memory::Global(id.def_span.hash()),
                             });
-                            bytecodes.push(Bytecode::Label(value_inited));
+                            bytecodes.push(Bytecode::Label(already_init));
                             Memory::Global(id.def_span.hash())
                         },
                         NameKind::Func => {

@@ -1,4 +1,5 @@
 use sodigy_bytecode::{
+    BasicBlock,
     Bytecode,
     GlobalLabel,
     InternedValue,
@@ -112,13 +113,7 @@ fn call(
                     };
                     update(dst, value, &mut stack, heap);
                 },
-                Bytecode::Jump(label) => match label {
-                    Label::Flatten(i) => {
-                        cursor = *i;
-                        continue;
-                    },
-                    _ => unreachable!(),
-                },
+                Bytecode::Jump(_) => unreachable!(),
                 Bytecode::Call { func, args, dst, debug_info: _, effect: _ } => {
                     let new_stack = Stack::from_args(args, &stack);
                     let pc = match func {
@@ -132,11 +127,7 @@ fn call(
                             update(dst, value, &mut stack, heap);
                         },
                         // tail call
-                        None => {
-                            stack = new_stack;
-                            cursor = pc as usize;
-                            continue;
-                        },
+                        None => unreachable!(),
                     }
                 },
                 Bytecode::CallDynamic { func, args, dst, debug_info: _, effect: _ } => {
@@ -149,26 +140,10 @@ fn call(
                             update(dst, value, &mut stack, heap);
                         },
                         // tail call
-                        None => {
-                            stack = new_stack;
-                            cursor = pc as usize;
-                            continue;
-                        },
+                        None => unreachable!(),
                     }
                 },
-                Bytecode::JumpIf { value, label, debug_info: _ } => {
-                    let value = read(value, &stack, heap);
-
-                    if value != 0 {
-                        match label {
-                            Label::Flatten(i) => {
-                                cursor = *i;
-                                continue;
-                            },
-                            _ => unreachable!(),
-                        }
-                    }
-                },
+                Bytecode::JumpIf { .. } => unreachable!(),
                 Bytecode::InitOrJump { def_span, func, label } => {
                     if heap.global_values.contains_key(def_span) {
                         match label {
@@ -188,9 +163,7 @@ fn call(
                     }
                 },
                 Bytecode::Label(_) => unreachable!(),
-                Bytecode::Return(i) => {
-                    return Ok(*stack.ssa.get(i).unwrap());
-                },
+                Bytecode::Return(_) => unreachable!(),
                 Bytecode::Update { src, size, index, value, dst } => {
                     let ptr = *stack.ssa.get(src).unwrap() as usize;
                     let new_tuple = heap.alloc(*size);
@@ -451,7 +424,15 @@ fn call(
             },
             Terminator::TailCall { func, args } => todo!(),
             Terminator::TailCallDynamic { func, args } => todo!(),
-            Terminator::JumpIf { value, t, f } => todo!(),
+            Terminator::JumpIf { value, t, f } => {
+                let value = *stack.ssa.get(value).unwrap();
+
+                if value != 0 {
+                    curr_label = *t;
+                } else {
+                    curr_label = *f;
+                }
+            },
             Terminator::Return(src) => {
                 return CallResult::Return(*stack.ssa.get(src).unwrap());
             },
