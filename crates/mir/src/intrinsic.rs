@@ -102,18 +102,17 @@ intrinsics!(
     (SliceRightList  , "built_in.slice_right_list"  , 29   , 2   , Fn      ),
     (AppendList      , "built_in.append_list"       , 30   , 2   , Fn      ),
     (PrependList     , "built_in.prepend_list"      , 31   , 2   , Fn      ),
-    (Exit            , "built_in.exit"              , 32   , 0   , Proc    ),
-    (Panic           , "built_in.panic"             , 33   , 0   , Fn      ),
-    (Print           , "built_in.print"             , 34   , 1   , NdetProc),
-    (EPrint          , "built_in.eprint"            , 35   , 1   , NdetProc),
+    (Exit            , "built_in.exit"              , 32   , 1   , Proc    ),
+    (Print           , "built_in.print"             , 33   , 1   , NdetProc),
+    (EPrint          , "built_in.eprint"            , 34   , 1   , NdetProc),
 
     // It's actually NdetProc, but, you know, it's kinda compiler-magic.
-    (Debug           , "built_in.debug"             , 36   , 1   , Fn      ),
+    (Debug           , "built_in.debug"             , 35   , 1   , Fn      ),
 
-    (RandomInt       , "built_in.random_int"        , 37   , 0   , NdetFn  ),
-    (Sleep           , "built_in.sleep"             , 38   , 1   , Proc    ),
-    (Nop0            , "built_in.nop0"              , 39   , 0   , Fn      ),
-    (Nop1            , "built_in.nop1"              , 40   , 1   , Fn      ),
+    (RandomInt       , "built_in.random_int"        , 36   , 0   , NdetFn  ),
+    (Sleep           , "built_in.sleep"             , 37   , 1   , Proc    ),
+    (Nop0            , "built_in.nop0"              , 38   , 0   , Fn      ),
+    (Nop1            , "built_in.nop1"              , 39   , 1   , Fn      ),
 //   ^^^^              ^^^^^^^^^^^^^^^                ^^     ^     ^^
 //   |                 |                              |      |     |
 //  (0)               (1)                            (2)    (3)   (4)

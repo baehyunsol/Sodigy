@@ -1,6 +1,7 @@
 use crate::{
     Bytecode,
     DebugInfoKind,
+    InternedValue,
     Memory,
     Session,
     Value,
@@ -115,9 +116,15 @@ impl Assert {
 
         // When it panics, the runtime will see the values in the AssertionMetadata stack
         // and throw an error message.
+        let status_code = session.get_ssa();
+        bytecodes.push(Bytecode::Const {
+            value: InternedValue::Scalar(22),
+            dst: Memory::SSA(status_code),
+            debug_info: None,
+        });
         bytecodes.push(Bytecode::Intrinsic {
-            intrinsic: Intrinsic::Panic,
-            args: vec![],
+            intrinsic: Intrinsic::Exit,
+            args: vec![status_code],
             dst: Memory::Return,  // don't care
             debug_info: None,
         });
@@ -128,9 +135,15 @@ impl Assert {
         }
 
         if is_top_level {
+            let status_code = session.get_ssa();
+            bytecodes.push(Bytecode::Const {
+                value: InternedValue::Scalar(0),
+                dst: Memory::SSA(status_code),
+                debug_info: None,
+            });
             bytecodes.push(Bytecode::Intrinsic {
                 intrinsic: Intrinsic::Exit,
-                args: vec![],
+                args: vec![status_code],
                 dst: Memory::Return,  // don't care
                 debug_info: None,
             });

@@ -368,13 +368,10 @@ fn call(
                     },
                     Intrinsic::PrependList => todo!(),
                     Intrinsic::Exit => {
+                        let status_code = *stack.ssa.get(&args[0]).unwrap() as u8;
+
                         // TODO: clean up stack and heap
-                        return CallResult::Exit(0);
-                    },
-                    Intrinsic::Panic => {
-                        // TODO: clean up stack and heap
-                        // TODO: what would be the best status code to use?
-                        return CallResult::Exit(22);
+                        return CallResult::Exit(status_code);
                     },
                     Intrinsic::Print | Intrinsic::EPrint | Intrinsic::Debug => {
                         let chars_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;

@@ -26,19 +26,25 @@ use std.string.String;
 
 #[built_in]
 #[lang_item("built_in.exit")]
-proc exit() -> !;
+proc exit_built_in(status_code: scalar.Scalar) -> !;
 
-#[built_in]
-#[lang_item("built_in.panic")]
-fn panic_built_in() -> !;
+proc exit(status_code: Int) -> ! = match status_code {
+    0..=255 => exit_built_in(status_code as! <scalar.Scalar>),
+    _ => panic(f"Cannot exit with status code {status_code}. The status code must be in range 0..=255."),
+};
 
+// It's supposed to be `proc`, but I want to allow users
+// to panic at any place, for debug purposes.
 pub fn panic(s: String) -> ! = {
     // I can't use `std.io.debug` because `panic` is more serious than `std.io.debug`.
     // I can't use `std.io.eprint` because that's ndet-proc.
     // So I'm just using a compiler-magic.
     let debug: std.r#fn.Fn(String) -> Void = transmute(std.io.eprint);
 
-    blackbox((debug(s ++ "\n"), panic_built_in()))._1
+    // The same compiler magic for panic.
+    let panic: std.r#fn.Fn(Int) -> ! = transmute(exit);
+
+    blackbox((debug(s ++ "\n"), panic(22)))._1
 };
 
 // TODO: It must be hidden to the users.

@@ -286,10 +286,7 @@ fn lower_bytecode(
                 lines.push(format!("{indent_s}{} = {} + {};", to_lvalue(dst), ssa_to_rvalue(args[0]), ssa_to_rvalue(args[1])));
             },
             Intrinsic::Exit => {
-                lines.push(format!("{indent_s}return CallResult::Exit(0);"));
-            },
-            Intrinsic::Panic => {
-                lines.push(format!("{indent_s}return CallResult::Exit(22);"));
+                lines.push(format!("{indent_s}return CallResult::Exit({});", ssa_to_rvalue(args[0])));
             },
             _ => panic!("TODO: {intrinsic:?}"),
         },
