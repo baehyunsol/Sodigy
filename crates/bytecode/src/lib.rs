@@ -481,12 +481,12 @@ impl Bytecode {
             Bytecode::PushDebugInfo { .. } |
             Bytecode::PopDebugInfo => false,
             Bytecode::Call { effect, .. } |
-            Bytecode::CallDynamic { effect, .. } => matches!(&**effect, FuncEffect::Fn | FuncEffect::NdetFn),
+            Bytecode::CallDynamic { effect, .. } => matches!(&**effect, FuncEffect::Proc | FuncEffect::NdetProc),
 
             // as of now, all the `let` statements are pure
             Bytecode::TryInitGlobal { .. } => false,
 
-            Bytecode::Intrinsic { intrinsic, .. } => matches!(intrinsic.effect(), FuncEffect::Fn | FuncEffect::NdetFn),
+            Bytecode::Intrinsic { intrinsic, .. } => matches!(intrinsic.effect(), FuncEffect::Proc | FuncEffect::NdetProc),
         }
     }
 }
