@@ -243,6 +243,10 @@ impl GlobalLabel {
     pub fn hex(&self, l: usize) -> String {
         self.0.hex(l)
     }
+
+    pub fn span(&self) -> SpanHash {
+        self.0
+    }
 }
 
 // TODO: it should be in mir... right?

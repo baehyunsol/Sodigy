@@ -448,7 +448,22 @@ fn call(
                     curr_label = *f;
                 }
             },
-            Terminator::TryInitGlobal { global, label } => todo!(),
+            Terminator::TryInitGlobal { global, label } => {
+                if heap.global_values.get(&global.span()).is_none() {
+                    match tail_call_loop(Stack::new(), heap, object_file, *global) {
+                        CallResult::Return(_) => {},
+                        CallResult::TailCall { .. } => unreachable!(),
+                        CallResult::Exit => {
+                            return CallResult::Exit;
+                        },
+                        CallResult::Panic => {
+                            return CallResult::Panic;
+                        },
+                    }
+
+                    curr_label = *label;
+                }
+            },
             Terminator::Return(src) => {
                 return CallResult::Return(*stack.ssa.get(src).unwrap());
             },

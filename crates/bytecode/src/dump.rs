@@ -90,6 +90,10 @@ impl Display for CodeSection {
 
         for (_, basic_block) in basic_blocks.iter() {
             for line in basic_block.to_string().lines() {
+                if line.is_empty() {
+                    continue;
+                }
+
                 lines.push(format!("    {line}"));
             }
         }
