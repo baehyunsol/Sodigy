@@ -50,11 +50,10 @@ pub fn interpret(object_file: &ObjectFile, label: GlobalLabel, intermediate_dir:
 
     match result {
         CallResult::Return(_) |
-        CallResult::Exit => Ok(()),
+        CallResult::Exit(0) => Ok(()),
         CallResult::TailCall { .. } => unreachable!(),
 
-        // TODO: dump debug info!
-        CallResult::Panic => Err(()),
+        CallResult::Exit(_) => Err(()),
     }
 }
 
@@ -75,11 +74,8 @@ fn tail_call_loop(
                 stack = new_stack;
                 label = func;
             },
-            CallResult::Exit => {
-                return CallResult::Exit;
-            },
-            CallResult::Panic => {
-                return CallResult::Panic;
+            CallResult::Exit(n) => {
+                return CallResult::Exit(n);
             },
         }
     }
@@ -88,8 +84,7 @@ fn tail_call_loop(
 enum CallResult {
     Return(u32),
     TailCall { func: GlobalLabel, stack: Stack },
-    Exit,
-    Panic,
+    Exit(u8),
 }
 
 fn call(
@@ -137,11 +132,8 @@ fn call(
                             let value = match tail_call_loop(new_stack, heap, object_file, *func) {
                                 CallResult::Return(n) => n,
                                 CallResult::TailCall { .. } => unreachable!(),
-                                CallResult::Exit => {
-                                    return CallResult::Exit;
-                                },
-                                CallResult::Panic => {
-                                    return CallResult::Panic;
+                                CallResult::Exit(n) => {
+                                    return CallResult::Exit(n);
                                 },
                             };
                             update(dst, value, &mut stack, heap);
@@ -160,11 +152,8 @@ fn call(
                             let value = match tail_call_loop(new_stack, heap, object_file, GlobalLabel::new(*func)) {
                                 CallResult::Return(n) => n,
                                 CallResult::TailCall { .. } => unreachable!(),
-                                CallResult::Exit => {
-                                    return CallResult::Exit;
-                                },
-                                CallResult::Panic => {
-                                    return CallResult::Panic;
+                                CallResult::Exit(n) => {
+                                    return CallResult::Exit(n);
                                 },
                             };
                             update(dst, value, &mut stack, heap);
@@ -367,11 +356,12 @@ fn call(
                     Intrinsic::PrependList => todo!(),
                     Intrinsic::Exit => {
                         // TODO: clean up stack and heap
-                        return CallResult::Exit;
+                        return CallResult::Exit(0);
                     },
                     Intrinsic::Panic => {
                         // TODO: clean up stack and heap
-                        return CallResult::Panic;
+                        // TODO: what would be the best status code to use?
+                        return CallResult::Exit(22);
                     },
                     Intrinsic::Print | Intrinsic::EPrint | Intrinsic::Debug => {
                         let chars_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;
@@ -453,11 +443,8 @@ fn call(
                     match tail_call_loop(Stack::new(), heap, object_file, *global) {
                         CallResult::Return(_) => {},
                         CallResult::TailCall { .. } => unreachable!(),
-                        CallResult::Exit => {
-                            return CallResult::Exit;
-                        },
-                        CallResult::Panic => {
-                            return CallResult::Panic;
+                        CallResult::Exit(n) => {
+                            return CallResult::Exit(n);
                         },
                     }
 
