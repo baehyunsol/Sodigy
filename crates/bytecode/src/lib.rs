@@ -10,6 +10,7 @@ mod endec;
 mod expr;
 mod expr_hash;
 mod func;
+mod label;
 mod r#let;
 mod link;
 mod object_file;
@@ -24,6 +25,7 @@ pub use assert::Assert;
 pub use expr_hash::ExprHash;
 pub(crate) use expr::lower_expr;
 pub use func::Func;
+pub use label::{GlobalLabel, LocalLabel};
 pub use r#let::Let;
 pub use link::link;
 pub use object_file::{
@@ -220,32 +222,6 @@ impl Memory {
             Memory::List { ptr, offset } => Some((*ptr, *offset)),
             _ => None,
         }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct LocalLabel(u32);
-
-impl LocalLabel {
-    pub fn start() -> Self {
-        LocalLabel(0)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct GlobalLabel(SpanHash);
-
-impl GlobalLabel {
-    pub fn new(s: SpanHash) -> Self {
-        GlobalLabel(s)
-    }
-
-    pub fn hex(&self, l: usize) -> String {
-        self.0.hex(l)
-    }
-
-    pub fn span(&self) -> SpanHash {
-        self.0
     }
 }
 
@@ -525,7 +501,7 @@ pub fn lower<'hir, 'mir>(
     if lower_built_ins {
         for (intrinsic, lang_item) in Intrinsic::ALL_WITH_LANG_ITEM.iter() {
             let def_span = mir_session.global_context.get_lang_item_span(lang_item);
-            let label = GlobalLabel(def_span.hash());
+            let label = GlobalLabel::new(def_span.hash());
             session.object_file.code.insert(
                 label,
                 CodeSection {
@@ -536,9 +512,9 @@ pub fn lower<'hir, 'mir>(
                     params: Some(intrinsic.num_params()),
                     effect: intrinsic.effect(),
                     basic_blocks: [(
-                        LocalLabel(0),
+                        LocalLabel::start(),
                         BasicBlock {
-                            label: LocalLabel(0),
+                            label: LocalLabel::start(),
                             code: vec![
                                 Bytecode::Intrinsic {
                                     intrinsic: *intrinsic,

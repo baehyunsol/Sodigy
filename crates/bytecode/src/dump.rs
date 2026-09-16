@@ -78,7 +78,7 @@ impl Display for CodeSection {
 
         lines.push(format!(
             "code @G{}{}:",
-            self.label.0.hex(12),
+            self.label.hex(12),
             match self.params {
                 Some(params) => format!("({})", (0..params).map(|i| format!("_{i}")).collect::<Vec<_>>().join(", ")),
                 None => String::new(),
@@ -142,7 +142,7 @@ impl Display for Terminator {
             Terminator::TryInitGlobal { global, label } => write!(
                 fmt,
                 "if !is_init(_g{}) {{ call {global}(); }} jump {label};",
-                global.0.hex(12),
+                global.hex(12),
             ),
             Terminator::Return(ssa) => write!(fmt, "return {ssa};"),
         }
@@ -186,7 +186,7 @@ impl Display for Bytecode {
             Bytecode::TryInitGlobal { global, label } => write!(
                 fmt,
                 "if !is_init(_g{}) {{ call {global}(); }} jump {label};",
-                global.0.hex(12),
+                global.hex(12),
             ),
             Bytecode::Label(label) => write!(fmt, "label {label}:"),
             Bytecode::Return(ssa) => write!(fmt, "return {ssa};"),
@@ -250,13 +250,13 @@ impl Display for InternedValue {
 
 impl Display for LocalLabel {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        write!(fmt, "@L{:x}", self.0)
+        write!(fmt, "@L{:x}", self.index())
     }
 }
 
 impl Display for GlobalLabel {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        write!(fmt, "@G{}", self.0.hex(12))
+        write!(fmt, "@G{}", self.hex(12))
     }
 }
 

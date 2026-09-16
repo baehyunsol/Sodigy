@@ -1,5 +1,4 @@
-use crate::{Bytecode, CodeKind, ObjectFile, Value};
-use sodigy_span::SpanHash;
+use crate::ObjectFile;
 use std::collections::hash_map::{Entry, HashMap};
 
 pub fn link(object_files: Vec<ObjectFile>) -> ObjectFile {

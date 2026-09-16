@@ -81,7 +81,7 @@ impl Session<'_, '_> {
 
     pub fn get_local_label(&mut self) -> LocalLabel {
         self.label_counter += 1;
-        LocalLabel(self.label_counter - 1)
+        LocalLabel::new(self.label_counter - 1)
     }
 
     pub fn get_ssa(&mut self) -> SSA {

@@ -1,4 +1,4 @@
-use crate::{Bytecode, GlobalLabel, LocalLabel, Memory, SSA};
+use crate::{Bytecode, GlobalLabel, LocalLabel, SSA};
 use sodigy_span::Span;
 use std::collections::HashMap;
 

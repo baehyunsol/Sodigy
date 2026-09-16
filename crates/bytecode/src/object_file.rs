@@ -1,6 +1,5 @@
 use crate::{
     Assert,
-    Bytecode,
     ExprHash,
     Func,
     GlobalLabel,
@@ -9,7 +8,7 @@ use crate::{
     Value,
 };
 use sodigy_error::FuncEffect;
-use sodigy_span::{Span, SpanHash};
+use sodigy_span::Span;
 use sodigy_string::unintern_string;
 use std::collections::HashMap;
 
@@ -57,7 +56,7 @@ impl ObjectFile {
         let mut assert_labels = Vec::with_capacity(asserts.len());
 
         for mut func in funcs.drain(..) {
-            let label = GlobalLabel(func.name_span.hash());
+            let label = GlobalLabel::new(func.name_span.hash());
             code.insert(
                 label,
                 CodeSection {
@@ -73,7 +72,7 @@ impl ObjectFile {
         }
 
         for mut r#let in lets.drain(..) {
-            let label = GlobalLabel(r#let.name_span.hash());
+            let label = GlobalLabel::new(r#let.name_span.hash());
             code.insert(
                 label,
                 CodeSection {
@@ -90,7 +89,7 @@ impl ObjectFile {
 
         for mut assert in asserts.drain(..) {
             let name = String::from_utf8_lossy(&unintern_string(assert.name, intermediate_dir).unwrap().unwrap()).to_string();
-            let label = GlobalLabel(assert.keyword_span.hash());
+            let label = GlobalLabel::new(assert.keyword_span.hash());
             assert_labels.push((name.clone(), label));
             code.insert(
                 label,

@@ -78,23 +78,23 @@ impl Endec for Memory {
 
 impl Endec for LocalLabel {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
-        self.0.encode_impl(buffer);
+        self.index().encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (label, cursor) = u32::decode_impl(buffer, cursor)?;
-        Ok((LocalLabel(label), cursor))
+        Ok((LocalLabel::new(label), cursor))
     }
 }
 
 impl Endec for GlobalLabel {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
-        self.0.encode_impl(buffer);
+        self.span().encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (label, cursor) = SpanHash::decode_impl(buffer, cursor)?;
-        Ok((GlobalLabel(label), cursor))
+        Ok((GlobalLabel::new(label), cursor))
     }
 }
 

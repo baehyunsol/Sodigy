@@ -6,7 +6,6 @@ use crate::{
     ExprHash,
     GlobalLabel,
     LocalLabel,
-    Memory,
     ObjectFile,
     SSA,
     Terminator,
@@ -14,7 +13,7 @@ use crate::{
 };
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_error::FuncEffect;
-use sodigy_span::{Span, SpanHash};
+use sodigy_span::Span;
 use std::collections::HashMap;
 
 impl Endec for ObjectFile {

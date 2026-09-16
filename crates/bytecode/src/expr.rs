@@ -3,7 +3,6 @@ use crate::{
     Bytecode,
     GlobalLabel,
     InternedValue,
-    LocalLabel,
     Memory,
     Session,
     SSA,
@@ -33,7 +32,7 @@ pub fn lower_expr(
                     NameOrigin::Foreign { kind } | NameOrigin::Local { kind } => match kind {
                         NameKind::Let { is_top_level: true } => {
                             let label = session.get_local_label();
-                            bytecodes.push(Bytecode::TryInitGlobal { global: GlobalLabel(id.def_span.hash()), label });
+                            bytecodes.push(Bytecode::TryInitGlobal { global: GlobalLabel::new(id.def_span.hash()), label });
                             bytecodes.push(Bytecode::Label(label));
                             Memory::Global(id.def_span.hash())
                         },
@@ -275,7 +274,7 @@ pub fn lower_expr(
                                 }
                             },
                             None => {
-                                let func = GlobalLabel(def_span.hash());
+                                let func = GlobalLabel::new(def_span.hash());
                                 let effect = match session.global_context.func_shapes.unwrap().get(def_span) {
                                     Some(FuncShape { effect, .. }) => Box::new(effect.clone()),
                                     _ => unreachable!(),

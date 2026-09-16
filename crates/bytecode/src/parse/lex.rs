@@ -188,13 +188,13 @@ fn lex_code_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), 
 
                         let token = match prefix {
                             b'L' => match u32::try_from(&n) {
-                                Ok(n) => Token::LocalLabel(LocalLabel(n)),
+                                Ok(n) => Token::LocalLabel(LocalLabel::new(n)),
                                 _ => {
                                     return Err(BytecodeParseError::IntRangeError { cursor: int_start_cursor });
                                 },
                             },
                             b'G' => match u128::try_from(&n) {
-                                Ok(n) => Token::GlobalLabel(GlobalLabel(SpanHash(n))),
+                                Ok(n) => Token::GlobalLabel(GlobalLabel::new(SpanHash(n))),
                                 _ => {
                                     return Err(BytecodeParseError::IntRangeError { cursor: int_start_cursor });
                                 },

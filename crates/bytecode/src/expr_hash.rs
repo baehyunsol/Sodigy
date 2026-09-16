@@ -1,4 +1,4 @@
-use crate::{GlobalLabel, Memory, SSA, Value};
+use crate::{GlobalLabel, SSA, Value};
 use sodigy_endec::Endec;
 use sodigy_mir::Intrinsic;
 use sodigy_utils::{dump_hex, hash};

@@ -7,6 +7,7 @@ edition = "2024"
 sodigy-bytecode = { version = "0.1.0", path = "../bytecode" }
 sodigy-endec = { version = "0.1.0", path = "../endec" }
 sodigy-error = { version = "0.1.0", path = "../error" }
+sodigy-mir = { version = "0.1.0", path = "../mir" }
 
 [features]
 log = ["sodigy-bytecode/log"]

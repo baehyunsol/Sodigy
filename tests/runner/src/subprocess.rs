@@ -94,6 +94,8 @@ pub fn run(
     let status = status?;
 
     if check_nonzero_status && !status.success() {
+        // println!("{}", String::from_utf8_lossy(&stdout));
+        // eprintln!("{}", String::from_utf8_lossy(&stderr));
         return Err(SubprocessError::NonzeroStatus);
     }
 

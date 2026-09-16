@@ -11,7 +11,7 @@ use crate::{
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_error::FuncEffect;
 use sodigy_mir::Intrinsic;
-use sodigy_span::{Span, SpanHash};
+use sodigy_span::Span;
 
 impl Endec for Bytecode {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
