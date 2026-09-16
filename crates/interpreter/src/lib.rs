@@ -197,7 +197,9 @@ fn call(
                     Intrinsic::RemInt |
                     Intrinsic::LtInt |
                     Intrinsic::EqInt |
-                    Intrinsic::GtInt => {
+                    Intrinsic::GtInt |
+                    Intrinsic::BitAndInt |
+                    Intrinsic::BitOrInt => {
                         let lhs_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;
                         let (lhs_neg, lhs) = inspect_int(&heap.data, lhs_ptr);
 
@@ -209,14 +211,16 @@ fn call(
                             Intrinsic::SubInt |
                             Intrinsic::MulInt |
                             Intrinsic::DivInt |
-                            Intrinsic::RemInt => {
+                            Intrinsic::RemInt |
+                            Intrinsic::BitAndInt |
+                            Intrinsic::BitOrInt => {
                                 let (is_neg, nums) = match intrinsic {
                                     Intrinsic::AddInt => add_bi(lhs_neg, lhs, rhs_neg, rhs),
                                     Intrinsic::SubInt => sub_bi(lhs_neg, lhs, rhs_neg, rhs),
                                     Intrinsic::MulInt => mul_bi(lhs_neg, lhs, rhs_neg, rhs),
                                     Intrinsic::DivInt => div_bi(lhs_neg, lhs, rhs_neg, rhs),
                                     Intrinsic::RemInt => rem_bi(lhs_neg, lhs, rhs_neg, rhs),
-                                    _ => unreachable!(),
+                                    _ => todo!(),
                                 };
                                 let v = Value::Int(BigInt {
                                     is_neg,
@@ -233,8 +237,6 @@ fn call(
 
                         update(dst, result, &mut stack, heap);
                     },
-                    Intrinsic::BitAndInt => todo!(),
-                    Intrinsic::BitOrInt => todo!(),
                     Intrinsic::ShrInt | Intrinsic::ShlInt => {
                         let lhs_ptr = *stack.ssa.get(&args[0]).unwrap() as usize;
                         let (is_neg, lhs) = inspect_int(&heap.data, lhs_ptr);
@@ -258,15 +260,28 @@ fn call(
                         let result = ilog2_ubi(rhs);
                         update(dst, result, &mut stack, heap);
                     },
-                    Intrinsic::AddScalar => todo!(),
-                    Intrinsic::SubScalar => {
+                    Intrinsic::AddScalar |
+                    Intrinsic::SubScalar |
+                    Intrinsic::MulScalar |
+                    Intrinsic::DivScalar |
+                    Intrinsic::RemScalar |
+                    Intrinsic::BitAndScalar |
+                    Intrinsic::BitOrScalar => {
                         let lhs = *stack.ssa.get(&args[0]).unwrap();
                         let rhs = *stack.ssa.get(&args[1]).unwrap();
-                        update(dst, lhs - rhs, &mut stack, heap);
+                        let result = match intrinsic {
+                            Intrinsic::AddScalar => lhs + rhs,
+                            Intrinsic::SubScalar => lhs - rhs,
+                            Intrinsic::MulScalar => lhs * rhs,
+                            Intrinsic::DivScalar => lhs / rhs,
+                            Intrinsic::RemScalar => lhs % rhs,
+                            Intrinsic::BitAndScalar => lhs & rhs,
+                            Intrinsic::BitOrScalar => lhs | rhs,
+                            _ => unreachable!(),
+                        };
+
+                        update(dst, result, &mut stack, heap);
                     },
-                    Intrinsic::MulScalar => todo!(),
-                    Intrinsic::DivScalar => todo!(),
-                    Intrinsic::RemScalar => todo!(),
                     Intrinsic::LtScalar |
                     Intrinsic::EqScalar |
                     Intrinsic::GtScalar => {
@@ -280,8 +295,6 @@ fn call(
                         };
                         update(dst, result as u32, &mut stack, heap);
                     },
-                    Intrinsic::BitAndScalar => todo!(),
-                    Intrinsic::BitOrScalar => todo!(),
                     Intrinsic::ScalarToInt => {
                         let lhs = *stack.ssa.get(&args[0]).unwrap();
                         let result = heap.alloc_int_from_u32(lhs);
