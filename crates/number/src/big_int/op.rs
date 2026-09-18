@@ -74,76 +74,68 @@ pub fn sub_bi(
             add_ubi(lhs, rhs),
         ),
         _ => {
-            let lhs_less = lt_ubi(lhs, rhs);
-            let abs_diff = if lhs_less {
-                sub_ubi(rhs, lhs)
-            } else {
-                sub_ubi(lhs, rhs)
-            };
-
-            if abs_diff == [0] {
-                (false, abs_diff)
-            } else {
-                // lhs  -  rhs    lhs_less     lhs_neg      result
-                //   3  -  4        true        false    ( true, abs_diff)
-                //   4  -  3        false       false    (false, abs_diff)
-                // (-3) - (-4)      true        true     (false, abs_diff)
-                // (-4) - (-3)      false       true     ( true, abs_diff)
-                (lhs_less ^ lhs_neg, abs_diff)
-            }
+            let (abs_diff, is_neg) = sub_ubi_worker(lhs, rhs);
+            (lhs_neg ^ is_neg, abs_diff)
         },
     }
 }
 
-/// It panics if `lhs < rhs`.
+/// It assumes that lhs is greater than or equal to rhs.
 pub fn sub_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {
     // println!("{lhs:?} - {rhs:?}");
-    let mut result = lhs.to_vec();
-    let mut carry = false;
+    sub_ubi_worker(lhs, rhs).0
+}
 
-    for i in 0..rhs.len() {
-        if carry {
-            if rhs[i] != u32::MAX && result[i] >= rhs[i] + 1 {
-                result[i] -= rhs[i] + 1;
-                carry = false;
-            }
+fn sub_ubi_worker(lhs: &[u32], rhs: &[u32]) -> (Vec<u32>, bool) {
+    if lhs.len() < rhs.len() {
+        return (sub_ubi_worker(rhs, lhs).0, true);
+    }
 
-            else {
-                result[i] = u32::MAX - (rhs[i] - result[i]);
-            }
-        }
+    let mut result: Vec<u64> = vec![0; lhs.len()];
+    let mut is_rhs_greater: Option<bool> = None;
 
-        else {
-            if result[i] >= rhs[i] {
-                result[i] -= rhs[i];
-            }
+    for i in 0..lhs.len() {
+        let i = lhs.len() - 1 - i;
 
-            else {
-                result[i] = u32::MAX - (rhs[i] - result[i]) + 1;
-                carry = true;
-            }
+        match (lhs[i], rhs.get(i), is_rhs_greater) {
+            (l, None, _) => {
+                is_rhs_greater = Some(false);
+                result[i] = l as u64 + u32::MAX as u64;
+            },
+            (l, Some(r), None) => {
+                match l.cmp(r) {
+                    Ordering::Less => {
+                        is_rhs_greater = Some(true);
+                    },
+                    Ordering::Equal => {},
+                    Ordering::Greater => {
+                        is_rhs_greater = Some(false);
+                    },
+                }
+
+                result[i] = l as u64 + (!*r) as u64;
+            },
+            (l, Some(r), Some(_)) => {
+                result[i] = l as u64 + (!*r) as u64;
+            },
         }
     }
 
-    if carry {
-        if result.len() <= rhs.len() {
-            panic!();
+    result[0] += 1;
+    let mut result = v64_to_v32(result);
+
+    if is_rhs_greater == Some(true) {
+        for n in result.iter_mut() {
+            *n = !*n;
         }
 
-        for i in rhs.len()..result.len() {
-            if result[i] > 0 {
-                result[i] -= 1;
-                break;
-            }
-
-            else {
-                result[i] = u32::MAX;
-            }
-        }
+        remove_suffix_0(&mut result);
+        (add_ubi(&result, &[1]), true)
+    } else {
+        result.pop().unwrap();
+        remove_suffix_0(&mut result);
+        (result, false)
     }
-
-    remove_suffix_0(&mut result);
-    result
 }
 
 pub fn mul_bi(
@@ -194,6 +186,7 @@ pub fn div_bi(
 }
 
 pub fn div_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {
+    // println!("{lhs:?} / {rhs:?}");
     match (lhs.len(), rhs.len()) {
         (l, r) if l < r => vec![0],
         (_, 1) => {
@@ -218,6 +211,19 @@ pub fn div_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {
             match n {
                 0..=0xffff_ffff => vec![n as u32],
                 _ => vec![(n & 0xffff_ffff) as u32, (n >> 32) as u32],
+            }
+        },
+        (0..5, 0..5) => {
+            let lhs: u128 = lhs[0] as u128 | ((*lhs.get(1).unwrap_or(&0) as u128) << 32) | ((*lhs.get(2).unwrap_or(&0) as u128) << 64) | ((*lhs.get(3).unwrap_or(&0) as u128) << 96);
+            let rhs: u128 = rhs[0] as u128 | ((*rhs.get(1).unwrap_or(&0) as u128) << 32) | ((*rhs.get(2).unwrap_or(&0) as u128) << 64) | ((*rhs.get(3).unwrap_or(&0) as u128) << 96);
+            let n = lhs / rhs;
+
+            match n {
+                0..=0xffff_ffff => vec![n as u32],
+                ..=0xffff_ffff_ffff_ffff => vec![(n & 0xffff_ffff) as u32, (n >> 32) as u32],
+
+                // rhs.len() is at least 2
+                _ => vec![(n & 0xffff_ffff) as u32, ((n >> 32) & 0xffff_ffff) as u32, (n >> 64) as u32],
             }
         },
         (l, r) if l == r => {
@@ -268,13 +274,21 @@ pub fn rem_bi(
     rhs_neg: bool,
     rhs: &[u32],
 ) -> (bool, Vec<u32>) {
-    let (qn, q) = div_bi(lhs_neg, lhs, rhs_neg, rhs);
-    let (ntn, nt) = mul_bi(qn, &q, rhs_neg, rhs);
-    sub_bi(lhs_neg, lhs, ntn, &nt)
+    if rhs.len() == 1 {
+        todo!()  // we can do an optimization!!
+    } else {
+        let (qn, q) = div_bi(lhs_neg, lhs, rhs_neg, rhs);
+        let (ntn, nt) = mul_bi(qn, &q, rhs_neg, rhs);
+        sub_bi(lhs_neg, lhs, ntn, &nt)
+    }
 }
 
 pub fn rem_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {
-    sub_ubi(lhs, &mul_ubi(&div_ubi(lhs, rhs), rhs))
+    if rhs.len() == 1 {
+        todo!()  // we can do an optimization!!
+    } else {
+        sub_ubi(lhs, &mul_ubi(&div_ubi(lhs, rhs), rhs))
+    }
 }
 
 pub fn shl_ubi(lhs: &[u32], rhs: u32) -> Vec<u32> {

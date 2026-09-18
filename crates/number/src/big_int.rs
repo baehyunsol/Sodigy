@@ -132,11 +132,11 @@ pub fn v64_to_v32(mut v64: Vec<u64>) -> Vec<u32> {
         }
     }
 
-    let v64_len = v64.len() - 1;
+    let v64_last = v64.len() - 1;
 
-    if v64[v64_len] >= (1 << 32) {
-        v64.push(v64[v64_len] >> 32);
-        v64[v64_len] &= 0xffff_ffff;
+    if v64[v64_last] >= (1 << 32) {
+        v64.push(v64[v64_last] >> 32);
+        v64[v64_last] &= 0xffff_ffff;
     }
 
     #[cfg(test)] { assert!(v64.iter().all(|n| *n < (1 << 32))); }
