@@ -189,6 +189,16 @@ pub fn div_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {
     // println!("{lhs:?} / {rhs:?}");
     match (lhs.len(), rhs.len()) {
         (l, r) if l < r => vec![0],
+        (0..3, 0..3) => {
+            let lhs: u64 = lhs[0] as u64 | ((*lhs.get(1).unwrap_or(&0) as u64) << 32);
+            let rhs: u64 = rhs[0] as u64 | ((*rhs.get(1).unwrap_or(&0) as u64) << 32);
+            let n = lhs / rhs;
+
+            match n {
+                0..=0xffff_ffff => vec![n as u32],
+                _ => vec![(n & 0xffff_ffff) as u32, (n >> 32) as u32],
+            }
+        },
         (_, 1) => {
             let mut carry = 0;
             let rhs = rhs[0] as u64;
@@ -202,16 +212,6 @@ pub fn div_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {
 
             remove_suffix_0(&mut lhs);
             lhs
-        },
-        (0..3, 0..3) => {
-            let lhs: u64 = lhs[0] as u64 | ((*lhs.get(1).unwrap_or(&0) as u64) << 32);
-            let rhs: u64 = rhs[0] as u64 | ((*rhs.get(1).unwrap_or(&0) as u64) << 32);
-            let n = lhs / rhs;
-
-            match n {
-                0..=0xffff_ffff => vec![n as u32],
-                _ => vec![(n & 0xffff_ffff) as u32, (n >> 32) as u32],
-            }
         },
         (0..5, 0..5) => {
             let lhs: u128 = lhs[0] as u128 | ((*lhs.get(1).unwrap_or(&0) as u128) << 32) | ((*lhs.get(2).unwrap_or(&0) as u128) << 64) | ((*lhs.get(3).unwrap_or(&0) as u128) << 96);
@@ -274,20 +274,80 @@ pub fn rem_bi(
     rhs_neg: bool,
     rhs: &[u32],
 ) -> (bool, Vec<u32>) {
-    if rhs.len() == 1 {
-        todo!()  // we can do an optimization!!
-    } else {
-        let (qn, q) = div_bi(lhs_neg, lhs, rhs_neg, rhs);
-        let (ntn, nt) = mul_bi(qn, &q, rhs_neg, rhs);
-        sub_bi(lhs_neg, lhs, ntn, &nt)
+    match (lhs.len(), rhs.len()) {
+        (0..4, 0..4) => {
+            let mut lhs: i128 = lhs[0] as i128 | ((*lhs.get(1).unwrap_or(&0) as i128) << 32) | ((*lhs.get(2).unwrap_or(&0) as i128) << 64);
+            let mut rhs: i128 = rhs[0] as i128 | ((*rhs.get(1).unwrap_or(&0) as i128) << 32) | ((*rhs.get(2).unwrap_or(&0) as i128) << 64);
+
+            if lhs_neg {
+                lhs *= -1;
+            }
+
+            if rhs_neg {
+                rhs *= -1;
+            }
+
+            let mut n = lhs % rhs;
+            let is_neg = n < 0;
+            n = n.abs();
+
+            match n {
+                0..=0xffff_ffff => (is_neg, vec![n as u32]),
+                ..=0xffff_ffff_ffff_ffff => (is_neg, vec![(n & 0xffff_ffff) as u32, (n >> 32) as u32]),
+                _ => (is_neg, vec![(n & 0xffff_ffff) as u32, ((n >> 32) & 0xffff_ffff) as u32, (n >> 64) as u32]),
+            }
+        },
+        // (a + b * BIG + c * BIG * BIG + ...) % d = (a + (b % d) * (BIG % d) + (c % d) * (BIG % d) * (BIG % d) + ...) % d
+        (_, 1) => {
+            let d = rhs[0] as u64;
+            let mut accum = lhs[0] as u64;
+            let mut pow_rem = 0x1_0000_0000 % d;
+            let big_rem = 0x1_0000_0000 % d;
+
+            for b in lhs[1..].iter() {
+                accum += (*b as u64 * pow_rem) % d;
+                pow_rem = (pow_rem * big_rem) % d;
+            }
+
+            (lhs_neg, vec![(accum % d) as u32])
+        },
+        _ => {
+            let (qn, q) = div_bi(lhs_neg, lhs, rhs_neg, rhs);
+            let (ntn, nt) = mul_bi(qn, &q, rhs_neg, rhs);
+            sub_bi(lhs_neg, lhs, ntn, &nt)
+        },
     }
 }
 
 pub fn rem_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {
-    if rhs.len() == 1 {
-        todo!()  // we can do an optimization!!
-    } else {
-        sub_ubi(lhs, &mul_ubi(&div_ubi(lhs, rhs), rhs))
+    match (lhs.len(), rhs.len()) {
+        (0..3, 0..3) => {
+            let lhs: u64 = lhs[0] as u64 | ((*lhs.get(1).unwrap_or(&0) as u64) << 32);
+            let rhs: u64 = rhs[0] as u64 | ((*rhs.get(1).unwrap_or(&0) as u64) << 32);
+            let n = lhs % rhs;
+
+            match n {
+                0..=0xffff_ffff => vec![n as u32],
+                _ => vec![(n & 0xffff_ffff) as u32, (n >> 32) as u32],
+            }
+        },
+        // (a + b * BIG + c * BIG * BIG + ...) % d = (a + (b % d) * (BIG % d) + (c % d) * (BIG % d) * (BIG % d) + ...) % d
+        (_, 1) => {
+            let d = rhs[0] as u64;
+            let mut accum = lhs[0] as u64;
+            let mut pow_rem = 0x1_0000_0000 % d;
+            let big_rem = 0x1_0000_0000 % d;
+
+            for b in lhs[1..].iter() {
+                accum += (*b as u64 * pow_rem) % d;
+                pow_rem = (pow_rem * big_rem) % d;
+            }
+
+            vec![(accum % d) as u32]
+        },
+        _ => {
+            sub_ubi(lhs, &mul_ubi(&div_ubi(lhs, rhs), rhs))
+        },
     }
 }
 
@@ -336,15 +396,34 @@ pub fn shl_ubi(lhs: &[u32], rhs: u32) -> Vec<u32> {
 }
 
 pub fn shr_ubi(lhs: &[u32], rhs: u32) -> Vec<u32> {
-    match rhs {
-        0 => lhs.to_vec(),
-        1..32 => {
+    match (lhs.len(), rhs) {
+        (_, 0) => lhs.to_vec(),
+        (_, 1..32) => {
             let mut result = vec![0; lhs.len()];
             result[0] = lhs[0] >> rhs;
 
-            for (i, lhs) in lhs[1..].iter().enumerate() {
-                let tail = lhs << (32 - rhs);
-                let head = lhs >> rhs;
+            if lhs.len() > 1 {
+                for (i, lhs) in lhs[1..].iter().enumerate() {
+                    let tail = lhs << (32 - rhs);
+                    let head = lhs >> rhs;
+                    result[i] |= tail;
+                    result[i + 1] |= head;
+                }
+
+                remove_suffix_0(&mut result);
+            }
+
+            result
+        },
+        (1, _) => vec![0],
+        (_, 32) => lhs[1..].to_vec(),
+        (_, 33..64) => {
+            let mut result = vec![0; lhs.len() - 1];
+            result[0] = lhs[1] >> (rhs - 32);
+
+            for (i, lhs) in lhs[2..].iter().enumerate() {
+                let tail = lhs << (64 - rhs);
+                let head = lhs >> (rhs - 32);
                 result[i] |= tail;
                 result[i + 1] |= head;
             }
@@ -352,14 +431,9 @@ pub fn shr_ubi(lhs: &[u32], rhs: u32) -> Vec<u32> {
             remove_suffix_0(&mut result);
             result
         },
-        32 => lhs[1..].to_vec(),
-        33..64 => {
-            let mut result = vec![0; lhs.len() - 1];
-            result[0] = lhs[1] >> (rhs - 32);
-            todo!()
-        },
-        64 => lhs[2..].to_vec(),
-        _ => todo!(),
+        (2, _) => vec![0],
+        (_, 64) => lhs[2..].to_vec(),
+        _ => shr_ubi(&shr_ubi(lhs, 64), rhs - 64),
     }
 }
 

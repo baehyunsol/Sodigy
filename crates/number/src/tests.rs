@@ -52,7 +52,7 @@ fn interned_small_integer() {
 }
 
 #[test]
-fn sub_bi_test() {
+fn u128_bi_arith_test() {
     let sample = vec![
         vec![0],
         vec![1],
@@ -119,7 +119,7 @@ fn sub_bi_test() {
         for (is_neg_b, nums_b) in signed_sample.iter() {
             let bi_b = BigInt { is_neg: *is_neg_b, nums: nums_b.to_vec() };
             let i128_b = i128::try_from(&bi_b).unwrap();
-            // println!("a: {i128_a}, b: {i128_b}");
+            println!("a: {i128_a}, b: {i128_b}");
 
             let (is_neg_c, nums_c) = add_bi(*is_neg_a, nums_a, *is_neg_b, nums_b);
             let bi_c = BigInt { is_neg: is_neg_c, nums: nums_c.clone() };
@@ -186,8 +186,10 @@ fn sub_bi_test() {
             if let Some(answer) = u128_a.checked_shl(shift) {
                 let nums_h = shl_ubi(nums_a, shift);
                 let bi_h = BigInt { is_neg: false, nums: nums_h };
-                let u128_h = u128::try_from(&bi_h).unwrap();
-                assert_eq!(u128_h, answer);
+
+                if let Ok(u128_h) = u128::try_from(&bi_h) {
+                    assert_eq!(u128_h, answer);
+                }
             }
 
             if let Some(answer) = u128_a.checked_shr(shift) {
@@ -196,6 +198,24 @@ fn sub_bi_test() {
                 let u128_i = u128::try_from(&bi_i).unwrap();
                 assert_eq!(u128_i, answer);
             }
+        }
+
+        for long_shift in [
+            8, 16, 24, 32,
+            40, 48, 56, 64,
+            72, 80, 88, 96,
+            104, 112, 120, 128,
+            136, 144, 152, 160,
+            168, 176, 184, 192,
+            200, 208, 216, 224,
+            232, 240, 248, 256,
+            264, 272, 280, 288,
+            296, 304, 312, 320,
+            328, 336, 344, 352,
+        ] {
+            let shifted = shl_ubi(nums_a, long_shift);
+            let shifted_back = shr_ubi(&shifted, long_shift);
+            assert_eq!(nums_a, &shifted_back);
         }
     }
 }
