@@ -41,29 +41,7 @@ unsafe fn {name}(heap: &mut Heap) -> u32 {{ todo!() }}
 "#)
 }
 
-const RUNNER: &'static str = r#"
-pub enum CallResult {
-    TailCallShort { f: Fn(&mut Heap, u32, u32) -> CallResult, x0: u32, x1: u32 },
-    TailCallLong { f: Fn(&mut Heap, u32, u32, Vec<u32>) -> CallResult, x0: u32, x1: u32, xs: Vec<u32> },
-    Return(u32),
-    Exit(u8),
-}
-
-pub fn call(heap: &mut Heap, mut c: CallResult) -> CallResult {
-    loop {
-        match c {
-            CallResult::TailCallShort { f, x0, x1 } => { c = f(x0, x1); },
-            CallResult::TailCallLong { f, x0, x1, xs } => { c = f(x0, x1, xs); },
-            CallResult::Return(n) => {
-                return CallResult::Return(n);
-            },
-            CallResult::Exit(n) => {
-                return CallResult::Exit(n);
-            },
-        }
-    }
-}
-"#;
+const RUNNER: &'static str = include_str!("../rust-runtime-src/run.rs");
 
 enum BasicBlockCount {
     Single,
@@ -71,7 +49,7 @@ enum BasicBlockCount {
     Multi,
 }
 
-fn lower_code(code: CodeSection) -> String {
+fn lower_code(mut code: CodeSection) -> String {
     let name = format!("c_{}", code.label.hex(12));
     let param_count = code.params.unwrap_or(0);
     let params = match param_count {
@@ -96,14 +74,14 @@ fn lower_code(code: CodeSection) -> String {
 
     match (basic_block_count, basic_blocks_inspection.has_recursion) {
         (BasicBlockCount::Single, true) => {  // loop { stmts; }  # tail-call to self will continue the loop
-            todo!()
+            body.push(String::from(r#"    todo!("BasicBlockCount::Single with recursion")"#));
         },
         (BasicBlockCount::Single, false) => {  // { stmts; }
             let basic_block = code.basic_blocks.get(&LocalLabel::start()).unwrap();
             lower_basic_block(basic_block, true, 4, &mut body);
         },
         (BasicBlockCount::Triple, true) => {  // loop { stmts; }
-            todo!()
+            body.push(String::from(r#"    todo!("BasicBlockCount::Triple with recursion")"#));
         },
         (BasicBlockCount::Triple, false) => {  // { stmts; if cond { stmts; } else { stmts; } }
             let init_block = code.basic_blocks.get(&LocalLabel::start()).unwrap();
@@ -120,14 +98,18 @@ fn lower_code(code: CodeSection) -> String {
             body.push(String::from("    }"));
         },
         (BasicBlockCount::Multi, true) => {  // loop: 'recursion { let mut label = 0; loop: 'basic_blocks { match label { 0 => { stmts; }, .. } } }
-            todo!()
+            body.push(String::from(r#"    todo!("BasicBlockCount::Multi with recursion")"#));
         },
         (BasicBlockCount::Multi, false) => {  // { let mut label = 0; loop { match label { 0 => { stmts; }, .. } } }
             body.push(format!("    let mut label = {};", LocalLabel::start().index()));
             body.push(String::from("    loop {"));
             body.push(String::from("        match label {"));
 
-            for (label, basic_block) in code.basic_blocks.iter() {
+            // sort these for deterministic output!
+            let mut basic_blocks: Vec<(LocalLabel, BasicBlock)> = code.basic_blocks.drain().collect();
+            basic_blocks.sort_by_key(|(l, _)| *l);
+
+            for (label, basic_block) in basic_blocks.iter() {
                 body.push(format!("            {} => {{", label.index()));
                 lower_basic_block(basic_block, true, 16, &mut body);
                 body.push(String::from("            },"));
@@ -147,9 +129,21 @@ unsafe fn {name}({params}) -> CallResult {{
 }
 
 struct BasicBlocksInspection {
+    global_ssa: Vec<SSA>,
+    phi: HashMap<SSA, (SSA, SSA)>,
     has_recursion: bool,
 }
 
+// # global_ssa
+// If SSA(100) is initialized in basic_block A and is used in basic_block B,
+// we have to add `let mut x100 = 0;` at the beginning of the code section, and
+// lvalue and rvalue of SSA(100) have to be `x100`.
+//
+// # phi
+// If there's `Bytecode::Phi { pair: (100, 200), dst: SSA(300) }`, we have to
+// add `let mut p100200 = 0;` at the beginning of the code section, and lvalue
+// and rvalue of SSA(100) and SSA(200) have to be `p100200` and the bytecode
+// has to be lowered to `let x300 = p100200;`
 fn inspect_basic_blocks(global_label: GlobalLabel, basic_blocks: &HashMap<LocalLabel, BasicBlock>) -> BasicBlocksInspection {
     let mut has_recursion = false;
 
@@ -159,7 +153,11 @@ fn inspect_basic_blocks(global_label: GlobalLabel, basic_blocks: &HashMap<LocalL
         }
     }
 
-    BasicBlocksInspection { has_recursion }
+    BasicBlocksInspection {
+        global_ssa: todo!(),
+        phi: todo!(),
+        has_recursion,
+    }
 }
 
 fn lower_basic_block(
@@ -169,9 +167,14 @@ fn lower_basic_block(
     lines: &mut Vec<String>,
 ) {
     let indent_s = " ".repeat(indent);
+    let mut early_return = false;
 
     for code in basic_block.code.iter() {
-        lower_bytecode(code, indent, lines);
+        lower_bytecode(code, indent, lines, &mut early_return);
+    }
+
+    if early_return {
+        return;
     }
 
     if lower_terminator {
@@ -202,7 +205,7 @@ fn lower_basic_block(
             Terminator::TailCallDynamic { .. } => todo!(),
             Terminator::JumpIf { value, t, f } => {
                 lines.push(format!(
-                    "{indent_s}if {} == 0 {{ label = {}; }} else {{ label = {}; }}",
+                    "{indent_s}label = if {} == 0 {{ {} }} else {{ {} }};",
                     ssa_to_rvalue(*value),
                     f.index(),
                     t.index(),
@@ -227,7 +230,12 @@ fn lower_bytecode(
     bytecode: &Bytecode,
     indent: usize,
     lines: &mut Vec<String>,
+    early_return: &mut bool,
 ) {
+    if *early_return {
+        return;
+    }
+
     let indent_s = " ".repeat(indent);
 
     match bytecode {
@@ -238,18 +246,23 @@ fn lower_bytecode(
             InternedValue::Scalar(n) => {
                 lines.push(format!("{indent_s}{} = {n};", to_lvalue(dst)));
             },
-            InternedValue::FuncPointer(_) => todo!(),
+            InternedValue::FuncPointer(_) => {
+                lines.push(format!(r#"{indent_s}todo!("func-pointer");"#));
+            },
         },
         Bytecode::Move { src, dst } => {
             lines.push(format!("{indent_s}{} = {};", to_lvalue(dst), to_rvalue(src)));
         },
-        Bytecode::Phi { pair: (a, b), dst } => todo!(),
+        Bytecode::Phi { pair: (a, b), dst } => {
+            lines.push(format!(r#"{indent_s}todo!("{dst} = phi({a}, {b})")"#));
+        },
+        Bytecode::Jump(_) => unreachable!(),
         Bytecode::Call { args, dst, .. } |
         Bytecode::CallDynamic { args, dst, .. } => {
             let Some(dst) = dst else { unreachable!() };
             let f = match bytecode {
                 Bytecode::Call { func, .. } => format!("c_{}", func.hex(12)),
-                Bytecode::CallDynamic { func, .. } => todo!(),
+                Bytecode::CallDynamic { func, .. } => format!(r#"todo!("call-dynamic-func-pointer")"#),
                 _ => unreachable!(),
             };
 
@@ -270,25 +283,102 @@ fn lower_bytecode(
                 ));
             }
 
-            lines.push(format!("{indent_s}match call(heap, c) {{"));
+            lines.push(format!("{indent_s}{} = match call(heap, c) {{", to_lvalue(dst)));
             lines.push(format!("{indent_s}    CallResult::TailCallShort {{ .. }} | CallResult::TailCallLong {{ .. }} => unreachable!(),"));
-            lines.push(format!("{indent_s}    CallResult::Return(n) => {{ {} = n; }},", to_lvalue(dst)));
+            lines.push(format!("{indent_s}    CallResult::Return(n) => n,"));
             lines.push(format!("{indent_s}    CallResult::Exit(n) => {{ return CallResult::Exit(n); }},"));
-            lines.push(format!("{indent_s}}}"));
+            lines.push(format!("{indent_s}}};"));
         },
         Bytecode::JumpIf { .. } => unreachable!(),
         Bytecode::TryInitGlobal { .. } => unreachable!(),
+        Bytecode::LoadGlobal { src, dst } => {
+            lines.push(format!("{indent_s}{} = *heap.global_values.get(&0x{}).unwrap();", ssa_to_lvalue(*dst), src.hex(12)));
+        },
+        Bytecode::StoreGlobal { src, dst } => {
+            lines.push(format!("{indent_s}heap.global_values.insert(0x{}, {});", dst.hex(12), ssa_to_rvalue(*src)));
+        },
         Bytecode::Label(_) => unreachable!(),
         Bytecode::Return(_) => unreachable!(),
         Bytecode::Update { .. } => todo!(),
         Bytecode::Intrinsic { intrinsic, args, dst, .. } => match intrinsic {
+            Intrinsic::NegInt => {
+                let func = match intrinsic {
+                    Intrinsic::NegInt => "neg_bi",
+                    _ => unreachable!(),
+                };
+                lines.push(format!("{indent_s}let (is_neg, nums) = heap.inspect_int({});", ssa_to_rvalue(args[0])));
+                lines.push(format!("{indent_s}let (is_neg, nums) = {func}(is_neg, nums);"));
+                lines.push(format!("{indent_s}{} = heap.alloc_int(is_neg, &nums);", to_lvalue(dst)));
+            },
+            Intrinsic::AddInt |
+            Intrinsic::SubInt |
+            Intrinsic::MulInt |
+            Intrinsic::DivInt |
+            Intrinsic::RemInt => {
+                let func = match intrinsic {
+                    Intrinsic::AddInt => "add_bi",
+                    Intrinsic::SubInt => "sub_bi",
+                    Intrinsic::MulInt => "mul_bi",
+                    Intrinsic::DivInt => "div_bi",
+                    Intrinsic::RemInt => "rem_bi",
+                    _ => unreachable!(),
+                };
+                lines.push(format!("{indent_s}let (lhs_is_neg, lhs_nums) = heap.inspect_int({});", ssa_to_rvalue(args[0])));
+                lines.push(format!("{indent_s}let (rhs_is_neg, rhs_nums) = heap.inspect_int({});", ssa_to_rvalue(args[1])));
+                lines.push(format!("{indent_s}let (is_neg, nums) = {func}(lhs_is_neg, lhs_nums, rhs_is_neg, rhs_nums);"));
+                lines.push(format!("{indent_s}{} = heap.alloc_int(is_neg, &nums);", to_lvalue(dst)));
+            },
+            Intrinsic::LtInt |
+            Intrinsic::EqInt |
+            Intrinsic::GtInt => {
+                let func = match intrinsic {
+                    Intrinsic::LtInt => "lt_bi",
+                    Intrinsic::EqInt => "eq_bi",
+                    Intrinsic::GtInt => "gt_bi",
+                    _ => unreachable!(),
+                };
+                lines.push(format!("{indent_s}let (lhs_is_neg, lhs_nums) = heap.inspect_int({});", ssa_to_rvalue(args[0])));
+                lines.push(format!("{indent_s}let (rhs_is_neg, rhs_nums) = heap.inspect_int({});", ssa_to_rvalue(args[1])));
+
+                // TODO: How can I guarantee that sodigy.Bool.True is always 1 and sodigy.Bool.False is always 0?
+                lines.push(format!("{indent_s}{} = {func}(lhs_is_neg, lhs_nums, rhs_is_neg, rhs_nums) as u32;", to_lvalue(dst)));
+            },
             Intrinsic::AddScalar => {
                 lines.push(format!("{indent_s}{} = {} + {};", to_lvalue(dst), ssa_to_rvalue(args[0]), ssa_to_rvalue(args[1])));
             },
+            Intrinsic::SubScalar => {
+                lines.push(format!("{indent_s}{} = {} - {};", to_lvalue(dst), ssa_to_rvalue(args[0]), ssa_to_rvalue(args[1])));
+            },
+            Intrinsic::MulScalar => {
+                lines.push(format!("{indent_s}{} = {} * {};", to_lvalue(dst), ssa_to_rvalue(args[0]), ssa_to_rvalue(args[1])));
+            },
+            Intrinsic::DivScalar => {
+                lines.push(format!("{indent_s}{} = {} / {};", to_lvalue(dst), ssa_to_rvalue(args[0]), ssa_to_rvalue(args[1])));
+            },
+            Intrinsic::RemScalar => {
+                lines.push(format!("{indent_s}{} = {} % {};", to_lvalue(dst), ssa_to_rvalue(args[0]), ssa_to_rvalue(args[1])));
+            },
+            Intrinsic::LtScalar => {
+                lines.push(format!("{indent_s}{} = ({} < {}) as u32;", to_lvalue(dst), ssa_to_rvalue(args[0]), ssa_to_rvalue(args[1])));
+            },
+            Intrinsic::EqScalar => {
+                lines.push(format!("{indent_s}{} = ({} == {}) as u32;", to_lvalue(dst), ssa_to_rvalue(args[0]), ssa_to_rvalue(args[1])));
+            },
+            Intrinsic::GtScalar => {
+                lines.push(format!("{indent_s}{} = ({} > {}) as u32;", to_lvalue(dst), ssa_to_rvalue(args[0]), ssa_to_rvalue(args[1])));
+            },
             Intrinsic::Exit => {
+                *early_return = true;
                 lines.push(format!("{indent_s}return CallResult::Exit({});", ssa_to_rvalue(args[0])));
             },
-            _ => panic!("TODO: {intrinsic:?}"),
+            Intrinsic::Nop0 | Intrinsic::Nop1 => {
+                // Some bytecode might read the return value of this operation.
+                // So the rust compiler won't let me compile this code if the result is not assigned.
+                lines.push(format!("{indent_s}{} = 0;", to_lvalue(dst)));
+            },
+            i => {
+                lines.push(format!(r#"{indent_s}todo!("{i:?}");"#));
+            },
         },
         Bytecode::InitTuple { elements, dst, .. } => {
             lines.push(format!("{indent_s}{} = heap.init_tuple({elements});", to_lvalue(dst)));
@@ -300,30 +390,39 @@ fn lower_bytecode(
         // These are nops and I'll remove these soon.
         Bytecode::PushDebugInfo { .. } => {},
         Bytecode::PopDebugInfo => {},
-        b => panic!("TODO: {b:?}"),
     }
 }
 
 fn to_lvalue(memory: &Memory) -> String {
     match memory {
-        Memory::Return => todo!(),
+        Memory::Return => String::from("let ret"),
         Memory::SSA(i) => format!("let x{}", i.to_u32()),
-        Memory::Heap { .. } => todo!(),
-        _ => todo!(),
+        Memory::Heap { ptr, offset } => format!(
+            "heap.data[{} as usize{}]",
+            ssa_to_rvalue(*ptr),
+            if *offset == 0 { String::new() } else { format!(" + {offset}") },
+        ),
+        Memory::List { ptr, offset } => format!("heap.mut_list({}, {offset})", ssa_to_rvalue(*ptr)),
+        _ => panic!("TODO: {memory:?}"),
     }
 }
 
 fn to_rvalue(memory: &Memory) -> String {
     match memory {
-        Memory::Return => String::from("_ret"),
+        Memory::Return => String::from("ret"),
         Memory::SSA(i) => format!("x{}", i.to_u32()),
         Memory::Heap { ptr, offset } => format!(
             "heap.data.get_unchecked({} as usize{})",
             ssa_to_rvalue(*ptr),
             if *offset == 0 { String::new() } else { format!(" + {offset}") },
         ),
+        Memory::List { ptr, offset } => format!("heap.get_list({}, {offset})", ssa_to_rvalue(*ptr)),
         _ => panic!("TODO: {memory:?}"),
     }
+}
+
+fn ssa_to_lvalue(ssa: SSA) -> String {
+    format!("let x{}", ssa.to_u32())
 }
 
 fn ssa_to_rvalue(ssa: SSA) -> String {

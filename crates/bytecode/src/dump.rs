@@ -227,7 +227,7 @@ impl Display for Memory {
                 i => write!(fmt, "*({ptr} + {i})"),
             },
             Memory::List { ptr, offset } => write!(fmt, "{ptr}[{offset}]"),
-            Memory::Global(s) => write!(fmt, "_g{}", s.hex(12)),
+            Memory::Null => write!(fmt, "_"),
         }
     }
 }

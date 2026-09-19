@@ -64,16 +64,26 @@ impl Endec for Bytecode {
                 global.encode_impl(buffer);
                 label.encode_impl(buffer);
             },
-            Bytecode::Label(label) => {
+            Bytecode::LoadGlobal { src, dst } => {
                 buffer.push(8);
+                src.encode_impl(buffer);
+                dst.encode_impl(buffer);
+            },
+            Bytecode::StoreGlobal { src, dst } => {
+                buffer.push(9);
+                src.encode_impl(buffer);
+                dst.encode_impl(buffer);
+            },
+            Bytecode::Label(label) => {
+                buffer.push(10);
                 label.encode_impl(buffer);
             },
             Bytecode::Return(ssa) => {
-                buffer.push(9);
+                buffer.push(11);
                 ssa.encode_impl(buffer);
             },
             Bytecode::Update { src, size, index, value, dst } => {
-                buffer.push(10);
+                buffer.push(12);
                 src.encode_impl(buffer);
                 size.encode_impl(buffer);
                 index.encode_impl(buffer);
@@ -81,31 +91,31 @@ impl Endec for Bytecode {
                 dst.encode_impl(buffer);
             },
             Bytecode::Intrinsic { intrinsic, args, dst, debug_info } => {
-                buffer.push(11);
+                buffer.push(13);
                 intrinsic.encode_impl(buffer);
                 args.encode_impl(buffer);
                 dst.encode_impl(buffer);
                 debug_info.encode_impl(buffer);
             },
             Bytecode::InitTuple { elements, dst, debug_info } => {
-                buffer.push(12);
+                buffer.push(14);
                 elements.encode_impl(buffer);
                 dst.encode_impl(buffer);
                 debug_info.encode_impl(buffer);
             },
             Bytecode::InitList { elements, dst, debug_info } => {
-                buffer.push(13);
+                buffer.push(15);
                 elements.encode_impl(buffer);
                 dst.encode_impl(buffer);
                 debug_info.encode_impl(buffer);
             },
             Bytecode::PushDebugInfo { kind, src } => {
-                buffer.push(14);
+                buffer.push(16);
                 kind.encode_impl(buffer);
                 src.encode_impl(buffer);
             },
             Bytecode::PopDebugInfo => {
-                buffer.push(15);
+                buffer.push(17);
             },
         }
     }
@@ -161,14 +171,24 @@ impl Endec for Bytecode {
                 Ok((Bytecode::TryInitGlobal { global, label }, cursor))
             },
             Some(8) => {
+                let (src, cursor) = GlobalLabel::decode_impl(buffer, cursor + 1)?;
+                let (dst, cursor) = SSA::decode_impl(buffer, cursor)?;
+                Ok((Bytecode::LoadGlobal { src, dst }, cursor))
+            },
+            Some(9) => {
+                let (src, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
+                let (dst, cursor) = GlobalLabel::decode_impl(buffer, cursor)?;
+                Ok((Bytecode::StoreGlobal { src, dst }, cursor))
+            },
+            Some(10) => {
                 let (label, cursor) = LocalLabel::decode_impl(buffer, cursor + 1)?;
                 Ok((Bytecode::Label(label), cursor))
             },
-            Some(9) => {
+            Some(11) => {
                 let (ssa, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
                 Ok((Bytecode::Return(ssa), cursor))
             },
-            Some(10) => {
+            Some(12) => {
                 let (src, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
                 let (size, cursor) = usize::decode_impl(buffer, cursor)?;
                 let (index, cursor) = usize::decode_impl(buffer, cursor)?;
@@ -176,32 +196,32 @@ impl Endec for Bytecode {
                 let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::Update { src, size, index, value, dst }, cursor))
             },
-            Some(11) => {
+            Some(13) => {
                 let (intrinsic, cursor) = Intrinsic::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<SSA>::decode_impl(buffer, cursor)?;
                 let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::Intrinsic { intrinsic, args, dst, debug_info }, cursor))
             },
-            Some(12) => {
+            Some(14) => {
                 let (elements, cursor) = usize::decode_impl(buffer, cursor + 1)?;
                 let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::InitTuple { elements, dst, debug_info }, cursor))
             },
-            Some(13) => {
+            Some(15) => {
                 let (elements, cursor) = usize::decode_impl(buffer, cursor + 1)?;
                 let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::InitList { elements, dst, debug_info }, cursor))
             },
-            Some(14) => {
+            Some(16) => {
                 let (kind, cursor) = DebugInfoKind::decode_impl(buffer, cursor + 1)?;
                 let (src, cursor) = Memory::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::PushDebugInfo { kind, src }, cursor))
             },
-            Some(15) => Ok((Bytecode::PopDebugInfo, cursor + 1)),
-            Some(n @ 16..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(17) => Ok((Bytecode::PopDebugInfo, cursor + 1)),
+            Some(n @ 18..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

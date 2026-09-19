@@ -164,6 +164,14 @@ fn call(
                 },
                 Bytecode::JumpIf { .. } => unreachable!(),
                 Bytecode::TryInitGlobal { .. } => unreachable!(),
+                Bytecode::LoadGlobal { src, dst } => {
+                    let src = heap.global_values.get(&src.span()).expect("global should be initialized before used");
+                    stack.ssa.insert(*dst, *src);
+                },
+                Bytecode::StoreGlobal { src, dst } => {
+                    let src = stack.ssa.get(src).unwrap();
+                    heap.global_values.insert(dst.span(), *src);
+                },
                 Bytecode::Label(_) => unreachable!(),
                 Bytecode::Return(_) => unreachable!(),
                 Bytecode::Update { src, size, index, value, dst } => {
@@ -482,7 +490,7 @@ fn read(src: &Memory, stack: &Stack, heap: &Heap) -> u32 {
             let start = heap.data[ptr + 1];
             heap.data[(data_ptr + start + *offset + 1) as usize]
         },
-        Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
+        Memory::Null => 0,
     }
 }
 
@@ -504,9 +512,7 @@ fn update(dst: &Memory, value: u32, stack: &mut Stack, heap: &mut Heap) {
             let start = heap.data[ptr + 1];
             heap.data[(data_ptr + start + *offset + 1) as usize] = value;
         },
-        Memory::Global(s) => {
-            heap.global_values.insert(s.clone(), value);
-        },
+        Memory::Null => {},
     }
 }
 

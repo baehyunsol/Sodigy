@@ -27,14 +27,20 @@ pub fn lower_expr(
         Expr::Ident { id, dotfish } => {
             assert!(dotfish.is_none());
             let src = match session.ssa_map.get(&id.def_span) {
-                Some(src) => Memory::SSA(*src),
+                Some(src) => *src,
                 None => match &id.origin {
                     NameOrigin::Foreign { kind } | NameOrigin::Local { kind } => match kind {
                         NameKind::Let { is_top_level: true } => {
-                            let label = session.get_local_label();
-                            bytecodes.push(Bytecode::TryInitGlobal { global: GlobalLabel::new(id.def_span.hash()), label });
-                            bytecodes.push(Bytecode::Label(label));
-                            Memory::Global(id.def_span.hash())
+                            let local_label = session.get_local_label();
+                            let global_label = GlobalLabel::new(id.def_span.hash());
+                            let value = session.get_ssa();
+                            bytecodes.push(Bytecode::TryInitGlobal { global: global_label, label: local_label });
+                            bytecodes.push(Bytecode::Label(local_label));
+                            bytecodes.push(Bytecode::LoadGlobal {
+                                src: global_label,
+                                dst: value,
+                            });
+                            value
                         },
                         NameKind::Func => {
                             let func_pointer = Value::FuncPointer(id.def_span.hash());
@@ -57,9 +63,9 @@ pub fn lower_expr(
                 },
             };
 
-            if src != dst {
+            if Memory::SSA(src) != dst {
                 bytecodes.push(Bytecode::Move {
-                    src: src.clone(),
+                    src: Memory::SSA(src),
                     dst: dst.clone(),
                 });
             }

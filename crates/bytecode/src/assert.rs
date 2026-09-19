@@ -125,7 +125,7 @@ impl Assert {
         bytecodes.push(Bytecode::Intrinsic {
             intrinsic: Intrinsic::Exit,
             args: vec![status_code],
-            dst: Memory::Return,  // don't care
+            dst: Memory::Null,
             debug_info: None,
         });
         bytecodes.push(Bytecode::Label(no_panic.clone()));
@@ -144,7 +144,7 @@ impl Assert {
             bytecodes.push(Bytecode::Intrinsic {
                 intrinsic: Intrinsic::Exit,
                 args: vec![status_code],
-                dst: Memory::Return,  // don't care
+                dst: Memory::Null,
                 debug_info: None,
             });
 

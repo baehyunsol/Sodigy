@@ -42,9 +42,8 @@ impl Endec for Memory {
                 ptr.encode_impl(buffer);
                 offset.encode_impl(buffer);
             },
-            Memory::Global(span) => {
+            Memory::Null => {
                 buffer.push(4);
-                span.encode_impl(buffer);
             },
         }
     }
@@ -66,10 +65,7 @@ impl Endec for Memory {
                 let (offset, cursor) = u32::decode_impl(buffer, cursor)?;
                 Ok((Memory::List { ptr, offset }, cursor))
             },
-            Some(4) => {
-                let (span, cursor) = SpanHash::decode_impl(buffer, cursor + 1)?;
-                Ok((Memory::Global(span), cursor))
-            },
+            Some(4) => Ok((Memory::Null, cursor + 1)),
             Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }

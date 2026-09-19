@@ -120,6 +120,20 @@ pub enum Bytecode {
         label: LocalLabel,
     },
 
+    // If the global value is not initialized yet, it's UB.
+    // There used to be `Memory::Global` and I used `Bytecode::Move` to
+    // initialize global values, but when implementing the interpreter,
+    // I realized that global values are very different from the other values
+    // so I just created new bytecodes.
+    LoadGlobal {
+        src: GlobalLabel,
+        dst: SSA,
+    },
+    StoreGlobal {
+        src: SSA,
+        dst: GlobalLabel,
+    },
+
     // Definition of a label.
     Label(LocalLabel),
 
@@ -197,7 +211,6 @@ pub enum Memory {
     Return,
 
     SSA(SSA),
-
     Heap {
         ptr: SSA,
         offset: u32,
@@ -211,8 +224,9 @@ pub enum Memory {
         offset: u32,
     },
 
-    // Top-level `let` statements.
-    Global(SpanHash),
+    // values written here will be discarded immediately
+    // reading this value is UB
+    Null,
 }
 
 impl Memory {
@@ -256,7 +270,7 @@ pub enum DebugInfoKind {
 }
 
 impl Bytecode {
-    pub fn get_dst(&self) -> Option<&Memory> {
+    pub fn get_dst(&self) -> Option<Memory> {
         match self {
             Bytecode::Const { dst, .. } |
             Bytecode::Move { dst, .. } |
@@ -264,12 +278,14 @@ impl Bytecode {
             Bytecode::Update { dst, .. } |
             Bytecode::Intrinsic { dst, .. } |
             Bytecode::InitTuple { dst, .. } |
-            Bytecode::InitList { dst, .. } => Some(dst),
+            Bytecode::InitList { dst, .. } => Some(dst.clone()),
             Bytecode::Call { dst, .. } |
-            Bytecode::CallDynamic { dst, .. } => dst.as_ref(),
+            Bytecode::CallDynamic { dst, .. } => dst.clone(),
+            Bytecode::LoadGlobal { dst, .. } => Some(Memory::SSA(*dst)),
             Bytecode::Jump(_) |
             Bytecode::JumpIf { .. } |
             Bytecode::TryInitGlobal { .. } |
+            Bytecode::StoreGlobal { .. } |
             Bytecode::Label(_) |
             Bytecode::Return(_) |
             Bytecode::PushDebugInfo { .. } |
@@ -318,7 +334,7 @@ impl Bytecode {
                         *a = *ssa_alias.get(a).unwrap_or(a);
                     }
                 },
-                Memory::Global(_) => {},
+                Memory::Null => {},
             }
         }
 
@@ -351,6 +367,12 @@ impl Bytecode {
                 apply_ssa_alias_args(args, ssa_alias, heap_ssa_alias);
             },
             Bytecode::TryInitGlobal { .. } => {},
+            Bytecode::LoadGlobal { dst, .. } => {
+                *dst = *ssa_alias.get(dst).unwrap_or(dst);
+            },
+            Bytecode::StoreGlobal { src, .. } => {
+                *src = *ssa_alias.get(src).unwrap_or(src);
+            },
             Bytecode::Label(_) => {},
             Bytecode::JumpIf { value: a, .. } |
             Bytecode::Return(a) => {
@@ -410,6 +432,10 @@ impl Bytecode {
             Bytecode::Return(value) => {
                 indexes.push(*value);
             },
+            Bytecode::LoadGlobal { dst: ssa, .. } |
+            Bytecode::StoreGlobal { src: ssa, .. } => {
+                indexes.push(*ssa);
+            },
             Bytecode::Update { src, value, dst, .. } => {
                 indexes.push(*src);
                 indexes.push(*value);
@@ -434,7 +460,7 @@ impl Bytecode {
                 Memory::List { ptr, .. } => {
                     memories.push(Memory::SSA(ptr));
                 },
-                Memory::Return | Memory::Global(_) => {},
+                Memory::Return | Memory::Null => {},
             }
         }
 
@@ -449,6 +475,12 @@ impl Bytecode {
             Bytecode::Phi { .. } |
             Bytecode::Jump(_) |
             Bytecode::JumpIf { .. } |
+
+            // The top-level lets are always pure: there're no side effects.
+            Bytecode::TryInitGlobal { .. } |
+
+            Bytecode::LoadGlobal { .. } |
+            Bytecode::StoreGlobal { .. } |
             Bytecode::Label(_) |
             Bytecode::Return(_) |
             Bytecode::Update { .. } |
@@ -458,10 +490,6 @@ impl Bytecode {
             Bytecode::PopDebugInfo => false,
             Bytecode::Call { effect, .. } |
             Bytecode::CallDynamic { effect, .. } => matches!(&**effect, FuncEffect::Proc | FuncEffect::NdetProc),
-
-            // as of now, all the `let` statements are pure
-            Bytecode::TryInitGlobal { .. } => false,
-
             Bytecode::Intrinsic { intrinsic, .. } => matches!(intrinsic.effect(), FuncEffect::Proc | FuncEffect::NdetProc),
         }
     }

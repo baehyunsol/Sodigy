@@ -1,4 +1,4 @@
-use crate::{Bytecode, Memory, Session, lower_expr};
+use crate::{Bytecode, GlobalLabel, Memory, Session, lower_expr};
 use sodigy_mir as mir;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -30,9 +30,9 @@ impl Let {
             Memory::SSA(return_ssa),
             /* is_tail_call: */ false,
         );
-        bytecodes.push(Bytecode::Move {
-            src: Memory::SSA(return_ssa),
-            dst: Memory::Global(mir_let.name_span.hash()),
+        bytecodes.push(Bytecode::StoreGlobal {
+            src: return_ssa,
+            dst: GlobalLabel::new(mir_let.name_span.hash()),
         });
         bytecodes.push(Bytecode::Return(return_ssa));
 
