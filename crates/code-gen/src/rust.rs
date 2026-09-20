@@ -84,7 +84,7 @@ fn lower_main(object_file: ObjectFile, profile: Profile, errors: &mut Vec<Error>
         let samples: Vec<(&'static str, unsafe fn(&mut Heap, u32, u32) -> CallResult)> = vec!["#));
 
             for (name, label) in object_file.asserts.iter() {
-                body.push(format!("            ({name:?}, c_{}),", label.hex(12)));
+                body.push(format!("            ({name:?}, c_{}),", label.hex(20)));
             }
 
             body.push(String::from(r#"        ];
@@ -121,7 +121,7 @@ fn lower_main(object_file: ObjectFile, profile: Profile, errors: &mut Vec<Error>
 }
 
 fn lower_data(hash: ExprHash, value: Value) -> String {
-    let name = format!("d_{}", hash.hex(12));
+    let name = format!("d_{}", hash.hex(20));
     let mut body = vec![];
 
     match value {
@@ -186,7 +186,7 @@ fn lower_data(hash: ExprHash, value: Value) -> String {
 fn lower_code(mut code: CodeSection) -> String {
     let inspection = inspect_basic_blocks(code.label, &code.basic_blocks);
     let mut session = Session::from_inspection(&inspection);
-    let name = format!("c_{}", code.label.hex(12));
+    let name = format!("c_{}", code.label.hex(20));
     let param_count = code.params.unwrap_or(0);
     let params = match param_count {
         0 => "heap: &mut Heap, _: u32, _: u32",
@@ -309,7 +309,7 @@ fn lower_basic_block(
                 if args.len() < 3 {
                     lines.push(format!(
                         "{indent_s}return CallResult::TailCallShort {{ f: c_{}, x0: {}, x1: {} }};",
-                        func.hex(12),
+                        func.hex(20),
                         args.get(0).map(|i| to_rvalue(&Memory::SSA(*i), session)).unwrap_or_else(|| String::from("0")),
                         args.get(1).map(|i| to_rvalue(&Memory::SSA(*i), session)).unwrap_or_else(|| String::from("0")),
                     ));
@@ -318,7 +318,7 @@ fn lower_basic_block(
                 else {
                     lines.push(format!(
                         "{indent_s}return CallResult::TailCallLong {{ f: c_{}, x0: {}, x1: {}, xs: vec![{}] }};",
-                        func.hex(12),
+                        func.hex(20),
                         to_rvalue(&Memory::SSA(args[0]), session),
                         to_rvalue(&Memory::SSA(args[1]), session),
                         args[2..].iter().map(|i| to_rvalue(&Memory::SSA(*i), session)).collect::<Vec<_>>().join(", "),
@@ -337,8 +337,8 @@ fn lower_basic_block(
             Terminator::TryInitGlobal { global, label } => {
                 lines.push(format!(
                     "{indent_s}if !heap.global_values.contains_key(&0x{}) {{ c_{}(heap, 0, 0); }}\n{indent_s}label = {};",
-                    global.hex(12),
-                    global.hex(12),
+                    global.hex(20),
+                    global.hex(20),
                     label.index(),
                 ));
             },
@@ -365,7 +365,7 @@ fn lower_bytecode(
     match bytecode {
         Bytecode::Const { value, dst, .. } => match value {
             InternedValue::Interned(h) => {
-                lines.push(format!("{indent_s}{} = d_{}(heap);", to_lvalue(dst, session), h.hex(12)));
+                lines.push(format!("{indent_s}{} = d_{}(heap);", to_lvalue(dst, session), h.hex(20)));
             },
             InternedValue::Scalar(n) => {
                 lines.push(format!("{indent_s}{} = {n};", to_lvalue(dst, session)));
@@ -389,7 +389,7 @@ fn lower_bytecode(
         Bytecode::CallDynamic { args, dst, .. } => {
             let Some(dst) = dst else { unreachable!() };
             let f = match bytecode {
-                Bytecode::Call { func, .. } => format!("c_{}", func.hex(12)),
+                Bytecode::Call { func, .. } => format!("c_{}", func.hex(20)),
                 Bytecode::CallDynamic { func, .. } => format!(r#"todo!("call-dynamic-func-pointer")"#),
                 _ => unreachable!(),
             };
@@ -420,10 +420,10 @@ fn lower_bytecode(
         Bytecode::JumpIf { .. } => unreachable!(),
         Bytecode::TryInitGlobal { .. } => unreachable!(),
         Bytecode::LoadGlobal { src, dst } => {
-            lines.push(format!("{indent_s}{} = *heap.global_values.get(&0x{}).unwrap();", to_lvalue(&Memory::SSA(*dst), session), src.hex(12)));
+            lines.push(format!("{indent_s}{} = *heap.global_values.get(&0x{}).unwrap();", to_lvalue(&Memory::SSA(*dst), session), src.hex(20)));
         },
         Bytecode::StoreGlobal { src, dst } => {
-            lines.push(format!("{indent_s}heap.global_values.insert(0x{}, {});", dst.hex(12), to_rvalue(&Memory::SSA(*src), session)));
+            lines.push(format!("{indent_s}heap.global_values.insert(0x{}, {});", dst.hex(20), to_rvalue(&Memory::SSA(*src), session)));
         },
         Bytecode::Label(_) => unreachable!(),
         Bytecode::Return(_) => unreachable!(),

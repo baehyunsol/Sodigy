@@ -23,20 +23,20 @@ impl Display for ObjectFile {
 
         if let Some(main_entry) = &self.main_entry {
             labels.push(String::from("main:"));
-            labels.push(format!("    @G{}", main_entry.hex(12)));
+            labels.push(format!("    @G{}", main_entry.hex(20)));
         }
 
         if !self.asserts.is_empty() {
             labels.push(String::from("asserts:"));
 
             for assert in self.asserts.iter() {
-                labels.push(format!("    @G{}", assert.1.hex(12)));
+                labels.push(format!("    @G{}", assert.1.hex(20)));
             }
         }
 
         let mut data: Vec<(&ExprHash, &Value)> = self.data.iter().collect();
         data.sort_by_key(|(h, _)| **h);
-        let data = data.iter().map(|(h, v)| format!("    %I{} = {v};", h.hex(12))).collect::<Vec<_>>();
+        let data = data.iter().map(|(h, v)| format!("    %I{} = {v};", h.hex(20))).collect::<Vec<_>>();
 
         let mut code: Vec<(&GlobalLabel, &CodeSection)> = self.code.iter().collect();
         code.sort_by_key(|(g, _)| **g);
@@ -78,7 +78,7 @@ impl Display for CodeSection {
 
         lines.push(format!(
             "code @G{}{}:",
-            self.label.hex(12),
+            self.label.hex(20),
             match self.params {
                 Some(params) => format!("({})", (0..params).map(|i| format!("_{i}")).collect::<Vec<_>>().join(", ")),
                 None => String::new(),
@@ -142,7 +142,7 @@ impl Display for Terminator {
             Terminator::TryInitGlobal { global, label } => write!(
                 fmt,
                 "if !is_init(_g{}) {{ call {global}(); }} jump {label};",
-                global.hex(12),
+                global.hex(20),
             ),
             Terminator::Return(ssa) => write!(fmt, "return {ssa};"),
         }
@@ -186,7 +186,7 @@ impl Display for Bytecode {
             Bytecode::TryInitGlobal { global, label } => write!(
                 fmt,
                 "if !is_init(_g{}) {{ call {global}(); }} jump {label};",
-                global.hex(12),
+                global.hex(20),
             ),
             Bytecode::Label(label) => write!(fmt, "label {label}:"),
             Bytecode::Return(ssa) => write!(fmt, "return {ssa};"),
@@ -241,9 +241,9 @@ impl Display for SSA {
 impl Display for InternedValue {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         match self {
-            InternedValue::Interned(h) => write!(fmt, "%I{}", h.hex(12)),
+            InternedValue::Interned(h) => write!(fmt, "%I{}", h.hex(20)),
             InternedValue::Scalar(n) => write!(fmt, "{n:x}#s"),
-            InternedValue::FuncPointer(def_span) => write!(fmt, "{}#f", def_span.hex(12)),
+            InternedValue::FuncPointer(def_span) => write!(fmt, "{}#f", def_span.hex(20)),
         }
     }
 }
@@ -256,7 +256,7 @@ impl Display for LocalLabel {
 
 impl Display for GlobalLabel {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        write!(fmt, "@G{}", self.hex(12))
+        write!(fmt, "@G{}", self.hex(20))
     }
 }
 
@@ -275,7 +275,7 @@ impl Display for Value {
                 "{{{}}}",
                 es.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", "),
             ),
-            Value::FuncPointer(def_span) => write!(fmt, "{}#f", def_span.hex(12)),
+            Value::FuncPointer(def_span) => write!(fmt, "{}#f", def_span.hex(20)),
 
             // This information is lost once it's dumped.
             Value::Span(_) => write!(fmt, "#p"),

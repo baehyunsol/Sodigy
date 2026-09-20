@@ -13,6 +13,14 @@ pub fn dump_hex(n: u128, l: usize) -> String {
         10 => format!("{:010x}", n & 0xff_ffff_ffff),
         11 => format!("{:011x}", n & 0xfff_ffff_ffff),
         12 => format!("{:012x}", n & 0xffff_ffff_ffff),
+        13 => format!("{:013x}", n & 0xf_ffff_ffff_ffff),
+        14 => format!("{:014x}", n & 0xff_ffff_ffff_ffff),
+        15 => format!("{:015x}", n & 0xfff_ffff_ffff_ffff),
+        16 => format!("{:016x}", n & 0xffff_ffff_ffff_ffff),
+        17 => format!("{:017x}", n & 0xf_ffff_ffff_ffff_ffff),
+        18 => format!("{:018x}", n & 0xff_ffff_ffff_ffff_ffff),
+        19 => format!("{:019x}", n & 0xfff_ffff_ffff_ffff_ffff),
+        20 => format!("{:020x}", n & 0xffff_ffff_ffff_ffff_ffff),
 
         // I'm too lazy to type the rest...
         _ => panic!(),
