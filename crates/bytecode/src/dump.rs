@@ -220,14 +220,12 @@ impl Display for Bytecode {
 impl Display for Memory {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         match self {
-            Memory::Return => write!(fmt, "_ret"),
             Memory::SSA(i) => write!(fmt, "{i}"),
             Memory::Heap { ptr, offset } => match offset {
                 0 => write!(fmt, "*{ptr}"),
                 i => write!(fmt, "*({ptr} + {i})"),
             },
             Memory::List { ptr, offset } => write!(fmt, "{ptr}[{offset}]"),
-            Memory::Null => write!(fmt, "_"),
         }
     }
 }
@@ -276,9 +274,6 @@ impl Display for Value {
                 es.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", "),
             ),
             Value::FuncPointer(def_span) => write!(fmt, "{}#f", def_span.hex(20)),
-
-            // This information is lost once it's dumped.
-            Value::Span(_) => write!(fmt, "#p"),
         }
     }
 }

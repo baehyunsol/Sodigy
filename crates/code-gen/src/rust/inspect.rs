@@ -16,7 +16,6 @@ pub struct BasicBlocksInspection {
     pub global_ssa: HashSet<SSA>,
 
     pub unused_ssa: HashSet<SSA>,
-    pub writes_to_ret: bool,
 
     // If there's `Bytecode::Phi { pair: (100, 200), dst: SSA(300) }`, we have to
     // add `let mut p100200 = 0;` at the beginning of the code section, and lvalue
@@ -44,7 +43,6 @@ pub enum Shape {
 pub fn inspect_basic_blocks(global_label: GlobalLabel, basic_blocks: &HashMap<LocalLabel, BasicBlock>) -> BasicBlocksInspection {
     let mut global_ssa = HashSet::new();
     let mut unused_ssa = HashSet::new();
-    let mut writes_to_ret = false;
     let mut phi = HashMap::new();
     let mut has_recursion = false;
 
@@ -62,15 +60,9 @@ pub fn inspect_basic_blocks(global_label: GlobalLabel, basic_blocks: &HashMap<Lo
             }
 
             if let Some(dst) = bytecode.get_dst() {
-                match dst {
-                    // It doesn't count `Memory::Heap` and `Memory::List` because they don't initialize SSA registers.
-                    Memory::SSA(ssa) => {
-                        ssa_write.insert(ssa);
-                    },
-                    Memory::Return => {
-                        writes_to_ret = true;
-                    },
-                    _ => {},
+                // It doesn't count `Memory::Heap` and `Memory::List` because they don't initialize SSA registers.
+                if let Memory::SSA(ssa) = dst {
+                    ssa_write.insert(ssa);
                 }
             }
 
@@ -106,7 +98,6 @@ pub fn inspect_basic_blocks(global_label: GlobalLabel, basic_blocks: &HashMap<Lo
     BasicBlocksInspection {
         global_ssa,
         unused_ssa,
-        writes_to_ret,
         phi,
         shape,
         has_recursion,

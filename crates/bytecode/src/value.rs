@@ -1,6 +1,6 @@
 use crate::{ExprHash, Session};
 use sodigy_number::{BigInt, Ratio, unintern_number};
-use sodigy_span::{Span, SpanHash};
+use sodigy_span::SpanHash;
 use sodigy_string::unintern_string;
 use sodigy_token::Constant;
 use std::collections::hash_map::Entry;
@@ -17,10 +17,6 @@ pub enum Value {
     Compound(Vec<Value>),
 
     FuncPointer(SpanHash),
-
-    // It's only used for some debug information.
-    // The runtime may implement a span-renderer, or completely ignore this.
-    Span(Span),
 }
 
 #[derive(Clone, Debug)]

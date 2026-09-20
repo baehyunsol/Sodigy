@@ -1,6 +1,6 @@
 use sodigy_error::FuncEffect;
 use sodigy_mir::{Intrinsic, Session as MirSession};
-use sodigy_span::{Span, SpanHash};
+use sodigy_span::Span;
 use sodigy_utils::camel_to_snake;
 use std::collections::HashMap;
 
@@ -176,40 +176,10 @@ pub enum Bytecode {
         dst: Memory,
         debug_info: Option<Box<Span>>,
     },
-
-    // The runtime has to implement a special control flow for assertions.
-    // An assertion may panic, but there's no (and will never be a) way to
-    // catch a panic and recover. Then how does the runtime throw an appropriate
-    // error message when an assertion fails?
-    //
-    // 1. The runtime evaluates the name of the assertion -> it never panics.
-    // 2. It pushes the name to DebugInfoStack.
-    // 3. If the assertion has a `note`,
-    //   3-1. The runtime pushes the span of the note to the stack.
-    //   3-2. The runtime evaluates the note -> it may panic.
-    //   3-3. It pushes the note to the stack.
-    // 4. It evaluates the assertion value -> it may panic.
-    // 5. It pops the values in the stack.
-    //
-    // If step 3-2 fails, there must be a span of the note in the stack, so the
-    // runtime knows that something went wrong while evaluating the note, and it
-    // generates an error message using values in the stack.
-    // Same for the step 4.
-    //
-    // It moves the data, not copying it.
-    PushDebugInfo {
-        kind: DebugInfoKind,
-        src: Memory,
-    },
-    PopDebugInfo,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Memory {
-    // A register for a return value.
-    // A return value maybe stored here or directly stored in a SSA register.
-    Return,
-
     SSA(SSA),
     Heap {
         ptr: SSA,
@@ -223,10 +193,6 @@ pub enum Memory {
         ptr: SSA,
         offset: u32,
     },
-
-    // values written here will be discarded immediately
-    // reading this value is UB
-    Null,
 }
 
 impl Memory {
@@ -261,14 +227,6 @@ pub enum DropType {
     Compound(Vec<DropType>),
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum DebugInfoKind {
-    AssertionKeywordSpan,
-    AssertionName,
-    AssertionNoteDecoratorSpan,
-    AssertionNote,
-}
-
 impl Bytecode {
     pub fn get_dst(&self) -> Option<Memory> {
         match self {
@@ -287,9 +245,7 @@ impl Bytecode {
             Bytecode::TryInitGlobal { .. } |
             Bytecode::StoreGlobal { .. } |
             Bytecode::Label(_) |
-            Bytecode::Return(_) |
-            Bytecode::PushDebugInfo { .. } |
-            Bytecode::PopDebugInfo => None,
+            Bytecode::Return(_) => None,
         }
     }
 
@@ -312,7 +268,6 @@ impl Bytecode {
     pub fn apply_ssa_alias(&mut self, ssa_alias: &HashMap<SSA, SSA>, heap_ssa_alias: &HashMap<(SSA, u32), SSA>) {
         fn apply_ssa_alias(src: &mut Memory, ssa_alias: &HashMap<SSA, SSA>, heap_ssa_alias: &HashMap<(SSA, u32), SSA>) {
             match src {
-                Memory::Return => {},
                 Memory::SSA(i) => {
                     *i = *ssa_alias.get(i).unwrap_or(i);
                 },
@@ -334,7 +289,6 @@ impl Bytecode {
                         *a = *ssa_alias.get(a).unwrap_or(a);
                     }
                 },
-                Memory::Null => {},
             }
         }
 
@@ -384,10 +338,6 @@ impl Bytecode {
             },
             Bytecode::InitTuple { .. } => {},
             Bytecode::InitList { .. } => {},
-            Bytecode::PushDebugInfo { src, .. } => {
-                apply_ssa_alias(src, ssa_alias, heap_ssa_alias);
-            },
-            Bytecode::PopDebugInfo => {},
         }
     }
 
@@ -411,8 +361,7 @@ impl Bytecode {
         match self {
             Bytecode::Const { dst: memory, .. } |
             Bytecode::InitTuple { dst: memory, .. } |
-            Bytecode::InitList { dst: memory, .. } |
-            Bytecode::PushDebugInfo { src: memory, .. } => {
+            Bytecode::InitList { dst: memory, .. }  => {
                 memories.push(memory.clone());
             },
             Bytecode::Move { src, dst } => {
@@ -451,8 +400,7 @@ impl Bytecode {
             },
             Bytecode::Jump(_) |
             Bytecode::TryInitGlobal { .. } |
-            Bytecode::Label(_) |
-            Bytecode::PopDebugInfo => {},
+            Bytecode::Label(_) => {},
         }
 
         while let Some(m) = memories.pop() {
@@ -464,7 +412,6 @@ impl Bytecode {
                 Memory::List { ptr, .. } => {
                     memories.push(Memory::SSA(ptr));
                 },
-                Memory::Return | Memory::Null => {},
             }
         }
 
@@ -489,9 +436,7 @@ impl Bytecode {
             Bytecode::Return(_) |
             Bytecode::Update { .. } |
             Bytecode::InitTuple { .. } |
-            Bytecode::InitList { .. } |
-            Bytecode::PushDebugInfo { .. } |
-            Bytecode::PopDebugInfo => false,
+            Bytecode::InitList { .. } => false,
             Bytecode::Call { effect, .. } |
             Bytecode::CallDynamic { effect, .. } => matches!(&**effect, FuncEffect::Proc | FuncEffect::NdetProc),
             Bytecode::Intrinsic { intrinsic, .. } => matches!(intrinsic.effect(), FuncEffect::Proc | FuncEffect::NdetProc),

@@ -1,7 +1,7 @@
 use crate::{ExprHash, InternedValue, Value};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_number::BigInt;
-use sodigy_span::{Span, SpanHash};
+use sodigy_span::SpanHash;
 
 impl Endec for Value {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
@@ -25,10 +25,6 @@ impl Endec for Value {
             Value::FuncPointer(def_span) => {
                 buffer.push(4);
                 def_span.encode_impl(buffer);
-            },
-            Value::Span(span) => {
-                buffer.push(5);
-                span.encode_impl(buffer);
             },
         }
     }
@@ -55,11 +51,7 @@ impl Endec for Value {
                 let (def_span, cursor) = SpanHash::decode_impl(buffer, cursor + 1)?;
                 Ok((Value::FuncPointer(def_span), cursor))
             },
-            Some(5) => {
-                let (span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
-                Ok((Value::Span(span), cursor))
-            },
-            Some(n @ 6..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

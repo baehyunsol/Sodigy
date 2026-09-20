@@ -1,4 +1,4 @@
-use sodigy_bytecode::{DebugInfoKind, DropType, Value};
+use sodigy_bytecode::{DropType, Value};
 use sodigy_span::{SpanHash, SpanId};
 use std::collections::hash_map::{Entry, HashMap};
 
@@ -30,7 +30,6 @@ const LARGE_BLOCK_SIZE: usize = 8192;
 
 pub struct Heap {
     pub data: Vec<u32>,
-    pub debug_info: Vec<(DebugInfoKind, u32)>,
 
     // Global values are lazy-evaluated.
     // Global values are static: once initialized, it's alive until the end of the program.
@@ -54,7 +53,6 @@ impl Heap {
     pub fn new() -> Heap {
         Heap {
             data: vec![],
-            debug_info: vec![],
             global_values: HashMap::new(),
             func_pointers: HashMap::new(),
             func_pointers_rev: HashMap::new(),
@@ -200,19 +198,6 @@ impl Heap {
                 ptr
             },
             Value::FuncPointer(def_span) => todo!(),
-            Value::Span(span) => match span.id() {
-                Some(SpanId(id)) => {
-                    let ptr = self.alloc(4);
-
-                    // TODO: any better representation?
-                    self.data[ptr] = (id >> 96) as u32;
-                    self.data[ptr + 1] = ((id >> 64) & 0xffff_ffff) as u32;
-                    self.data[ptr + 2] = ((id >> 32) & 0xffff_ffff) as u32;
-                    self.data[ptr + 3] = (id & 0xffff_ffff) as u32;
-                    ptr as u32
-                },
-                _ => panic!("TODO: {span:?}"),
-            },
         }
     }
 

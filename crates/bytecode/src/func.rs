@@ -30,11 +30,16 @@ impl Func {
         }
 
         session.ssa_counter = mir_func.params.len() as u32;
+        let null_ssa = session.get_ssa();
+
         lower_expr(
             &mir_func.value,
             session,
             &mut bytecodes,
-            Memory::Return,
+
+            // dst doesn't matter here because it'll directly return the value!
+            Memory::SSA(null_ssa),
+
             /* is_tail_call: */ true,
         );
 

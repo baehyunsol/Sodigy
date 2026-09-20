@@ -1,16 +1,13 @@
 use crate::{
     Bytecode,
-    DebugInfoKind,
     InternedValue,
     Memory,
     Session,
-    Value,
     lower_expr,
 };
 use sodigy_mir::{self as mir, Intrinsic};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
-use sodigy_token::Constant;
 
 #[derive(Clone, Debug)]
 pub struct Assert {
@@ -32,36 +29,11 @@ impl Assert {
         let mut bytecodes = vec![
             Bytecode::Label(session.get_local_label()),
         ];
-        let mut debug_info_count = 0;
-
-        let span_ssa = session.get_ssa();
-        let keyword_span = Value::Span(mir_assert.keyword_span.clone());
-        bytecodes.push(Bytecode::Const {
-            value: session.intern_value(&keyword_span),
-            dst: Memory::SSA(span_ssa),
-            debug_info: None,
-        });
-        bytecodes.push(Bytecode::PushDebugInfo {
-            kind: DebugInfoKind::AssertionKeywordSpan,
-            src: Memory::SSA(span_ssa),
-        });
-        debug_info_count += 1;
 
         let name = match &mir_assert.name {
             Some(name) => *name,
             None => intern_string(b"unnamed-assertion", &session.intermediate_dir).unwrap(),
         };
-        let name_ssa = session.get_ssa();
-        bytecodes.push(Bytecode::Const {
-            value: session.lower_constant(&Constant::String { s: name, binary: false, span: Span::None }),
-            dst: Memory::SSA(name_ssa),
-            debug_info: None,
-        });
-        bytecodes.push(Bytecode::PushDebugInfo {
-            kind: DebugInfoKind::AssertionName,
-            src: Memory::SSA(name_ssa),
-        });
-        debug_info_count += 1;
 
         let value_ssa = session.get_ssa();
         lower_expr(
@@ -86,20 +58,6 @@ impl Assert {
 
         // We don't pop_debug_info for error notes because notes are evaluated only if the assertion has failed.
         if let (Some(note), Some(note_decorator_span)) = (&mir_assert.note, &mir_assert.note_decorator_span) {
-            // If it panics while evaluating `note`, the runtime will see the
-            // `NoteDecoratorSpan` and throw an according error message.
-            let span_ssa = session.get_ssa();
-            let note_decorator_span = Value::Span(note_decorator_span.clone());
-            bytecodes.push(Bytecode::Const {
-                value: session.intern_value(&note_decorator_span),
-                dst: Memory::SSA(span_ssa),
-                debug_info: None,
-            });
-            bytecodes.push(Bytecode::PushDebugInfo {
-                kind: DebugInfoKind::AssertionNoteDecoratorSpan,
-                src: Memory::SSA(span_ssa),
-            });
-
             let note_ssa = session.get_ssa();
             lower_expr(
                 note,
@@ -108,31 +66,23 @@ impl Assert {
                 Memory::SSA(note_ssa),
                 /* is_tail_call: */ false,
             );
-            bytecodes.push(Bytecode::PushDebugInfo {
-                kind: DebugInfoKind::AssertionNote,
-                src: Memory::SSA(note_ssa),
-            });
+            // TODO: dump note to stderr
         }
 
-        // When it panics, the runtime will see the values in the AssertionMetadata stack
-        // and throw an error message.
         let status_code = session.get_ssa();
         bytecodes.push(Bytecode::Const {
             value: InternedValue::Scalar(22),
             dst: Memory::SSA(status_code),
             debug_info: None,
         });
+        let null_ssa = session.get_ssa();
         bytecodes.push(Bytecode::Intrinsic {
             intrinsic: Intrinsic::Exit,
             args: vec![status_code],
-            dst: Memory::Null,
+            dst: Memory::SSA(null_ssa),
             debug_info: None,
         });
         bytecodes.push(Bytecode::Label(no_panic.clone()));
-
-        for _ in 0..debug_info_count {
-            bytecodes.push(Bytecode::PopDebugInfo);
-        }
 
         if is_top_level {
             let status_code = session.get_ssa();
@@ -141,10 +91,11 @@ impl Assert {
                 dst: Memory::SSA(status_code),
                 debug_info: None,
             });
+            let null_ssa = session.get_ssa();
             bytecodes.push(Bytecode::Intrinsic {
                 intrinsic: Intrinsic::Exit,
                 args: vec![status_code],
-                dst: Memory::Null,
+                dst: Memory::SSA(null_ssa),
                 debug_info: None,
             });
 

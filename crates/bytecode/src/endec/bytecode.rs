@@ -1,6 +1,5 @@
 use crate::{
     Bytecode,
-    DebugInfoKind,
     DropType,
     GlobalLabel,
     InternedValue,
@@ -109,14 +108,6 @@ impl Endec for Bytecode {
                 dst.encode_impl(buffer);
                 debug_info.encode_impl(buffer);
             },
-            Bytecode::PushDebugInfo { kind, src } => {
-                buffer.push(16);
-                kind.encode_impl(buffer);
-                src.encode_impl(buffer);
-            },
-            Bytecode::PopDebugInfo => {
-                buffer.push(17);
-            },
         }
     }
 
@@ -215,13 +206,7 @@ impl Endec for Bytecode {
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::InitList { elements, dst, debug_info }, cursor))
             },
-            Some(16) => {
-                let (kind, cursor) = DebugInfoKind::decode_impl(buffer, cursor + 1)?;
-                let (src, cursor) = Memory::decode_impl(buffer, cursor)?;
-                Ok((Bytecode::PushDebugInfo { kind, src }, cursor))
-            },
-            Some(17) => Ok((Bytecode::PopDebugInfo, cursor + 1)),
-            Some(n @ 18..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 16..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

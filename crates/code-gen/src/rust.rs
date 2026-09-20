@@ -166,10 +166,6 @@ fn lower_data(hash: ExprHash, value: Value) -> String {
             body.push(format!("    *heap.data.get_unchecked_mut(slice_ptr + 2) = {};", vs.len()));
             body.push(format!("    slice_ptr as u32"));
         },
-        // TODO: how should I represent this value?
-        Value::Span(_) => {
-            body.push(String::from("    0"));
-        },
         _ => {
             body.push(format!("    // {value:?}"));
             body.push(format!("    todo!()"));
@@ -211,10 +207,6 @@ fn lower_code(mut code: CodeSection) -> String {
             |(_, pair)| phi_register(*pair)
         )
     ).collect();
-
-    if session.writes_to_ret {
-        globals.push(String::from("ret"));
-    }
 
     globals.sort();
     globals.dedup();
@@ -514,16 +506,11 @@ fn lower_bytecode(
         Bytecode::InitList { elements, dst, .. } => {
             lines.push(format!("{indent_s}{} = heap.init_list({elements});", to_lvalue(dst, session)));
         },
-
-        // These are nops and I'll remove these soon.
-        Bytecode::PushDebugInfo { .. } => {},
-        Bytecode::PopDebugInfo => {},
     }
 }
 
 fn to_lvalue(memory: &Memory, session: &Session) -> String {
     match memory {
-        Memory::Return => String::from("ret"),
         Memory::SSA(i) => match session.phi.get(i) {
             Some(pair) => phi_register(*pair),
             None => if session.global_ssa.contains(i) {
@@ -540,13 +527,11 @@ fn to_lvalue(memory: &Memory, session: &Session) -> String {
             if *offset == 0 { String::new() } else { format!(" + {offset}") },
         ),
         Memory::List { ptr, offset } => format!("*heap.mut_list({}, {offset})", to_rvalue(&Memory::SSA(*ptr), session)),
-        Memory::Null => String::from("let _"),
     }
 }
 
 fn to_rvalue(memory: &Memory, session: &Session) -> String {
     match memory {
-        Memory::Return => String::from("ret"),
         Memory::SSA(i) => match session.phi.get(i) {
             Some(pair) => phi_register(*pair),
             None => format!("x{}", i.to_u32()),
@@ -557,7 +542,6 @@ fn to_rvalue(memory: &Memory, session: &Session) -> String {
             if *offset == 0 { String::new() } else { format!(" + {offset}") },
         ),
         Memory::List { ptr, offset } => format!("heap.read_list({}, {offset})", to_rvalue(&Memory::SSA(*ptr), session)),
-        Memory::Null => String::from("0"),
     }
 }
 

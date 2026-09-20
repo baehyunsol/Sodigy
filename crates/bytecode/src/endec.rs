@@ -1,4 +1,4 @@
-use crate::{DebugInfoKind, GlobalLabel, LocalLabel, Memory, SSA};
+use crate::{GlobalLabel, LocalLabel, Memory, SSA};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::SpanHash;
 
@@ -25,48 +25,40 @@ impl Endec for SSA {
 impl Endec for Memory {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            Memory::Return => {
-                buffer.push(0);
-            },
             Memory::SSA(i) => {
-                buffer.push(1);
+                buffer.push(0);
                 i.encode_impl(buffer);
             },
             Memory::Heap { ptr, offset } => {
-                buffer.push(2);
+                buffer.push(1);
                 ptr.encode_impl(buffer);
                 offset.encode_impl(buffer);
             },
             Memory::List { ptr, offset } => {
-                buffer.push(3);
+                buffer.push(2);
                 ptr.encode_impl(buffer);
                 offset.encode_impl(buffer);
-            },
-            Memory::Null => {
-                buffer.push(4);
             },
         }
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         match buffer.get(cursor) {
-            Some(0) => Ok((Memory::Return, cursor + 1)),
-            Some(1) => {
+            Some(0) => {
                 let (i, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
                 Ok((Memory::SSA(i), cursor))
             },
-            Some(2) => {
+            Some(1) => {
                 let (ptr, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
                 let (offset, cursor) = u32::decode_impl(buffer, cursor)?;
                 Ok((Memory::Heap { ptr, offset }, cursor))
             },
-            Some(3) => {
+            Some(2) => {
                 let (ptr, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
                 let (offset, cursor) = u32::decode_impl(buffer, cursor)?;
                 Ok((Memory::List { ptr, offset }, cursor))
             },
-            Some(4) => Ok((Memory::Null, cursor + 1)),
-            Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }
@@ -91,35 +83,5 @@ impl Endec for GlobalLabel {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (label, cursor) = SpanHash::decode_impl(buffer, cursor)?;
         Ok((GlobalLabel::new(label), cursor))
-    }
-}
-
-impl Endec for DebugInfoKind {
-    fn encode_impl(&self, buffer: &mut Vec<u8>) {
-        match self {
-            DebugInfoKind::AssertionKeywordSpan => {
-                buffer.push(0);
-            },
-            DebugInfoKind::AssertionName => {
-                buffer.push(1);
-            },
-            DebugInfoKind::AssertionNoteDecoratorSpan => {
-                buffer.push(2);
-            },
-            DebugInfoKind::AssertionNote => {
-                buffer.push(3);
-            },
-        }
-    }
-
-    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        match buffer.get(cursor) {
-            Some(0) => Ok((DebugInfoKind::AssertionKeywordSpan, cursor + 1)),
-            Some(1) => Ok((DebugInfoKind::AssertionName, cursor + 1)),
-            Some(2) => Ok((DebugInfoKind::AssertionNoteDecoratorSpan, cursor + 1)),
-            Some(3) => Ok((DebugInfoKind::AssertionNote, cursor + 1)),
-            Some(n @ 4..) => Err(DecodeError::InvalidEnumVariant(*n)),
-            None => Err(DecodeError::UnexpectedEof),
-        }
     }
 }

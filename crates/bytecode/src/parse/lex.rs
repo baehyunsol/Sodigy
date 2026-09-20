@@ -223,19 +223,6 @@ fn lex_code_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), 
                     },
                 }
             },
-            (Some(b'_'), Some(b'r')) => {
-                cursor += 2;
-
-                match (b.get(cursor), b.get(cursor + 1)) {
-                    (Some(b'e'), Some(b't')) => {
-                        cursor += 2;
-                        tokens.push(Token::Memory(Memory::Return));
-                    },
-                    _ => {
-                        return Err(BytecodeParseError::InvalidMemory { cursor: cursor - 2 });
-                    },
-                }
-            },
             (Some(b'_'), Some(b'g')) => todo!(),
             (Some(b'_'), _) => {
                 return Err(BytecodeParseError::InvalidMemory { cursor });
@@ -357,11 +344,6 @@ fn lex_hex(b: &[u8], mut cursor: usize) -> Result<(BigInt, usize), BytecodeParse
 
 fn lex_value(b: &[u8], mut cursor: usize) -> Result<(Value, usize), BytecodeParseError> {
     match b.get(cursor) {
-        Some(b'#') => match b.get(cursor + 1) {
-            // currently, this format cannot encode/decode spans
-            Some(b'p') => Ok((Value::Span(Span::None), cursor + 2)),
-            _ => Err(BytecodeParseError::FailedToParseValue { cursor: cursor + 1 }),
-        },
         Some(start @ (b'[' | b'{')) => {
             let end = match *start { b'[' => b']', b'{' => b'}', _ => unreachable!() };
             let mut expecting_value = true;

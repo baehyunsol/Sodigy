@@ -1,8 +1,6 @@
 use sodigy_bytecode::{
     BasicBlock,
     Bytecode,
-    CodeSection,
-    ExprHash,
     GlobalLabel,
     InternedValue,
     LocalLabel,
@@ -28,7 +26,6 @@ use sodigy_number::{
     shr_ubi,
     sub_bi,
 };
-use sodigy_span::RenderSpanSession;
 use std::collections::HashMap;
 
 // TODO: remove or fix this
@@ -477,13 +474,6 @@ fn call(
                     heap.data[slice_ptr + 2] = *elements as u32;
                     update(dst, slice_ptr as u32, &mut stack, heap);
                 },
-                Bytecode::PushDebugInfo { kind, src } => {
-                    let src = read(src, &stack, heap);
-                    heap.debug_info.push((*kind, src));
-                },
-                Bytecode::PopDebugInfo => {
-                    heap.debug_info.pop().unwrap();
-                },
             }
         }
 
@@ -526,7 +516,6 @@ fn call(
 
 fn read(src: &Memory, stack: &Stack, heap: &Heap) -> u32 {
     match src {
-        Memory::Return => stack.r#return,
         Memory::SSA(i) => *stack.ssa.get(i).unwrap(),
         Memory::Heap { ptr, offset } => {
             let ptr = *stack.ssa.get(ptr).unwrap();
@@ -538,15 +527,11 @@ fn read(src: &Memory, stack: &Stack, heap: &Heap) -> u32 {
             let start = heap.data[ptr + 1];
             heap.data[(data_ptr + start + *offset + 1) as usize]
         },
-        Memory::Null => 0,
     }
 }
 
 fn update(dst: &Memory, value: u32, stack: &mut Stack, heap: &mut Heap) {
     match dst {
-        Memory::Return => {
-            stack.r#return = value;
-        },
         Memory::SSA(i) => {
             stack.ssa.insert(*i, value);
         },
@@ -560,7 +545,6 @@ fn update(dst: &Memory, value: u32, stack: &mut Stack, heap: &mut Heap) {
             let start = heap.data[ptr + 1];
             heap.data[(data_ptr + start + *offset + 1) as usize] = value;
         },
-        Memory::Null => {},
     }
 }
 
