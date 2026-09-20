@@ -193,7 +193,7 @@ pub fn lower_expr(
         // _t4 = _t3.y;
         // _t5 = Bytecode::Update { src: _t4, index: z, value: _t2 };
         // _t6 = Bytecode::Update { src: _t3, index: y, value: _t5 };
-        // 
+        //
         // // this is the result
         // _t7 = Bytecode::Update { src: _t1, index: x, value: _t6 };
         // ```
