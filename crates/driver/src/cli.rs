@@ -135,7 +135,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             let profile = match (emit, parsed_args.get_flag(1).is_some()) {
                 (Emit::Exe | Emit::Rust, true) => Profile::Test,
                 (Emit::ReadableBytecode | Emit::ExecutableBytecode, true) => {
-                    // This is a cli error. You can set `--test` flag only if the emit option is `c` or `exe`.
+                    // This is a cli error. You can set `--test` flag only if the emit option is `rust` or `exe`.
                     // But there's no way I can construct such CliError...
                     todo!()
                 },

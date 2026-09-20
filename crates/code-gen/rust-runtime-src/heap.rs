@@ -7,6 +7,13 @@ pub struct Heap {
 
 impl Heap {
     pub fn new() -> Heap {
+        Heap {
+            data: vec![],
+            global_values: std::collections::HashMap::new(),
+        }
+    }
+
+    pub fn alloc(&mut self, size: usize) -> usize {
         todo!()
     }
 

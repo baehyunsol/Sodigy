@@ -4,6 +4,7 @@ use sodigy_bytecode::{
     Bytecode,
     CodeSection,
     ExprHash,
+    GlobalLabel,
     InternedValue,
     LocalLabel,
     Memory,
@@ -33,11 +34,17 @@ pub fn lower(
 ) -> RustModule {
     let mut funcs = vec![];
 
-    for (hash, value) in object_file.data.drain() {
+    let mut data: Vec<(ExprHash, Value)> = object_file.data.drain().collect();
+    data.sort_by_key(|(h, _)| *h);
+
+    for (hash, value) in data.into_iter() {
         funcs.push(lower_data(hash, value));
     }
 
-    for (_, code) in object_file.code.drain() {
+    let mut code: Vec<(GlobalLabel, CodeSection)> = object_file.code.drain().collect();
+    code.sort_by_key(|(l, _)| *l);
+
+    for (_, code) in code.into_iter() {
         funcs.push(lower_code(code));
     }
 
@@ -115,7 +122,65 @@ fn lower_main(object_file: ObjectFile, profile: Profile, errors: &mut Vec<Error>
 
 fn lower_data(hash: ExprHash, value: Value) -> String {
     let name = format!("d_{}", hash.hex(12));
-    format!(r#"unsafe fn {name}(heap: &mut Heap) -> u32 {{ todo!() }}"#)
+    let mut body = vec![];
+
+    match value {
+        Value::Scalar(_) => unreachable!(),
+        Value::Int(n) => {
+            let p_len = n.nums.len() + 1;
+            let mut metadata = n.nums.len();
+
+            if n.is_neg {
+                metadata |= 0x8000_0000;
+            }
+
+            body.push(format!("    let ptr: usize = heap.alloc({p_len});"));
+            body.push(format!("    *heap.data.get_unchecked_mut(ptr) = 0x{metadata:x};"));
+
+            for (i, n) in n.nums.iter().enumerate() {
+                body.push(format!("    *heap.data.get_unchecked_mut(ptr + {}) = 0x{n:x};", i + 1));
+            }
+
+            body.push(String::from("    ptr as u32"));
+        },
+        Value::List(vs) => {
+            if vs.is_empty() {
+                body.push(String::from("    let data_ptr: usize = 0;"));
+            } else {
+                body.push(format!("    let data_ptr: usize = heap.alloc({});", vs.len() + 1));
+                body.push(format!("    *heap.data.get_unchecked_mut(data_ptr) = 0x{:x};", vs.len()));
+
+                for (i, v) in vs.iter().enumerate() {
+                    match v {
+                        Value::Scalar(n) => {
+                            body.push(format!("    *heap.data.get_unchecked_mut(data_ptr + {}) = 0x{n:x};", i + 1));
+                        },
+                        _ => todo!(),
+                    }
+                }
+            }
+
+            body.push(format!("    let slice_ptr: usize = heap.alloc(3);"));
+            body.push(format!("    *heap.data.get_unchecked_mut(slice_ptr) = data_ptr as u32;"));
+            body.push(format!("    *heap.data.get_unchecked_mut(slice_ptr + 1) = 0;"));
+            body.push(format!("    *heap.data.get_unchecked_mut(slice_ptr + 2) = {};", vs.len()));
+            body.push(format!("    slice_ptr as u32"));
+        },
+        // TODO: how should I represent this value?
+        Value::Span(_) => {
+            body.push(String::from("    0"));
+        },
+        _ => {
+            body.push(format!("    // {value:?}"));
+            body.push(format!("    todo!()"));
+        },
+    }
+
+    let body = body.join("\n");
+    format!(r#"unsafe fn {name}(heap: &mut Heap) -> u32 {{
+{body}
+}}"#,
+    )
 }
 
 fn lower_code(mut code: CodeSection) -> String {
@@ -347,9 +412,9 @@ fn lower_bytecode(
             }
 
             lines.push(format!("{indent_s}{} = match call(heap, c) {{", to_lvalue(dst, session)));
-            lines.push(format!("{indent_s}    CallResult::TailCallShort {{ .. }} | CallResult::TailCallLong {{ .. }} => unreachable!(),"));
             lines.push(format!("{indent_s}    CallResult::Return(n) => n,"));
             lines.push(format!("{indent_s}    CallResult::Exit(n) => {{ return CallResult::Exit(n); }},"));
+            lines.push(format!("{indent_s}    _ => std::hint::unreachable_unchecked(),"));
             lines.push(format!("{indent_s}}};"));
         },
         Bytecode::JumpIf { .. } => unreachable!(),
@@ -470,7 +535,7 @@ fn to_lvalue(memory: &Memory, session: &Session) -> String {
             },
         },
         Memory::Heap { ptr, offset } => format!(
-            "heap.data[{} as usize{}]",
+            "*heap.data.get_unchecked_mut({} as usize{})",
             to_rvalue(&Memory::SSA(*ptr), session),
             if *offset == 0 { String::new() } else { format!(" + {offset}") },
         ),
