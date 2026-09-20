@@ -82,6 +82,7 @@ pub fn interpret(object_file: &ObjectFile, profile: Profile, intermediate_dir: &
                     CallResult::Exit(_) => {
                         // the heap might be corrupted
                         heap = Heap::new();
+                        ever_failed = true;
                         true
                     },
                 };
@@ -93,10 +94,6 @@ pub fn interpret(object_file: &ObjectFile, profile: Profile, intermediate_dir: &
                 // But currently, there's no memory manager and it goes out of control so easily...
                 // I have to remove this line when the memory manager is stable.
                 heap = Heap::new();
-
-                if fail {
-                    ever_failed = true;
-                }
             }
 
             if ever_failed {

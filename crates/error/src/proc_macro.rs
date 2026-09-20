@@ -81,7 +81,7 @@
     PolyImplDifferentNumberOfParams
     { poly_params: usize, impl_params: usize }, CannotImplPoly
     { poly_type: String, impl_type: String, param_index: ParamIndex },
-    MultiplePolyCandidates(usize), UnusedNames
+    MultiplePolyCandidates(usize), CannotFindMainEntry, UnusedNames
     { names: Vec<InternedString>, kind: NameKind }, UseUnusedName
     { name: InternedString, kind: NameKind }, UnreachableMatchArm,
     UnreachableOrPattern, NoImpureCallInImpureContext { context: FuncEffect },
@@ -199,9 +199,10 @@
             ErrorKind :: CannotInferPolyGenericImpl { .. } => 490u16,
             ErrorKind :: PolyImplDifferentNumberOfParams { .. } => 495u16,
             ErrorKind :: CannotImplPoly { .. } => 500u16, ErrorKind ::
-            MultiplePolyCandidates(_,) => 505u16, ErrorKind :: UnusedNames
-            { .. } => 5000u16, ErrorKind :: UseUnusedName { .. } => 5001u16,
-            ErrorKind :: UnreachableMatchArm => 5005u16, ErrorKind ::
+            MultiplePolyCandidates(_,) => 505u16, ErrorKind ::
+            CannotFindMainEntry => 510u16, ErrorKind :: UnusedNames { .. } =>
+            5000u16, ErrorKind :: UseUnusedName { .. } => 5001u16, ErrorKind
+            :: UnreachableMatchArm => 5005u16, ErrorKind ::
             UnreachableOrPattern => 5006u16, ErrorKind ::
             NoImpureCallInImpureContext { .. } => 5010u16, ErrorKind ::
             FuncWithoutTypeAnnot => 8000u16, ErrorKind :: LetWithoutTypeAnnot
@@ -346,6 +347,7 @@
             Error, ErrorKind :: PolyImplDifferentNumberOfParams { .. } =>
             ErrorLevel :: Error, ErrorKind :: CannotImplPoly { .. } =>
             ErrorLevel :: Error, ErrorKind :: MultiplePolyCandidates(_,) =>
+            ErrorLevel :: Error, ErrorKind :: CannotFindMainEntry =>
             ErrorLevel :: Error, ErrorKind :: UnusedNames { .. } => ErrorLevel
             :: Warning, ErrorKind :: UseUnusedName { .. } => ErrorLevel ::
             Warning, ErrorKind :: UnreachableMatchArm => ErrorLevel ::
@@ -707,7 +709,9 @@
                 r#param_index.encode_impl(buffer);
             }, ErrorKind :: MultiplePolyCandidates(t0,) =>
             { buffer.push(1u8); buffer.push(249u8); t0.encode_impl(buffer); },
-            ErrorKind :: UnusedNames { r#names, r#kind, } =>
+            ErrorKind :: CannotFindMainEntry =>
+            { buffer.push(1u8); buffer.push(254u8); }, ErrorKind ::
+            UnusedNames { r#names, r#kind, } =>
             {
                 buffer.push(19u8); buffer.push(136u8);
                 r#names.encode_impl(buffer); r#kind.encode_impl(buffer);
@@ -1180,7 +1184,8 @@
             {
                 let (t0, cursor) = usize :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: MultiplePolyCandidates(t0,), cursor))
-            }, 5000u16 =>
+            }, 510u16 => Ok((ErrorKind :: CannotFindMainEntry, cursor)),
+            5000u16 =>
             {
                 let (r#names, cursor) = Vec :: < InternedString >::
                 decode_impl(buffer, cursor) ? ; let (r#kind, cursor) =

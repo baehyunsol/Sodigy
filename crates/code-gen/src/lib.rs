@@ -21,8 +21,8 @@ pub enum Emit {
 pub fn lower(
     object_files: Vec<ObjectFile>,
     profile: Profile,
-    errors: Vec<Error>,
-    warnings: Vec<Warning>,
+    mut errors: Vec<Error>,
+    mut warnings: Vec<Warning>,
     emit: Emit,
 ) -> (Vec<u8>, Vec<Error>, Vec<Warning>) {
     match emit {
@@ -37,13 +37,15 @@ pub fn lower(
             errors,
             warnings,
         ),
-        Emit::Rust => (
-            rust::lower(
+        Emit::Rust => {
+            let code = rust::lower(
                 bytecode::link(object_files),
                 profile,
-            ).code.into_bytes(),
-            errors,
-            warnings,
-        ),
+                &mut errors,
+                &mut warnings,
+            ).code.into_bytes();
+
+            (code, errors, warnings)
+        },
     }
 }

@@ -5,6 +5,8 @@ use std::collections::{HashMap, HashSet};
 pub struct Session {
     // For `global_ssa` and `phi`, read the comments above `struct BasicBlocksInspection`.`
     pub global_ssa: HashSet<SSA>,
+    pub unused_ssa: HashSet<SSA>,
+    pub writes_to_ret: bool,
     pub phi: HashMap<SSA, (SSA, SSA)>,
 }
 
@@ -12,6 +14,8 @@ impl Session {
     pub fn from_inspection(inspection: &BasicBlocksInspection) -> Self {
         Session {
             global_ssa: inspection.global_ssa.clone(),
+            unused_ssa: inspection.unused_ssa.clone(),
+            writes_to_ret: inspection.writes_to_ret,
             phi: inspection.phi.clone(),
         }
     }

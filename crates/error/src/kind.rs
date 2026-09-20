@@ -199,6 +199,8 @@ error_kinds!(
     (CannotImplPoly { poly_type: String, impl_type: String, param_index: ParamIndex }, 500, Error),
     (MultiplePolyCandidates(usize),                                  505,    Error),
 
+    (CannotFindMainEntry,                                            510,    Error),
+
     // Warnings from here
     (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),
     (UseUnusedName { name: InternedString, kind: NameKind },        5001,  Warning),

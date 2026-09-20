@@ -5,7 +5,6 @@ use super::{
 };
 use std::cmp::Ordering;
 
-
 pub(crate) fn gcd_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {
     if rhs == [0] {
         lhs.to_vec()

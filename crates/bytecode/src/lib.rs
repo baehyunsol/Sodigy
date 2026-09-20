@@ -424,9 +424,13 @@ impl Bytecode {
                 indexes.push(*b);
                 memories.push(dst.clone());
             },
-            Bytecode::Call { args, .. } |
-            Bytecode::CallDynamic { args, .. } => {
+            Bytecode::Call { args, dst, .. } |
+            Bytecode::CallDynamic { args, dst, .. } => {
                 indexes.extend(args.to_vec());
+
+                if let Some(dst) = dst {
+                    memories.push(dst.clone());
+                }
             },
             Bytecode::JumpIf { value, .. } |
             Bytecode::Return(value) => {

@@ -4,7 +4,6 @@ use sodigy_bytecode::{
     Bytecode,
     CodeSection,
     ExprHash,
-    GlobalLabel,
     InternedValue,
     LocalLabel,
     Memory,
@@ -13,8 +12,8 @@ use sodigy_bytecode::{
     Terminator,
     Value,
 };
+use sodigy_error::{Error, ErrorKind, Warning};
 use sodigy_mir::Intrinsic;
-use std::collections::{HashMap, HashSet};
 
 mod inspect;
 mod session;
@@ -26,7 +25,12 @@ pub struct RustModule {
     pub code: String,
 }
 
-pub fn lower(mut object_file: ObjectFile, profile: Profile) -> RustModule {
+pub fn lower(
+    mut object_file: ObjectFile,
+    profile: Profile,
+    errors: &mut Vec<Error>,
+    warnings: &mut Vec<Warning>,
+) -> RustModule {
     let mut funcs = vec![];
 
     for (hash, value) in object_file.data.drain() {
@@ -37,17 +41,82 @@ pub fn lower(mut object_file: ObjectFile, profile: Profile) -> RustModule {
         funcs.push(lower_code(code));
     }
 
-    todo!()
-}
+    funcs.push(lower_main(object_file, profile, errors, warnings));
 
-fn lower_data(hash: ExprHash, value: Value) -> String {
-    let name = format!("c_{}", hash.hex(12));
-    format!(r#"
-unsafe fn {name}(heap: &mut Heap) -> u32 {{ todo!() }}
-"#)
+    // dependencies
+    funcs.push(RUNNER.to_string());
+    funcs.push(HEAP.to_string());
+    funcs.push(INT.to_string());
+
+    RustModule {
+        code: funcs.join("\n\n"),
+    }
 }
 
 const RUNNER: &'static str = include_str!("../rust-runtime-src/run.rs");
+const HEAP: &'static str = include_str!("../rust-runtime-src/heap.rs");
+const INT: &'static str = include_str!("../rust-runtime-src/int.rs");
+
+fn lower_main(object_file: ObjectFile, profile: Profile, errors: &mut Vec<Error>, warnigs: &mut Vec<Warning>) -> String {
+    let mut body = vec![];
+
+    match profile {
+        Profile::Run => match object_file.main_entry {
+            Some(m) => todo!(),
+            None => {
+                errors.push(Error {
+                    kind: ErrorKind::CannotFindMainEntry,
+                    spans: vec![],
+                    note: None,
+                });
+            },
+        },
+        Profile::Test => {
+            body.push(String::from(r#"        let mut heap = Heap::new();
+        let mut ever_failed = false;
+        let samples: Vec<(&'static str, unsafe fn(&mut Heap, u32, u32) -> CallResult)> = vec!["#));
+
+            for (name, label) in object_file.asserts.iter() {
+                body.push(format!("            ({name:?}, c_{}),", label.hex(12)));
+            }
+
+            body.push(String::from(r#"        ];
+        for (name, f) in samples {
+            let c = CallResult::TailCallShort { f, x0: 0, x1: 0 };
+            let fail = match call(&mut heap, c) {
+                CallResult::TailCallShort { .. } | CallResult::TailCallLong { .. } => unreachable!(),
+                CallResult::Return(_) | CallResult::Exit(0) => false,
+                CallResult::Exit(_) => {
+                    heap = Heap::new();
+                    ever_failed = true;
+                    true
+                },
+            };
+
+            println!("assertion `{name}`: {}", if fail { "fail" } else { "pass" });
+        }
+
+        if ever_failed {
+            std::process::ExitCode::from(22)
+        } else {
+            std::process::ExitCode::SUCCESS
+        }"#,
+            ));
+        },
+    }
+
+    let body = body.join("\n");
+    format!(r#"fn main() -> std::process::ExitCode {{
+    unsafe {{
+{body}
+    }}
+}}"#)
+}
+
+fn lower_data(hash: ExprHash, value: Value) -> String {
+    let name = format!("d_{}", hash.hex(12));
+    format!(r#"unsafe fn {name}(heap: &mut Heap) -> u32 {{ todo!() }}"#)
+}
 
 fn lower_code(mut code: CodeSection) -> String {
     let inspection = inspect_basic_blocks(code.label, &code.basic_blocks);
@@ -64,7 +133,7 @@ fn lower_code(mut code: CodeSection) -> String {
 
     if param_count > 2 {
         for i in 2..param_count {
-            body.push(format!("    let x{i} = *xs.get_unchecked({});", i - 2));
+            body.push(format!("    let x{i}: u32 = *xs.get_unchecked({});", i - 2));
         }
     }
 
@@ -77,11 +146,16 @@ fn lower_code(mut code: CodeSection) -> String {
             |(_, pair)| phi_register(*pair)
         )
     ).collect();
+
+    if session.writes_to_ret {
+        globals.push(String::from("ret"));
+    }
+
     globals.sort();
     globals.dedup();
 
     for global in globals.iter() {
-        body.push(format!("    let mut {global} = 0;"));
+        body.push(format!("    let mut {global}: u32 = 0;"));
     }
 
     match (inspection.shape, inspection.has_recursion) {
@@ -121,8 +195,13 @@ fn lower_code(mut code: CodeSection) -> String {
             let mut basic_blocks: Vec<(LocalLabel, BasicBlock)> = code.basic_blocks.drain().collect();
             basic_blocks.sort_by_key(|(l, _)| *l);
 
-            for (label, basic_block) in basic_blocks.iter() {
-                body.push(format!("            {} => {{", label.index()));
+            for (i, (label, basic_block)) in basic_blocks.iter().enumerate() {
+                if i == basic_blocks.len() - 1 {
+                    body.push(String::from("            _ => {"));
+                } else {
+                    body.push(format!("            {} => {{", label.index()));
+                }
+
                 lower_basic_block(basic_block, true, 16, &mut session, &mut body);
                 body.push(String::from("            },"));
             }
@@ -133,11 +212,9 @@ fn lower_code(mut code: CodeSection) -> String {
     }
 
     let body = body.join("\n");
-    format!(r#"
-unsafe fn {name}({params}) -> CallResult {{
+    format!(r#"unsafe fn {name}({params}) -> CallResult {{
 {body}
-}}
-"#)
+}}"#)
 }
 
 fn lower_basic_block(
@@ -194,7 +271,7 @@ fn lower_basic_block(
             },
             Terminator::TryInitGlobal { global, label } => {
                 lines.push(format!(
-                    "{indent_s}if !heap.global_values.contains_key(0x{}) {{ c_{}(heap); }}\n{indent_s}label = {};",
+                    "{indent_s}if !heap.global_values.contains_key(&0x{}) {{ c_{}(heap, 0, 0); }}\n{indent_s}label = {};",
                     global.hex(12),
                     global.hex(12),
                     label.index(),
@@ -229,7 +306,7 @@ fn lower_bytecode(
                 lines.push(format!("{indent_s}{} = {n};", to_lvalue(dst, session)));
             },
             InternedValue::FuncPointer(_) => {
-                lines.push(format!(r#"{indent_s}todo!("func-pointer");"#));
+                lines.push(format!(r#"{indent_s}{} = todo!("func-pointer");"#, to_lvalue(dst, session)));
             },
         },
         Bytecode::Move { src, dst } => {
@@ -355,7 +432,7 @@ fn lower_bytecode(
             },
             Intrinsic::Exit => {
                 *early_return = true;
-                lines.push(format!("{indent_s}return CallResult::Exit({});", to_rvalue(&Memory::SSA(args[0]), session)));
+                lines.push(format!("{indent_s}return CallResult::Exit({} as u8);", to_rvalue(&Memory::SSA(args[0]), session)));
             },
             Intrinsic::Nop0 | Intrinsic::Nop1 => {
                 // Some bytecode might read the return value of this operation.
@@ -363,7 +440,7 @@ fn lower_bytecode(
                 lines.push(format!("{indent_s}{} = 0;", to_lvalue(dst, session)));
             },
             i => {
-                lines.push(format!(r#"{indent_s}todo!("{i:?}");"#));
+                lines.push(format!(r#"{indent_s}{} = todo!("{i:?}");"#, to_lvalue(dst, session)));
             },
         },
         Bytecode::InitTuple { elements, dst, .. } => {
@@ -381,13 +458,15 @@ fn lower_bytecode(
 
 fn to_lvalue(memory: &Memory, session: &Session) -> String {
     match memory {
-        Memory::Return => String::from("let ret"),
+        Memory::Return => String::from("ret"),
         Memory::SSA(i) => match session.phi.get(i) {
             Some(pair) => phi_register(*pair),
             None => if session.global_ssa.contains(i) {
                 format!("x{}", i.to_u32())
+            } else if session.unused_ssa.contains(i) {
+                String::from("let _")
             } else {
-                format!("let x{}", i.to_u32())
+                format!("let x{}: u32", i.to_u32())
             },
         },
         Memory::Heap { ptr, offset } => format!(
@@ -395,7 +474,7 @@ fn to_lvalue(memory: &Memory, session: &Session) -> String {
             to_rvalue(&Memory::SSA(*ptr), session),
             if *offset == 0 { String::new() } else { format!(" + {offset}") },
         ),
-        Memory::List { ptr, offset } => format!("heap.mut_list({}, {offset})", to_rvalue(&Memory::SSA(*ptr), session)),
+        Memory::List { ptr, offset } => format!("*heap.mut_list({}, {offset})", to_rvalue(&Memory::SSA(*ptr), session)),
         Memory::Null => String::from("let _"),
     }
 }
@@ -408,11 +487,11 @@ fn to_rvalue(memory: &Memory, session: &Session) -> String {
             None => format!("x{}", i.to_u32()),
         },
         Memory::Heap { ptr, offset } => format!(
-            "heap.data.get_unchecked({} as usize{})",
+            "*heap.data.get_unchecked({} as usize{})",
             to_rvalue(&Memory::SSA(*ptr), session),
             if *offset == 0 { String::new() } else { format!(" + {offset}") },
         ),
-        Memory::List { ptr, offset } => format!("heap.get_list({}, {offset})", to_rvalue(&Memory::SSA(*ptr), session)),
+        Memory::List { ptr, offset } => format!("heap.read_list({}, {offset})", to_rvalue(&Memory::SSA(*ptr), session)),
         Memory::Null => String::from("0"),
     }
 }

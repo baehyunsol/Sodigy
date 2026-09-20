@@ -34,6 +34,19 @@ pub enum Terminator {
     Return(SSA),
 }
 
+impl Terminator {
+    pub fn used_ssa_indexes(&self) -> Vec<SSA> {
+        match self {
+            Terminator::Jump(_) |
+            Terminator::TryInitGlobal { .. } => vec![],
+            Terminator::TailCall { args, .. } |
+            Terminator::TailCallDynamic { args, .. } => args.to_vec(),
+            Terminator::JumpIf { value, .. } |
+            Terminator::Return(value) => vec![*value],
+        }
+    }
+}
+
 pub fn to_basic_blocks(bytecodes: &mut Vec<Bytecode>) -> HashMap<LocalLabel, BasicBlock> {
     let mut basic_blocks = HashMap::new();
     let mut curr_label = None;

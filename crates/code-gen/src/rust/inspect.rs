@@ -15,6 +15,9 @@ pub struct BasicBlocksInspection {
     // lvalue and rvalue of SSA(100) have to be `x100`.
     pub global_ssa: HashSet<SSA>,
 
+    pub unused_ssa: HashSet<SSA>,
+    pub writes_to_ret: bool,
+
     // If there's `Bytecode::Phi { pair: (100, 200), dst: SSA(300) }`, we have to
     // add `let mut p100200 = 0;` at the beginning of the code section, and lvalue
     // and rvalue of SSA(100) and SSA(200) have to be `p100200` and the bytecode
@@ -27,13 +30,21 @@ pub struct BasicBlocksInspection {
 
 #[derive(Clone, Copy, Debug)]
 pub enum Shape {
+    // Single basic block
     Single,
-    Triple,  // purely for optimization
+
+    // Three basic blocks where the first one terminates with JumpIf
+    // and the other two are true-label and false-label.
+    // It's purely for optimization.
+    Triple,
+
     Multi,
 }
 
 pub fn inspect_basic_blocks(global_label: GlobalLabel, basic_blocks: &HashMap<LocalLabel, BasicBlock>) -> BasicBlocksInspection {
     let mut global_ssa = HashSet::new();
+    let mut unused_ssa = HashSet::new();
+    let mut writes_to_ret = false;
     let mut phi = HashMap::new();
     let mut has_recursion = false;
 
@@ -51,8 +62,15 @@ pub fn inspect_basic_blocks(global_label: GlobalLabel, basic_blocks: &HashMap<Lo
             }
 
             if let Some(dst) = bytecode.get_dst() {
-                if let Memory::SSA(ssa) | Memory::Heap { ptr: ssa, .. } | Memory::List { ptr: ssa, .. } = dst {
-                    ssa_write.insert(ssa);
+                match dst {
+                    // It doesn't count `Memory::Heap` and `Memory::List` because they don't initialize SSA registers.
+                    Memory::SSA(ssa) => {
+                        ssa_write.insert(ssa);
+                    },
+                    Memory::Return => {
+                        writes_to_ret = true;
+                    },
+                    _ => {},
                 }
             }
 
@@ -62,9 +80,19 @@ pub fn inspect_basic_blocks(global_label: GlobalLabel, basic_blocks: &HashMap<Lo
             }
         }
 
+        for ssa in basic_block.terminator.used_ssa_indexes() {
+            ssa_read.insert(ssa);
+        }
+
         for ssa in ssa_read.iter() {
             if !ssa_write.contains(ssa) {
                 global_ssa.insert(*ssa);
+            }
+        }
+
+        for ssa in ssa_write.iter() {
+            if !ssa_read.contains(ssa) {
+                unused_ssa.insert(*ssa);
             }
         }
     }
@@ -77,6 +105,8 @@ pub fn inspect_basic_blocks(global_label: GlobalLabel, basic_blocks: &HashMap<Lo
 
     BasicBlocksInspection {
         global_ssa,
+        unused_ssa,
+        writes_to_ret,
         phi,
         shape,
         has_recursion,
