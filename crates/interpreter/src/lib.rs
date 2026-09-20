@@ -88,6 +88,12 @@ pub fn interpret(object_file: &ObjectFile, profile: Profile, intermediate_dir: &
 
                 println!("assertion `{name}`: {}", if fail { "fail" } else { "pass" });
 
+                // FIXME
+                // I want it to reset heap only when it panics.
+                // But currently, there's no memory manager and it goes out of control so easily...
+                // I have to remove this line when the memory manager is stable.
+                heap = Heap::new();
+
                 if fail {
                     ever_failed = true;
                 }
