@@ -89,7 +89,7 @@ pub fn main_() {
             Ok(()) => {},
             Err(e) => {
                 match &e {
-                    Error::RuntimeError => {
+                    Error::RuntimeError(_) => {
                         // TODO: what do I do here?
                     },
                     Error::CompileError => {
@@ -758,27 +758,10 @@ fn interpret(exe: StoreIrAt, profile: Profile, intermediate_dir: &str) -> Result
     let exe_bytes = Vec::<u8>::decode(&exe_bytes)?;
     let exe = sodigy_bytecode::ObjectFile::decode(&exe_bytes)?;
 
-    match profile {
-        Profile::Run => todo!(),
-        Profile::Test => {
-            let mut ever_failed = false;
-
-            for (name, label) in exe.asserts.iter() {
-                let fail = sodigy_interpreter::interpret(&exe, *label, intermediate_dir).is_err();
-                println!("assertion `{name}`: {}", if fail { "fail" } else { "success" });
-
-                if fail {
-                    ever_failed = true;
-                }
-            }
-
-            if ever_failed {
-                return Err(Error::RuntimeError);
-            }
-        },
+    match sodigy_interpreter::interpret(&exe, profile, intermediate_dir) {
+        Ok(()) => Ok(()),
+        Err(e) => Err(Error::RuntimeError(e)),
     }
-
-    Ok(())
 }
 
 pub fn init_project(name: &str) -> Result<(), FileError> {

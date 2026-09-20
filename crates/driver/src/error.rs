@@ -1,13 +1,14 @@
 use sodigy_bytecode::BytecodeParseError;
 use sodigy_endec::DecodeError;
 use sodigy_fs_api::FileError;
+use sodigy_interpreter::Error as RuntimeError;
 use sodigy_stages::Stage;
 
 /// It decides the exit code of the compiler process.
 #[derive(Debug)]
 pub enum Error {
     /// When the interpreter panics (not Rust's panic, but Sodigy's panic).
-    RuntimeError,
+    RuntimeError(RuntimeError),
 
     /// Error in Sodigy code (directly converted from `sodigy_error::Error`).
     /// Some FileError can be converted to CompileError, if the error has something
@@ -29,7 +30,7 @@ impl Error {
     // NOTE: rust's `panic!` macro always uses exit code 101.
     pub fn exit_code(&self) -> i32 {
         match self {
-            Error::RuntimeError => 10,
+            Error::RuntimeError(_) => 10,
             Error::CompileError => 11,
 
             // CliError will return 12

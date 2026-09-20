@@ -11,6 +11,7 @@ use sodigy_bytecode::{
     Terminator,
     Value,
 };
+use sodigy_code_gen::Profile;
 use sodigy_mir::Intrinsic;
 use sodigy_number::{
     BigInt,
@@ -34,26 +35,70 @@ use std::collections::HashMap;
 #[cfg(feature="debug-bytecode")]
 mod debug;
 
+mod error;
 mod heap;
 mod stack;
 
+pub use error::Error;
 pub use heap::Heap;
 pub use stack::Stack;
 
-pub fn interpret(object_file: &ObjectFile, label: GlobalLabel, intermediate_dir: &str) -> Result<(), ()> {
+pub fn interpret(object_file: &ObjectFile, profile: Profile, intermediate_dir: &str) -> Result<(), Error> {
     let mut heap = Heap::new();
-    let result = tail_call_loop(Stack::new(), &mut heap, object_file, label);
 
-    #[cfg(feature="debug-heap")] {
-        heap.check_integrity();
-    }
+    match profile {
+        Profile::Run => match object_file.main_entry {
+            Some(label) => {
+                let result = tail_call_loop(Stack::new(), &mut heap, object_file, label);
 
-    match result {
-        CallResult::Return(_) |
-        CallResult::Exit(0) => Ok(()),
-        CallResult::TailCall { .. } => unreachable!(),
+                #[cfg(feature="debug-heap")] {
+                    heap.check_integrity();
+                }
 
-        CallResult::Exit(_) => Err(()),
+                match result {
+                    CallResult::Return(_) |
+                    CallResult::Exit(0) => Ok(()),
+                    CallResult::TailCall { .. } => unreachable!(),
+                    CallResult::Exit(n) => Err(Error::NonZeroExit(n.try_into().unwrap())),
+                }
+            },
+            None => Err(Error::CannotFindEntry),
+        },
+        Profile::Test => {
+            let mut heap = Heap::new();
+            let mut ever_failed = false;
+
+            for (name, label) in object_file.asserts.iter() {
+                let result = tail_call_loop(Stack::new(), &mut heap, object_file, *label);
+
+                #[cfg(feature = "debug-heap")] {
+                    heap.check_integrity();
+                }
+
+                let fail = match result {
+                    CallResult::Return(_) |
+                    CallResult::Exit(0) => false,
+                    CallResult::TailCall { .. } => unreachable!(),
+                    CallResult::Exit(_) => {
+                        // the heap might be corrupted
+                        heap = Heap::new();
+                        true
+                    },
+                };
+
+                println!("assertion `{name}`: {}", if fail { "fail" } else { "pass" });
+
+                if fail {
+                    ever_failed = true;
+                }
+            }
+
+            if ever_failed {
+                Err(Error::TestFail)
+            } else {
+                Ok(())
+            }
+        },
     }
 }
 
