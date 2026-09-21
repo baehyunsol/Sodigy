@@ -151,7 +151,48 @@ fn lower_data(hash: ExprHash, value: Value) -> String {
         // to allocate (including headers of some blocks), allocate that much memory,
         // split the memory by manipulating the headers, then write the scalars directly to
         // the heap.
-        _ => todo!(),
+        //
+        // [
+        //     0x8000_0003,  // header of slice_ptr
+        //     1,            // rc of slice_ptr
+        //     data_ptr,     // slice_ptr points here
+        //     0,            // start
+        //     3,            // length
+        //
+        //     0x8000_0008,  // header of data_ptr
+        //     1,            // rc of data_ptr
+        //     3,            // length of data  <-- data_ptr points here
+        //     int_ptr_1,
+        //     int_ptr_2,
+        //     int_ptr_3,
+        //     0,
+        //     0,
+        //     0,
+        //     0,
+        //
+        //     0x8000_0003,  // header of int_ptr_1
+        //     1,            // rc of int_ptr_1
+        //     0x0000_0001,  // length of int_ptr_1  <-- int_ptr_1 points here
+        //     10,
+        //     0,
+        //
+        //     0x8000_0003,  // header of int_ptr_2
+        //     1,            // rc of int_ptr_2
+        //     0x0000_0001,  // length of int_ptr_2  <-- int_ptr_2 points here
+        //     20,
+        //     0,
+        //
+        //     0x8000_0003,  // header of int_ptr_3
+        //     1,            // rc of int_ptr_3
+        //     0x0000_0001,  // length of int_ptr_3  <-- int_ptr_3 points here
+        //     30,
+        //     0,
+        // ]
+        //
+        // We have to return slice_ptr.
+        Value::List(values) | Value::Compound(values) => {
+            todo!()
+        },
     }
 
     let body = body.join("\n");
