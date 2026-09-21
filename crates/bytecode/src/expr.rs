@@ -323,11 +323,15 @@ pub fn lower_expr(
                 },
                 Callable::StructInit { .. } |
                 Callable::TupleInit { .. } => if is_all_constant(args) {
+                    let debug_info = match (session.debug_info, func) {
+                        (true, Callable::TupleInit { group_span }) => Some(Box::new(group_span.clone())),
+                        _ => None,
+                    };
                     let value = session.lower_constant_tuple(args);
                     bytecodes.push(Bytecode::Const {
                         value,
                         dst: dst.clone(),
-                        debug_info: if session.debug_info { Some(Box::new(c.span())) } else { None },
+                        debug_info,
                     });
                 } else {
                     let debug_info = match (session.debug_info, func) {
@@ -420,7 +424,7 @@ pub fn lower_expr(
                     bytecodes.push(Bytecode::Const {
                         value,
                         dst: dst.clone(),
-                        debug_info: if session.debug_info { Some(Box::new(c.span())) } else { None },
+                        debug_info: if session.debug_info { Some(Box::new(group_span.clone())) } else { None },
                     });
                 } else {
                     bytecodes.push(Bytecode::InitList {
@@ -529,4 +533,20 @@ fn lower_field_update(
         },
         _ => panic!("TODO: {field:?}"),
     }
+}
+
+fn is_all_constant(args: &[Expr]) -> bool {
+    args.iter().all(
+        |arg| match arg {
+            Expr::Constant(_) => true,
+            Expr::Call {
+                func: Callable::StructInit { .. } |
+                    Callable::TupleInit { .. } |
+                    Callable::ListInit { .. },
+                args,
+                ..
+            } => is_all_constant(args),
+            _ => false,
+        }
+    )
 }

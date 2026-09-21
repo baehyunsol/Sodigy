@@ -1,4 +1,5 @@
 use crate::{ExprHash, Session};
+use sodigy_mir::{Callable, Expr};
 use sodigy_number::{BigInt, Ratio, unintern_number};
 use sodigy_span::SpanHash;
 use sodigy_string::unintern_string;
@@ -76,6 +77,24 @@ impl Session<'_, '_> {
         }
     }
 
+    pub fn lower_constant_tuple(&mut self, args: &[Expr]) -> InternedValue {
+        let value = Value::Compound(args.iter().map(
+            |arg| to_value(arg, &self.intermediate_dir)
+        ).collect());
+        let expr_hash = ExprHash::from_const(&value);
+        self.data_section.insert(expr_hash, value);
+        InternedValue::Interned(expr_hash)
+    }
+
+    pub fn lower_constant_list(&mut self, args: &[Expr]) -> InternedValue {
+        let value = Value::List(args.iter().map(
+            |arg| to_value(arg, &self.intermediate_dir)
+        ).collect());
+        let expr_hash = ExprHash::from_const(&value);
+        self.data_section.insert(expr_hash, value);
+        InternedValue::Interned(expr_hash)
+    }
+
     pub fn intern_value(&mut self, v: &Value) -> InternedValue {
         match v {
             Value::Scalar(n) => InternedValue::Scalar(*n),
@@ -86,5 +105,46 @@ impl Session<'_, '_> {
                 InternedValue::Interned(expr_hash)
             },
         }
+    }
+}
+
+// It assumes that it's possible to convert `e` to `Value`.
+fn to_value(e: &Expr, intermediate_dir: &str) -> Value {
+    match e {
+        Expr::Constant(Constant::Number { n, .. }) => {
+            let is_integer = n.is_integer();
+            let n = unintern_number(*n, intermediate_dir).unwrap();
+
+            if is_integer {
+                Value::Int(n.numer)
+            } else {
+                let Ratio { numer, denom } = n;
+                // TODO: we have to make sure that always `numer` comes before `denom`, everywhere.
+                Value::Compound(vec![Value::Int(numer), Value::Int(denom)])
+            }
+        },
+        Expr::Constant(Constant::String { s, binary, .. }) => {
+            let b = unintern_string(*s, intermediate_dir).unwrap().unwrap();
+            let elems: Vec<Value> = if *binary {
+                b.iter().map(
+                    |b| Value::Scalar(*b as u32)
+                ).collect()
+            } else {
+                String::from_utf8(b).unwrap().chars().map(
+                    |c| Value::Scalar(c as u32)
+                ).collect()
+            };
+            Value::List(elems)
+        },
+        Expr::Constant(Constant::Char { ch, .. }) => Value::Scalar(*ch),
+        Expr::Constant(Constant::Byte { b, .. }) => Value::Scalar(*b as u32),
+        Expr::Constant(Constant::Scalar(n)) => Value::Scalar(*n),
+        Expr::Call { func: Callable::StructInit { .. } | Callable::TupleInit { .. }, args, .. } => Value::Compound(
+            args.iter().map(|arg| to_value(arg, intermediate_dir)).collect(),
+        ),
+        Expr::Call { func: Callable::ListInit { .. }, args, .. } => Value::List(
+            args.iter().map(|arg| to_value(arg, intermediate_dir)).collect(),
+        ),
+        _ => unreachable!(),
     }
 }

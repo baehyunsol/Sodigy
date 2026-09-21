@@ -143,34 +143,15 @@ fn lower_data(hash: ExprHash, value: Value) -> String {
 
             body.push(String::from("    ptr as u32"));
         },
-        // TODO: calc how many scalars it has to allocate, then allocate just once!
-        Value::List(vs) => {
-            if vs.is_empty() {
-                body.push(String::from("    let data_ptr: usize = 0;"));
-            } else {
-                body.push(format!("    let data_ptr: usize = heap.alloc({});", vs.len() + 1));
-                body.push(format!("    *heap.data.get_unchecked_mut(data_ptr) = 0x{:x};", vs.len()));
 
-                for (i, v) in vs.iter().enumerate() {
-                    match v {
-                        Value::Scalar(n) => {
-                            body.push(format!("    *heap.data.get_unchecked_mut(data_ptr + {}) = 0x{n:x};", i + 1));
-                        },
-                        _ => todo!(),
-                    }
-                }
-            }
-
-            body.push(format!("    let slice_ptr: usize = heap.alloc(3);"));
-            body.push(format!("    *heap.data.get_unchecked_mut(slice_ptr) = data_ptr as u32;"));
-            body.push(format!("    *heap.data.get_unchecked_mut(slice_ptr + 1) = 0;"));
-            body.push(format!("    *heap.data.get_unchecked_mut(slice_ptr + 2) = {};", vs.len()));
-            body.push(format!("    slice_ptr as u32"));
-        },
-        _ => {
-            body.push(format!("    // {value:?}"));
-            body.push(format!("    todo!()"));
-        },
+        // TODO
+        // Let's say the value is `[10, 20, 30]`. Then we have to call `heap.alloc()`
+        // 5 times (2 for the list, 3 for the ints). But we don't have to do that because
+        // we know how the memory manager works. Calculate how many scalars the value has
+        // to allocate (including headers of some blocks), allocate that much memory,
+        // split the memory by manipulating the headers, then write the scalars directly to
+        // the heap.
+        _ => todo!(),
     }
 
     let body = body.join("\n");
