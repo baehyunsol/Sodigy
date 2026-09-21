@@ -1,5 +1,5 @@
 use sodigy_bytecode::{DropType, Value};
-use sodigy_span::{SpanHash, SpanId};
+use sodigy_span::SpanHash;
 use std::collections::hash_map::{Entry, HashMap};
 
 #[cfg(feature="debug-heap")]
@@ -18,16 +18,6 @@ use debug::HeapDebugInfo;
 //
 // pointer points to `d00`, not `hhh`.
 
-// You can change this constants to fine-tune performance.
-// But the heap implementation assumes something and you have to follow this conditions:
-// 1. SMALL_BLOCK_SIZE is at least 4.
-// 2. MEDIUM_BLOCK_SIZE is at least as big as 8 times SMALL_BLOCK_SIZE.
-// 3. LARGE_BLOCK_SIZE is at least as big as 8 times MEDIUM_BLOCK_SIZE.
-// 4. LARGE_BLOCK_SIZE is smaller than 0x8000_0000.
-const SMALL_BLOCK_SIZE: usize = 8;
-const MEDIUM_BLOCK_SIZE: usize = 256;
-const LARGE_BLOCK_SIZE: usize = 8192;
-
 pub struct Heap {
     pub data: Vec<u32>,
 
@@ -39,10 +29,16 @@ pub struct Heap {
     pub func_pointers: HashMap<SpanHash, u32>,
     pub func_pointers_rev: HashMap<u32, SpanHash>,
 
-    // Blocks in freelist_small are at least as big as SMALL_BLOCK_SIZE (can be bigger).
-    // Each `usize` value is a pointer, where `self.data[pointer]` is a header of a block.
-    pub freelist_small: Vec<usize>,
-    pub freelist_medium: Vec<usize>,
+    // Each `usize` value is a pointer, where `self.data[pointer]` is the first data of a block.
+    // `freelist_3` holds pointers to blocks that have 3 scalars for data (total 5 scalar, including the 2 scalar metadata).
+    // Every block in a freelist has the same size.
+    pub freelist_3: Vec<usize>,
+    pub freelist_8: Vec<usize>,
+    pub freelist_38: Vec<usize>,
+    pub freelist_158: Vec<usize>,
+    pub freelist_638: Vec<usize>,
+
+    // for blocks bigger than 638 scalars
     pub freelist_large: Vec<usize>,
 
     #[cfg(feature="debug-heap")]
@@ -56,8 +52,11 @@ impl Heap {
             global_values: HashMap::new(),
             func_pointers: HashMap::new(),
             func_pointers_rev: HashMap::new(),
-            freelist_small: vec![],
-            freelist_medium: vec![],
+            freelist_3: vec![],
+            freelist_8: vec![],
+            freelist_38: vec![],
+            freelist_158: vec![],
+            freelist_638: vec![],
             freelist_large: vec![],
 
             #[cfg(feature="debug-heap")]
@@ -65,24 +64,80 @@ impl Heap {
         }
     }
 
-    pub fn expand(&mut self, s1: usize, s2: usize, s3: usize) {
-        for _ in 0..s1 {
-            self.freelist_small.push(self.data.len() + 2);
-            self.data.push(SMALL_BLOCK_SIZE as u32);
-            self.data.extend(vec![0; SMALL_BLOCK_SIZE + 1]);
+    // It always creates 512 blocks. Linear grow is okay because `Vec<T>` grows exponentially.
+    pub fn expand_3(&mut self) {
+        let mut cursor = self.data.len() + 2;
+        let mut new_buffer = vec![0; 2560];
+
+        for i in 0..512 {
+            new_buffer[i * 5] = 3;
+            self.freelist_3.push(cursor);
+            cursor += 5;
         }
 
-        for _ in 0..s2 {
-            self.freelist_medium.push(self.data.len() + 2);
-            self.data.push(MEDIUM_BLOCK_SIZE as u32);
-            self.data.extend(vec![0; MEDIUM_BLOCK_SIZE + 1]);
+        self.data.extend(new_buffer);
+    }
+
+    pub fn expand_8(&mut self) {
+        let mut cursor = self.data.len() + 2;
+        let mut new_buffer = vec![0; 2560];
+
+        for i in 0..256 {
+            new_buffer[i * 10] = 8;
+            self.freelist_8.push(cursor);
+            cursor += 10;
         }
 
-        for _ in 0..s3 {
-            self.freelist_large.push(self.data.len() + 2);
-            self.data.push(LARGE_BLOCK_SIZE as u32);
-            self.data.extend(vec![0; LARGE_BLOCK_SIZE + 1]);
+        self.data.extend(new_buffer);
+    }
+
+    pub fn expand_38(&mut self) {
+        let mut cursor = self.data.len() + 2;
+        let mut new_buffer = vec![0; 2560];
+
+        for i in 0..64 {
+            new_buffer[i * 40] = 38;
+            self.freelist_38.push(cursor);
+            cursor += 40;
         }
+
+        self.data.extend(new_buffer);
+    }
+
+    pub fn expand_158(&mut self) {
+        let mut cursor = self.data.len() + 2;
+        let mut new_buffer = vec![0; 2560];
+
+        for i in 0..16 {
+            new_buffer[i * 160] = 158;
+            self.freelist_158.push(cursor);
+            cursor += 160;
+        }
+
+        self.data.extend(new_buffer);
+    }
+
+    pub fn expand_638(&mut self) {
+        let mut cursor = self.data.len() + 2;
+        let mut new_buffer = vec![0; 2560];
+
+        for i in 0..4 {
+            new_buffer[i * 640] = 638;
+            self.freelist_638.push(cursor);
+            cursor += 640;
+        }
+
+        self.data.extend(new_buffer);
+    }
+
+    pub fn expand_large(&mut self, size: usize) {
+        // TODO: assert size < 0x7fff_ffff
+        //      -> runtime error vs panic?
+
+        let mut new_buffer = vec![0; size + 2];
+        new_buffer[0] = size as u32;
+        self.freelist_large.push(self.data.len() + 2);
+        self.data.extend(new_buffer);
     }
 
     pub fn alloc_func_pointer(&mut self, f: SpanHash) -> u32 {
@@ -207,55 +262,119 @@ impl Heap {
     // the returned block will have at least 10 scalars, where the first
     // 2 scalars are header and ref_count, and the remaining scalars are for data.
     pub fn alloc(&mut self, size: usize) -> usize {
-        let result = if size + 2 <= SMALL_BLOCK_SIZE {
-            if let Some(ptr) = self.freelist_small.pop() {
-                self.data[ptr - 2] |= 0x8000_0000;
-                self.data[ptr - 1] = 1;
-                ptr
-            }
+        let result = match size {
+            ..=3 => {
+                if let Some(ptr) = self.freelist_3.pop() {
+                    self.data[ptr - 2] = 0x8000_0003;
+                    self.data[ptr - 1] = 1;
+                    ptr
+                } else if let Some(ptr) = self.freelist_8.pop() {
+                    self.data[ptr - 2] = 0x8000_0003;
+                    self.data[ptr - 1] = 1;
 
-            else if let Some(ptr) = self.freelist_medium.pop() {
-                // this block is too big. I'll just use the quarter of this block.
-                self.divide_block(ptr);
+                    self.data[ptr + 3] = 0x0000_0003;
+                    self.freelist_3.push(ptr + 5);
 
-                self.data[ptr - 2] |= 0x8000_0000;
-                self.data[ptr - 1] = 1;
-                ptr
-            }
-
-            else {
-                // TODO: make it grow exponentially??
-                self.expand(512, 0, 0);
-                self.alloc(size)
-            }
-        }
-
-        else if size + 2 <= MEDIUM_BLOCK_SIZE {
-            if let Some(ptr) = self.freelist_medium.pop() {
-                let block_size = self.data[ptr - 2];
-
-                if block_size > (size as u32 + 2) * 4 {
-                    self.divide_block(ptr);
+                    ptr
+                } else {
+                    self.expand_3();
+                    self.alloc(size)
                 }
+            },
+            ..=8 => {
+                if let Some(ptr) = self.freelist_8.pop() {
+                    self.data[ptr - 2] = 0x8000_0008;
+                    self.data[ptr - 1] = 1;
+                    ptr
+                } else if let Some(ptr) = self.freelist_38.pop() {
+                    self.data[ptr - 2] = 0x8000_0008;
+                    self.data[ptr - 1] = 1;
 
-                self.data[ptr - 2] |= 0x8000_0000;
-                self.data[ptr - 1] = 1;
-                ptr
-            }
+                    self.data[ptr + 8] = 0x0000_0008;
+                    self.freelist_8.push(ptr + 10);
+                    self.data[ptr + 18] = 0x0000_0008;
+                    self.freelist_8.push(ptr + 20);
+                    self.data[ptr + 28] = 0x0000_0008;
+                    self.freelist_8.push(ptr + 30);
 
-            else if let Some(ptr) = self.freelist_large.pop() {
-                todo!()
-            }
+                    ptr
+                } else {
+                    self.expand_8();
+                    self.alloc(size)
+                }
+            },
+            ..=38 => {
+                if let Some(ptr) = self.freelist_38.pop() {
+                    self.data[ptr - 2] = 0x8000_0026;
+                    self.data[ptr - 1] = 1;
+                    ptr
+                } else if let Some(ptr) = self.freelist_158.pop() {
+                    self.data[ptr - 2] = 0x8000_0026;
+                    self.data[ptr - 1] = 1;
 
-            else {
-                // TODO: make it grow exponentially??
-                self.expand(0, 128, 0);
-                self.alloc(size)
-            }
-        }
+                    self.data[ptr + 38] = 0x0000_0026;
+                    self.freelist_38.push(ptr + 40);
+                    self.data[ptr + 78] = 0x0000_0026;
+                    self.freelist_38.push(ptr + 80);
+                    self.data[ptr + 118] = 0x0000_0026;
+                    self.freelist_38.push(ptr + 120);
 
-        else {
-            todo!()
+                    ptr
+                } else {
+                    self.expand_38();
+                    self.alloc(size)
+                }
+            },
+            ..=158 => {
+                if let Some(ptr) = self.freelist_158.pop() {
+                    self.data[ptr - 2] = 0x8000_009e;
+                    self.data[ptr - 1] = 1;
+                    ptr
+                } else if let Some(ptr) = self.freelist_638.pop() {
+                    self.data[ptr - 2] = 0x8000_009e;
+                    self.data[ptr - 1] = 1;
+
+                    self.data[ptr + 158] = 0x0000_009e;
+                    self.freelist_158.push(ptr + 160);
+                    self.data[ptr + 318] = 0x0000_009e;
+                    self.freelist_158.push(ptr + 320);
+                    self.data[ptr + 478] = 0x0000_009e;
+                    self.freelist_158.push(ptr + 480);
+
+                    ptr
+                } else {
+                    self.expand_158();
+                    self.alloc(size)
+                }
+            },
+            ..=638 => {
+                if let Some(ptr) = self.freelist_638.pop() {
+                    self.data[ptr - 2] = 0x8000_027e;
+                    self.data[ptr - 1] = 1;
+                    ptr
+                } else {
+                    self.expand_638();
+                    self.alloc(size)
+                }
+            },
+            _ => {
+                if let Some(ptr) = self.freelist_large.pop() {
+                    let block_size = self.data[ptr - 2] as usize;
+
+                    if block_size >= size {
+                        self.data[ptr - 2] |= 0x8000_0000;
+                        self.data[ptr - 1] = 1;
+                        ptr
+                    } else {
+                        self.freelist_large.push(ptr);
+                        self.expand_large(size);
+                        self.alloc(size)
+                    }
+                } else {
+                    self.expand_large(size);
+                    self.alloc(size)
+                }
+            },
         };
 
         #[cfg(feature="debug-heap")] {
@@ -274,18 +393,13 @@ impl Heap {
             assert_eq!(self.heap_debug_info.allocations.remove(&ptr).unwrap(), size);
         }
 
-        // TODO: If its adjacent block is free, concat them!
-
-        if size < MEDIUM_BLOCK_SIZE as u32 {
-            self.freelist_small.push(ptr);
-        }
-
-        else if size < LARGE_BLOCK_SIZE as u32 {
-            self.freelist_medium.push(ptr);
-        }
-
-        else {
-            self.freelist_large.push(ptr);
+        match size {
+            3 => { self.freelist_3.push(ptr); },
+            8 => { self.freelist_8.push(ptr); },
+            38 => { self.freelist_38.push(ptr); },
+            158 => { self.freelist_158.push(ptr); },
+            638 => { self.freelist_638.push(ptr); },
+            _ => { self.freelist_large.push(ptr); },
         }
     }
 
@@ -300,34 +414,6 @@ impl Heap {
             // TODO: drop
 
             self.free(ptr);
-        }
-    }
-
-    // `ptr` must be a header of an unused block.
-    // It divides the block into 4.
-    pub fn divide_block(&mut self, ptr: usize) {
-        let original_size = self.data[ptr - 2];
-        let new_size = original_size >> 2;
-        self.data[ptr - 2] = new_size;
-
-        for (header_ptr, block_size) in [
-            (ptr + new_size as usize + 2, new_size),
-            (ptr + new_size as usize * 2 + 4, new_size),
-            (ptr + new_size as usize * 3 + 6, original_size - new_size * 3 - 6),
-        ] {
-            self.data[header_ptr - 2] = block_size;
-
-            if block_size < MEDIUM_BLOCK_SIZE as u32 {
-                self.freelist_small.push(header_ptr);
-            }
-
-            else if block_size < LARGE_BLOCK_SIZE as u32 {
-                self.freelist_medium.push(header_ptr);
-            }
-
-            else {
-                self.freelist_large.push(header_ptr);
-            }
         }
     }
 }

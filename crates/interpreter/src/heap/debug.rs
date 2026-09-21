@@ -1,4 +1,4 @@
-use super::{Heap, LARGE_BLOCK_SIZE, MEDIUM_BLOCK_SIZE};
+use super::Heap;
 use std::collections::{HashMap, HashSet};
 
 pub struct HeapDebugInfo {
@@ -19,8 +19,11 @@ impl Heap {
     // it's a leaked memory or a static value.
     pub fn check_integrity(&self) {
         let mut cursor = 2;
-        let freelist_small = self.freelist_small.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
-        let freelist_medium = self.freelist_medium.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
+        let freelist_3 = self.freelist_3.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
+        let freelist_8 = self.freelist_8.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
+        let freelist_38 = self.freelist_38.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
+        let freelist_158 = self.freelist_158.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
+        let freelist_638 = self.freelist_638.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
         let freelist_large = self.freelist_large.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
 
         loop {
@@ -33,16 +36,18 @@ impl Heap {
                 assert_eq!(*self.heap_debug_info.allocations.get(&cursor).unwrap(), block_size);
             }
 
-            else if block_size < MEDIUM_BLOCK_SIZE as u32 {
-                assert!(freelist_small.contains(&cursor));
-            }
-
-            else if block_size < LARGE_BLOCK_SIZE as u32 {
-                assert!(freelist_medium.contains(&cursor));
-            }
-
             else {
-                assert!(freelist_large.contains(&cursor));
+                match block_size {
+                    3 => { assert!(freelist_3.contains(&cursor)); },
+                    8 => { assert!(freelist_8.contains(&cursor)); },
+                    38 => { assert!(freelist_38.contains(&cursor)); },
+                    158 => { assert!(freelist_158.contains(&cursor)); },
+                    638 => { assert!(freelist_638.contains(&cursor)); },
+                    _ => {
+                        assert!(block_size > 638);
+                        assert!(freelist_large.contains(&cursor));
+                    },
+                }
             }
 
             cursor += block_size as usize + 2;
