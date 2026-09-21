@@ -86,7 +86,7 @@ impl Display for CodeSection {
         ));
 
         let mut basic_blocks: Vec<(&LocalLabel, &BasicBlock)> = self.basic_blocks.iter().collect();
-        basic_blocks.sort_by_key(|(label, _)| label.clone());
+        basic_blocks.sort_by_key(|(label, _)| *label);
 
         for (_, basic_block) in basic_blocks.iter() {
             for line in basic_block.to_string().lines() {

@@ -178,7 +178,7 @@ pub enum Bytecode {
     },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Memory {
     SSA(SSA),
     Heap {

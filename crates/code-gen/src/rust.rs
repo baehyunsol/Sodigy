@@ -143,6 +143,7 @@ fn lower_data(hash: ExprHash, value: Value) -> String {
 
             body.push(String::from("    ptr as u32"));
         },
+        // TODO: calc how many scalars it has to allocate, then allocate just once!
         Value::List(vs) => {
             if vs.is_empty() {
                 body.push(String::from("    let data_ptr: usize = 0;"));
@@ -344,7 +345,7 @@ fn lower_basic_block(
 fn lower_bytecode(
     bytecode: &Bytecode,
     indent: usize,
-    session: &Session,
+    session: &mut Session,
     lines: &mut Vec<String>,
     early_return: &mut bool,
 ) {
@@ -501,10 +502,20 @@ fn lower_bytecode(
             },
         },
         Bytecode::InitTuple { elements, dst, .. } => {
-            lines.push(format!("{indent_s}{} = heap.init_tuple({elements});", to_lvalue(dst, session)));
+            lines.push(format!("{indent_s}{} = heap.alloc({elements}) as u32;", to_lvalue(dst, session)));
         },
         Bytecode::InitList { elements, dst, .. } => {
-            lines.push(format!("{indent_s}{} = heap.init_list({elements});", to_lvalue(dst, session)));
+            lines.push(format!("{indent_s}let data_ptr = heap.alloc({});", elements + 1));
+            lines.push(format!("{indent_s}let slice_ptr = heap.alloc(3);"));
+            lines.push(format!("{indent_s}*heap.data.get_unchecked_mut(slice_ptr) = data_ptr as u32;"));
+            lines.push(format!("{indent_s}*heap.data.get_unchecked_mut(slice_ptr + 1) = 0;"));
+            lines.push(format!("{indent_s}*heap.data.get_unchecked_mut(slice_ptr + 2) = {elements};"));
+            lines.push(format!("{indent_s}{} = slice_ptr as u32;", to_lvalue(dst, session)));
+
+            if let Memory::SSA(dst) = dst {
+                let data_ptr = session.alloc_data_ptr_index(*dst);
+                lines.push(format!("{indent_s}let dp{data_ptr} = data_ptr;"));
+            }
         },
     }
 }
@@ -526,7 +537,13 @@ fn to_lvalue(memory: &Memory, session: &Session) -> String {
             to_rvalue(&Memory::SSA(*ptr), session),
             if *offset == 0 { String::new() } else { format!(" + {offset}") },
         ),
-        Memory::List { ptr, offset } => format!("*heap.mut_list({}, {offset})", to_rvalue(&Memory::SSA(*ptr), session)),
+        Memory::List { ptr, offset } => match session.data_ptrs.get(ptr) {
+            Some(d) => format!(
+                "*heap.data.get_unchecked_mut(dp{d}{})",
+                if *offset == 0 { String::new() } else { format!(" + {offset}") },
+            ),
+            None => unreachable!(),
+        },
     }
 }
 
@@ -541,7 +558,13 @@ fn to_rvalue(memory: &Memory, session: &Session) -> String {
             to_rvalue(&Memory::SSA(*ptr), session),
             if *offset == 0 { String::new() } else { format!(" + {offset}") },
         ),
-        Memory::List { ptr, offset } => format!("heap.read_list({}, {offset})", to_rvalue(&Memory::SSA(*ptr), session)),
+        Memory::List { ptr, offset } => match session.data_ptrs.get(ptr) {
+            Some(d) => format!(
+                "*heap.data.get_unchecked_mut(dp{d}{})",
+                if *offset == 0 { String::new() } else { format!(" + {offset}") },
+            ),
+            None => unreachable!(),
+        },
     }
 }
 
