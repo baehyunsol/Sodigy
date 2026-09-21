@@ -322,7 +322,14 @@ pub fn lower_expr(
                     }
                 },
                 Callable::StructInit { .. } |
-                Callable::TupleInit { .. } => {
+                Callable::TupleInit { .. } => if is_all_constant(args) {
+                    let value = session.lower_constant_tuple(args);
+                    bytecodes.push(Bytecode::Const {
+                        value,
+                        dst: dst.clone(),
+                        debug_info: if session.debug_info { Some(Box::new(c.span())) } else { None },
+                    });
+                } else {
                     let debug_info = match (session.debug_info, func) {
                         (true, Callable::TupleInit { group_span }) => Some(Box::new(group_span.clone())),
                         _ => None,
@@ -408,7 +415,14 @@ pub fn lower_expr(
                         bytecodes.push(Bytecode::Return(return_ssa));
                     }
                 },
-                Callable::ListInit { group_span } => {
+                Callable::ListInit { group_span } => if is_all_constant(args) {
+                    let value = session.lower_constant_list(args);
+                    bytecodes.push(Bytecode::Const {
+                        value,
+                        dst: dst.clone(),
+                        debug_info: if session.debug_info { Some(Box::new(c.span())) } else { None },
+                    });
+                } else {
                     bytecodes.push(Bytecode::InitList {
                         elements: args.len(),
                         dst: dst.clone(),
