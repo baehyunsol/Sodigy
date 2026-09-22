@@ -492,7 +492,7 @@ fn compile(
                 every_mir_complete = false;
             }
 
-            if (module.compile_stage, module.running) != (Stage::BytecodeOptimize, false) {
+            if (module.compile_stage, module.running) != (Stage::InsertRefCount, false) {
                 every_bytecode_complete = false;
             }
         }
@@ -686,13 +686,13 @@ fn compile(
                                             find_modules: false,
                                             emit_ir_options: emit_irs.clone_and_push(
                                                 EmitIrOption {
-                                                    stage: Stage::BytecodeOptimize,
+                                                    stage: Stage::InsertRefCount,
                                                     store: StoreIrAt::IntermediateDir,
                                                     human_readable: false,
                                                 },
                                             ),
                                             dump_post_mir_log: dump_post_mir_log_flag,
-                                            stop_after: Stage::BytecodeOptimize,
+                                            stop_after: Stage::InsertRefCount,
                                             validate_token_spans,
                                         },
                                     ))?;

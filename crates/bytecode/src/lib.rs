@@ -176,6 +176,13 @@ pub enum Bytecode {
         dst: Memory,
         debug_info: Option<Box<Span>>,
     },
+
+    IncRefCount(Memory),
+    DecRefCount(Memory),
+
+    // It checks if ref_count is 0 and if so, drops the value.
+    // It's an independent instruction so that the optimizer can do more optimizations.
+    TryDrop(Memory, DropType),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -245,7 +252,10 @@ impl Bytecode {
             Bytecode::TryInitGlobal { .. } |
             Bytecode::StoreGlobal { .. } |
             Bytecode::Label(_) |
-            Bytecode::Return(_) => None,
+            Bytecode::Return(_) |
+            Bytecode::IncRefCount(_) |
+            Bytecode::DecRefCount(_) |
+            Bytecode::TryDrop(_, _) => None,
         }
     }
 
@@ -262,82 +272,6 @@ impl Bytecode {
                 *dst = new_dst;
             },
             _ => panic!("Bytecode {self:?} has no dst."),
-        }
-    }
-
-    pub fn apply_ssa_alias(&mut self, ssa_alias: &HashMap<SSA, SSA>, heap_ssa_alias: &HashMap<(SSA, u32), SSA>) {
-        fn apply_ssa_alias(src: &mut Memory, ssa_alias: &HashMap<SSA, SSA>, heap_ssa_alias: &HashMap<(SSA, u32), SSA>) {
-            match src {
-                Memory::SSA(i) => {
-                    *i = *ssa_alias.get(i).unwrap_or(i);
-                },
-                Memory::Heap { ptr: a, offset: b } => {
-                    if let Some(c) = heap_ssa_alias.get(&(*a, *b)) {
-                        *src = Memory::SSA(*ssa_alias.get(c).unwrap_or(c));
-                    }
-
-                    else {
-                        *a = *ssa_alias.get(a).unwrap_or(a);
-                    }
-                },
-                Memory::List { ptr: a, offset: b } => {
-                    if let Some(c) = heap_ssa_alias.get(&(*a, *b)) {
-                        *src = Memory::SSA(*ssa_alias.get(c).unwrap_or(c));
-                    }
-
-                    else {
-                        *a = *ssa_alias.get(a).unwrap_or(a);
-                    }
-                },
-            }
-        }
-
-        fn apply_ssa_alias_args(args: &mut Vec<SSA>, ssa_alias: &HashMap<SSA, SSA>, heap_ssa_alias: &HashMap<(SSA, u32), SSA>) {
-            *args = args.iter().map(|i| *ssa_alias.get(i).unwrap_or(i)).collect();
-        }
-
-        // TODO: isn't it supposed to update all the `dst`s?
-        match self {
-            Bytecode::Const { .. } => {},
-            Bytecode::Move { src, dst } => {
-                if let Memory::SSA(_) = dst {
-                    apply_ssa_alias(dst, ssa_alias, heap_ssa_alias);
-                }
-
-                apply_ssa_alias(src, ssa_alias, heap_ssa_alias);
-            },
-            Bytecode::Phi { pair, .. } => {
-                let (mut a, mut b) = *pair;
-                a = *ssa_alias.get(&a).unwrap_or(&a);
-                b = *ssa_alias.get(&b).unwrap_or(&b);
-                *pair = (a, b);
-            },
-            Bytecode::Jump(_) => {},
-            Bytecode::Call { args, .. } => {
-                apply_ssa_alias_args(args, ssa_alias, heap_ssa_alias);
-            },
-            Bytecode::CallDynamic { func, args, .. } => {
-                *func = *ssa_alias.get(func).unwrap_or(&func);
-                apply_ssa_alias_args(args, ssa_alias, heap_ssa_alias);
-            },
-            Bytecode::TryInitGlobal { .. } => {},
-            Bytecode::LoadGlobal { dst, .. } => {
-                *dst = *ssa_alias.get(dst).unwrap_or(dst);
-            },
-            Bytecode::StoreGlobal { src, .. } => {
-                *src = *ssa_alias.get(src).unwrap_or(src);
-            },
-            Bytecode::Label(_) => {},
-            Bytecode::JumpIf { value: a, .. } |
-            Bytecode::Return(a) => {
-                *a = *ssa_alias.get(a).unwrap_or(a);
-            },
-            Bytecode::Update { src, value, .. } => todo!(),
-            Bytecode::Intrinsic { args, .. } => {
-                apply_ssa_alias_args(args, ssa_alias, heap_ssa_alias);
-            },
-            Bytecode::InitTuple { .. } => {},
-            Bytecode::InitList { .. } => {},
         }
     }
 
@@ -401,6 +335,12 @@ impl Bytecode {
             Bytecode::Jump(_) |
             Bytecode::TryInitGlobal { .. } |
             Bytecode::Label(_) => {},
+
+            Bytecode::IncRefCount(m) |
+            Bytecode::DecRefCount(m) |
+            Bytecode::TryDrop(m, _) => {
+                memories.push(*m);
+            },
         }
 
         while let Some(m) = memories.pop() {
@@ -436,7 +376,10 @@ impl Bytecode {
             Bytecode::Return(_) |
             Bytecode::Update { .. } |
             Bytecode::InitTuple { .. } |
-            Bytecode::InitList { .. } => false,
+            Bytecode::InitList { .. } |
+            Bytecode::IncRefCount(_) |
+            Bytecode::DecRefCount(_) |
+            Bytecode::TryDrop(_, _) => false,
             Bytecode::Call { effect, .. } |
             Bytecode::CallDynamic { effect, .. } => matches!(&**effect, FuncEffect::Proc | FuncEffect::NdetProc),
             Bytecode::Intrinsic { intrinsic, .. } => matches!(intrinsic.effect(), FuncEffect::Proc | FuncEffect::NdetProc),

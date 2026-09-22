@@ -67,11 +67,16 @@ pub enum Stage {
     /// This stage does per-module bytecode optimization in parallel.
     BytecodeOptimize,
 
+    /// `Bytecode::IncRefCount` and `Bytecode::DecRefCount` must be inserted
+    /// after the optimizations are complete. This stage might run some optimization
+    /// passes for ref-counts.
+    InsertRefCount,
+
     /// Currently, only 1 backend is available: Backend::Bytecode.
     CodeGen,
 }
 
-pub const STAGES: [Stage; 13] = [
+pub const STAGES: [Stage; 14] = [
     Stage::Load,
     Stage::Lex,
     Stage::Parse,
@@ -84,6 +89,7 @@ pub const STAGES: [Stage; 13] = [
     Stage::MirOptimize,
     Stage::Bytecode,
     Stage::BytecodeOptimize,
+    Stage::InsertRefCount,
     Stage::CodeGen,
 ];
 
@@ -139,6 +145,7 @@ impl Stage {
             Stage::MirOptimize => true,
             Stage::Bytecode => true,
             Stage::BytecodeOptimize => true,
+            Stage::InsertRefCount => true,
             Stage::CodeGen => false,
         }
     }

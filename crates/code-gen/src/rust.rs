@@ -190,9 +190,8 @@ fn lower_data(hash: ExprHash, value: Value) -> String {
         // ]
         //
         // We have to return slice_ptr.
-        Value::List(values) | Value::Compound(values) => {
-            todo!()
-        },
+        Value::List(values) | Value::Compound(values) => todo!(),
+        Value::FuncPointer(_) => todo!(),
     }
 
     let body = body.join("\n");
@@ -538,6 +537,15 @@ fn lower_bytecode(
                 let data_ptr = session.alloc_data_ptr_index(*dst);
                 lines.push(format!("{indent_s}let dp{data_ptr} = data_ptr;"));
             }
+        },
+        Bytecode::IncRefCount(m) => {
+            lines.push(format!("{indent_s}heap.inc_rc({});", to_rvalue(m, session)));
+        },
+        Bytecode::DecRefCount(m) => {
+            lines.push(format!("{indent_s}heap.dec_rc({});", to_rvalue(m, session)));
+        },
+        Bytecode::TryDrop(m, d) => {
+            lines.push(format!("{indent_s}heap.try_drop({}, todo!());", to_rvalue(m, session)));
         },
     }
 }

@@ -108,6 +108,19 @@ impl Endec for Bytecode {
                 dst.encode_impl(buffer);
                 debug_info.encode_impl(buffer);
             },
+            Bytecode::IncRefCount(memory) => {
+                buffer.push(16);
+                memory.encode_impl(buffer);
+            },
+            Bytecode::DecRefCount(memory) => {
+                buffer.push(17);
+                memory.encode_impl(buffer);
+            },
+            Bytecode::TryDrop(memory, drop_type) => {
+                buffer.push(18);
+                memory.encode_impl(buffer);
+                drop_type.encode_impl(buffer);
+            },
         }
     }
 
@@ -206,7 +219,20 @@ impl Endec for Bytecode {
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::InitList { elements, dst, debug_info }, cursor))
             },
-            Some(n @ 16..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(16) => {
+                let (memory, cursor) = Memory::decode_impl(buffer, cursor + 1)?;
+                Ok((Bytecode::IncRefCount(memory), cursor))
+            },
+            Some(17) => {
+                let (memory, cursor) = Memory::decode_impl(buffer, cursor + 1)?;
+                Ok((Bytecode::DecRefCount(memory), cursor))
+            },
+            Some(18) => {
+                let (memory, cursor) = Memory::decode_impl(buffer, cursor + 1)?;
+                let (drop_type, cursor) = DropType::decode_impl(buffer, cursor)?;
+                Ok((Bytecode::TryDrop(memory, drop_type), cursor))
+            },
+            Some(n @ 19..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

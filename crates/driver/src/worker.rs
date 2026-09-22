@@ -484,12 +484,35 @@ impl Worker {
                     &intermediate_dir,
                 )?;
 
-                // bytecode optimizer doesn't emit any warning/error, and this must be the last stage!
+                if !optimized_bytecode_session.errors.is_empty() || stop_after <= Stage::BytecodeOptimize {
+                    tx_to_main.send(MessageToMain::StageComplete {
+                        module_path: Some(input_module_path),
+                        compile_stage: Stage::BytecodeOptimize,
+                        errors: optimized_bytecode_session.errors.clone(),
+                        warnings: optimized_bytecode_session.warnings.clone(),
+                    })?;
+
+                    return compile_error_if_not_empty(&optimized_bytecode_session.errors);
+                }
+
+                self.timings.stage_start(Stage::InsertRefCount, None);
+                let ref_count_session = sodigy_bytecode::insert_ref_count(optimized_bytecode_session);
+                self.timings.stage_end(!ref_count_session.errors.is_empty());
+
+                emit_irs_if_has_to(
+                    &ref_count_session,
+                    &emit_ir_options,
+                    Stage::InsertRefCount,
+                    Some(content_hash),
+                    &intermediate_dir,
+                )?;
+
+                // This is the last stage...
                 tx_to_main.send(MessageToMain::StageComplete {
                     module_path: Some(input_module_path),
-                    compile_stage: Stage::BytecodeOptimize,
-                    errors: optimized_bytecode_session.errors.clone(),
-                    warnings: optimized_bytecode_session.warnings.clone(),
+                    compile_stage: Stage::InsertRefCount,
+                    errors: ref_count_session.errors.clone(),
+                    warnings: ref_count_session.warnings.clone(),
                 })?;
             },
             Command::InterHir {
@@ -708,9 +731,9 @@ impl Worker {
                     let content_hash = file.get_content_hash(&intermediate_dir)?;
                     let bytecode_session_bytes = get_cached_ir(
                         &intermediate_dir,
-                        Stage::BytecodeOptimize,
+                        Stage::InsertRefCount,
                         Some(content_hash),
-                    )?.ok_or(Error::IrCacheNotFound(Stage::BytecodeOptimize))?;
+                    )?.ok_or(Error::IrCacheNotFound(Stage::InsertRefCount))?;
                     let mut bytecode_session = sodigy_bytecode::Session::decode(&bytecode_session_bytes)?;
                     object_files.push(std::mem::take(&mut bytecode_session.object_file));
                     errors.extend(bytecode_session.errors.drain(..));

@@ -294,7 +294,7 @@ fn dump_timings_html(
     for (stages, id) in [
         (vec![Stage::Load, Stage::Lex, Stage::Parse, Stage::Hir], "hir"),
         (vec![Stage::PostHir, Stage::Mir], "mir"),
-        (vec![Stage::PostMir, Stage::MirOptimize, Stage::Bytecode, Stage::BytecodeOptimize], "bytecode"),
+        (vec![Stage::PostMir, Stage::MirOptimize, Stage::Bytecode, Stage::BytecodeOptimize, Stage::InsertRefCount], "bytecode"),
     ] {
         let (rows, stats) = into_rows(Some(stages), worker_ids, timings);
 

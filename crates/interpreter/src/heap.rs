@@ -256,25 +256,20 @@ impl Heap {
         }
     }
 
-    // It implicitly `inc_rc` after allocating memory.
     // `size` is of data, not block. A block has 1 scalar for header,
     // 1 scalar for ref_count, and scalars for data. If you call `alloc(8)`,
-    // the returned block will have at least 10 scalars, where the first
+    // the returned block will have 10 scalars, where the first
     // 2 scalars are header and ref_count, and the remaining scalars are for data.
     pub fn alloc(&mut self, size: usize) -> usize {
         let result = match size {
             ..=3 => {
                 if let Some(ptr) = self.freelist_3.pop() {
                     self.data[ptr - 2] = 0x8000_0003;
-                    self.data[ptr - 1] = 1;
                     ptr
                 } else if let Some(ptr) = self.freelist_8.pop() {
                     self.data[ptr - 2] = 0x8000_0003;
-                    self.data[ptr - 1] = 1;
-
                     self.data[ptr + 3] = 0x0000_0003;
                     self.freelist_3.push(ptr + 5);
-
                     ptr
                 } else {
                     self.expand_3();
@@ -284,11 +279,9 @@ impl Heap {
             ..=8 => {
                 if let Some(ptr) = self.freelist_8.pop() {
                     self.data[ptr - 2] = 0x8000_0008;
-                    self.data[ptr - 1] = 1;
                     ptr
                 } else if let Some(ptr) = self.freelist_38.pop() {
                     self.data[ptr - 2] = 0x8000_0008;
-                    self.data[ptr - 1] = 1;
 
                     self.data[ptr + 8] = 0x0000_0008;
                     self.freelist_8.push(ptr + 10);
@@ -306,11 +299,9 @@ impl Heap {
             ..=38 => {
                 if let Some(ptr) = self.freelist_38.pop() {
                     self.data[ptr - 2] = 0x8000_0026;
-                    self.data[ptr - 1] = 1;
                     ptr
                 } else if let Some(ptr) = self.freelist_158.pop() {
                     self.data[ptr - 2] = 0x8000_0026;
-                    self.data[ptr - 1] = 1;
 
                     self.data[ptr + 38] = 0x0000_0026;
                     self.freelist_38.push(ptr + 40);
@@ -328,11 +319,9 @@ impl Heap {
             ..=158 => {
                 if let Some(ptr) = self.freelist_158.pop() {
                     self.data[ptr - 2] = 0x8000_009e;
-                    self.data[ptr - 1] = 1;
                     ptr
                 } else if let Some(ptr) = self.freelist_638.pop() {
                     self.data[ptr - 2] = 0x8000_009e;
-                    self.data[ptr - 1] = 1;
 
                     self.data[ptr + 158] = 0x0000_009e;
                     self.freelist_158.push(ptr + 160);
@@ -350,7 +339,6 @@ impl Heap {
             ..=638 => {
                 if let Some(ptr) = self.freelist_638.pop() {
                     self.data[ptr - 2] = 0x8000_027e;
-                    self.data[ptr - 1] = 1;
                     ptr
                 } else {
                     self.expand_638();
@@ -363,7 +351,6 @@ impl Heap {
 
                     if block_size >= size {
                         self.data[ptr - 2] |= 0x8000_0000;
-                        self.data[ptr - 1] = 1;
                         ptr
                     } else {
                         self.freelist_large.push(ptr);
@@ -407,9 +394,11 @@ impl Heap {
         self.data[ptr - 1] += 1;
     }
 
-    pub fn dec_rc(&mut self, ptr: usize, drop: &DropType) {
+    pub fn dec_rc(&mut self, ptr: usize) {
         self.data[ptr - 1] -= 1;
+    }
 
+    pub fn try_drop(&mut self, ptr: usize, drop: &DropType) {
         if self.data[ptr - 1] == 0 {
             // TODO: drop
 

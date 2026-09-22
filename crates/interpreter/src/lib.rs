@@ -474,6 +474,18 @@ fn call(
                     heap.data[slice_ptr + 2] = *elements as u32;
                     update(dst, slice_ptr as u32, &mut stack, heap);
                 },
+                Bytecode::IncRefCount(m) => {
+                    let ptr = read(m, &stack, heap);
+                    heap.inc_rc(ptr as usize);
+                },
+                Bytecode::DecRefCount(m) => {
+                    let ptr = read(m, &stack, heap);
+                    heap.dec_rc(ptr as usize);
+                },
+                Bytecode::TryDrop(m, d) => {
+                    let ptr = read(m, &stack, heap);
+                    heap.try_drop(ptr as usize, d);
+                },
             }
         }
 
