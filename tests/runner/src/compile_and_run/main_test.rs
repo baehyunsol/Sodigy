@@ -146,7 +146,7 @@ impl CnrContext {
             let run_started_at = Instant::now();
             match subprocess::run(
                 &self.sodigy_path,
-                &["interpret", "target/run"],
+                &["interpret", "target/run", "--test"],
                 &self.project_dir,
                 30.0,
                 self.dump_output,
