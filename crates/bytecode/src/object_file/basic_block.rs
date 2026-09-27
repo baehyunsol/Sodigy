@@ -2,6 +2,7 @@ use crate::{Bytecode, GlobalLabel, LocalLabel, SSA};
 use sodigy_span::Span;
 use std::collections::HashMap;
 
+#[derive(Clone, Debug)]
 pub struct BasicBlock {
     pub label: LocalLabel,
     pub code: Vec<Bytecode>,
@@ -9,6 +10,7 @@ pub struct BasicBlock {
     pub terminator_debug_info: Option<Box<Span>>,
 }
 
+#[derive(Clone, Debug)]
 pub enum Terminator {
     Jump(LocalLabel),
 

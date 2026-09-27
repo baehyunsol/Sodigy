@@ -1,12 +1,8 @@
-use sodigy_bytecode::{DropType, Value};
+use sodigy_bytecode::{DropType, ExprHash, Value};
 use sodigy_span::SpanHash;
 use std::collections::hash_map::{Entry, HashMap};
 
-#[cfg(feature="debug-heap")]
 mod debug;
-
-#[cfg(feature="debug-heap")]
-use debug::HeapDebugInfo;
 
 // hhh  rrr  d00  d01  d02  ...
 //
@@ -18,12 +14,18 @@ use debug::HeapDebugInfo;
 //
 // pointer points to `d00`, not `hhh`.
 
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum GlobalValueId {
+    Constant(ExprHash),
+    GlobalLet(SpanHash),
+}
+
 pub struct Heap {
     pub data: Vec<u32>,
 
     // Global values are lazy-evaluated.
     // Global values are static: once initialized, it's alive until the end of the program.
-    pub global_values: HashMap<SpanHash, u32>,
+    pub global_values: HashMap<GlobalValueId, u32>,
 
     // Func pointers are also lazy-evaluated.
     pub func_pointers: HashMap<SpanHash, u32>,
@@ -34,15 +36,14 @@ pub struct Heap {
     // Every block in a freelist has the same size.
     pub freelist_3: Vec<usize>,
     pub freelist_8: Vec<usize>,
+    pub freelist_18: Vec<usize>,
     pub freelist_38: Vec<usize>,
     pub freelist_158: Vec<usize>,
     pub freelist_638: Vec<usize>,
+    pub freelist_2558: Vec<usize>,
 
-    // for blocks bigger than 638 scalars
+    // for blocks bigger than 2558 scalars
     pub freelist_large: Vec<usize>,
-
-    #[cfg(feature="debug-heap")]
-    pub heap_debug_info: HeapDebugInfo,
 }
 
 impl Heap {
@@ -54,13 +55,12 @@ impl Heap {
             func_pointers_rev: HashMap::new(),
             freelist_3: vec![],
             freelist_8: vec![],
+            freelist_18: vec![],
             freelist_38: vec![],
             freelist_158: vec![],
             freelist_638: vec![],
+            freelist_2558: vec![],
             freelist_large: vec![],
-
-            #[cfg(feature="debug-heap")]
-            heap_debug_info: HeapDebugInfo::new(),
         }
     }
 
@@ -86,6 +86,19 @@ impl Heap {
             new_buffer[i * 10] = 8;
             self.freelist_8.push(cursor);
             cursor += 10;
+        }
+
+        self.data.extend(new_buffer);
+    }
+
+    pub fn expand_18(&mut self) {
+        let mut cursor = self.data.len() + 2;
+        let mut new_buffer = vec![0; 2560];
+
+        for i in 0..128 {
+            new_buffer[i * 20] = 18;
+            self.freelist_18.push(cursor);
+            cursor += 20;
         }
 
         self.data.extend(new_buffer);
@@ -127,6 +140,13 @@ impl Heap {
             cursor += 640;
         }
 
+        self.data.extend(new_buffer);
+    }
+
+    pub fn expand_2558(&mut self) {
+        let mut new_buffer = vec![0; 2560];
+        new_buffer[0] = 2558;
+        self.freelist_2558.push(self.data.len() + 2);
         self.data.extend(new_buffer);
     }
 
@@ -280,19 +300,27 @@ impl Heap {
                 if let Some(ptr) = self.freelist_8.pop() {
                     self.data[ptr - 2] = 0x8000_0008;
                     ptr
-                } else if let Some(ptr) = self.freelist_38.pop() {
+                } else if let Some(ptr) = self.freelist_18.pop() {
                     self.data[ptr - 2] = 0x8000_0008;
-
                     self.data[ptr + 8] = 0x0000_0008;
-                    self.freelist_8.push(ptr + 10);
-                    self.data[ptr + 18] = 0x0000_0008;
-                    self.freelist_8.push(ptr + 20);
-                    self.data[ptr + 28] = 0x0000_0008;
-                    self.freelist_8.push(ptr + 30);
-
+                    self.freelist_18.push(ptr + 10);
                     ptr
                 } else {
                     self.expand_8();
+                    self.alloc(size)
+                }
+            },
+            ..=18 => {
+                if let Some(ptr) = self.freelist_18.pop() {
+                    self.data[ptr - 2] = 0x8000_0012;
+                    ptr
+                } else if let Some(ptr) = self.freelist_38.pop() {
+                    self.data[ptr - 2] = 0x8000_0012;
+                    self.data[ptr + 18] = 0x0000_0012;
+                    self.freelist_8.push(ptr + 20);
+                    ptr
+                } else {
+                    self.expand_18();
                     self.alloc(size)
                 }
             },
@@ -340,13 +368,71 @@ impl Heap {
                 if let Some(ptr) = self.freelist_638.pop() {
                     self.data[ptr - 2] = 0x8000_027e;
                     ptr
+                } else if let Some(ptr) = self.freelist_2558.pop() {
+                    self.data[ptr - 2] = 0x8000_027e;
+
+                    self.data[ptr + 638] = 0x0000_027e;
+                    self.freelist_638.push(ptr + 640);
+                    self.data[ptr + 1278] = 0x0000_027e;
+                    self.freelist_638.push(ptr + 1280);
+                    self.data[ptr + 1918] = 0x0000_027e;
+                    self.freelist_638.push(ptr + 1920);
+
+                    ptr
                 } else {
                     self.expand_638();
                     self.alloc(size)
                 }
             },
-            _ => {
-                if let Some(ptr) = self.freelist_large.pop() {
+            ..=2558 => {
+                if let Some(ptr) = self.freelist_2558.pop() {
+                    self.data[ptr - 2] = 0x8000_09fe;
+                    ptr
+                } else {
+                    self.expand_2558();
+                    self.alloc(size)
+                }
+            },
+            // It checks the last 2 free blocks, and uses if there's an available one.
+            _ => match (self.freelist_large.pop(), self.freelist_large.pop()) {
+                (Some(ptr1), Some(ptr2)) => {
+                    let block_size1 = self.data[ptr1 - 2] as usize;
+                    let block_size2 = self.data[ptr2 - 2] as usize;
+
+                    match (block_size1 >= size, block_size2 >= size) {
+                        // If both are okay, we use a smaller block.
+                        (true, true) => {
+                            if block_size1 < block_size2 {
+                                self.freelist_large.push(ptr2);
+                                self.data[ptr1 - 2] |= 0x8000_0000;
+                                ptr1
+                            }
+
+                            else {
+                                self.freelist_large.push(ptr1);
+                                self.data[ptr2 - 2] |= 0x8000_0000;
+                                ptr2
+                            }
+                        },
+                        (true, false) => {
+                            self.freelist_large.push(ptr2);
+                            self.data[ptr1 - 2] |= 0x8000_0000;
+                            ptr1
+                        },
+                        (false, true) => {
+                            self.freelist_large.push(ptr2);
+                            self.data[ptr1 - 2] |= 0x8000_0000;
+                            ptr1
+                        },
+                        (false, false) => {
+                            self.freelist_large.push(ptr1);
+                            self.freelist_large.push(ptr2);
+                            self.expand_large(size);
+                            self.alloc(size)
+                        },
+                    }
+                },
+                (Some(ptr), None) => {
                     let block_size = self.data[ptr - 2] as usize;
 
                     if block_size >= size {
@@ -357,17 +443,13 @@ impl Heap {
                         self.expand_large(size);
                         self.alloc(size)
                     }
-                } else {
+                },
+                _ => {
                     self.expand_large(size);
                     self.alloc(size)
-                }
+                },
             },
         };
-
-        #[cfg(feature="debug-heap")] {
-            let block_size = self.data[result - 2] & 0x7fff_ffff;
-            self.heap_debug_info.allocations.insert(result, block_size);
-        }
 
         result
     }
@@ -375,10 +457,6 @@ impl Heap {
     fn free(&mut self, ptr: usize) {
         let size = self.data[ptr - 2] & 0x7fff_ffff;
         self.data[ptr - 2] = size;
-
-        #[cfg(feature="debug-heap")] {
-            assert_eq!(self.heap_debug_info.allocations.remove(&ptr).unwrap(), size);
-        }
 
         match size {
             3 => { self.freelist_3.push(ptr); },

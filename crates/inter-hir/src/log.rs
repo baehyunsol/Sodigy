@@ -13,7 +13,6 @@ macro_rules! write_log {
     };
 }
 
-// VIBE NOTE: gpt-5.5 (via neukgu-chat) wrote this atomic increment.
 static NEXT_ID: AtomicU32 = AtomicU32::new(0);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

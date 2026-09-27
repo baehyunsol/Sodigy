@@ -24,6 +24,8 @@ pub enum CliCommand {
         emit_irs: bool,
         graceful_shutdown: u32,  // in millis
         validate_token_spans: ValidateTokenSpans,
+        check_allocator: bool,
+        debug_bytecode: bool,
         jobs: usize,
         color: ColorWhen,
         dump_post_mir_log: bool,
@@ -37,6 +39,8 @@ pub enum CliCommand {
         emit_irs: bool,
         graceful_shutdown: u32,  // in millis
         validate_token_spans: ValidateTokenSpans,
+        check_allocator: bool,
+        debug_bytecode: bool,
         jobs: usize,
         color: ColorWhen,
         dump_post_mir_log: bool,
@@ -50,6 +54,8 @@ pub enum CliCommand {
         emit_irs: bool,
         graceful_shutdown: u32,  // in millis
         validate_token_spans: ValidateTokenSpans,
+        check_allocator: bool,
+        debug_bytecode: bool,
         jobs: usize,
         color: ColorWhen,
         dump_post_mir_log: bool,
@@ -60,6 +66,8 @@ pub enum CliCommand {
     Interpret {
         bytecodes_path: String,
         profile: Profile,
+        check_allocator: bool,
+        debug_bytecode: bool,
     },
     New {
         project_name: String,
@@ -93,6 +101,8 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                     "--validate-std-token-spans",
                     "--validate-lib-token-spans",
                 ])
+                .optional_flag(&["--debug-bytecode"])
+                .optional_flag(&["--check-allocator"])
                 .alias("-O", "--release")
                 .short_flag(&["--output", "--jobs"])
                 .args(ArgType::String, ArgCount::None)
@@ -135,7 +145,8 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             let profile = match (emit, parsed_args.get_flag(1).is_some()) {
                 (Emit::Exe | Emit::Rust, true) => Profile::Test,
                 (Emit::ReadableBytecode | Emit::ExecutableBytecode, true) => {
-                    // This is a cli error. You can set `--test` flag only if the emit option is `rust` or `exe`.
+                    // This is a cli error. You can set `--test` flag only if the emit option is `rust` or `exe`,
+                    // because an object file has enough information to run with both profiles.
                     // But there's no way I can construct such CliError...
                     todo!()
                 },
@@ -153,6 +164,18 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 Some("--validate-lib-token-spans") => ValidateTokenSpans::ExceptStd,
                 _ => unreachable!(),
             };
+
+            let debug_bytecode = match (emit, parsed_args.get_flag(6).is_some()) {
+                (Emit::Exe | Emit::Rust, true) => true,
+                (Emit::ReadableBytecode | Emit::ExecutableBytecode, true) => {
+                    // This is a cli error. You can set `--debug-bytecode` flag only if the emit option is `rust` or `exe`,
+                    // because the interpreter can run an object file with/without the debug session.
+                    // But there's no way I can construct such CliError...
+                    todo!()
+                },
+                (_, false) => false,
+            };
+            let check_allocator = parsed_args.get_flag(7).is_some();
 
             let output_path = match output_path {
                 Some(output_path) => output_path,
@@ -175,6 +198,8 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 custom_error_levels: HashMap::new(),  // TODO: make it configurable
                 graceful_shutdown: 300,  // TODO: make it configurable
                 validate_token_spans,
+                check_allocator,
+                debug_bytecode,
                 emit_irs,
                 jobs,
                 color,
@@ -208,6 +233,9 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
         },
         Some("interpret") => {
             let parsed_args = ArgParser::new()
+                .optional_flag(&["--test"])
+                .optional_flag(&["--debug-bytecode"])
+                .optional_flag(&["--check-allocator"])
                 .args(ArgType::String, ArgCount::Exact(1))  // bytecodes path
                 .parse(args, 2)?;
 
@@ -215,13 +243,16 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 return Ok(CliCommand::Help(String::from("interpret")));
             }
 
+            let profile = if parsed_args.get_flag(0).is_some() { Profile::Test } else { Profile::Run };
+            let debug_bytecode = parsed_args.get_flag(1).is_some();
+            let check_allocator = parsed_args.get_flag(2).is_some();
             let bytecodes_path = parsed_args.get_args_exact(1)?[0].to_string();
 
             Ok(CliCommand::Interpret {
                 bytecodes_path,
-
-                // TODO: make it configurable
-                profile: Profile::Test,
+                profile,
+                check_allocator,
+                debug_bytecode,
             })
         },
         Some("new") => {
@@ -253,6 +284,8 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                     "--validate-std-token-spans",
                     "--validate-lib-token-spans",
                 ])
+                .optional_flag(&["--debug-bytecode"])
+                .optional_flag(&["--check-allocator"])
                 .alias("-O", "--release")
                 .short_flag(&["--jobs"])
                 .args(ArgType::String, ArgCount::None)
@@ -306,6 +339,9 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 _ => unreachable!(),
             };
 
+            let debug_bytecode = parsed_args.get_flag(5).is_some();
+            let check_allocator = parsed_args.get_flag(6).is_some();
+
             Ok(CliCommand::Run {
                 bytecode,
                 optimize_level,
@@ -313,6 +349,8 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 custom_error_levels: HashMap::new(),  // TODO: make it configurable
                 graceful_shutdown: 300,  // TODO: make it configurable
                 validate_token_spans,
+                check_allocator,
+                debug_bytecode,
                 emit_irs,
                 jobs,
                 color,
@@ -336,6 +374,8 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                     "--validate-std-token-spans",
                     "--validate-lib-token-spans",
                 ])
+                .optional_flag(&["--debug-bytecode"])
+                .optional_flag(&["--check-allocator"])
                 .alias("-O", "--release")
                 .short_flag(&["--jobs"])
                 .args(ArgType::String, ArgCount::None)
@@ -388,6 +428,8 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 Some("--validate-lib-token-spans") => ValidateTokenSpans::ExceptStd,
                 _ => unreachable!(),
             };
+            let debug_bytecode = parsed_args.get_flag(5).is_some();
+            let check_allocator = parsed_args.get_flag(6).is_some();
 
             Ok(CliCommand::Test {
                 bytecode,
@@ -396,6 +438,8 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 custom_error_levels: HashMap::new(),  // TODO: make it configurable
                 graceful_shutdown: 300,  // TODO: make it configurable
                 validate_token_spans,
+                check_allocator,
+                debug_bytecode,
                 emit_irs,
                 jobs,
                 color,

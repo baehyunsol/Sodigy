@@ -24,6 +24,7 @@ pub struct ObjectFile {
 }
 
 // It can be a func, an assertion or a global let.
+#[derive(Clone, Debug)]
 pub struct CodeSection {
     pub label: GlobalLabel,
 
@@ -37,6 +38,7 @@ pub struct CodeSection {
     pub basic_blocks: HashMap<LocalLabel, BasicBlock>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum CodeKind {
     Func,
     Let,

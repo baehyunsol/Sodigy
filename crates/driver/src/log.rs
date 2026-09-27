@@ -55,7 +55,6 @@ fn to_html(title: &str, body: &str) -> String {
 </html>
 "#)}
 
-// VIBE NOTE: many css and javascript in this function are written by AI.
 fn render_page_and_save(
     parent: Option<usize>,
     calls: &[FuncCall],

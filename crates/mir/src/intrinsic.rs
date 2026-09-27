@@ -1,7 +1,6 @@
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_error::FuncEffect;
 
-// VIBE NOTE: Sonnet-4.5-thinking (via perplexity) wrote this code.
 macro_rules! intrinsics {
     ($(($variant:ident, $lang_item:expr, $index:literal, $num_params:literal, $effect:ident)),* $(,)?) => {
         #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

@@ -122,7 +122,7 @@ impl CnrContext {
 
         if self.debug_bytecode {
             std::process::Command::new(&self.sodigy_path)
-                .args(&["interpret", "target/run"])
+                .args(&["interpret", "target/run", "--test", "--debug-bytecode"])
                 .current_dir(&self.project_dir)
                 .stdin(std::process::Stdio::inherit())
                 .status()

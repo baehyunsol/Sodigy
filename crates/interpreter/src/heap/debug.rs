@@ -1,53 +1,128 @@
 use super::Heap;
-use std::collections::{HashMap, HashSet};
-
-pub struct HeapDebugInfo {
-    pub allocations: HashMap</* ptr: */ usize, /* block_size: */ u32>,
-}
-
-impl HeapDebugInfo {
-    pub fn new() -> HeapDebugInfo {
-        HeapDebugInfo {
-            allocations: HashMap::new(),
-        }
-    }
-}
+use std::collections::HashSet;
 
 impl Heap {
-    // It doesn't check whether there's a memory leak or not (ref_count).
-    // We can't check memory leaks for now because we can't tell whether
-    // it's a leaked memory or a static value.
+    // TODO: return Err(_) instead of panicking
     pub fn check_integrity(&self) {
         let mut cursor = 2;
         let freelist_3 = self.freelist_3.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
         let freelist_8 = self.freelist_8.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
+        let freelist_18 = self.freelist_18.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
         let freelist_38 = self.freelist_38.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
         let freelist_158 = self.freelist_158.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
         let freelist_638 = self.freelist_638.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
+        let freelist_2558 = self.freelist_2558.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
         let freelist_large = self.freelist_large.iter().map(|ptr| *ptr).collect::<HashSet<_>>();
+
+        for (block_size, freelist) in [
+            (3, &self.freelist_3),
+            (8, &self.freelist_8),
+            (18, &self.freelist_18),
+            (38, &self.freelist_38),
+            (158, &self.freelist_158),
+            (638, &self.freelist_638),
+            (2558, &self.freelist_2558),
+        ] {
+            for ptr in freelist.iter() {
+                let header = self.data[ptr - 2];
+                let real_size = header & 0x7fff_ffff;
+                let is_used = header >= 0x8000_0000;
+                let ref_count = self.data[ptr - 1];
+
+                if real_size != block_size {
+                    panic!("ptr {ptr:x} is in freelist_{block_size}, but its real size is {real_size}!!");
+                }
+
+                if is_used {
+                    panic!("ptr {ptr:x} is in freelist_{block_size}, but is used!!");
+                }
+
+                if ref_count > 0 {
+                    panic!("ptr {ptr:x} is in freelist_{block_size}, but its ref_count is {ref_count}!!");
+                }
+            }
+        }
 
         loop {
             let header = self.data[cursor - 2];
             let block_size = header & 0x7fff_ffff;
             let is_used = header >= 0x8000_0000;
-            assert!(block_size > 0);
+            let ref_count = self.data[cursor - 1];
 
-            if is_used {
-                assert_eq!(*self.heap_debug_info.allocations.get(&cursor).unwrap(), block_size);
-            }
-
-            else {
-                match block_size {
-                    3 => { assert!(freelist_3.contains(&cursor)); },
-                    8 => { assert!(freelist_8.contains(&cursor)); },
-                    38 => { assert!(freelist_38.contains(&cursor)); },
-                    158 => { assert!(freelist_158.contains(&cursor)); },
-                    638 => { assert!(freelist_638.contains(&cursor)); },
-                    _ => {
-                        assert!(block_size > 638);
+            match block_size {
+                3 => {
+                    if is_used {
+                        assert!(!freelist_3.contains(&cursor));
+                        assert!(ref_count > 0);
+                    } else {
+                        assert!(freelist_3.contains(&cursor));
+                        assert_eq!(ref_count, 0);
+                    }
+                },
+                8 => {
+                    if is_used {
+                        assert!(!freelist_8.contains(&cursor));
+                        assert!(ref_count > 0);
+                    } else {
+                        assert!(freelist_8.contains(&cursor));
+                        assert_eq!(ref_count, 0);
+                    }
+                },
+                18 => {
+                    if is_used {
+                        assert!(!freelist_18.contains(&cursor));
+                        assert!(ref_count > 0);
+                    } else {
+                        assert!(freelist_18.contains(&cursor));
+                        assert_eq!(ref_count, 0);
+                    }
+                },
+                38 => {
+                    if is_used {
+                        assert!(!freelist_38.contains(&cursor));
+                        assert!(ref_count > 0);
+                    } else {
+                        assert!(freelist_38.contains(&cursor));
+                        assert_eq!(ref_count, 0);
+                    }
+                },
+                158 => {
+                    if is_used {
+                        assert!(!freelist_158.contains(&cursor));
+                        assert!(ref_count > 0);
+                    } else {
+                        assert!(freelist_158.contains(&cursor));
+                        assert_eq!(ref_count, 0);
+                    }
+                },
+                638 => {
+                    if is_used {
+                        assert!(!freelist_638.contains(&cursor));
+                        assert!(ref_count > 0);
+                    } else {
+                        assert!(freelist_638.contains(&cursor));
+                        assert_eq!(ref_count, 0);
+                    }
+                },
+                2558 => {
+                    if is_used {
+                        assert!(!freelist_2558.contains(&cursor));
+                        assert!(ref_count > 0);
+                    } else {
+                        assert!(freelist_2558.contains(&cursor));
+                        assert_eq!(ref_count, 0);
+                    }
+                },
+                2559.. => {
+                    if is_used {
+                        assert!(!freelist_large.contains(&cursor));
+                        assert!(ref_count > 0);
+                    } else {
                         assert!(freelist_large.contains(&cursor));
-                    },
-                }
+                        assert_eq!(ref_count, 0);
+                    }
+                },
+                _ => panic!("Block size {block_size} cannot fit in any freelist."),
             }
 
             cursor += block_size as usize + 2;

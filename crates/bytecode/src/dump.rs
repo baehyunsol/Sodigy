@@ -102,21 +102,60 @@ impl Display for CodeSection {
     }
 }
 
-impl Display for BasicBlock {
-    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Highlight {
+    None,
+    Bytecode(usize),
+    Terminator,
+}
+
+impl BasicBlock {
+    pub fn dump(
+        &self,
+        show_line_number: bool,
+        highlight_bytecode: Highlight,
+        debug_info_flag: bool,
+    ) -> String {
         let code = self.code.iter().map(
-            |c| format!("    {c}")
+            |bytecode| format!("    {}", bytecode.dump(debug_info_flag))
         ).collect::<Vec<_>>().join("\n");
 
-        write!(fmt, r#"
-label {}:
+        let lines = format!(r#"label {}:
 {code}
-    {}{}
-"#,
+    {}{}"#,
             self.label,
             self.terminator,
-            dump_debug_info(&self.terminator_debug_info),
-        )
+            dump_debug_info(&self.terminator_debug_info, debug_info_flag),
+        );
+
+        if !show_line_number && highlight_bytecode == Highlight::None {
+            return lines;
+        }
+
+        let mut result = Vec::with_capacity(lines.len());
+        let lines_count = lines.lines().count();
+
+        for (i, line) in lines.lines().enumerate() {
+            let prefix = match (show_line_number, highlight_bytecode) {
+                (true, Highlight::Bytecode(j)) if i == j + 1 => format!(">>> {i:>3} | "),
+                (true, Highlight::Terminator) if i + 1 == lines_count => format!(">>> {i:>3} | "),
+                (true, Highlight::Bytecode(_) | Highlight::Terminator) => format!("    {i:>3} | "),
+                (true, Highlight::None) => format!(" {i:>3} | "),
+                (false, Highlight::Bytecode(j)) if i == j + 1 => String::from(">>> "),
+                (false, Highlight::Terminator) if i + 1 == lines_count => String::from(">>> "),
+                (false, Highlight::Bytecode(_) | Highlight::Terminator) => String::from("    "),
+                (false, Highlight::None) => unreachable!(),
+            };
+            result.push(format!("{prefix}{line}"));
+        }
+
+        result.join("\n")
+    }
+}
+
+impl Display for BasicBlock {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        write!(fmt, "{}", self.dump(false, Highlight::None, true))
     }
 }
 
@@ -149,71 +188,76 @@ impl Display for Terminator {
     }
 }
 
-impl Display for Bytecode {
-    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+impl Bytecode {
+    pub fn dump(&self, debug_info_flag: bool) -> String {
         match self {
-            Bytecode::Const { dst, value, debug_info } => write!(
-                fmt,
+            Bytecode::Const { dst, value, debug_info } => format!(
                 "{dst} = {value};{}",
-                dump_debug_info(debug_info),
+                dump_debug_info(debug_info, debug_info_flag),
             ),
-            Bytecode::Move { dst, src } => write!(fmt, "{dst} = {src};"),
-            Bytecode::Phi { pair: (x, y), dst } => write!(fmt, "{dst} = $Phi({x}, {y});"),
-            Bytecode::Jump(label) => write!(fmt, "jump {label};"),
-            Bytecode::Call { func, args, dst, debug_info, effect: _ } => write!(
-                fmt,
+            Bytecode::Move { dst, src } => format!("{dst} = {src};"),
+            Bytecode::Phi { pair: (x, y), dst } => format!("{dst} = $Phi({x}, {y});"),
+            Bytecode::Jump(label) => format!("jump {label};"),
+            Bytecode::Call { func, args, dst, debug_info, effect: _ } => format!(
                 "{}call {func}({});{}",
                 if let Some(dst) = dst { format!("{dst} = ") } else { String::from("return ") },
                 args.iter().map(
                     |i| format!("{i}")
                 ).collect::<Vec<_>>().join(", "),
-                dump_debug_info(debug_info),
+                dump_debug_info(debug_info, debug_info_flag),
             ),
-            Bytecode::CallDynamic { func, args, dst, debug_info, effect: _ } => write!(
-                fmt,
+            Bytecode::CallDynamic { func, args, dst, debug_info, effect: _ } => format!(
                 "{}dyn_call {func}({});{}",
                 if let Some(dst) = dst { format!("{dst} = ") } else { String::from("return ") },
                 args.iter().map(
                     |i| format!("{i}")
                 ).collect::<Vec<_>>().join(", "),
-                dump_debug_info(debug_info),
+                dump_debug_info(debug_info, debug_info_flag),
             ),
-            Bytecode::JumpIf { value, t, f, debug_info } => write!(
-                fmt,
+            Bytecode::JumpIf { value, t, f, debug_info } => format!(
                 "if {value} {{ jump {t}; }} else {{ jump {f}; }}{}",
-                dump_debug_info(debug_info),
+                dump_debug_info(debug_info, debug_info_flag),
             ),
-            Bytecode::TryInitGlobal { global, label } => write!(
-                fmt,
+            Bytecode::TryInitGlobal { global, label } => format!(
                 "if !is_init(_g{}) {{ call {global}(); }} jump {label};",
                 global.hex(20),
             ),
-            Bytecode::Label(label) => write!(fmt, "label {label}:"),
-            Bytecode::Return(ssa) => write!(fmt, "return {ssa};"),
-            Bytecode::Update { src, size: _, index, value, dst } => write!(
-                fmt,
-                "{dst} = {src} `{index} {value};",
+            Bytecode::LoadGlobal { src, dst } => format!(
+                "{dst} = $LoadGlobal(_g{});",
+                src.hex(20),
             ),
-            Bytecode::Intrinsic { intrinsic, args, dst, debug_info } => write!(
-                fmt,
+            Bytecode::StoreGlobal { src, dst } => format!(
+                "$StoreGlobal({src}, _g{});",
+                dst.hex(20),
+            ),
+            Bytecode::Label(label) => format!("label {label}:"),
+            Bytecode::Return(ssa) => format!("return {ssa};"),
+            Bytecode::Update { src, size: _, index, value, dst } => format!("{dst} = {src} `{index} {value};"),
+            Bytecode::Intrinsic { intrinsic, args, dst, debug_info } => format!(
                 "{dst} = ${intrinsic:?}({});{}",
                 args.iter().map(
                     |i| format!("{i}")
                 ).collect::<Vec<_>>().join(", "),
-                dump_debug_info(debug_info),
+                dump_debug_info(debug_info, debug_info_flag),
             ),
-            Bytecode::InitTuple { elements, dst, debug_info } => write!(
-                fmt,
+            Bytecode::InitTuple { elements, dst, debug_info } => format!(
                 "{dst} = $InitTuple({elements});{}",
-                dump_debug_info(debug_info),
+                dump_debug_info(debug_info, debug_info_flag),
             ),
-            Bytecode::InitList { elements, dst, debug_info } => write!(
-                fmt,
+            Bytecode::InitList { elements, dst, debug_info } => format!(
                 "{dst} = $InitList({elements});{}",
-                dump_debug_info(debug_info),
+                dump_debug_info(debug_info, debug_info_flag),
             ),
-            _ => write!(fmt, "{self:?}"),
+            Bytecode::IncRefCount(memory) => format!("$IncRefCount({memory});"),
+            Bytecode::DecRefCount(memory) => format!("$DecRefCount({memory});"),
+            Bytecode::TryDrop(_, _) => format!("{self:?}"),
         }
+    }
+}
+
+impl Display for Bytecode {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        write!(fmt, "{}", self.dump(true))
     }
 }
 
@@ -278,10 +322,10 @@ impl Display for Value {
     }
 }
 
-fn dump_debug_info(debug_info: &Option<Box<Span>>) -> String {
+fn dump_debug_info(debug_info: &Option<Box<Span>>, flag: bool) -> String {
     match debug_info {
         Some(span) if **span == Span::None => String::new(),
-        Some(span) => format!("  // {span:?}"),
-        None => String::new(),
+        Some(span) if flag => format!("  // {span:?}"),
+        _ => String::new(),
     }
 }

@@ -48,9 +48,6 @@ pub fn run(
     let mut child_stdout = child_process.stdout.take().unwrap();
     let mut child_stderr = child_process.stderr.take().unwrap();
 
-    // VIBE NOTE: I found the test runner deadlocks when the error message is very long.
-    //            Gemini 3.1 (via perplexity) told me I should spawn threads that empties
-    //            the buffers while the program is running.
     let stdout_thread = thread::spawn(move || {
         let mut buf = Vec::new();
         let _ = child_stdout.read_to_end(&mut buf);

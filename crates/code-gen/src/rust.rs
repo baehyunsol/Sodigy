@@ -15,6 +15,8 @@ use sodigy_bytecode::{
 };
 use sodigy_error::{Error, ErrorKind, Warning};
 use sodigy_mir::Intrinsic;
+use sodigy_span::SpanHash;
+use std::collections::HashMap;
 
 mod inspect;
 mod session;
@@ -124,75 +126,70 @@ fn lower_data(hash: ExprHash, value: Value) -> String {
     let name = format!("d_{}", hash.hex(20));
     let mut body = vec![];
 
-    match value {
-        Value::Scalar(_) => unreachable!(),
-        Value::Int(n) => {
-            let p_len = n.nums.len() + 1;
-            let mut metadata = n.nums.len();
+    body.push(format!("    match heap.global_values.get(&0x{}) {{", hash.hex(20)));
+    body.push(format!("        Some(ptr) => *ptr,"));
+    body.push(format!("        None => {{"));
 
-            if n.is_neg {
-                metadata |= 0x8000_0000;
+    // I want to allocate everything at once.
+    let mut simulated_heap = vec![];
+    simulate_heap(&value, None, &mut simulated_heap, &mut 0);
+
+    // `simulated_heap` may have multiple blocks.
+    // If you can find multiple `HeapValue::Header { .. }` in `simulated_heap`, that means there are multiple blocks.
+    // If there are multiple blocks, it first allocs a large enough block that can hold the blocks and split them
+    // manually (e.g. inserting header and ref_count) as if the blocks are from independent allocs.
+    assert!(simulated_heap.len() % 5 == 0);
+    let (alloc_full, alloc_size) = alloc(simulated_heap.len() - 2);
+    let mut ptr_map: HashMap<BlockId, usize> = HashMap::new();
+    body.push(format!("            let ptr = {alloc_full};"));
+
+    // If the first block's size is smaller than `simulated_heap`, that means there are multiple
+    // blocks in the `simulated_heap`.
+    if let Some(first_block_size) = simulated_heap[0].get_header_size() && first_block_size + 2 != simulated_heap.len() as u32 {
+        body.push(format!("            *heap.data.get_unchecked_mut(ptr - 2) = 0x{:x};", 0x8000_0000 | first_block_size));
+
+        // The pointer should point to 2 scalars after the header and there are 2 additional scalars in `simulated_heap`'s head... so the index is correct!
+        for (i, value) in simulated_heap.iter().enumerate() {
+            if let HeapValue::Header { id: Some(ptr), .. } = value {
+                ptr_map.insert(*ptr, i);
             }
-
-            body.push(format!("    let ptr: usize = heap.alloc({p_len});"));
-            body.push(format!("    *heap.data.get_unchecked_mut(ptr) = 0x{metadata:x};"));
-
-            for (i, n) in n.nums.iter().enumerate() {
-                body.push(format!("    *heap.data.get_unchecked_mut(ptr + {}) = 0x{n:x};", i + 1));
-            }
-
-            body.push(String::from("    ptr as u32"));
-        },
-
-        // TODO
-        // Let's say the value is `[10, 20, 30]`. Then we have to call `heap.alloc()`
-        // 5 times (2 for the list, 3 for the ints). But we don't have to do that because
-        // we know how the memory manager works. Calculate how many scalars the value has
-        // to allocate (including headers of some blocks), allocate that much memory,
-        // split the memory by manipulating the headers, then write the scalars directly to
-        // the heap.
-        //
-        // [
-        //     0x8000_0003,  // header of slice_ptr
-        //     1,            // rc of slice_ptr
-        //     data_ptr,     // slice_ptr points here
-        //     0,            // start
-        //     3,            // length
-        //
-        //     0x8000_0008,  // header of data_ptr
-        //     1,            // rc of data_ptr
-        //     3,            // length of data  <-- data_ptr points here
-        //     int_ptr_1,
-        //     int_ptr_2,
-        //     int_ptr_3,
-        //     0,
-        //     0,
-        //     0,
-        //     0,
-        //
-        //     0x8000_0003,  // header of int_ptr_1
-        //     1,            // rc of int_ptr_1
-        //     0x0000_0001,  // length of int_ptr_1  <-- int_ptr_1 points here
-        //     10,
-        //     0,
-        //
-        //     0x8000_0003,  // header of int_ptr_2
-        //     1,            // rc of int_ptr_2
-        //     0x0000_0001,  // length of int_ptr_2  <-- int_ptr_2 points here
-        //     20,
-        //     0,
-        //
-        //     0x8000_0003,  // header of int_ptr_3
-        //     1,            // rc of int_ptr_3
-        //     0x0000_0001,  // length of int_ptr_3  <-- int_ptr_3 points here
-        //     30,
-        //     0,
-        // ]
-        //
-        // We have to return slice_ptr.
-        Value::List(values) | Value::Compound(values) => todo!(),
-        Value::FuncPointer(_) => todo!(),
+        }
     }
+
+    body.push(format!("            *heap.data.get_unchecked_mut(ptr - 1) = 1;"));
+
+    for (i, value) in simulated_heap.iter().skip(2).enumerate() {
+        let index = format!("ptr{}", if i == 0 { String::new() } else { format!(" + {i}") });
+        match value {
+            HeapValue::Header { size, .. } => {
+                body.push(format!("            *heap.data.get_unchecked_mut({index}) = 0x{:x};", 0x8000_0000 | size));
+            },
+            HeapValue::RefCount => {
+                body.push(format!("            *heap.data.get_unchecked_mut({index}) = 1;"));
+            },
+            HeapValue::Scalar(n) => {
+                body.push(format!("            *heap.data.get_unchecked_mut({index}) = 0x{n:x};"));
+            },
+            HeapValue::FuncPointer(_) => todo!(),
+            HeapValue::Ptr(id) => {
+                body.push(format!("            *heap.data.get_unchecked_mut({index}) = ptr as u32 + {};", ptr_map.get(id).unwrap()));
+            },
+        }
+    }
+
+    for (size, index) in calc_free_blocks(simulated_heap.len()) {
+        // header
+        body.push(format!("            *heap.data.get_unchecked_mut(ptr + {index}) = 0x{:x};", size - 2));
+
+        // ref_count
+        // We have to do this because there maybe garbage values from previous uses.
+        body.push(format!("            *heap.data.get_unchecked_mut(ptr + {}) = 0;", index + 1));
+    }
+
+    body.push(format!("            heap.global_values.insert(0x{}, ptr as u32);", hash.hex(20)));
+    body.push(format!("            ptr as u32"));
+    body.push(format!("        }},"));
+    body.push(format!("    }}"));
 
     let body = body.join("\n");
     format!(r#"unsafe fn {name}(heap: &mut Heap) -> u32 {{
@@ -523,11 +520,11 @@ fn lower_bytecode(
             },
         },
         Bytecode::InitTuple { elements, dst, .. } => {
-            lines.push(format!("{indent_s}{} = heap.alloc({elements}) as u32;", to_lvalue(dst, session)));
+            lines.push(format!("{indent_s}{} = {} as u32;", to_lvalue(dst, session), alloc(*elements).0));
         },
         Bytecode::InitList { elements, dst, .. } => {
-            lines.push(format!("{indent_s}let data_ptr = heap.alloc({});", elements + 1));
-            lines.push(format!("{indent_s}let slice_ptr = heap.alloc(3);"));
+            lines.push(format!("{indent_s}let data_ptr = {};", alloc(elements + 1).0));
+            lines.push(format!("{indent_s}let slice_ptr = {};", alloc(3).0));
             lines.push(format!("{indent_s}*heap.data.get_unchecked_mut(slice_ptr) = data_ptr as u32;"));
             lines.push(format!("{indent_s}*heap.data.get_unchecked_mut(slice_ptr + 1) = 0;"));
             lines.push(format!("{indent_s}*heap.data.get_unchecked_mut(slice_ptr + 2) = {elements};"));
@@ -600,4 +597,221 @@ fn to_rvalue(memory: &Memory, session: &Session) -> String {
 
 fn phi_register(pair: (SSA, SSA)) -> String {
     format!("p{:03x}{:03x}", pair.0.to_u32(), pair.1.to_u32())
+}
+
+fn alloc(size: usize) -> (String, usize) {
+    // match size {
+    //     0 => (String::from("heap.alloc_0()"), 0),
+    //     ..=3 => (String::from("heap.alloc_3()"), 3),
+    //     ..=8 => (String::from("heap.alloc_8()"), 8),
+    //     ..=18 => (String::from("heap.alloc_18()"), 18),
+    //     ..=38 => (String::from("heap.alloc_38()"), 38),
+    //     ..=158 => (String::from("heap.alloc_158()"), 158),
+    //     ..=638 => (String::from("heap.alloc_638()"), 638),
+    //     ..=2558 => (String::from("heap.alloc_2558()"), 2558),
+    //     _ => (format!("heap.alloc_large({size})"), size),
+    // }
+    match size {
+        0 => (format!("heap.alloc(0)"), 0),
+        ..=3 => (format!("heap.alloc(3)"), 3),
+        ..=8 => (format!("heap.alloc(8)"), 8),
+        ..=18 => (format!("heap.alloc(18)"), 18),
+        ..=38 => (format!("heap.alloc(38)"), 38),
+        ..=158 => (format!("heap.alloc(158)"), 158),
+        ..=638 => (format!("heap.alloc(638)"), 638),
+        ..=2558 => (format!("heap.alloc(2558)"), 2558),
+        _ => (format!("heap.alloc({size})"), size),
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct BlockId(u32);
+
+#[derive(Clone, Copy, Debug)]
+enum HeapValue {
+    Header { size: u32, id: Option<BlockId> },
+    RefCount,
+    Scalar(u32),
+    FuncPointer(SpanHash),
+    Ptr(BlockId),
+}
+
+impl HeapValue {
+    pub fn get_header_size(&self) -> Option<u32> {
+        match self {
+            HeapValue::Header { size, .. } => Some(*size),
+            _ => None,
+        }
+    }
+}
+
+fn simulate_heap(
+    value: &Value,
+    mut id: Option<BlockId>,
+    buffer: &mut Vec<HeapValue>,
+    block_id: &mut u32,
+) {
+    match value {
+        Value::Scalar(_) => unreachable!(),
+        Value::Int(n) => {
+            let mut alloc_success = false;
+
+            for block_size in [3, 8, 18, 38, 158, 638, 2558] {
+                if n.nums.len() < block_size {
+                    buffer.push(HeapValue::Header { size: block_size as u32, id });
+                    buffer.push(HeapValue::RefCount);
+                    buffer.push(HeapValue::Scalar(n.nums.len() as u32 | if n.is_neg { 0x8000_0000 } else { 0 }));
+
+                    for i in 0..(block_size - 1) {
+                        buffer.push(HeapValue::Scalar(*n.nums.get(i).unwrap_or(&0)));
+                    }
+
+                    alloc_success = true;
+                    break;
+                }
+            }
+
+            // wow... such a big integer...
+            if !alloc_success {
+                todo!()
+            }
+        },
+        Value::List(values) | Value::Compound(values) => {
+            let is_list = matches!(value, Value::List(_));
+            let mut extra_data = vec![];
+            let mut alloc_success = false;
+
+            if is_list {
+                buffer.push(HeapValue::Header { size: 3, id });
+                buffer.push(HeapValue::RefCount);
+
+                *block_id += 1;
+                id = Some(BlockId(*block_id));
+                buffer.push(HeapValue::Ptr(id.unwrap()));
+                buffer.push(HeapValue::Scalar(0));
+                buffer.push(HeapValue::Scalar(values.len() as u32));
+            }
+
+            let data_len = if is_list { values.len() + 1 } else { values.len() } as u32;
+
+            for block_size in [3, 8, 18, 38, 158, 638, 2558] {
+                if data_len <= block_size {
+                    buffer.push(HeapValue::Header { size: block_size, id });
+                    buffer.push(HeapValue::RefCount);
+
+                    if is_list {
+                        buffer.push(HeapValue::Scalar(values.len() as u32));
+                    }
+
+                    for value in values.iter() {
+                        match value {
+                            Value::Scalar(n) => {
+                                buffer.push(HeapValue::Scalar(*n));
+                            },
+                            Value::Int(_) | Value::List(_) | Value::Compound(_) => {
+                                *block_id += 1;
+                                buffer.push(HeapValue::Ptr(BlockId(*block_id)));
+                                simulate_heap(value, Some(BlockId(*block_id)), &mut extra_data, block_id);
+                            },
+                            Value::FuncPointer(ptr) => {
+                                buffer.push(HeapValue::FuncPointer(*ptr));
+                            },
+                        }
+                    }
+
+                    for _ in 0..(block_size - data_len) {
+                        buffer.push(HeapValue::Scalar(0));
+                    }
+
+                    alloc_success = true;
+                    buffer.extend(extra_data);
+                    break;
+                }
+            }
+
+            if !alloc_success {
+                todo!()
+            }
+        },
+        Value::FuncPointer(_) => unreachable!(),
+    }
+}
+
+// It allocates a single large block, split them into smaller blocks and write values to the small blocks.
+// It makes the program more efficient by reducing the number of allocations, but we have to be careful not to make dangling blocks.
+// For example, if it allocates a block of 40 scalars and only use the first 25 scalars, we have to make sure that the remaining
+// 15 scalars are pushed to the freelists.
+fn calc_free_blocks(simulated_heap_len: usize) -> Vec<(u32, usize)> {
+    // Below algorithm should be identical to this match expression.
+    //
+    // return match simulated_heap_len {
+    //     // heap.alloc will give exactly this size of block, so we don't have to create extra free blocks.
+    //     5 | 10 | 20 | 40 | 160 | 640 | 2560 => vec![],
+    //
+    //     // It has allocated a block of 20 scalars, but using only the first 15 scalars.
+    //     // We have to push the last 5 scalars to freelist_3.
+    //     // The pointer returned by `heap.alloc` points to the first scalar of the data, not the header, so
+    //     // we have to subtract 2, hence the index is 13, not 15.
+    //     15 => vec![(5, 13)],
+    //
+    //     // Likewise, heap.alloc returned a block of 40 scalars, so we have to free the remaining 15 scalars.
+    //     25 => vec![(10, 23), (5, 33)],
+    //
+    //     30 => vec![(10, 28)],
+    //     35 => vec![(5, 33)],
+    //     45 => vec![(20, 43), (10, 63), (5, 73)],
+    //     50 => vec![(20, 48), (10, 68)],
+    //     55 => vec![(20, 53), (5, 73)],
+    //     // ... goes on and on
+    // };
+
+    let mut cursor = simulated_heap_len - 2;
+    let mut target = match simulated_heap_len {
+        ..=5 => 3,
+        ..=10 => 8,
+        ..=20 => 18,
+        ..=40 => 38,
+        ..=160 => 158,
+        ..=640 => 638,
+        ..=2560 => 2558,
+        _ => todo!(),
+    };
+    let mut result = vec![];
+
+    while cursor < target {
+        let diff = (target - cursor) as u32;
+
+        match diff {
+            5 | 10 | 20 | 40 | 160 | 640 | 2560 => {
+                result.push((diff, cursor));
+                break;
+            },
+            15 => {
+                result.push((10, cursor));
+                cursor += 10;
+            },
+            25 | 30 | 35 => {
+                result.push((20, cursor));
+                cursor += 20;
+            },
+            ..160 => {
+                result.push((40, cursor));
+                cursor += 40;
+            },
+            ..640 => {
+                result.push((160, cursor));
+                cursor += 160;
+            },
+            ..2560 => {
+                result.push((640, cursor));
+                cursor += 640;
+            },
+            _ => {
+                result.push((2560, cursor));
+                cursor += 2560;
+            },
+        }
+    }
+
+    result
 }

@@ -145,9 +145,9 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             Ok(())
         },
         cli_command @ (
-            CliCommand::Build { bytecode, optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings, .. } |
-            CliCommand::Run { bytecode, optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings, .. } |
-            CliCommand::Test { bytecode, optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, jobs, color, dump_post_mir_log, dump_timings, .. }
+            CliCommand::Build { bytecode, optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, check_allocator, debug_bytecode, jobs, color, dump_post_mir_log, dump_timings, .. } |
+            CliCommand::Run { bytecode, optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, check_allocator, debug_bytecode, jobs, color, dump_post_mir_log, dump_timings, .. } |
+            CliCommand::Test { bytecode, optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, check_allocator, debug_bytecode, jobs, color, dump_post_mir_log, dump_timings, .. }
         ) => {
             // TODO: make these configurable
             let incremental_compilation = true;
@@ -203,14 +203,18 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                     incremental_compilation,
                     *validate_token_spans,
                     verify_built_ins,
+                    *check_allocator,
+                    *debug_bytecode,
                     run_profile,
                     quiet,
                 ),
             }
         },
-        CliCommand::Interpret { bytecodes_path, profile } => interpret(
+        CliCommand::Interpret { bytecodes_path, profile, check_allocator, debug_bytecode } => interpret(
             StoreIrAt::File(bytecodes_path.to_string()),
             *profile,
+            *check_allocator,
+            *debug_bytecode,
             &ir_dir,
         ),
         CliCommand::Clean => {
@@ -244,6 +248,8 @@ pub fn init_workers_and_compile(
     incremental_compilation: bool,
     validate_token_spans: ValidateTokenSpans,
     verify_built_ins: bool,
+    check_allocator: bool,
+    debug_bytecode: bool,
     run_with_profile: Option<Profile>,
     quiet: bool,
 ) -> Result<(), Error> {
@@ -334,9 +340,9 @@ pub fn init_workers_and_compile(
 
     if let Some(profile) = run_with_profile {
         match backend {
-            Some(Backend::Native) => interpret(StoreIrAt::IntermediateDir, profile, &ir_dir),
-            Some(Backend::Interpret) => interpret(StoreIrAt::IntermediateDir, profile, &ir_dir),
-            Some(Backend::MirInterpret) => interpret(StoreIrAt::IntermediateDir, profile, &ir_dir),
+            Some(Backend::Native) => interpret(StoreIrAt::IntermediateDir, profile, check_allocator, debug_bytecode, &ir_dir),
+            Some(Backend::Interpret) => interpret(StoreIrAt::IntermediateDir, profile, check_allocator, debug_bytecode, &ir_dir),
+            Some(Backend::MirInterpret) => interpret(StoreIrAt::IntermediateDir, profile, check_allocator, debug_bytecode, &ir_dir),
             None => unreachable!(),
         }
     } else {
@@ -744,7 +750,13 @@ fn compile(
     }
 }
 
-fn interpret(exe: StoreIrAt, profile: Profile, intermediate_dir: &str) -> Result<(), Error> {
+fn interpret(
+    exe: StoreIrAt,
+    profile: Profile,
+    check_allocator: bool,
+    debug_bytecode: bool,
+    intermediate_dir: &str,
+) -> Result<(), Error> {
     let exe_bytes = match exe {
         StoreIrAt::File(f) => read_bytes(&f)?,
         StoreIrAt::IntermediateDir => get_cached_ir(
@@ -758,7 +770,7 @@ fn interpret(exe: StoreIrAt, profile: Profile, intermediate_dir: &str) -> Result
     let exe_bytes = Vec::<u8>::decode(&exe_bytes)?;
     let exe = sodigy_bytecode::ObjectFile::decode(&exe_bytes)?;
 
-    match sodigy_interpreter::interpret(&exe, profile, intermediate_dir) {
+    match sodigy_interpreter::interpret(&exe, profile, check_allocator, debug_bytecode, intermediate_dir) {
         Ok(()) => Ok(()),
         Err(e) => Err(Error::RuntimeError(e)),
     }

@@ -1,4 +1,4 @@
-use crate::{Error, Worker, WorkerId};
+use crate::{Error, WorkerId};
 use sodigy_fs_api::{WriteMode, join, write_string};
 use sodigy_stages::{Stage, STAGES, Substage};
 use sodigy_timings::TimingsEntry;
@@ -102,8 +102,6 @@ struct Stats {
     times_per_stage: HashMap<(Stage, Option<Substage>), Vec<(TimingsEntry, u64)>>,
 }
 
-// VIBE NOTE: I don't know much about html/css, so GEMINI and KIMI-K2.5 (both via Perplexity) did a lot of work.
-//            They only did the html/css part.
 fn dump_timings_html(
     // It assumes that worker_id starts at 0 and is contiguous.
     worker_ids: &[WorkerId],

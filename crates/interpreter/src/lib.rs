@@ -28,27 +28,32 @@ use sodigy_number::{
 };
 use std::collections::HashMap;
 
-// TODO: remove or fix this
-#[cfg(feature="debug-bytecode")]
 mod debug;
-
 mod error;
 mod heap;
 mod stack;
 
+use debug::{Context as DebugContext, Session as DebugSession};
 pub use error::Error;
-pub use heap::Heap;
+pub use heap::{GlobalValueId, Heap};
 pub use stack::Stack;
 
-pub fn interpret(object_file: &ObjectFile, profile: Profile, intermediate_dir: &str) -> Result<(), Error> {
+pub fn interpret(
+    object_file: &ObjectFile,
+    profile: Profile,
+    check_allocator: bool,
+    debug: bool,
+    intermediate_dir: &str,
+) -> Result<(), Error> {
     let mut heap = Heap::new();
+    let mut debug_session = if debug { Some(DebugSession::new(intermediate_dir)) } else { None };
 
     match profile {
         Profile::Run => match object_file.main_entry {
             Some(label) => {
-                let result = tail_call_loop(Stack::new(), &mut heap, object_file, label);
+                let result = tail_call_loop(Stack::new(), &mut heap, object_file, label, &mut debug_session);
 
-                #[cfg(feature="debug-heap")] {
+                if check_allocator {
                     heap.check_integrity();
                 }
 
@@ -66,9 +71,9 @@ pub fn interpret(object_file: &ObjectFile, profile: Profile, intermediate_dir: &
             let mut ever_failed = false;
 
             for (name, label) in object_file.asserts.iter() {
-                let result = tail_call_loop(Stack::new(), &mut heap, object_file, *label);
+                let result = tail_call_loop(Stack::new(), &mut heap, object_file, *label, &mut debug_session);
 
-                #[cfg(feature = "debug-heap")] {
+                if check_allocator {
                     heap.check_integrity();
                 }
 
@@ -107,11 +112,23 @@ fn tail_call_loop(
     heap: &mut Heap,
     object_file: &ObjectFile,
     mut label: GlobalLabel,
+    debug_session: &mut Option<DebugSession>,
 ) -> CallResult {
     loop {
-        let basic_blocks = &object_file.code.get(&label).unwrap().basic_blocks;
+        let code = &object_file.code.get(&label).unwrap();
+        let basic_blocks = &code.basic_blocks;
 
-        match call(stack, heap, object_file, basic_blocks) {
+        if let Some(debug_session) = debug_session {
+            debug_session.code_section = Some(code.clone().clone());
+            debug_session.dump(
+                &stack,
+                heap,
+                None,
+                DebugContext::EnterCodeSection,
+            );
+        }
+
+        match call(stack, heap, object_file, basic_blocks, debug_session) {
             CallResult::Return(n) => {
                 return CallResult::Return(n);
             },
@@ -137,19 +154,43 @@ fn call(
     heap: &mut Heap,
     object_file: &ObjectFile,
     basic_blocks: &HashMap<LocalLabel, BasicBlock>,
+    debug_session: &mut Option<DebugSession>,
 ) -> CallResult {
     let mut curr_label = LocalLabel::start();
 
     loop {
         let curr_basic_block: &BasicBlock = basic_blocks.get(&curr_label).unwrap();
 
-        for bytecode in curr_basic_block.code.iter() {
+        if let Some(debug_session) = debug_session {
+            debug_session.dump(
+                &stack,
+                heap,
+                Some(curr_basic_block),
+                DebugContext::EnterBasicBlock,
+            );
+        }
+
+        for (i, bytecode) in curr_basic_block.code.iter().enumerate() {
+            if let Some(debug_session) = debug_session {
+                debug_session.dump(
+                    &stack,
+                    heap,
+                    Some(curr_basic_block),
+                    DebugContext::Bytecode(i),
+                );
+            }
+
             match bytecode {
                 Bytecode::Const { value, dst, debug_info: _ } => {
                     let value = match value {
-                        InternedValue::Interned(h) => {
-                            let value = object_file.data.get(h).unwrap();
-                            heap.alloc_value(value)
+                        InternedValue::Interned(h) => match heap.global_values.get(&GlobalValueId::Constant(*h)) {
+                            Some(ptr) => *ptr,
+                            None => {
+                                let value = object_file.data.get(h).unwrap();
+                                let ptr = heap.alloc_value(value);
+                                heap.global_values.insert(GlobalValueId::Constant(*h), ptr);
+                                ptr
+                            },
                         },
                         InternedValue::Scalar(n) => *n,
                         InternedValue::FuncPointer(p) => heap.alloc_func_pointer(*p),
@@ -174,7 +215,7 @@ fn call(
 
                     match dst {
                         Some(dst) => {
-                            let value = match tail_call_loop(new_stack, heap, object_file, *func) {
+                            let value = match tail_call_loop(new_stack, heap, object_file, *func, debug_session) {
                                 CallResult::Return(n) => n,
                                 CallResult::TailCall { .. } => unreachable!(),
                                 CallResult::Exit(n) => {
@@ -194,7 +235,7 @@ fn call(
 
                     match dst {
                         Some(dst) => {
-                            let value = match tail_call_loop(new_stack, heap, object_file, GlobalLabel::new(*func)) {
+                            let value = match tail_call_loop(new_stack, heap, object_file, GlobalLabel::new(*func), debug_session) {
                                 CallResult::Return(n) => n,
                                 CallResult::TailCall { .. } => unreachable!(),
                                 CallResult::Exit(n) => {
@@ -210,12 +251,12 @@ fn call(
                 Bytecode::JumpIf { .. } => unreachable!(),
                 Bytecode::TryInitGlobal { .. } => unreachable!(),
                 Bytecode::LoadGlobal { src, dst } => {
-                    let src = heap.global_values.get(&src.span()).expect("global should be initialized before used");
+                    let src = heap.global_values.get(&GlobalValueId::GlobalLet(src.span())).expect("global should be initialized before used");
                     stack.ssa.insert(*dst, *src);
                 },
                 Bytecode::StoreGlobal { src, dst } => {
                     let src = stack.ssa.get(src).unwrap();
-                    heap.global_values.insert(dst.span(), *src);
+                    heap.global_values.insert(GlobalValueId::GlobalLet(dst.span()), *src);
                 },
                 Bytecode::Label(_) => unreachable!(),
                 Bytecode::Return(_) => unreachable!(),
@@ -489,6 +530,15 @@ fn call(
             }
         }
 
+        if let Some(debug_session) = debug_session {
+            debug_session.dump(
+                &stack,
+                heap,
+                Some(curr_basic_block),
+                DebugContext::Terminator,
+            );
+        }
+
         match &curr_basic_block.terminator {
             Terminator::Jump(label) => {
                 curr_label = *label;
@@ -507,8 +557,8 @@ fn call(
                 }
             },
             Terminator::TryInitGlobal { global, label } => {
-                if heap.global_values.get(&global.span()).is_none() {
-                    match tail_call_loop(Stack::new(), heap, object_file, *global) {
+                if heap.global_values.get(&GlobalValueId::GlobalLet(global.span())).is_none() {
+                    match tail_call_loop(Stack::new(), heap, object_file, *global, debug_session) {
                         CallResult::Return(_) => {},
                         CallResult::TailCall { .. } => unreachable!(),
                         CallResult::Exit(n) => {

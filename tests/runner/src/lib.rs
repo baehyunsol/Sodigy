@@ -28,8 +28,6 @@ pub fn get_sodigy_path(
     root: &str,
     release: bool,
     dump_compiler_log: bool,
-    debug_bytecode: bool,
-    debug_heap: bool,
 ) -> String {
     let mut args = vec!["build"];
 
@@ -37,28 +35,8 @@ pub fn get_sodigy_path(
         args.push("--release");
     }
 
-    let features = if dump_compiler_log || debug_bytecode || debug_heap {
-        let mut features = vec![];
-
-        if dump_compiler_log {
-            features.push("log");
-        }
-
-        if debug_bytecode {
-            features.push("debug-bytecode");
-        }
-
-        if debug_heap {
-            features.push("debug-heap");
-        }
-
-        Some(format!("--features={}", features.join(",")))
-    } else {
-        None
-    };
-
-    if let Some(arg) = &features {
-        args.push(arg);
+    if dump_compiler_log {
+        args.push("--features=log");
     }
 
     let output = Command::new("cargo")

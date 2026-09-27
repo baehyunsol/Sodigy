@@ -15,6 +15,7 @@ mod r#let;
 mod link;
 mod object_file;
 mod parse;
+mod ref_count;
 mod session;
 mod value;
 
@@ -22,6 +23,7 @@ mod value;
 mod tests;
 
 pub use assert::Assert;
+pub use dump::Highlight;
 pub use expr_hash::ExprHash;
 pub(crate) use expr::lower_expr;
 pub use func::Func;
@@ -36,6 +38,7 @@ pub use object_file::{
     Terminator,
 };
 pub use parse::{BytecodeParseError, parse as parse_bytecode};
+pub use ref_count::insert_ref_count;
 pub use session::{LocalValue, Session};
 pub use value::{InternedValue, Value};
 

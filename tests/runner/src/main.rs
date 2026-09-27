@@ -61,8 +61,6 @@ fn main() {
                 dump_compiler_log,
 
                 dump_compiler_log,
-                debug_bytecode,
-                true,  // debug-heap
             );
 
             let metadata = output_path.as_ref().map(|_| meta::get());
@@ -204,8 +202,6 @@ fn main() {
                 &root,
                 false,  // --release
                 false,  // dump-compiler-log
-                false,  // debug-bytecode
-                true,   // debug-heap
             );
 
             let metadata = meta::get();

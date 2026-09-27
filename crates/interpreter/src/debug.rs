@@ -1,98 +1,236 @@
 use crate::{Heap, Stack};
-use sodigy_bytecode::{Bytecode, SSA};
+use sodigy_bytecode::{
+    BasicBlock,
+    Bytecode,
+    CodeSection,
+    Highlight,
+    SSA,
+};
 use sodigy_number::bi_to_string;
-use sodigy_span::{RenderableSpan, RenderSpanOption, RenderSpanSession, render_spans};
+use sodigy_span::{
+    Color,
+    ColorOption,
+    RenderableSpan,
+    RenderSpanOption,
+    RenderSpanSession,
+    render_spans,
+};
 use std::collections::HashSet;
+use std::io::{Write, self};
 
-pub fn debug(
-    stack: &Stack,
-    heap: &Heap,
-    bytecodes: &[Bytecode],
-    cursor: usize,
-    render_span_session: &mut RenderSpanSession,
-) {
-    let mut stack_preview: Vec<&SSA> = stack.ssa.keys().collect();
-    let mut total_stack_size = stack_preview.len();
-    let mut too_many_ssas = None;
-    stack_preview.sort();
+#[derive(Clone, Copy, Debug)]
+pub enum Context {
+    EnterCodeSection,
+    EnterBasicBlock,
+    Bytecode(usize),
+    Terminator,
+}
 
-    if stack_preview.len() > 8 {
-        let mut interesting_stack = HashSet::new();
+#[derive(Clone, Copy, Debug)]
+pub enum SkipUntil {
+    BasicBlock,
+    CodeSection,
+}
 
-        for c in (cursor.max(2) - 2)..(cursor + 3).min(bytecodes.len()) {
-            for s in bytecodes[c].used_ssa_indexes() {
-                interesting_stack.insert(s);
+pub struct Session {
+    pub code_section: Option<CodeSection>,
+    span_option: RenderSpanOption,
+    span_session: RenderSpanSession,
+    dump_history: Vec<String>,
+    skip_until: Option<SkipUntil>,
+}
+
+impl Session {
+    pub fn new(intermediate_dir: &str) -> Self {
+        Session {
+            code_section: None,
+            span_option: RenderSpanOption {
+                max_height: 20,
+                max_width: 96,
+                context: 5,
+                render_source: true,
+                color: Some(ColorOption {
+                    primary: Color::Yellow,
+                    auxiliary: Color::Yellow,
+                    info: Color::Green,
+                }),
+                group_delim: None,
+            },
+            span_session: RenderSpanSession::new(intermediate_dir),
+            dump_history: vec![],
+            skip_until: None,
+        }
+    }
+
+    pub fn dump(
+        &mut self,
+        stack: &Stack,
+        heap: &Heap,
+        basic_block: Option<&BasicBlock>,
+        context: Context,
+    ) {
+        match (self.skip_until, context) {
+            (Some(SkipUntil::BasicBlock), Context::EnterBasicBlock | Context::EnterCodeSection) => {
+                self.skip_until = None;
+            },
+            (Some(SkipUntil::BasicBlock), _) => {
+                return;
+            },
+            (Some(SkipUntil::CodeSection), Context::EnterCodeSection) => {
+                self.skip_until = None;
+            },
+            (Some(SkipUntil::CodeSection), _) => {
+                return;
+            },
+            _ => {},
+        }
+
+        let mut spans: Vec<RenderableSpan> = vec![];
+
+        if let Some(code) = &self.code_section {
+            if let Some(span) = &code.span {
+                spans.push(RenderableSpan {
+                    span: span.clone(),
+                    auxiliary: true,
+                    note: Some(String::from("code")),
+                });
             }
         }
 
-        stack_preview = stack_preview.into_iter().filter(
-            |s| interesting_stack.contains(s)
-        ).collect();
-    }
-
-    if stack_preview.len() > 8 {
-        too_many_ssas = Some(total_stack_size - 8);
-        stack_preview = stack_preview[..8].to_vec();
-    }
-
-    println!("\n\n{}\n", "-".repeat(64));
-
-    if let Some(debug_info) = bytecodes[cursor].debug_info() {
-        let s = render_spans(
-            &[RenderableSpan {
+        if let Context::Bytecode(i) = context
+            && let Some(basic_block) = basic_block
+            && let Some(bytecode) = basic_block.code.get(i)
+            && let Some(debug_info) = bytecode.debug_info() {
+            spans.push(RenderableSpan {
                 span: *debug_info.clone(),
-                auxiliary: true,
-                note: None,
-            }],
-            &RenderSpanOption {
-                max_height: 10,
-                max_width: 88,
-                context: 5,
-                render_source: true,
-                color: None,
-                group_delim: None,
-            },
-            render_span_session,
-        );
-
-        if s.trim() != "" {
-            println!("\n{s}\n");
-        }
-    }
-
-    println!("_ret: {}", debug_stack(stack.r#return, stack, heap));
-
-    for s in stack_preview {
-        if let Some(ss) = stack.ssa.get(s) {
-            println!("_{s}: {}", debug_stack(*ss, stack, heap));
-        }
-    }
-
-    if let Some(n) = too_many_ssas {
-        println!("... (truncated {n} ssas)");
-    }
-
-    println!();
-
-    for c in (cursor.max(4) - 4)..(cursor + 5).min(bytecodes.len()) {
-        if c == cursor {
-            println!("{} |", if cursor + 2 > 1000 { "       " } else { "     " });
+                auxiliary: false,
+                note: Some(String::from("bytecode")),
+            });
         }
 
-        println!(
-            "{}{} | {}{}",
-            if c == cursor { "->" } else { "  " },
-            if cursor + 2 > 1000 { format!("{c:>5}") } else { format!("{c:>3}") },
-            if let Bytecode::Label(_) = &bytecodes[c] { "" } else { "    " },
-            &bytecodes[c],
-        );
+        if let Context::Terminator = context
+            && let Some(basic_block) = basic_block
+            && let Some(debug_info) = &basic_block.terminator_debug_info {
+            spans.push(RenderableSpan {
+                span: *debug_info.clone(),
+                auxiliary: false,
+                note: Some(String::from("terminator")),
+            });
+        }
 
-        if c == cursor {
-            println!("{} |", if cursor + 2 > 1000 { "       " } else { "     " });
+        let mut buffer = vec![];
+        buffer.push(format!("---- {context:?} ----\n"));
+
+        if !spans.is_empty() {
+            let s = render_spans(
+                &spans,
+                &self.span_option,
+                &mut self.span_session,
+            );
+            buffer.push(format!("{s}\n\n"));
+        }
+
+        if let Some(basic_block) = basic_block {
+            let mut used_ssa_indexes: Vec<SSA> = vec![];
+            used_ssa_indexes.extend(basic_block.terminator.used_ssa_indexes());
+
+            for bytecode in basic_block.code.iter() {
+                used_ssa_indexes.extend(bytecode.used_ssa_indexes());
+            }
+
+            used_ssa_indexes.sort();
+            used_ssa_indexes.dedup();
+
+            for ssa in used_ssa_indexes.iter() {
+                if let Some(value) = stack.ssa.get(ssa) {
+                    buffer.push(format!("{ssa}: {}\n", debug_stack(*value, stack, heap)));
+                } else {
+                    buffer.push(format!("{ssa}: N/A\n"));
+                }
+            }
+
+            buffer.push(String::from("\n"));
+
+            let highlight = match context {
+                Context::Bytecode(i) => Highlight::Bytecode(i),
+                Context::Terminator => Highlight::Terminator,
+                _ => Highlight::None,
+            };
+            let s = basic_block.dump(true, highlight, false);
+            buffer.push(format!("{s}\n\n"));
+        }
+
+        self.dump_history.push(buffer.concat());
+
+        while self.dump_history.len() > 100 {
+            self.dump_history = self.dump_history[1..].to_vec();
+        }
+
+        let mut cursor = self.dump_history.len() - 1;
+        let mut watching_history = false;
+
+        loop {
+            print!("\x1b[2J\x1b[H");
+            io::stdout().flush().unwrap();
+
+            println!("{}", self.dump_history[cursor]);
+
+            let commands = if watching_history {
+                vec![
+                    if cursor > 0 { Some("v: see previous dump") } else { None },
+                    Some("b: go to current dump"),
+                ]
+            } else {
+                vec![
+                    Some("z: next bytecode (or press any key)"),
+                    Some("x: next basic block"),
+                    Some("c: next code section"),
+                    if cursor > 0 { Some("v: see previous dump") } else { None },
+                ]
+            };
+
+            for command in commands.iter() {
+                if let Some(s) = command {
+                    println!("{s}");
+                }
+            }
+
+            let mut command = String::new();
+            std::io::stdin().read_line(&mut command).unwrap();
+
+            if watching_history {
+                match command.trim() {
+                    "v" => {
+                        cursor -= 1;
+                    },
+                    "b" => {
+                        cursor = self.dump_history.len() - 1;
+                        watching_history = false;
+                    },
+                    _ => {},
+                }
+
+                continue;
+            } else {
+                match command.trim() {
+                    "x" => {
+                        self.skip_until = Some(SkipUntil::BasicBlock);
+                    },
+                    "c" => {
+                        self.skip_until = Some(SkipUntil::CodeSection);
+                    },
+                    "v" => {
+                        cursor -= 1;
+                        watching_history = true;
+                        continue;
+                    },
+                    _ => {},
+                }
+            }
+
+            break;
         }
     }
-
-    std::io::stdin().read_line(&mut String::new()).unwrap();
 }
 
 fn debug_stack(value: u32, stack: &Stack, heap: &Heap) -> String {
@@ -117,13 +255,28 @@ fn debug_stack(value: u32, stack: &Stack, heap: &Heap) -> String {
         },
         None => String::from("????"),
     };
+    let list_meta = {
+        let ptr = value as usize;
+
+        if ptr + 2 >= heap.data.len() {
+            String::from("????")
+        } else {
+            let slice_ptr = heap.data[ptr];
+            let start = heap.data[ptr + 1];
+            let length = heap.data[ptr + 2];
+            format!("{{ slice_ptr: {slice_ptr}, start: {start}, length: {length} }}")
+        }
+    };
     let ref_count = if value > 0 {
-        heap.data[value as usize - 1].to_string()
+        match heap.data.get(value as usize - 1) {
+            Some(r) => r.to_string(),
+            None => String::from("????"),
+        }
     } else {
         String::from("????")
     };
 
-    format!("scalar={value}, int={int}, string={string}, ref_count={ref_count}")
+    format!("scalar={value}, int={int}, list_meta={list_meta}, string={string}, ref_count={ref_count}")
 }
 
 fn try_inspect_int(heap: &[u32], ptr: usize) -> Option<(bool, &[u32])> {

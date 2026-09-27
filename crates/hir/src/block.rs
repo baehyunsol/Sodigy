@@ -360,8 +360,6 @@ impl BlockSession {
     }
 }
 
-// VIBE NOTE: this function's drafted by Perplexity (I'm not sure which model it was),
-//            and modified by me.
 // If it finds a cycle, it immediately exits. The result has all the vertices of the cycle.
 fn find_cycle(
     vertices: Vec<Span>,

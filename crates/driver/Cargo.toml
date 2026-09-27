@@ -28,8 +28,6 @@ sodigy-timings = { version = "0.1.0", path = "../timings" }
 sodigy-utils = { version = "0.1.0", path = "../utils" }
 
 [features]
-debug-bytecode = ["sodigy-interpreter/debug-bytecode"]
-debug-heap = ["sodigy-interpreter/debug-heap"]
 log = [
     "sodigy-bytecode/log",
     "sodigy-code-gen/log",
