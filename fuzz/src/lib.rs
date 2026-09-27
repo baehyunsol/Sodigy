@@ -1,9 +1,9 @@
+use sodigy_code_gen::{Emit, Profile};
 use sodigy_driver::{
     Backend,
     ColorWhen,
     Error,
     OptimizeLevel,
-    Profile,
     StoreIrAt,
     ValidateTokenSpans,
     init_project,
@@ -36,9 +36,11 @@ pub fn runner(data: &[u8], target: &str) {
     match init_workers_and_compile(
         join(&target_dir, "src/").unwrap(),
         StoreIrAt::IntermediateDir,
-        Backend::Bytecode,
+        None,
+        Some(Backend::Interpret),
+        Profile::Test,
         join(&target_dir, "target/").unwrap(),
-        OptimizeLevel::None,
+        OptimizeLevel::Mild,
         &HashMap::new(),
 
         // If it's true, I can find bugs in ir dumps.
@@ -53,11 +55,13 @@ pub fn runner(data: &[u8], target: &str) {
         true,  // incremental-compilation
         ValidateTokenSpans::Never,
         false,  // verify-built-ins
+        false,  // check-allocator
+        false,  // debug-bytecode
         Some(Profile::Test),
         true,  // quiet
     ) {
         Ok(_) => {},
-        Err(Error::CompileError | Error::RuntimeError) => {},  // it's okay
+        Err(Error::CompileError | Error::RuntimeError(_)) => {},  // it's okay
         Err(e) => panic!("{e:?}"),
     }
 }

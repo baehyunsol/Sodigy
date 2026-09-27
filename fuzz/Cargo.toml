@@ -9,6 +9,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
+sodigy-code-gen = { path = "../crates/code-gen" }
 sodigy-driver = { path = "../crates/driver" }
 sodigy-fs-api = { path = "../crates/fs-api" }
 

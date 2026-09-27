@@ -1,11 +1,11 @@
-use crate::{Backend, Profile, ValidateTokenSpans};
+use crate::{Backend, ValidateTokenSpans};
 use sodigy_cli::{
     ArgCount,
     ArgParser,
     ArgType,
     Error as CliError,
 };
-use sodigy_code_gen::Emit;
+use sodigy_code_gen::{Emit, Profile};
 use sodigy_error::CustomErrorLevel;
 use sodigy_optimize::OptimizeLevel;
 use std::collections::HashMap;
