@@ -61,10 +61,6 @@ impl CnrContext {
         }
 
         let instructions = vec![
-            // It has so many issues, so I just disable it for now.
-            // FIXME: enable this
-            ExtraTest::Break,
-
             ExtraTest::Note {
                 step: 0,
                 note: "It runs every possible combination of `sodigy build`, which builds from the code files in `src/`.",
