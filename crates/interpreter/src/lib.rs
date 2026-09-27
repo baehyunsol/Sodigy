@@ -71,6 +71,16 @@ pub fn interpret(
             let mut ever_failed = false;
 
             for (name, label) in object_file.asserts.iter() {
+                if let Some(debug_session) = &mut debug_session {
+                    debug_session.code_section = None;
+                    debug_session.dump(
+                        &Stack::new(),
+                        &heap,
+                        None,
+                        DebugContext::EnterEntry,
+                    );
+                }
+
                 let result = tail_call_loop(Stack::new(), &mut heap, object_file, *label, &mut debug_session);
 
                 if check_allocator {

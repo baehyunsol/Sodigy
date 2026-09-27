@@ -20,6 +20,7 @@ use std::io::{Write, self};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Context {
+    EnterEntry,
     EnterCodeSection,
     EnterBasicBlock,
     Bytecode(usize),
@@ -30,6 +31,7 @@ pub enum Context {
 pub enum SkipUntil {
     BasicBlock,
     CodeSection,
+    Entry,
 }
 
 pub struct Session {
@@ -70,19 +72,30 @@ impl Session {
         context: Context,
     ) {
         match (self.skip_until, context) {
-            (Some(SkipUntil::BasicBlock), Context::EnterBasicBlock | Context::EnterCodeSection) => {
+            (Some(SkipUntil::BasicBlock), Context::EnterBasicBlock | Context::EnterCodeSection | Context::EnterEntry) => {
                 self.skip_until = None;
             },
             (Some(SkipUntil::BasicBlock), _) => {
                 return;
             },
-            (Some(SkipUntil::CodeSection), Context::EnterCodeSection) => {
+            (Some(SkipUntil::CodeSection), Context::EnterCodeSection | Context::EnterEntry) => {
                 self.skip_until = None;
             },
             (Some(SkipUntil::CodeSection), _) => {
                 return;
             },
+            (Some(SkipUntil::Entry), Context::EnterEntry) => {
+                self.skip_until = None;
+            },
+            (Some(SkipUntil::Entry), _) => {
+                return;
+            },
             _ => {},
+        }
+
+        // There's nothing to show!
+        if let Context::EnterEntry = context {
+            return;
         }
 
         let mut spans: Vec<RenderableSpan> = vec![];
@@ -168,24 +181,38 @@ impl Session {
 
         let mut cursor = self.dump_history.len() - 1;
         let mut watching_history = false;
+        let mut overlay = Overlay::None;
 
         loop {
             print!("\x1b[2J\x1b[H");
             io::stdout().flush().unwrap();
 
-            println!("{}", self.dump_history[cursor]);
+            // TODO: Overlay::Full hasn't been tested
+            if let Overlay::Full(s) = &overlay {
+                println!("{s}");
+            }
 
-            let commands = if watching_history {
+            else {
+                println!("{}", self.dump_history[cursor]);
+            }
+
+            let commands = if let Overlay::Full(_) = &overlay {
                 vec![
-                    if cursor > 0 { Some("v: see previous dump") } else { None },
-                    Some("b: go to current dump"),
+                    Some("q: close"),
+                ]
+            } else if watching_history {
+                vec![
+                    if cursor > 0 { Some("b: see previous dump") } else { None },
+                    Some("n: go to current dump"),
                 ]
             } else {
                 vec![
                     Some("z: next bytecode (or press any key)"),
                     Some("x: next basic block"),
                     Some("c: next code section"),
-                    if cursor > 0 { Some("v: see previous dump") } else { None },
+                    Some("v: next entry"),
+                    Some("hN: inspect heap, at address N"),
+                    if cursor > 0 { Some("b: see previous dump") } else { None },
                 ]
             };
 
@@ -195,15 +222,28 @@ impl Session {
                 }
             }
 
+            if let Overlay::Bottom(s) = &overlay {
+                println!("\n{s}\n");
+                overlay = Overlay::None;
+            }
+
             let mut command = String::new();
             std::io::stdin().read_line(&mut command).unwrap();
 
-            if watching_history {
+            if let Overlay::Full(_) = &overlay {
                 match command.trim() {
-                    "v" => {
+                    "q" => {
+                        overlay = Overlay::None;
+                        continue;
+                    },
+                    _ => {},
+                }
+            } else if watching_history {
+                match command.trim() {
+                    "b" => {
                         cursor -= 1;
                     },
-                    "b" => {
+                    "n" => {
                         cursor = self.dump_history.len() - 1;
                         watching_history = false;
                     },
@@ -220,6 +260,32 @@ impl Session {
                         self.skip_until = Some(SkipUntil::CodeSection);
                     },
                     "v" => {
+                        self.skip_until = Some(SkipUntil::Entry);
+                    },
+                    c if c.starts_with("h") => {
+                        match c.get(1..) {
+                            Some(n) => match n.parse::<u32>() {
+                                Ok(n) => {
+                                    let s = (0..8).map(
+                                        |i| match heap.data.get(n as usize + i) {
+                                            Some(value) => value.to_string(),
+                                            None => String::from("N/A"),
+                                        }
+                                    ).collect::<Vec<_>>().join(", ");
+                                    overlay = Overlay::Bottom(format!("heap[{n}..] = [{s}, ...]"));
+                                },
+                                Err(_) => {
+                                    overlay = Overlay::Bottom(format!("`{n}` is not a valid 32-bit integer."));
+                                },
+                            },
+                            None => {
+                                overlay = Overlay::Bottom(String::from("Cannot parse N."));
+                            },
+                        }
+
+                        continue;
+                    },
+                    "b" => {
                         cursor -= 1;
                         watching_history = true;
                         continue;
@@ -231,6 +297,12 @@ impl Session {
             break;
         }
     }
+}
+
+enum Overlay {
+    None,
+    Full(String),
+    Bottom(String),
 }
 
 fn debug_stack(value: u32, stack: &Stack, heap: &Heap) -> String {
