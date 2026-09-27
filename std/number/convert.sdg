@@ -2,6 +2,8 @@ use std.int.Int;
 use std.number.Number;
 use std.string.String;
 
+mod string_tests;
+
 #[impl(std.convert.convert)]
 fn number_to_int(n: Number) -> Int = std.panic("TODO");
 
@@ -95,6 +97,7 @@ fn to_string(n: Number) -> String = match (n.numer, n.denom) {
     (0, _) => "0",
     (1, 0) => "inf",
     (-1, 0) => "-inf",
+    (..0, _) => "-" ++ to_string(-n),
     ($numer, $denom) => {
         assert (1 << 80) <= numer_mantissa && numer_mantissa < (1 << 81);
         // numer = numer_mantissa * 2^(numer_exp + 80)
@@ -126,12 +129,12 @@ fn to_string(n: Number) -> String = match (n.numer, n.denom) {
         };
 
         let digits_rem = digits % 1_000;
-        let digits_rounded = if digits_rem >= 500 { digits + 1 } else { digits };
+        let digits_rounded = if digits_rem >= 500 { digits / 1000 + 1 } else { digits / 1000 };
 
         // first 39 digits
         let ($digits_off, $exp_off) = match digits_rounded {
-            10_000_000_000_000_000_000_000_000_000_000_000_000_000_000.. => (digits_rounded / 10_000, exp + 1),
-            _ => (digits_rounded / 1_000, exp),
+            10_000_000_000_000_000_000_000_000_000_000_000_000_000.. => (digits_rounded / 10, exp + 1),
+            _ => (digits_rounded, exp),
         };
 
         render_digits(digits_off, exp_off)
@@ -153,8 +156,7 @@ fn get_decimal_digits(exp: Int) -> (Int, Int) = match exp {
 
 fn render_digits(digits: Int, exp: Int) -> String = {
     assert digits_str.len() == 40;
-    assert digits_str[0] == '1';
     let digits_str = f"{digits}";
 
-    std.panic("TODO")
+    std.panic(f"TODO: {digits}, {exp}")
 };

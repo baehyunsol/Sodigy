@@ -1,6 +1,12 @@
 use std.int.Int;
 use std.number.{Number, gcd};
 
+#[impl(std.op.neg)]
+fn neg_number(n: Number) -> Number = Number {
+    numer: -n.numer,
+    denom: n.denom,
+};
+
 #[impl(std.op.add)]
 fn add_number(a: Number, b: Number) -> Number = {
     if a.is_inf() || b.is_inf() {
