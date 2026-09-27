@@ -2,7 +2,6 @@ use sodigy_error::FuncEffect;
 use sodigy_mir::{Intrinsic, Session as MirSession};
 use sodigy_span::Span;
 use sodigy_utils::camel_to_snake;
-use std::collections::HashMap;
 
 mod assert;
 mod dump;
@@ -246,9 +245,9 @@ impl Bytecode {
             Bytecode::Update { dst, .. } |
             Bytecode::Intrinsic { dst, .. } |
             Bytecode::InitTuple { dst, .. } |
-            Bytecode::InitList { dst, .. } => Some(dst.clone()),
+            Bytecode::InitList { dst, .. } => Some(*dst),
             Bytecode::Call { dst, .. } |
-            Bytecode::CallDynamic { dst, .. } => dst.clone(),
+            Bytecode::CallDynamic { dst, .. } => *dst,
             Bytecode::LoadGlobal { dst, .. } => Some(Memory::SSA(*dst)),
             Bytecode::Jump(_) |
             Bytecode::JumpIf { .. } |
@@ -299,23 +298,23 @@ impl Bytecode {
             Bytecode::Const { dst: memory, .. } |
             Bytecode::InitTuple { dst: memory, .. } |
             Bytecode::InitList { dst: memory, .. }  => {
-                memories.push(memory.clone());
+                memories.push(*memory);
             },
             Bytecode::Move { src, dst } => {
-                memories.push(src.clone());
-                memories.push(dst.clone());
+                memories.push(*src);
+                memories.push(*dst);
             },
             Bytecode::Phi { pair: (a, b), dst } => {
                 indexes.push(*a);
                 indexes.push(*b);
-                memories.push(dst.clone());
+                memories.push(*dst);
             },
             Bytecode::Call { args, dst, .. } |
             Bytecode::CallDynamic { args, dst, .. } => {
                 indexes.extend(args.to_vec());
 
                 if let Some(dst) = dst {
-                    memories.push(dst.clone());
+                    memories.push(*dst);
                 }
             },
             Bytecode::JumpIf { value, .. } |
@@ -329,11 +328,11 @@ impl Bytecode {
             Bytecode::Update { src, value, dst, .. } => {
                 indexes.push(*src);
                 indexes.push(*value);
-                memories.push(dst.clone());
+                memories.push(*dst);
             },
             Bytecode::Intrinsic { args, dst, .. } => {
                 indexes.extend(args.to_vec());
-                memories.push(dst.clone());
+                memories.push(*dst);
             },
             Bytecode::Jump(_) |
             Bytecode::TryInitGlobal { .. } |

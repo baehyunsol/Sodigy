@@ -2,7 +2,7 @@ use crate::{CodeSection, LocalLabel, Session};
 use std::collections::HashMap;
 
 // You must call this function after the bytecode optimization!
-pub fn insert_ref_count<'hir, 'mir>(mut session: Session<'hir, 'mir>) -> Session<'hir, 'mir> {
+pub fn insert_ref_count<'hir, 'mir>(session: Session<'hir, 'mir>) -> Session<'hir, 'mir> {
     session  // TODO
 //     let mut new_code = HashMap::with_capacity(session.object_file.code.len());
 // 

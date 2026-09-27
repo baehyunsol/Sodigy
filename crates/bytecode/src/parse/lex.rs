@@ -1,7 +1,7 @@
 use super::{BytecodeParseError, Keyword, Section, Token};
 use crate::{GlobalLabel, LocalLabel, Memory, SSA, Value};
 use sodigy_number::{BigInt, add_ubi, mul_ubi, or_ubi, shl_ubi};
-use sodigy_span::{Span, SpanHash};
+use sodigy_span::SpanHash;
 
 pub fn lex(b: &[u8]) -> Result<[Vec<Token>; 3], BytecodeParseError> {
     let mut cursor = 0;
@@ -246,7 +246,7 @@ fn lex_code_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), 
 }
 
 fn lex_label_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), BytecodeParseError> {
-    let mut tokens = vec![];
+    let tokens = vec![];
 
     loop {
         match (b.get(cursor), b.get(cursor + 1)) {

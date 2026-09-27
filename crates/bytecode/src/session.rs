@@ -97,7 +97,7 @@ impl Session<'_, '_> {
             _ => {
                 let ssa_reg = self.get_ssa();
                 bytecodes.push(Bytecode::Move {
-                    src: src.clone(),
+                    src: *src,
                     dst: Memory::SSA(ssa_reg),
                 });
                 ssa_reg

@@ -41,26 +41,26 @@ impl From<i128> for BigInt {
         match n {
             -4294967295..=4294967295 => BigInt {
                 is_neg: n < 0,
-                nums: vec![n.abs() as u32],
+                nums: vec![n.unsigned_abs() as u32],
             },
             -18446744073709551615..=18446744073709551615 => BigInt {
                 is_neg: n < 0,
                 nums: vec![
-                    (n.abs() as u64 & 0xffff_ffff) as u32,
-                    ((n.abs() as u64) >> 32) as u32,
+                    (n.unsigned_abs() & 0xffff_ffff) as u32,
+                    (n.unsigned_abs() >> 32) as u32,
                 ],
             },
             -79228162514264337593543950335..=79228162514264337593543950335 => BigInt {
                 is_neg: n < 0,
                 nums: vec![
-                    (n.abs() as u128 & 0xffff_ffff) as u32,
-                    (((n.abs() as u128) >> 32) & 0xffff_ffff) as u32,
-                    ((n.abs() as u128) >> 64) as u32,
+                    (n.unsigned_abs() & 0xffff_ffff) as u32,
+                    ((n.unsigned_abs() >> 32) & 0xffff_ffff) as u32,
+                    (n.unsigned_abs() >> 64) as u32,
                 ],
             },
             _ => {
                 let is_neg = n < 0;
-                let n = n.abs() as u128;
+                let n = n.unsigned_abs();
                 let mut n = BigInt::from(n);
                 n.is_neg = is_neg;
                 n
@@ -84,7 +84,7 @@ impl From<u64> for BigInt {
 
 impl From<i64> for BigInt {
     fn from(n: i64) -> BigInt {
-        let mut abs = BigInt::from((n as i128).abs() as u64);
+        let mut abs = BigInt::from((n as i128).unsigned_abs());
         abs.is_neg = n < 0;
         abs
     }
@@ -128,7 +128,7 @@ impl TryFrom<&BigInt> for i128 {
                 Ok((*a as u128 + ((*b as u128) << 32) + ((*c as u128) << 64)) as i128 * (!n.is_neg as i128 * 2 - 1))
             },
             [a, b, c, d] => {
-                let nu128 = (*a as u128 + ((*b as u128) << 32) + ((*c as u128) << 64) + ((*d as u128) << 96)) as u128;
+                let nu128 = *a as u128 + ((*b as u128) << 32) + ((*c as u128) << 64) + ((*d as u128) << 96);
 
                 match (nu128, n.is_neg) {
                     (0..=170141183460469231731687303715884105727, _) => Ok(nu128 as i128 * (!n.is_neg as i128 * 2 - 1)),

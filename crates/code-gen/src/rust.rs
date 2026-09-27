@@ -62,9 +62,9 @@ pub fn lower(
     }
 }
 
-const RUNNER: &'static str = include_str!("../rust-runtime-src/run.rs");
-const HEAP: &'static str = include_str!("../rust-runtime-src/heap.rs");
-const INT: &'static str = include_str!("../rust-runtime-src/int.rs");
+const RUNNER: &str = include_str!("../rust-runtime-src/run.rs");
+const HEAP: &str = include_str!("../rust-runtime-src/heap.rs");
+const INT: &str = include_str!("../rust-runtime-src/int.rs");
 
 fn lower_main(object_file: ObjectFile, profile: Profile, errors: &mut Vec<Error>, warnigs: &mut Vec<Warning>) -> String {
     let mut body = vec![];
@@ -766,7 +766,7 @@ fn calc_free_blocks(simulated_heap_len: usize) -> Vec<(u32, usize)> {
     // };
 
     let mut cursor = simulated_heap_len - 2;
-    let mut target = match simulated_heap_len {
+    let target = match simulated_heap_len {
         ..=5 => 3,
         ..=10 => 8,
         ..=20 => 18,

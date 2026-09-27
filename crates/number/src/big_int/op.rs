@@ -1,5 +1,5 @@
 use super::{
-    cmp::{cmp_ubi, lt_ubi},
+    cmp::cmp_ubi,
     remove_suffix_0,
     v64_to_v32,
 };

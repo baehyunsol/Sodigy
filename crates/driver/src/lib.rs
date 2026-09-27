@@ -55,7 +55,7 @@ use log::{
     dump_timings,
     store_inter_hir_log,
 };
-use worker::{Channel, MessageToMain, MessageToWorker, Worker, WorkerId, init_workers_and_channels};
+use worker::{Channel, MessageToMain, MessageToWorker, WorkerId, init_workers_and_channels};
 
 // The compiler compiles a project module-by-module. This is the status
 // of each module's compilation.

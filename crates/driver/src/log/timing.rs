@@ -195,7 +195,7 @@ fn dump_timings_html(
         let mut buffer = vec![];
 
         for stage in STAGES.iter() {
-            let mut substages: Vec<Substage> = stats.substage_per_stage.get(stage).unwrap_or(&HashSet::new()).iter().map(|s| *s).collect();
+            let mut substages: Vec<Substage> = stats.substage_per_stage.get(stage).unwrap_or(&HashSet::new()).iter().copied().collect();
             let mut modules = 0;
             let mut longest_stages: Vec<String> = vec![];
             let mut stage_stats = String::new();

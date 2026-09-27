@@ -177,7 +177,7 @@ impl Heap {
         let ptr = self.alloc(2) as u32;
         let metadata = if n < 0 { 0x8000_0001 } else { 1 };
         self.data[ptr as usize] = metadata;
-        self.data[ptr as usize + 1] = n.abs() as u32;
+        self.data[ptr as usize + 1] = n.unsigned_abs();
         ptr
     }
 
@@ -281,7 +281,7 @@ impl Heap {
     // the returned block will have 10 scalars, where the first
     // 2 scalars are header and ref_count, and the remaining scalars are for data.
     pub fn alloc(&mut self, size: usize) -> usize {
-        let result = match size {
+        match size {
             ..=3 => {
                 if let Some(ptr) = self.freelist_3.pop() {
                     self.data[ptr - 2] = 0x8000_0003;
@@ -449,9 +449,7 @@ impl Heap {
                     self.alloc(size)
                 },
             },
-        };
-
-        result
+        }
     }
 
     fn free(&mut self, ptr: usize) {

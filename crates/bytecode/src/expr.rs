@@ -46,7 +46,7 @@ pub fn lower_expr(
                             let func_pointer = Value::FuncPointer(id.def_span.hash());
                             bytecodes.push(Bytecode::Const {
                                 value: session.intern_value(&func_pointer),
-                                dst: dst.clone(),
+                                dst,
                                 debug_info: if session.debug_info { Some(Box::new(id.span.clone())) } else { None },
                             });
 
@@ -64,10 +64,7 @@ pub fn lower_expr(
             };
 
             if Memory::SSA(src) != dst {
-                bytecodes.push(Bytecode::Move {
-                    src: Memory::SSA(src),
-                    dst: dst.clone(),
-                });
+                bytecodes.push(Bytecode::Move { src: Memory::SSA(src), dst });
             }
 
             if is_tail_call {
@@ -79,7 +76,7 @@ pub fn lower_expr(
             let value = session.lower_constant(c);
             bytecodes.push(Bytecode::Const {
                 value,
-                dst: dst.clone(),
+                dst,
                 debug_info: if session.debug_info { Some(Box::new(c.span())) } else { None },
             });
 
@@ -112,14 +109,14 @@ pub fn lower_expr(
             lower_expr(false_value, session, bytecodes, Memory::SSA(false_ssa), is_tail_call);
 
             if !is_tail_call {
-                bytecodes.push(Bytecode::Jump(return_expr.clone()));
+                bytecodes.push(Bytecode::Jump(return_expr));
             }
 
             bytecodes.push(Bytecode::Label(eval_true_value));
             lower_expr(true_value, session, bytecodes, Memory::SSA(true_ssa), is_tail_call);
 
             if !is_tail_call {
-                bytecodes.push(Bytecode::Label(return_expr.clone()));
+                bytecodes.push(Bytecode::Label(return_expr));
                 bytecodes.push(Bytecode::Phi { pair: (true_ssa, false_ssa), dst });
             }
         },
@@ -133,7 +130,7 @@ pub fn lower_expr(
                     &r#let.value,
                     session,
                     bytecodes,
-                    dst.clone(),
+                    dst,
                     /* is_tail_call: */ false,
                 );
             }
@@ -149,7 +146,7 @@ pub fn lower_expr(
                     &r#do.value,
                     session,
                     bytecodes,
-                    dst.clone(),
+                    dst,
                     /* is_tail_call: */ false,
                 );
             }
@@ -174,10 +171,7 @@ pub fn lower_expr(
                 curr_ssa_reg = ssa_reg;
             }
 
-            bytecodes.push(Bytecode::Move {
-                src: Memory::SSA(curr_ssa_reg),
-                dst: dst.clone(),
-            });
+            bytecodes.push(Bytecode::Move { src: Memory::SSA(curr_ssa_reg), dst });
 
             if is_tail_call {
                 let return_ssa = session.move_to_ssa(&dst, bytecodes);
@@ -236,7 +230,7 @@ pub fn lower_expr(
                     src,
                     field,
                     if i == fields.len() - 1 { rhs_ssa } else { curr_ssa_reg },
-                    if i == 0 { dst.clone() } else { Memory::SSA(ssa_reg) },
+                    if i == 0 { dst } else { Memory::SSA(ssa_reg) },
                     bytecodes,
                 );
                 curr_ssa_reg = ssa_reg;
@@ -270,7 +264,7 @@ pub fn lower_expr(
                                 bytecodes.push(Bytecode::Intrinsic {
                                     intrinsic: *intrinsic,
                                     args: arg_ssa_regs,
-                                    dst: dst.clone(),
+                                    dst,
                                     debug_info: if session.debug_info { Some(Box::new(span.clone())) } else { None },
                                 });
 
@@ -330,7 +324,7 @@ pub fn lower_expr(
                     let value = session.lower_constant_tuple(args);
                     bytecodes.push(Bytecode::Const {
                         value,
-                        dst: dst.clone(),
+                        dst,
                         debug_info,
                     });
                 } else {
@@ -341,7 +335,7 @@ pub fn lower_expr(
 
                     bytecodes.push(Bytecode::InitTuple {
                         elements: args.len(),
-                        dst: dst.clone(),
+                        dst,
                         debug_info,
                     });
 
@@ -378,7 +372,7 @@ pub fn lower_expr(
                             assert!(args.is_empty());
                             bytecodes.push(Bytecode::Const {
                                 value: InternedValue::Scalar(variant_index as u32),
-                                dst: dst.clone(),
+                                dst,
                                 debug_info: None,
                             });
                         },
@@ -386,7 +380,7 @@ pub fn lower_expr(
                             let dst_ssa = session.move_to_ssa(&dst, bytecodes);
                             bytecodes.push(Bytecode::InitTuple {
                                 elements: args.len() + 1,
-                                dst: dst.clone(),
+                                dst,
                                 debug_info: None,
                             });
                             bytecodes.push(Bytecode::Const {
@@ -423,13 +417,13 @@ pub fn lower_expr(
                     let value = session.lower_constant_list(args);
                     bytecodes.push(Bytecode::Const {
                         value,
-                        dst: dst.clone(),
+                        dst,
                         debug_info: if session.debug_info { Some(Box::new(group_span.clone())) } else { None },
                     });
                 } else {
                     bytecodes.push(Bytecode::InitList {
                         elements: args.len(),
-                        dst: dst.clone(),
+                        dst,
                         debug_info: if session.debug_info { Some(Box::new(group_span.clone())) } else { None },
                     });
 
@@ -526,7 +520,7 @@ fn lower_field_update(
             bytecodes.push(Bytecode::Update {
                 src,
                 size: 100,  // TODO: I'm too lazy to calc the size, so I'm just giving a big enough number
-                index: *payload as usize + 1,
+                index: *payload + 1,
                 value,
                 dst,
             });

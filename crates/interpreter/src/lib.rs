@@ -129,7 +129,7 @@ fn tail_call_loop(
         let basic_blocks = &code.basic_blocks;
 
         if let Some(debug_session) = debug_session {
-            debug_session.code_section = Some(code.clone().clone());
+            debug_session.code_section = Some((*code).clone());
             debug_session.dump(
                 &stack,
                 heap,
@@ -330,8 +330,7 @@ fn call(
                                     is_neg,
                                     nums,
                                 });
-                                let ptr = heap.alloc_value(&v);
-                                ptr
+                                heap.alloc_value(&v)
                             },
                             Intrinsic::LtInt => if lt_bi(lhs_neg, lhs, rhs_neg, rhs) { 1 } else { 0 },
                             Intrinsic::EqInt => if eq_bi(lhs_neg, lhs, rhs_neg, rhs) { 1 } else { 0 },
@@ -430,7 +429,7 @@ fn call(
                         let start = heap.data[slice_ptr + 1];
 
                         let new_slice_ptr = heap.alloc(3);
-                        heap.data[new_slice_ptr] = buffer_ptr as u32;
+                        heap.data[new_slice_ptr] = buffer_ptr;
                         heap.data[new_slice_ptr + 1] = start + slice_start;
                         heap.data[new_slice_ptr + 2] = slice_end - slice_start;
                         update(dst, new_slice_ptr as u32, &mut stack, heap);
@@ -443,7 +442,7 @@ fn call(
                         let length = heap.data[slice_ptr + 2];
 
                         let new_slice_ptr = heap.alloc(3);
-                        heap.data[new_slice_ptr] = buffer_ptr as u32;
+                        heap.data[new_slice_ptr] = buffer_ptr;
                         heap.data[new_slice_ptr + 1] = start + slice_start;
                         heap.data[new_slice_ptr + 2] = length - slice_start;
                         update(dst, new_slice_ptr as u32, &mut stack, heap);
@@ -567,7 +566,7 @@ fn call(
                 }
             },
             Terminator::TryInitGlobal { global, label } => {
-                if heap.global_values.get(&GlobalValueId::GlobalLet(global.span())).is_none() {
+                if !heap.global_values.contains_key(&GlobalValueId::GlobalLet(global.span())) {
                     match tail_call_loop(Stack::new(), heap, object_file, *global, debug_session) {
                         CallResult::Return(_) => {},
                         CallResult::TailCall { .. } => unreachable!(),

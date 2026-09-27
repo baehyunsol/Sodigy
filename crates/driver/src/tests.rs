@@ -1,4 +1,5 @@
 use crate::{
+    Backend,
     ColorWhen,
     Profile,
     StoreIrAt,
@@ -6,7 +7,6 @@ use crate::{
     init_project,
     init_workers_and_compile,
 };
-use sodigy_code_gen::Backend;
 use sodigy_optimize::OptimizeLevel;
 use sodigy_fs_api::{exists, remove_dir_all};
 use std::collections::HashMap;
@@ -21,20 +21,23 @@ fn verify_built_ins() {
     init_workers_and_compile(
         String::from("verify_built_ins/src"),
         StoreIrAt::IntermediateDir,
-        Backend::Bytecode,
+        None,
+        Some(Backend::Interpret),
+        Profile::Test,
         String::from("verify_built_ins/target/"),
         OptimizeLevel::None,
         &HashMap::new(),
         false,  // emit-irs
         false,  // dump-post-mir-log
         false,   // dump-timings
-        false,  // dump-bytecodes
         0,  // graceful-shutdown
         8,  // jobs
         ColorWhen::Never,
         true,  // incremental-compilation
         ValidateTokenSpans::Never,
-        true,  // verify-built-ins
+        true,   // verify-built-ins
+        false,  // check-allocator
+        false,  // debug-bytecode
         Some(Profile::Test),
         true,  // quiet
     ).unwrap();

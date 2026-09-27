@@ -82,7 +82,7 @@ impl Assert {
             dst: Memory::SSA(null_ssa),
             debug_info: None,
         });
-        bytecodes.push(Bytecode::Label(no_panic.clone()));
+        bytecodes.push(Bytecode::Label(no_panic));
 
         if is_top_level {
             let status_code = session.get_ssa();

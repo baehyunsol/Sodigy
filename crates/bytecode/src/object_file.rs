@@ -54,7 +54,7 @@ impl ObjectFile {
         intermediate_dir: &str,
     ) -> ObjectFile {
         let mut code = HashMap::with_capacity(lets.len() + funcs.len() + asserts.len());
-        let mut data: HashMap<_, _> = data_section.drain().collect();
+        let data: HashMap<_, _> = std::mem::take(data_section);
         let mut assert_labels = Vec::with_capacity(asserts.len());
 
         for mut func in funcs.drain(..) {

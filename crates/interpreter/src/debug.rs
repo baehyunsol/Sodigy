@@ -1,7 +1,6 @@
 use crate::{Heap, Stack};
 use sodigy_bytecode::{
     BasicBlock,
-    Bytecode,
     CodeSection,
     Highlight,
     SSA,
@@ -15,7 +14,6 @@ use sodigy_span::{
     RenderSpanSession,
     render_spans,
 };
-use std::collections::HashSet;
 use std::io::{Write, self};
 
 #[derive(Clone, Copy, Debug)]

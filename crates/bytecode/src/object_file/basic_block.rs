@@ -58,7 +58,7 @@ pub fn to_basic_blocks(bytecodes: &mut Vec<Bytecode>) -> HashMap<LocalLabel, Bas
         match bytecode {
             Bytecode::Jump(label) => {
                 basic_blocks.insert(
-                    curr_label.clone().unwrap(),
+                    curr_label.unwrap(),
                     BasicBlock {
                         label: curr_label.unwrap(),
                         code: std::mem::take(&mut curr_code),
@@ -70,7 +70,7 @@ pub fn to_basic_blocks(bytecodes: &mut Vec<Bytecode>) -> HashMap<LocalLabel, Bas
             },
             Bytecode::Call { func, args, dst: None, debug_info, .. } => {
                 basic_blocks.insert(
-                    curr_label.clone().unwrap(),
+                    curr_label.unwrap(),
                     BasicBlock {
                         label: curr_label.unwrap(),
                         code: std::mem::take(&mut curr_code),
@@ -82,7 +82,7 @@ pub fn to_basic_blocks(bytecodes: &mut Vec<Bytecode>) -> HashMap<LocalLabel, Bas
             },
             Bytecode::CallDynamic { func, args, dst: None, debug_info, .. } => {
                 basic_blocks.insert(
-                    curr_label.clone().unwrap(),
+                    curr_label.unwrap(),
                     BasicBlock {
                         label: curr_label.unwrap(),
                         code: std::mem::take(&mut curr_code),
@@ -94,7 +94,7 @@ pub fn to_basic_blocks(bytecodes: &mut Vec<Bytecode>) -> HashMap<LocalLabel, Bas
             },
             Bytecode::JumpIf { value, t, f, debug_info } => {
                 basic_blocks.insert(
-                    curr_label.clone().unwrap(),
+                    curr_label.unwrap(),
                     BasicBlock {
                         label: curr_label.unwrap(),
                         code: std::mem::take(&mut curr_code),
@@ -106,7 +106,7 @@ pub fn to_basic_blocks(bytecodes: &mut Vec<Bytecode>) -> HashMap<LocalLabel, Bas
             },
             Bytecode::TryInitGlobal { global, label } => {
                 basic_blocks.insert(
-                    curr_label.clone().unwrap(),
+                    curr_label.unwrap(),
                     BasicBlock {
                         label: curr_label.unwrap(),
                         code: std::mem::take(&mut curr_code),
@@ -117,13 +117,13 @@ pub fn to_basic_blocks(bytecodes: &mut Vec<Bytecode>) -> HashMap<LocalLabel, Bas
                 curr_label = None;
             },
             Bytecode::Label(label) => {
-                if curr_label.is_some() {
+                if let Some(curr_label) = curr_label {
                     basic_blocks.insert(
-                        curr_label.clone().unwrap(),
+                        curr_label,
                         BasicBlock {
-                            label: curr_label.unwrap(),
+                            label: curr_label,
                             code: std::mem::take(&mut curr_code),
-                            terminator: Terminator::Jump(label.clone()),
+                            terminator: Terminator::Jump(label),
                             terminator_debug_info: None,
                         },
                     );
@@ -133,7 +133,7 @@ pub fn to_basic_blocks(bytecodes: &mut Vec<Bytecode>) -> HashMap<LocalLabel, Bas
             },
             Bytecode::Return(src) => {
                 basic_blocks.insert(
-                    curr_label.clone().unwrap(),
+                    curr_label.unwrap(),
                     BasicBlock {
                         label: curr_label.unwrap(),
                         code: std::mem::take(&mut curr_code),
