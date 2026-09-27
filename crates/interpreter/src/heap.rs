@@ -303,7 +303,7 @@ impl Heap {
                 } else if let Some(ptr) = self.freelist_18.pop() {
                     self.data[ptr - 2] = 0x8000_0008;
                     self.data[ptr + 8] = 0x0000_0008;
-                    self.freelist_18.push(ptr + 10);
+                    self.freelist_8.push(ptr + 10);
                     ptr
                 } else {
                     self.expand_8();
@@ -317,7 +317,7 @@ impl Heap {
                 } else if let Some(ptr) = self.freelist_38.pop() {
                     self.data[ptr - 2] = 0x8000_0012;
                     self.data[ptr + 18] = 0x0000_0012;
-                    self.freelist_8.push(ptr + 20);
+                    self.freelist_18.push(ptr + 20);
                     ptr
                 } else {
                     self.expand_18();
