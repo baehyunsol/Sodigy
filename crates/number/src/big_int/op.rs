@@ -273,6 +273,7 @@ pub fn rem_bi(
     rhs_neg: bool,
     rhs: &[u32],
 ) -> (bool, Vec<u32>) {
+    // println!("{:?} % {:?}", (lhs_neg, lhs), (rhs_neg, rhs));
     match (lhs.len(), rhs.len()) {
         (0..4, 0..4) => {
             let mut lhs: i128 = lhs[0] as i128 | ((*lhs.get(1).unwrap_or(&0) as i128) << 32) | ((*lhs.get(2).unwrap_or(&0) as i128) << 64);
