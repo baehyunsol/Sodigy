@@ -337,7 +337,7 @@ fn check_compile_output(output: &subprocess::Output, directive: &Directive, expe
 fn check_run_output(output: &subprocess::Output, directive: &Directive, expected_output: &ExpectedOutput) -> Result<(), String> {
     match (output.status.success(), directive.expected_status) {
         (true, Status::RunFail) => { return Err(String::from("expected run-fail, but it passed")); },
-        (false, Status::RunPass) => { return Err(String::from("expected run-pass, but if failed")); },
+        (false, Status::RunPass) => { return Err(String::from("expected run-pass, but it failed")); },
         _ => {},
     }
 
