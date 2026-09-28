@@ -20,7 +20,7 @@ pub enum Value {
     FuncPointer(SpanHash),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum InternedValue {
     Interned(ExprHash),
     Scalar(u32),

@@ -327,6 +327,11 @@ pub fn lower_expr(
                         dst,
                         debug_info,
                     });
+
+                    if is_tail_call {
+                        let return_ssa = session.move_to_ssa(&dst, bytecodes);
+                        bytecodes.push(Bytecode::Return(return_ssa));
+                    }
                 } else {
                     let debug_info = match (session.debug_info, func) {
                         (true, Callable::TupleInit { group_span }) => Some(Box::new(group_span.clone())),
@@ -420,6 +425,11 @@ pub fn lower_expr(
                         dst,
                         debug_info: if session.debug_info { Some(Box::new(group_span.clone())) } else { None },
                     });
+
+                    if is_tail_call {
+                        let return_ssa = session.move_to_ssa(&dst, bytecodes);
+                        bytecodes.push(Bytecode::Return(return_ssa));
+                    }
                 } else {
                     bytecodes.push(Bytecode::InitList {
                         elements: args.len(),
