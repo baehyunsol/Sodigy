@@ -3,7 +3,7 @@ mod log;
 
 use crate::log::write_log;
 use crate::mono::GenericCall;
-use sodigy_error::{Error, FuncEffect, Warning};
+use sodigy_error::{Error, ErrorKind, FuncEffect, Warning};
 use sodigy_mir::{EnumVariantFields, Expr, Session as MirSession, Type, get_monomorphization_id_owned};
 use sodigy_span::Span;
 use sodigy_stages::{Stage, Substage};
@@ -346,6 +346,15 @@ pub fn solve_type(
         write_log!(session, LogEntry::TypeSolveLoopEnd(i));
         timings_session.stage_end(has_error);
         break;
+    }
+
+    if session.types.contains_key(&Span::None) {
+        session.errors.push(Error {
+            kind: ErrorKind::InternalCompilerError { id: 524716 },
+            spans: vec![],
+            note: Some(String::from("The type solver created a type var for `Span::None`.")),
+        });
+        has_error = true;
     }
 
     // If we have both real errors and maybe-errors, we ignore the
