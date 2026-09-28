@@ -68,6 +68,15 @@ fn append_list<T>(ls: [T], v: T) -> [T];
 #[lang_item("built_in.prepend_list")]
 fn prepend_list<T>(v: T, ls: [T]) -> [T];
 
+#[impl(std.op.mul)]
+fn repeat_list<T>(ls: [T], n: Int) -> [T] = match n {
+    ..=0 => [],
+    1 => ls,
+    2 => ls ++ ls,
+    3 => ls ++ ls ++ ls,
+    _ => repeat_list(ls, n / 2) ++ repeat_list(ls, n / 2 + n % 2),
+};
+
 #[associate([T])]
 fn find<T>(self, f: Fn(T) -> Bool) -> Option<T> = match self {
     [] => None,

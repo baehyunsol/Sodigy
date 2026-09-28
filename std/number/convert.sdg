@@ -94,7 +94,7 @@ let EXP_TABLE = [
 /// When using a decimal notation, there must be a decimal point.
 #[impl(std.convert.convert)]
 fn to_string(n: Number) -> String = match (n.numer, n.denom) {
-    (0, _) => "0",
+    (0, _) => "0.0",
     (1, 0) => "inf",
     (-1, 0) => "-inf",
     (..0, _) => "-" ++ to_string(-n),
@@ -158,5 +158,10 @@ fn render_digits(digits: Int, exp: Int) -> String = {
     assert digits_str.len() == 40;
     let digits_str = f"{digits}";
 
-    std.panic(f"TODO: {digits}, {exp}")
+    match exp {
+        ..0 => "0." ++ "0" * (-exp - 1) ++ digits_str,
+        0..39 => digits_str[0..(exp + 1)] ++ "." ++ digits_str[(exp + 1)..],
+        39 => digits_str ++ ".0",
+        _ => std.panic("TODO"),
+    }
 };
