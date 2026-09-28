@@ -263,7 +263,8 @@ impl Span {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum PolySpanKind {
-    Name,
-    Param(usize),
-    Return,
+    FnName,
+    ParamType(usize),
+    ParamName(usize),
+    ReturnType,
 }

@@ -132,7 +132,7 @@ impl Session {
                         let poly_name_interned = intern_string(poly_name.as_bytes(), &self.intermediate_dir).unwrap();
                         let poly_span: Span = Span::Poly {
                             name: poly_name_interned,
-                            kind: PolySpanKind::Name,
+                            kind: PolySpanKind::FnName,
                         };
 
                         match self.polys.entry(poly_span.clone()) {
@@ -164,14 +164,14 @@ impl Session {
 
                                 for i in 0..(params + 1) {
                                     let poly_span_kind = if i == params {
-                                        PolySpanKind::Return
+                                        PolySpanKind::ReturnType
                                     } else {
-                                        PolySpanKind::Param(i)
+                                        PolySpanKind::ParamType(i)
                                     };
 
                                     self.generic_to_def_span.insert(
                                         Span::Poly { name: poly_name_interned, kind: poly_span_kind },
-                                        Span::Poly { name: poly_name_interned, kind: PolySpanKind::Name },
+                                        Span::Poly { name: poly_name_interned, kind: PolySpanKind::FnName },
                                     );
                                 }
 
@@ -193,9 +193,9 @@ impl Session {
                                             name_span: Span::Poly {
                                                 name: poly_name_interned,
                                                 kind: if i == params {
-                                                    PolySpanKind::Return
+                                                    PolySpanKind::ReturnType
                                                 } else {
-                                                    PolySpanKind::Param(i)
+                                                    PolySpanKind::ParamType(i)
                                                 },
                                             },
                                         },
@@ -209,14 +209,14 @@ impl Session {
                                     params: (0..params).map(
                                         |i| FuncParam {
                                             name: param_names[i],
-                                            name_span: Span::None,
+                                            name_span: Span::Poly { name: poly_name_interned, kind: PolySpanKind::ParamName(i) },
                                             type_annot: Some(Type::Path(Path {
                                                 id: IdentWithOrigin {
                                                     id: generic_params[i],
                                                     span: Span::None,
                                                     def_span: Span::Poly {
                                                         name: poly_name_interned,
-                                                        kind: PolySpanKind::Param(i),
+                                                        kind: PolySpanKind::ParamType(i),
                                                     },
                                                     origin: NameOrigin::GenericParam { index: i },
                                                 },
@@ -233,7 +233,7 @@ impl Session {
                                             span: Span::None,
                                             def_span: Span::Poly {
                                                 name: poly_name_interned,
-                                                kind: PolySpanKind::Return,
+                                                kind: PolySpanKind::ReturnType,
                                             },
                                             origin: NameOrigin::GenericParam { index: params },
                                         },

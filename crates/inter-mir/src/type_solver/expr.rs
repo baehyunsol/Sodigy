@@ -292,10 +292,10 @@ impl Session {
                             // In order to solve this, we give the information that
                             // "the type of the first argument and the type of `x` are the same"
                             // to the type solver.
-                            if let Span::Poly { name, kind: PolySpanKind::Name } = &associated_func.def_span {
+                            if let Span::Poly { name, kind: PolySpanKind::FnName } = &associated_func.def_span {
                                 let lhs_type_var = Type::GenericArg {
                                     call: associated_func.call_span.clone(),
-                                    generic: Span::Poly { name: *name, kind: PolySpanKind::Param(0) },
+                                    generic: Span::Poly { name: *name, kind: PolySpanKind::ParamType(0) },
                                 };
 
                                 // `x.unwrap()` is desugared to `associated_func::unwrap::pure::1(x)`,
@@ -1184,7 +1184,7 @@ impl Session {
                             let poly_name = intern_string(poly_name.as_bytes(), &self.intermediate_dir).unwrap();
                             associated_func_instance = Some(AssociatedFuncInstance {
                                 field_name: *name,
-                                def_span: Span::Poly { name: poly_name, kind: PolySpanKind::Name },
+                                def_span: Span::Poly { name: poly_name, kind: PolySpanKind::FnName },
                                 call_span: name_span.clone(),
                             });
 
@@ -1194,7 +1194,7 @@ impl Session {
                                     call: name_span.clone(),
                                     generic: Span::Poly {
                                         name: poly_name,
-                                        kind: PolySpanKind::Param(i),
+                                        kind: PolySpanKind::ParamType(i),
                                     },
                                 }
                             ).collect();
@@ -1202,7 +1202,7 @@ impl Session {
                                 call: name_span.clone(),
                                 generic: Span::Poly {
                                     name: poly_name,
-                                    kind: PolySpanKind::Return,
+                                    kind: PolySpanKind::ReturnType,
                                 },
                             };
 

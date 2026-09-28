@@ -110,9 +110,10 @@ pub fn span_to_string(
             let name = unintern_ident(*name, intermediate_dir)?;
 
             match kind {
-                PolySpanKind::Name => Some(name),
-                PolySpanKind::Param(i) => Some(format!("T{i}")),
-                PolySpanKind::Return => Some(String::from("V")),
+                PolySpanKind::FnName => Some(name),
+                PolySpanKind::ParamType(i) => Some(format!("T{i}")),
+                PolySpanKind::ParamName(i) => Some(format!("x{i}")),
+                PolySpanKind::ReturnType => Some(String::from("V")),
             }
         },
         Span::None => None,
