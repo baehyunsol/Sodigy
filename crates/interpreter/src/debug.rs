@@ -38,6 +38,7 @@ pub struct Session {
     span_session: RenderSpanSession,
     dump_history: Vec<String>,
     skip_until: Option<SkipUntil>,
+    auto_run: bool,
 }
 
 impl Session {
@@ -59,6 +60,7 @@ impl Session {
             span_session: RenderSpanSession::new(intermediate_dir),
             dump_history: vec![],
             skip_until: None,
+            auto_run: false,
         }
     }
 
@@ -205,6 +207,7 @@ impl Session {
                 ]
             } else {
                 vec![
+                    Some("a: auto"),
                     Some("z: next bytecode (or press any key)"),
                     Some("x: next basic block"),
                     Some("c: next code section"),
@@ -226,7 +229,14 @@ impl Session {
             }
 
             let mut command = String::new();
-            std::io::stdin().read_line(&mut command).unwrap();
+
+            if self.auto_run {
+                command = String::from("a");
+            }
+
+            else {
+                std::io::stdin().read_line(&mut command).unwrap();
+            }
 
             if let Overlay::Full(_) = &overlay {
                 match command.trim() {
@@ -251,6 +261,9 @@ impl Session {
                 continue;
             } else {
                 match command.trim() {
+                    "a" => {
+                        self.auto_run = true;
+                    },
                     "x" => {
                         self.skip_until = Some(SkipUntil::BasicBlock);
                     },

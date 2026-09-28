@@ -492,6 +492,10 @@ fn call(
                             },
                             _ => unreachable!(),
                         }
+
+                        // Even though the return type is void, we have to put something in the register, so that
+                        // `stack.ssa.get(dst).unwrap()` won't panic.
+                        update(dst, 0, &mut stack, heap);
                     },
                     Intrinsic::RandomInt => todo!(),
                     Intrinsic::Sleep => {
