@@ -2,6 +2,8 @@ use crate::{Heap, Stack};
 use sodigy_bytecode::{
     BasicBlock,
     CodeSection,
+    GlobalLabel,
+    LocalLabel,
     Highlight,
     SSA,
 };
@@ -14,9 +16,10 @@ use sodigy_span::{
     RenderSpanSession,
     render_spans,
 };
+use std::collections::HashSet;
 use std::io::{Write, self};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Context {
     EnterEntry,
     EnterCodeSection,
@@ -30,10 +33,12 @@ pub enum SkipUntil {
     BasicBlock,
     CodeSection,
     Entry,
+    Forever,
 }
 
 pub struct Session {
     pub code_section: Option<CodeSection>,
+    breakpoints: HashSet<(GlobalLabel, LocalLabel)>,
     span_option: RenderSpanOption,
     span_session: RenderSpanSession,
     dump_history: Vec<String>,
@@ -45,6 +50,7 @@ impl Session {
     pub fn new(intermediate_dir: &str) -> Self {
         Session {
             code_section: None,
+            breakpoints: HashSet::new(),
             span_option: RenderSpanOption {
                 max_height: 20,
                 max_width: 96,
@@ -71,25 +77,39 @@ impl Session {
         basic_block: Option<&BasicBlock>,
         context: Context,
     ) {
+        let mut reached_breakpoint = false;
+        let mut in_breakpoint = false;
+
+        match (&self.code_section, basic_block) {
+            (
+                Some(CodeSection { label: global_label, .. }),
+                Some(BasicBlock { label: local_label, .. }),
+            ) if self.breakpoints.contains(&(*global_label, *local_label)) => {
+                in_breakpoint = true;
+
+                if context == Context::EnterBasicBlock {
+                    self.skip_until = None;
+                    self.auto_run = false;
+                    reached_breakpoint = true;
+                }
+            },
+            _ => {},
+        };
+
         match (self.skip_until, context) {
             (Some(SkipUntil::BasicBlock), Context::EnterBasicBlock | Context::EnterCodeSection | Context::EnterEntry) => {
                 self.skip_until = None;
             },
-            (Some(SkipUntil::BasicBlock), _) => {
-                return;
-            },
+            (Some(SkipUntil::BasicBlock), _) => return,
             (Some(SkipUntil::CodeSection), Context::EnterCodeSection | Context::EnterEntry) => {
                 self.skip_until = None;
             },
-            (Some(SkipUntil::CodeSection), _) => {
-                return;
-            },
+            (Some(SkipUntil::CodeSection), _) => return,
             (Some(SkipUntil::Entry), Context::EnterEntry) => {
                 self.skip_until = None;
             },
-            (Some(SkipUntil::Entry), _) => {
-                return;
-            },
+            (Some(SkipUntil::Entry), _) => return,
+            (Some(SkipUntil::Forever), _) => return,
             _ => {},
         }
 
@@ -132,7 +152,12 @@ impl Session {
         }
 
         let mut buffer = vec![];
-        buffer.push(format!("---- {context:?} ----\n"));
+
+        if reached_breakpoint {
+            buffer.push(format!("---- Breakpoint ----\n"));
+        } else {
+            buffer.push(format!("---- {context:?} ----\n"));
+        }
 
         if !spans.is_empty() {
             let s = render_spans(
@@ -207,7 +232,13 @@ impl Session {
                 ]
             } else {
                 vec![
-                    Some("a: auto"),
+                    Some("a: next breakpoint (show trace)"),
+                    Some("s: next breakpoint (hide trace)"),
+                    if in_breakpoint {
+                        Some("d: remove breakpoint")
+                    } else {
+                        Some("d: set breakpoint")
+                    },
                     Some("z: next bytecode (or press any key)"),
                     Some("x: next basic block"),
                     Some("c: next code section"),
@@ -263,6 +294,21 @@ impl Session {
                 match command.trim() {
                     "a" => {
                         self.auto_run = true;
+                    },
+                    "s" => {
+                        self.skip_until = Some(SkipUntil::Forever);
+                    },
+                    "d" => {
+                        if let (
+                            Some(CodeSection { label: global_label, .. }),
+                            Some(BasicBlock { label: local_label, .. }),
+                        ) = (&self.code_section, basic_block) {
+                            if in_breakpoint {
+                                self.breakpoints.remove(&(*global_label, *local_label));
+                            } else {
+                                self.breakpoints.insert((*global_label, *local_label));
+                            }
+                        }
                     },
                     "x" => {
                         self.skip_until = Some(SkipUntil::BasicBlock);
