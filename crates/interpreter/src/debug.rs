@@ -305,9 +305,13 @@ impl Session {
                         ) = (&self.code_section, basic_block) {
                             if in_breakpoint {
                                 self.breakpoints.remove(&(*global_label, *local_label));
+                                in_breakpoint = false;
                             } else {
                                 self.breakpoints.insert((*global_label, *local_label));
+                                in_breakpoint = true;
                             }
+
+                            continue;
                         }
                     },
                     "x" => {
