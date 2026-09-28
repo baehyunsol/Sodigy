@@ -1073,7 +1073,11 @@ impl Session {
                             newly_completed_type_vars.push(ref_type_var);
                         }
                     },
-                    None => unreachable!(),
+                    None => {
+                        self.type_errors.push(TypeError::DanglingRefTypeVar {
+                            ref_type_var: ref_type_var.clone(),
+                        });
+                    },
                 },
                 Type::GenericArg { call, generic } => match self.generic_args.get_mut(&(call.clone(), generic.clone())) {
                     Some(ref_type) => {

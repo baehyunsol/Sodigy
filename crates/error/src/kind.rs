@@ -218,7 +218,7 @@ error_kinds!(
     // These are very special kinds of errors.
     // These are bugs in the compiler, not in the user's Sodigy code.
     // They use `id` field to distinguish themselves: so that we can easily Ctrl+Shift+F the id.
-    (Todo { id: u32, message: String },                             9998,    Error),
+    (Todo { id: u32 },                                              9998,    Error),
     (InternalCompilerError { id: u32 },                             9999,    Error),
 );
 

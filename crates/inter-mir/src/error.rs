@@ -179,6 +179,11 @@ pub enum TypeError {
         got_span: Option<Span>,
         context: ErrorContext,
     },
+
+    // This is an ICE.
+    DanglingRefTypeVar {
+        ref_type_var: Type,
+    },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -931,7 +936,6 @@ impl Session {
                     note: error_note,
                 }
             },
-
             TypeWarning::NoImpureCallInImpureContext { effect_keyword_span, context_effect } => Warning {
                 kind: WarningKind::NoImpureCallInImpureContext { context: context_effect },
                 spans: vec![RenderableSpan {
@@ -941,7 +945,6 @@ impl Session {
                 }],
                 note: None,
             },
-
             TypeError::TryToSolveGenericParam {
                 expected,
                 expected_span,
@@ -970,9 +973,26 @@ impl Session {
                 }
 
                 Error {
-                    kind: ErrorKind::InternalCompilerError { id: 90962 },
+                    kind: ErrorKind::InternalCompilerError { id: 490962 },
                     spans,
                     note: Some(format!("(This is for debugging the compiler itself, not your program)\nThe compiler tried to solve type with `Type::GenericParam {{ .. }}`. All the `Type::GenericParam {{ .. }}`s must be lowered to `Type::GenericArg {{ .. }}` beforehand.\nlhs: {lhs}\nrhs: {rhs}")),
+                }
+            },
+            TypeError::DanglingRefTypeVar { ref_type_var } => {
+                let mut spans = vec![];
+
+                if let Type::Var { def_span, .. } = &ref_type_var {
+                    spans.push(RenderableSpan {
+                        span: def_span.clone(),
+                        auxiliary: false,
+                        note: Some(String::from("def_span")),
+                    });
+                }
+
+                Error {
+                    kind: ErrorKind::InternalCompilerError { id: 190913 },
+                    spans,
+                    note: Some(format!("While substituting ref_type_vars, I found a ref_type_var that's not in inter_mir_session.types. ref_type_var: {ref_type_var:?}")),
                 }
             },
         }

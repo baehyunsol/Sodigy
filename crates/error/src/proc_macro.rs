@@ -86,8 +86,8 @@
     { name: InternedString, kind: NameKind }, UnreachableMatchArm,
     UnreachableOrPattern, NoImpureCallInImpureContext { context: FuncEffect },
     FuncWithoutTypeAnnot, LetWithoutTypeAnnot, StructWithoutTypeAnnot,
-    EnumVariantWithoutTypeAnnot, SelfParamNotNamedSelf, Todo
-    { id: u32, message: String }, InternalCompilerError { id: u32 },
+    EnumVariantWithoutTypeAnnot, SelfParamNotNamedSelf, Todo { id: u32 },
+    InternalCompilerError { id: u32 },
 } impl ErrorKind {
     pub fn index(& self) -> u16
     {
@@ -736,10 +736,10 @@
             { buffer.push(31u8); buffer.push(75u8); }, ErrorKind ::
             SelfParamNotNamedSelf =>
             { buffer.push(31u8); buffer.push(79u8); }, ErrorKind :: Todo
-            { r#id, r#message, } =>
+            { r#id, } =>
             {
                 buffer.push(39u8); buffer.push(14u8);
-                r#id.encode_impl(buffer); r#message.encode_impl(buffer);
+                r#id.encode_impl(buffer);
             }, ErrorKind :: InternalCompilerError { r#id, } =>
             {
                 buffer.push(39u8); buffer.push(15u8);
@@ -1212,9 +1212,7 @@
             Ok((ErrorKind :: SelfParamNotNamedSelf, cursor)), 9998u16 =>
             {
                 let (r#id, cursor) = u32 :: decode_impl(buffer, cursor) ? ;
-                let (r#message, cursor) = String ::
-                decode_impl(buffer, cursor) ? ;
-                Ok((ErrorKind :: Todo { r#id, r#message, }, cursor))
+                Ok((ErrorKind :: Todo { r#id, }, cursor))
             }, 9999u16 =>
             {
                 let (r#id, cursor) = u32 :: decode_impl(buffer, cursor) ? ;
