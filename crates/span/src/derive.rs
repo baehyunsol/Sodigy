@@ -18,7 +18,8 @@ pub enum SpanDeriveKind {
     Lambda,
 
     // `if let Some(x) = foo() { .. }` -> `match foo() { Some(x) => { .. }, .. }`
-    IfLet,
+    // It has an index because an `if let` derives multiple spans.
+    IfLet(u16),
 
     // `let ($x, _, $y) = foo();` -> `let tmp = match foo() { ($x, _, $y) => (x, y) }; let x = tmp._0; let y = tmp._1;`
     LetPattern(u32),
@@ -55,7 +56,7 @@ impl SpanDeriveKind {
             SpanDeriveKind::ConstEval => Some("It is evaluated at compile-time."),
             SpanDeriveKind::TmpIdInPattern | SpanDeriveKind::TmpExprInPattern => Some("It is desugared to a guard expression."),
             SpanDeriveKind::Lambda => None,
-            SpanDeriveKind::IfLet => Some("It is desugared to a match expression."),
+            SpanDeriveKind::IfLet(_) => Some("It is desugared to a match expression."),
 
             // We have a lot of error variants for let-patterns, so we don't need an extra note.
             SpanDeriveKind::LetPattern(_) => None,

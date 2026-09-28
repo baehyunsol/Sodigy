@@ -146,8 +146,9 @@ impl Endec for SpanDeriveKind {
             SpanDeriveKind::Lambda => {
                 buffer.push(4);
             },
-            SpanDeriveKind::IfLet => {
+            SpanDeriveKind::IfLet(id) => {
                 buffer.push(5);
+                id.encode_impl(buffer);
             },
             SpanDeriveKind::LetPattern(id) => {
                 buffer.push(6);
@@ -188,7 +189,10 @@ impl Endec for SpanDeriveKind {
             Some(2) => Ok((SpanDeriveKind::TmpIdInPattern, cursor + 1)),
             Some(3) => Ok((SpanDeriveKind::TmpExprInPattern, cursor + 1)),
             Some(4) => Ok((SpanDeriveKind::Lambda, cursor + 1)),
-            Some(5) => Ok((SpanDeriveKind::IfLet, cursor + 1)),
+            Some(5) => {
+                let (id, cursor) = u16::decode_impl(buffer, cursor + 1)?;
+                Ok((SpanDeriveKind::IfLet(id), cursor))
+            },
             Some(6) => {
                 let (id, cursor) = u32::decode_impl(buffer, cursor + 1)?;
                 Ok((SpanDeriveKind::LetPattern(id), cursor))
