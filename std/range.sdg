@@ -1,7 +1,7 @@
 use std.bool.{Bool, Bool.{False, True}};
 use std.r#fn.Fn;
 use std.int.Int;
-use std.list.slice_right_list;
+use std.list.{slice_list, slice_right_list};
 use std.option.{Option, Option.{None, Some}};
 use std.scalar.Scalar;
 
@@ -34,24 +34,53 @@ fn to_list<T>(self) -> [T] = match self {
 
 #[impl(std.op.index)]
 fn as_index<T>(ls: [T], i: Range<Int>) -> [T] = match i {
-    Range { start: None, end: None, .. } => ls,
-    Range { start: Some(0), start_inclusive: True, end: None, .. } => ls,
-    Range { start: Some($i @ 0..), $start_inclusive, end: None, .. } => {
+    Range { start: None, end: None, step: 1, .. } | Range { start: Some(0), start_inclusive: True, end: None, step: 1, .. } => ls,
+    Range { start: Some($i @ 0..), $start_inclusive, end: None, step: 1, .. } => {
         let start = i + !start_inclusive as <Int>;
 
         if start < ls.len() {
             slice_right_list(ls, start as! <Scalar>)
-        }
-
-        else {
+        } else {
             []
         }
     },
-    _ => std.panic("TODO: range as index"),
+    Range { start: None, end: Some($i @ 0..), $end_inclusive, step: 1, .. } => {
+        let end = i + end_inclusive as <Int>;
+
+        if end >= ls.len() {
+            ls
+        } else {
+            slice_list(ls, 0 as! <Scalar>, end as! <Scalar>)
+        }
+    },
+    Range { start: Some($start @ 0..), $start_inclusive, end: Some($end @ 0..), $end_inclusive, step: 1 } => {
+        let start_i = start + !start_inclusive as <Int>;
+        let end_i = end + end_inclusive as <Int>;
+
+        if start_i >= ls.len() || start_i >= end_i {
+            []
+        } else if end_i >= ls.len() {
+            slice_right_list(ls, start_i as! <Scalar>)
+        } else {
+            slice_list(ls, start_i as! <Scalar>, end_i as! <Scalar>)
+        }
+    },
+    _ => std.panic(f"TODO: range as index: {i:?}"),
 };
 
 #[impl(std.op.index)]
 fn index<T>(r: Range<T>, i: Int) -> T = match (r, i) {
     (Range { start: Some($start), end: None, $step, .. }, 0..) => start + i * step,
     _ => std.panic("TODO: index range"),
+};
+
+// FIXME: I'm too lazy to impl format_debug for all the types, so I just wrote this function.
+//        This function must be removed when format_debug is implemented for the other types...
+#[impl(std.format.format_debug)]
+fn tmptmp(r: Range<Int>) -> std.string.String = {
+    let s1 = if let Some($s) = r.start { f"{s}" } else { "X" };
+    let s2 = if r.start_inclusive { "T" } else { "F" };
+    let e1 = if let Some($e) = r.end { f"{e}" } else { "X" };
+    let e2 = if r.end_inclusive { "T" } else { "F" };
+    f"{s1}/{s2}/{e1}/{e2}/{r.step}"
 };
