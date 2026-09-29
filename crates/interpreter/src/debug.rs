@@ -157,6 +157,10 @@ impl Session {
             buffer.push(format!("---- Breakpoint ----\n"));
         } else {
             buffer.push(format!("---- {context:?} ----\n"));
+
+            if let Context::EnterCodeSection = context && let Some(CodeSection { label, .. }) = &self.code_section {
+                buffer.push(format!("label: {}\n", label.hex(20)));
+            }
         }
 
         if !spans.is_empty() {
@@ -234,7 +238,9 @@ impl Session {
                 vec![
                     Some("a: next breakpoint (show trace)"),
                     Some("s: next breakpoint (hide trace)"),
-                    if in_breakpoint {
+                    if self.code_section.is_none() || basic_block.is_none() {
+                        None
+                    } else if in_breakpoint {
                         Some("d: remove breakpoint")
                     } else {
                         Some("d: set breakpoint")
