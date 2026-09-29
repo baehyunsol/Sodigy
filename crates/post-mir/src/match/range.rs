@@ -9,7 +9,6 @@ use sodigy_number::{
     unintern_number,
 };
 use std::cmp::Ordering;
-use std::fmt;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LiteralType {
@@ -38,13 +37,11 @@ pub struct Range {
     pub rhs_inclusive: bool,
 }
 
-impl fmt::Display for Range {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        // TODO: How can I pass intermediate_dir to these?
-        let lhs = render_literal(self.r#type, &self.lhs, true, "" /* intermediate_dir */);
-        let rhs = render_literal(self.r#type, &self.rhs, false, "" /* intermediate_dir */);
-        write!(
-            fmt,
+impl Range {
+    pub fn dump(&self, intermediate_dir: &str) -> String {
+        let lhs = render_literal(self.r#type, &self.lhs, true, intermediate_dir);
+        let rhs = render_literal(self.r#type, &self.rhs, false, intermediate_dir);
+        format!(
             "{}{lhs},{rhs}{}",
             if self.lhs_inclusive { "[" } else { "(" },
             if self.rhs_inclusive { "]" } else { ")" },

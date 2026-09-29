@@ -131,7 +131,7 @@ impl Session<'_, '_> {
 
     fn render_expr_constructor(&self, expr: &ExprConstructor) -> String {
         match expr {
-            ExprConstructor::Range(r) => r.to_string(),
+            ExprConstructor::Range(r) => r.dump(&self.intermediate_dir),
             ExprConstructor::Or(es) => es.iter().map(
                 |e| self.render_expr_constructor(e)
             ).collect::<Vec<_>>().join(" | "),

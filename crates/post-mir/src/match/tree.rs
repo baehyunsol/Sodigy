@@ -36,7 +36,6 @@ use sodigy_token::Constant;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
-use std::fmt;
 
 // In this tree, it reads `scrutinee.field` and branches to the next tree (or leaf).
 // `.condition` of each branch must be non-overlapping.
@@ -1071,14 +1070,12 @@ pub enum ExprConstructor {
     Wildcard,
 }
 
-impl fmt::Display for ExprConstructor {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let s = match self {
-            ExprConstructor::Range(r) => r.to_string(),
-            ExprConstructor::Or(cs) => cs.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(" | "),
+impl ExprConstructor {
+    fn dump(&self, intermediate_dir: &str) -> String {
+        match self {
+            ExprConstructor::Range(r) => r.dump(intermediate_dir),
+            ExprConstructor::Or(cs) => cs.iter().map(|c| c.dump(intermediate_dir)).collect::<Vec<_>>().join(" | "),
             ExprConstructor::Wildcard => String::from("_"),
-        };
-
-        write!(fmt, "{s}")
+        }
     }
 }
