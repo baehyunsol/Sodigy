@@ -12,6 +12,7 @@ use sodigy_hir::{EnumRepr, FuncShape};
 use sodigy_mir::{Block, Callable, Expr, If, Match, Type, type_of};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::Field;
+use sodigy_span::Span;
 
 // It generates bytecodes that
 //    1) evaluates the expr
@@ -123,6 +124,7 @@ pub fn lower_expr(
         Expr::Match(Match { .. }) => unreachable!(),
         Expr::Block(Block { lets, asserts, dos, value, .. }) => {
             for r#let in lets.iter() {
+                assert!(r#let.name_span != Span::None);
                 let ssa_reg = session.get_ssa();
                 session.ssa_map.insert(r#let.name_span.clone(), ssa_reg);
                 let dst = Memory::SSA(ssa_reg);

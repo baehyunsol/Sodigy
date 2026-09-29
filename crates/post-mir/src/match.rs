@@ -256,7 +256,7 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
     ).collect();
 
     let mut tree = match build_tree(
-        &mut 1,
+        &mut 2,
         &matrix,
         &borrowed_arms,
         session,
@@ -281,8 +281,8 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
     // If it's `match x { .. }`, we don't have to introduce another name binding.
     let another_name_binding = IdentWithOrigin {
         id: intern_string(b"scrutinee", "").unwrap(),
-        span: Span::None,
-        def_span: match_expr.keyword_span.derive(SpanDeriveKind::MatchScrutinee(0)),
+        span: match_expr.keyword_span.derive(SpanDeriveKind::MatchScrutinee(0)),
+        def_span: match_expr.keyword_span.derive(SpanDeriveKind::MatchScrutinee(1)),
         origin: NameOrigin::Local {
             kind: NameKind::Let { is_top_level: false },
         },
