@@ -18,11 +18,14 @@ pub fn insert_fs_map(dir: &str, id: InternedString, s: &[u8]) -> Result<(), File
     // large strings are stored in a separate file
     if s.len() >= 256 {
         let save_at = join(dir, &format!("{:x}", id.0))?;
-        write_bytes(
-            &save_at,
-            s,
-            WriteMode::CreateOrTruncate,
-        )?;
+
+        if !exists(&save_at) {
+            write_bytes(
+                &save_at,
+                s,
+                WriteMode::CreateOrTruncate,
+            )?;
+        }
     }
 
     else {

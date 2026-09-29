@@ -19,6 +19,7 @@ use sodigy_fs_api::{
     FileError,
     FileErrorKind,
     WriteMode,
+    exists,
     join3,
     read_bytes,
     write_bytes,
@@ -410,11 +411,15 @@ fn intern_bytes(bytes: &[u8], intermediate_dir: &str) -> Result<u128, FileError>
     let id = hash(bytes) & 0xffff_ffff_ffff_ffff_ffff_ffff;
     let id_str = format!("{id:024x}");
     let path = join3(intermediate_dir, "num", &id_str)?;
-    write_bytes(
-        &path,
-        bytes,
-        WriteMode::CreateOrTruncate,
-    )?;
+
+    if !exists(&path) {
+        write_bytes(
+            &path,
+            bytes,
+            WriteMode::CreateOrTruncate,
+        )?;
+    }
+
     Ok(id)
 }
 
