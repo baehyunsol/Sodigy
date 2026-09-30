@@ -209,8 +209,10 @@ impl Session {
         buffer_bottom.push(String::from("--- call stack ---\n"));
 
         for (i, call) in self.call_stack.iter().enumerate() {
+            let span = self.func_spans.get(call);
+
             // TODO: calc file_name, row, col
-            buffer_bottom.push(format!("{i}. {call:?} // TODO: calc file_name/row/col\n"));
+            buffer_bottom.push(format!("{i}. {span:?} // TODO: calc file_name/row/col\n"));
         }
 
         if let Some(code) = code {
