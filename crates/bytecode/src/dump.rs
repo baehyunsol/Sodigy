@@ -58,9 +58,16 @@ impl Display for ObjectFile {
     }
 }
 
-impl Display for CodeSection {
-    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+impl CodeSection {
+    pub fn dump(
+        &self,
+        show_line_number: bool,
+        highlight: Option<(LocalLabel, Highlight)>,
+        context: Option<usize>,
+        debug_info: bool,
+    ) -> String {
         let mut lines = vec![];
+        let mut highlighted_line_no: Option<usize> = None;
 
         if let Some(span) = &self.span {
             lines.push(format!("// span: {span:?}"));
@@ -88,23 +95,72 @@ impl Display for CodeSection {
         let mut basic_blocks: Vec<(&LocalLabel, &BasicBlock)> = self.basic_blocks.iter().collect();
         basic_blocks.sort_by_key(|(label, _)| *label);
 
-        for (_, basic_block) in basic_blocks.iter() {
-            for line in basic_block.to_string().lines() {
+        for (label, basic_block) in basic_blocks.iter() {
+            for (i, line) in basic_block.dump(false, 0, None, debug_info).lines().enumerate() {
                 if line.is_empty() {
                     continue;
                 }
 
+                match highlight {
+                    Some((h_label, Highlight::Label)) if h_label == **label && i == 0 => {
+                        highlighted_line_no = Some(lines.len());
+                    },
+                    Some((h_label, Highlight::Bytecode(j))) if h_label == **label && i == j + 1 => {
+                        highlighted_line_no = Some(lines.len());
+                    },
+                    _ => {},
+                }
+
                 lines.push(format!("    {line}"));
+            }
+
+            if let Some((h_label, Highlight::Terminator)) = highlight && h_label == **label {
+                highlighted_line_no = Some(lines.len() - 1);
             }
         }
 
-        write!(fmt, "{}", lines.join("\n"))
+        lines = lines.iter().enumerate().map(
+            |(i, line)| match (show_line_number, Some(i) == highlighted_line_no, highlight.is_some()) {
+                (true, true, _) => format!(">>> {i:>3} | {line}"),
+                (true, false, true) => format!("    {i:>3} | {line}"),
+                (true, false, false) => format!("{i:>3} | {line}"),
+                (false, true, _) => format!(">>> {line}"),
+                (false, false, true) => format!("    {line}"),
+                (false, false, false) => line.to_string(),
+            }
+        ).collect();
+
+        let clamp = match (context, highlighted_line_no) {
+            (None, _) | (_, None) => None,
+            (Some(c), Some(h)) => {
+                let mut start = h.max(c) - c;
+                let mut end = (start + 2 * c).min(lines.len());
+
+                if end - start < 2 * c {
+                    start = end.max(2 * c) - 2 * c;
+                }
+
+                Some((start, end))
+            },
+        };
+
+        if let Some((start, end)) = clamp {
+            lines = lines[start..end].to_vec();
+        }
+
+        lines.join("\n")
+    }
+}
+
+impl Display for CodeSection {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        write!(fmt, "{}", self.dump(false, None, None, true))
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Highlight {
-    None,
+    Label,
     Bytecode(usize),
     Terminator,
 }
@@ -113,11 +169,12 @@ impl BasicBlock {
     pub fn dump(
         &self,
         show_line_number: bool,
-        highlight_bytecode: Highlight,
-        debug_info_flag: bool,
+        line_number_offset: usize,
+        highlight: Option<Highlight>,
+        debug_info: bool,
     ) -> String {
         let code = self.code.iter().map(
-            |bytecode| format!("    {}", bytecode.dump(debug_info_flag))
+            |bytecode| format!("    {}", bytecode.dump(debug_info))
         ).collect::<Vec<_>>().join("\n");
 
         let lines = format!(r#"label {}:
@@ -125,10 +182,10 @@ impl BasicBlock {
     {}{}"#,
             self.label,
             self.terminator,
-            dump_debug_info(&self.terminator_debug_info, debug_info_flag),
+            dump_debug_info(&self.terminator_debug_info, debug_info),
         );
 
-        if !show_line_number && highlight_bytecode == Highlight::None {
+        if !show_line_number && highlight.is_none() {
             return lines;
         }
 
@@ -136,15 +193,17 @@ impl BasicBlock {
         let lines_count = lines.lines().count();
 
         for (i, line) in lines.lines().enumerate() {
-            let prefix = match (show_line_number, highlight_bytecode) {
-                (true, Highlight::Bytecode(j)) if i == j + 1 => format!(">>> {i:>3} | "),
-                (true, Highlight::Terminator) if i + 1 == lines_count => format!(">>> {i:>3} | "),
-                (true, Highlight::Bytecode(_) | Highlight::Terminator) => format!("    {i:>3} | "),
-                (true, Highlight::None) => format!(" {i:>3} | "),
-                (false, Highlight::Bytecode(j)) if i == j + 1 => String::from(">>> "),
-                (false, Highlight::Terminator) if i + 1 == lines_count => String::from(">>> "),
-                (false, Highlight::Bytecode(_) | Highlight::Terminator) => String::from("    "),
-                (false, Highlight::None) => unreachable!(),
+            let prefix = match (show_line_number, highlight) {
+                (true, Some(Highlight::Label)) if i == 0 => format!(">>> {:>3} | ", i + line_number_offset),
+                (true, Some(Highlight::Bytecode(j))) if i == j + 1 => format!(">>> {:>3} | ", i + line_number_offset),
+                (true, Some(Highlight::Terminator)) if i + 1 == lines_count => format!(">>> {:>3} | ", i + line_number_offset),
+                (true, Some(Highlight::Label) | Some(Highlight::Bytecode(_)) | Some(Highlight::Terminator)) => format!("    {:>3} | ", i + line_number_offset),
+                (true, None) => format!(" {:>3} | ", i + line_number_offset),
+                (false, Some(Highlight::Label)) if i == 0 => format!(">>> "),
+                (false, Some(Highlight::Bytecode(j))) if i == j + 1 => String::from(">>> "),
+                (false, Some(Highlight::Terminator)) if i + 1 == lines_count => String::from(">>> "),
+                (false, Some(Highlight::Label) | Some(Highlight::Bytecode(_)) | Some(Highlight::Terminator)) => String::from("    "),
+                (false, None) => unreachable!(),
             };
             result.push(format!("{prefix}{line}"));
         }
@@ -155,7 +214,7 @@ impl BasicBlock {
 
 impl Display for BasicBlock {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        write!(fmt, "{}", self.dump(false, Highlight::None, true))
+        write!(fmt, "{}", self.dump(false, 0, None, true))
     }
 }
 

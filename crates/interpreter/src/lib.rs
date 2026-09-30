@@ -1,6 +1,7 @@
 use sodigy_bytecode::{
     BasicBlock,
     Bytecode,
+    CodeSection,
     GlobalLabel,
     InternedValue,
     LocalLabel,
@@ -26,7 +27,7 @@ use sodigy_number::{
     shr_ubi,
     sub_bi,
 };
-use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 
 mod debug;
 mod error;
@@ -72,10 +73,10 @@ pub fn interpret(
 
             for (name, label) in object_file.asserts.iter() {
                 if let Some(debug_session) = &mut debug_session {
-                    debug_session.code_section = None;
                     debug_session.dump(
                         &Stack::new(),
                         &heap,
+                        None,
                         None,
                         DebugContext::EnterEntry,
                     );
@@ -129,16 +130,21 @@ fn tail_call_loop(
         let basic_blocks = &code.basic_blocks;
 
         if let Some(debug_session) = debug_session {
-            debug_session.code_section = Some((*code).clone());
+            if let Some(span) = &code.span && let Entry::Vacant(e) = debug_session.func_spans.entry(code.label) {
+                e.insert(span.clone());
+            }
+
+            debug_session.call_stack.push(code.label);
             debug_session.dump(
                 &stack,
                 heap,
+                Some(code),
                 None,
                 DebugContext::EnterCodeSection,
             );
         }
 
-        match call(stack, heap, object_file, basic_blocks, debug_session) {
+        match call(stack, heap, object_file, code, debug_session) {
             CallResult::Return(n) => {
                 return CallResult::Return(n);
             },
@@ -163,18 +169,19 @@ fn call(
     mut stack: Stack,
     heap: &mut Heap,
     object_file: &ObjectFile,
-    basic_blocks: &HashMap<LocalLabel, BasicBlock>,
+    code_section: &CodeSection,
     debug_session: &mut Option<DebugSession>,
 ) -> CallResult {
     let mut curr_label = LocalLabel::start();
 
     loop {
-        let curr_basic_block: &BasicBlock = basic_blocks.get(&curr_label).unwrap();
+        let curr_basic_block: &BasicBlock = code_section.basic_blocks.get(&curr_label).unwrap();
 
         if let Some(debug_session) = debug_session {
             debug_session.dump(
                 &stack,
                 heap,
+                Some(code_section),
                 Some(curr_basic_block),
                 DebugContext::EnterBasicBlock,
             );
@@ -185,6 +192,7 @@ fn call(
                 debug_session.dump(
                     &stack,
                     heap,
+                    Some(code_section),
                     Some(curr_basic_block),
                     DebugContext::Bytecode(i),
                 );
@@ -471,6 +479,10 @@ fn call(
                     },
                     Intrinsic::PrependList => todo!(),
                     Intrinsic::Exit => {
+                        if let Some(debug_session) = debug_session {
+                            debug_session.call_stack.clear();
+                        }
+
                         let status_code = *stack.ssa.get(&args[0]).unwrap() as u8;
 
                         // TODO: clean up stack and heap
@@ -547,6 +559,7 @@ fn call(
             debug_session.dump(
                 &stack,
                 heap,
+                Some(code_section),
                 Some(curr_basic_block),
                 DebugContext::Terminator,
             );
@@ -557,6 +570,10 @@ fn call(
                 curr_label = *label;
             },
             Terminator::TailCall { func, args } => {
+                if let Some(debug_session) = debug_session {
+                    debug_session.call_stack.pop().unwrap();
+                }
+
                 return CallResult::TailCall { func: *func, stack: Stack::from_args(args, &stack) };
             },
             Terminator::TailCallDynamic { func, args } => todo!(),
@@ -583,6 +600,10 @@ fn call(
                 }
             },
             Terminator::Return(src) => {
+                if let Some(debug_session) = debug_session {
+                    debug_session.call_stack.pop().unwrap();
+                }
+
                 return CallResult::Return(*stack.ssa.get(src).unwrap());
             },
         }
