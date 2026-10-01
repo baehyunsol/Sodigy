@@ -384,12 +384,12 @@ pub fn lower_expr(
                             });
                         },
                         EnumRepr::Compound => {
-                            let dst_ssa = session.move_to_ssa(&dst, bytecodes);
                             bytecodes.push(Bytecode::InitTuple {
                                 elements: args.len() + 1,
                                 dst,
                                 debug_info: None,
                             });
+                            let dst_ssa = session.move_to_ssa(&dst, bytecodes);
                             bytecodes.push(Bytecode::Const {
                                 value: InternedValue::Scalar(variant_index as u32),
                                 dst: Memory::Heap {
