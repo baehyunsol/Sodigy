@@ -23,6 +23,9 @@ pub struct Func {
     // #[unused_effect]
     pub unused_effect: bool,
 
+    // #[breakpoint]
+    pub breakpoint: bool,
+
     // Spans of `hir::Type::Wildcard`. It has to be monomorphized later.
     // Let's say there's an expression `foo.<_, Int>()`. The wildcard type
     // in the dotfish will be lowered to `Type::Var { def_span, .. }`, and
@@ -139,6 +142,7 @@ impl Func {
                 built_in: hir_func.built_in,
                 origin: hir_func.origin,
                 unused_effect: hir_func.unused_effect,
+                breakpoint: hir_func.breakpoint,
                 wildcard_spans: session.wildcard_spans.drain(..).collect(),
             })
         }

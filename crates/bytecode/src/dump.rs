@@ -310,6 +310,7 @@ impl Bytecode {
             Bytecode::IncRefCount(memory) => format!("$IncRefCount({memory});"),
             Bytecode::DecRefCount(memory) => format!("$DecRefCount({memory});"),
             Bytecode::TryDrop(_, _) => format!("{self:?}"),
+            Bytecode::Breakpoint => String::from("$Breakpoint;"),
         }
     }
 }

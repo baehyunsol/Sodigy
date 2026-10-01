@@ -11,6 +11,7 @@ impl Endec for Assert {
         self.note.encode_impl(buffer);
         self.note_decorator_span.encode_impl(buffer);
         self.value.encode_impl(buffer);
+        self.breakpoint.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
@@ -20,6 +21,7 @@ impl Endec for Assert {
         let (note, cursor) = Option::<Expr>::decode_impl(buffer, cursor)?;
         let (note_decorator_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
+        let (breakpoint, cursor) = bool::decode_impl(buffer, cursor)?;
 
         Ok((
             Assert {
@@ -29,6 +31,7 @@ impl Endec for Assert {
                 note,
                 note_decorator_span,
                 value,
+                breakpoint,
             },
             cursor,
         ))

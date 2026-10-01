@@ -121,6 +121,9 @@ impl Endec for Bytecode {
                 memory.encode_impl(buffer);
                 drop_type.encode_impl(buffer);
             },
+            Bytecode::Breakpoint => {
+                buffer.push(19);
+            },
         }
     }
 
@@ -232,7 +235,8 @@ impl Endec for Bytecode {
                 let (drop_type, cursor) = DropType::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::TryDrop(memory, drop_type), cursor))
             },
-            Some(n @ 19..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(19) => Ok((Bytecode::Breakpoint, cursor + 1)),
+            Some(n @ 20..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

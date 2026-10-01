@@ -72,6 +72,8 @@ pub struct Func {
     // It only counts `params`.
     // It's later used for optimization.
     pub use_counts: HashMap<InternedString, UseCount>,
+
+    pub breakpoint: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -158,6 +160,7 @@ impl Func {
         let visibility = attribute.visibility.clone();
         let built_in = attribute.get_decorator(b"built_in", &session.intermediate_dir).is_some();
         let unused_effect = attribute.get_decorator(b"unused_effect", &session.intermediate_dir).is_some();
+        let breakpoint = attribute.get_decorator(b"breakpoint", &session.intermediate_dir).is_some();
 
         let is_poly = match attribute.get_decorator(b"poly", &session.intermediate_dir) {
             Some(d) => {
@@ -456,6 +459,7 @@ impl Func {
                 captured_names: None,
 
                 use_counts,
+                breakpoint,
             })
         }
     }
@@ -514,6 +518,14 @@ impl Func {
                     intern_string(b"unused_effect", intermediate_dir).unwrap(),
                     DecoratorRule {
                         name: intern_string(b"unused_effect", intermediate_dir).unwrap(),
+                        requirement: Requirement::Maybe,
+                        arg_requirement: Requirement::Never,
+                        ..DecoratorRule::default()
+                    },
+                ), (
+                    intern_string(b"breakpoint", intermediate_dir).unwrap(),
+                    DecoratorRule {
+                        name: intern_string(b"breakpoint", intermediate_dir).unwrap(),
                         requirement: Requirement::Maybe,
                         arg_requirement: Requirement::Never,
                         ..DecoratorRule::default()

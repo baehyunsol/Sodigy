@@ -30,6 +30,10 @@ impl Assert {
             Bytecode::Label(session.get_local_label()),
         ];
 
+        if mir_assert.breakpoint {
+            bytecodes.push(Bytecode::Breakpoint);
+        }
+
         let name = match &mir_assert.name {
             Some(name) => *name,
             None => intern_string(b"unnamed-assertion", &session.intermediate_dir).unwrap(),

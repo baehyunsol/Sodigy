@@ -81,6 +81,7 @@ impl Session {
             built_in: func.built_in,
             origin: FuncOrigin::Monomorphization,
             unused_effect: func.unused_effect,
+            breakpoint: func.breakpoint,
             wildcard_spans: vec![],
         };
 

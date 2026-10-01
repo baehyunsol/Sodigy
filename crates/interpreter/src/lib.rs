@@ -552,6 +552,20 @@ fn call(
                     let ptr = read(m, &stack, heap);
                     heap.try_drop(ptr as usize, d);
                 },
+                Bytecode::Breakpoint => {
+                    if let Some(debug_session) = debug_session {
+                        // If it's newly inserted, we have to dump again to guarantee that the breakpoint is dumped.
+                        if debug_session.breakpoints.insert((code_section.label, curr_label)) {
+                            debug_session.dump(
+                                &stack,
+                                heap,
+                                Some(code_section),
+                                Some(curr_basic_block),
+                                DebugContext::ExplicitBreakpoint,
+                            );
+                        }
+                    }
+                },
             }
         }
 

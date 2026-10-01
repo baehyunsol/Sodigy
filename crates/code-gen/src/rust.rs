@@ -544,6 +544,7 @@ fn lower_bytecode(
         Bytecode::TryDrop(m, d) => {
             lines.push(format!("{indent_s}heap.try_drop({}, todo!());", to_rvalue(m, session)));
         },
+        Bytecode::Breakpoint => todo!(),
     }
 }
 

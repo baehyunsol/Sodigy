@@ -246,6 +246,7 @@ impl Session {
                                     foreign_names: HashMap::new(),
                                     captured_names: None,
                                     use_counts: HashMap::new(),
+                                    breakpoint: false,
                                 };
                                 self.func_shapes.insert(new_func.name_span.clone(), new_func.shape());
                                 self.new_funcs.push(new_func);

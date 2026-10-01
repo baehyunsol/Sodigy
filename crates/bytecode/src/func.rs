@@ -22,6 +22,10 @@ impl Func {
             Bytecode::Label(session.get_local_label()),
         ];
 
+        if mir_func.breakpoint {
+            bytecodes.push(Bytecode::Breakpoint);
+        }
+
         for (i, param) in mir_func.params.iter().enumerate() {
             session.ssa_map.insert(
                 param.name_span.clone(),

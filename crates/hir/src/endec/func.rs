@@ -36,6 +36,7 @@ impl Endec for Func {
         self.foreign_names.encode_impl(buffer);
         self.captured_names.encode_impl(buffer);
         self.use_counts.encode_impl(buffer);
+        self.breakpoint.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
@@ -56,6 +57,7 @@ impl Endec for Func {
         let (foreign_names, cursor) = HashMap::<InternedString, (NameOrigin, Span)>::decode_impl(buffer, cursor)?;
         let (captured_names, cursor) = Option::<CapturedNames>::decode_impl(buffer, cursor)?;
         let (use_counts, cursor) = HashMap::<InternedString, UseCount>::decode_impl(buffer, cursor)?;
+        let (breakpoint, cursor) = bool::decode_impl(buffer, cursor)?;
 
         Ok((
             Func {
@@ -76,6 +78,7 @@ impl Endec for Func {
                 foreign_names,
                 captured_names,
                 use_counts,
+                breakpoint,
             },
             cursor,
         ))

@@ -27,6 +27,7 @@ pub enum Context {
     EnterBasicBlock,
     Bytecode(usize),
     Terminator,
+    ExplicitBreakpoint,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -43,8 +44,8 @@ pub enum SkipUntil {
 pub struct Session {
     pub call_stack: Vec<GlobalLabel>,
     pub func_spans: HashMap<GlobalLabel, Span>,
+    pub breakpoints: HashSet<(GlobalLabel, LocalLabel)>,
 
-    breakpoints: HashSet<(GlobalLabel, LocalLabel)>,
     span_option: RenderSpanOption,
     span_session: RenderSpanSession,
     dump_history: Vec<Buffer>,
@@ -95,7 +96,7 @@ impl Session {
             ) if self.breakpoints.contains(&(*global_label, *local_label)) => {
                 in_breakpoint = true;
 
-                if context == Context::EnterBasicBlock {
+                if let Context::EnterBasicBlock | Context::ExplicitBreakpoint = context {
                     self.skip_until = None;
                     self.auto_run = false;
                     reached_breakpoint = true;

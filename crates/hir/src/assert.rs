@@ -45,6 +45,8 @@ pub struct Assert {
     // By default, assertions are enabled only in debug profile.
     // If it has `#[always]` decorator, it's always enabled.
     pub always: bool,
+
+    pub breakpoint: bool,
 }
 
 impl Assert {
@@ -88,6 +90,7 @@ impl Assert {
                 keyword_span: ast_assert.keyword_span.clone(),
                 value: value.unwrap(),
                 always: attribute.always,
+                breakpoint: attribute.breakpoint,
             })
         }
     }
@@ -118,6 +121,15 @@ impl Assert {
                     arg_type: ArgType::Expr,
                     arg_type_error_note: None,  // infallible
                     keyword_args: HashMap::new(),
+                },
+            ),
+            (
+                intern_string(b"breakpoint", intermediate_dir).unwrap(),
+                DecoratorRule {
+                    name: intern_string(b"breakpoint", intermediate_dir).unwrap(),
+                    requirement: Requirement::Maybe,
+                    arg_requirement: Requirement::Never,
+                    ..DecoratorRule::default()
                 },
             ),
         ];
@@ -157,6 +169,7 @@ pub struct AssertAttribute {
     pub note: Option<Expr>,
     pub note_decorator_span: Option<Span>,
     pub always: bool,
+    pub breakpoint: bool,
 }
 
 impl Default for AssertAttribute {
@@ -166,6 +179,7 @@ impl Default for AssertAttribute {
             note: None,
             note_decorator_span: None,
             always: false,
+            breakpoint: false,
         }
     }
 }
@@ -180,6 +194,7 @@ impl AssertAttribute {
         let mut note = None;
         let mut note_decorator_span = None;
         let mut always = false;
+        let breakpoint = attribute.get_decorator(b"breakpoint", &session.intermediate_dir).is_some();
 
         if let Some(name_) = attribute.decorators.get(&intern_string(b"name", &session.intermediate_dir).unwrap()) {
             match name_.args.get(0) {
@@ -204,6 +219,12 @@ impl AssertAttribute {
             always = true;
         }
 
-        AssertAttribute { name, note, note_decorator_span, always }
+        AssertAttribute {
+            name,
+            note,
+            note_decorator_span,
+            always,
+            breakpoint,
+        }
     }
 }

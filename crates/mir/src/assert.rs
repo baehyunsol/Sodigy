@@ -14,6 +14,9 @@ pub struct Assert {
     pub note: Option<Expr>,
     pub note_decorator_span: Option<Span>,
     pub value: Expr,
+
+    // #[breakpoint]
+    pub breakpoint: bool,
 }
 
 impl Assert {
@@ -50,6 +53,7 @@ impl Assert {
                 note,
                 note_decorator_span: hir_assert.note_decorator_span.clone(),
                 value: value.unwrap(),
+                breakpoint: hir_assert.breakpoint,
             })
         }
     }

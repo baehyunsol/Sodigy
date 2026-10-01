@@ -185,6 +185,8 @@ pub enum Bytecode {
     // It checks if ref_count is 0 and if so, drops the value.
     // It's an independent instruction so that the optimizer can do more optimizations.
     TryDrop(Memory, DropType),
+
+    Breakpoint,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -257,7 +259,8 @@ impl Bytecode {
             Bytecode::Return(_) |
             Bytecode::IncRefCount(_) |
             Bytecode::DecRefCount(_) |
-            Bytecode::TryDrop(_, _) => None,
+            Bytecode::TryDrop(_, _) |
+            Bytecode::Breakpoint => None,
         }
     }
 
@@ -343,6 +346,7 @@ impl Bytecode {
             Bytecode::TryDrop(m, _) => {
                 memories.push(*m);
             },
+            Bytecode::Breakpoint => {},
         }
 
         while let Some(m) = memories.pop() {
@@ -385,6 +389,7 @@ impl Bytecode {
             Bytecode::Call { effect, .. } |
             Bytecode::CallDynamic { effect, .. } => matches!(&**effect, FuncEffect::Proc | FuncEffect::NdetProc),
             Bytecode::Intrinsic { intrinsic, .. } => matches!(intrinsic.effect(), FuncEffect::Proc | FuncEffect::NdetProc),
+            Bytecode::Breakpoint => true,
         }
     }
 }
