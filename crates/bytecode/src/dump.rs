@@ -134,7 +134,7 @@ impl CodeSection {
             (None, _) | (_, None) => None,
             (Some(c), Some(h)) => {
                 let mut start = h.max(c) - c;
-                let mut end = (start + 2 * c).min(lines.len());
+                let end = (start + 2 * c).min(lines.len());
 
                 if end - start < 2 * c {
                     start = end.max(2 * c) - 2 * c;

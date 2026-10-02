@@ -75,10 +75,6 @@ impl Channel {
         self.rx_to_main.try_recv()
     }
 
-    pub fn recv(&self) -> Result<MessageToMain, mpsc::RecvError> {
-        self.rx_to_main.recv()
-    }
-
     /// It tries to collect logs from the worker, then joins the thread.
     /// If it cannot collect the logs (timeout = 500ms), it returns `None`.
     /// The result of `join_handle.join()` is always ignored.
@@ -135,7 +131,6 @@ fn init_worker_and_channel(id: usize) -> Channel {
 /// owns `Worker`. `Worker` is a very thin wrapper. Its main
 /// purpose is logging.
 pub struct Worker {
-    pub id: WorkerId,
     pub timings: TimingsSession,
 }
 
@@ -145,7 +140,6 @@ fn worker_loop(
     worker_id: WorkerId,
 ) -> Result<(), Error> {
     let mut worker = Worker {
-        id: worker_id,
         timings: TimingsSession {
             worker_id: worker_id.0,
             born_at: Instant::now(),

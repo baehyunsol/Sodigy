@@ -200,7 +200,7 @@ impl Session {
 
             for ssa in used_ssa_indexes.iter() {
                 if let Some(value) = stack.ssa.get(ssa) {
-                    buffer_bottom.push(format!("{ssa}: {}\n", debug_stack(*value, stack, heap)));
+                    buffer_bottom.push(format!("{ssa}: {}\n", debug_stack(*value, heap)));
                 } else {
                     buffer_bottom.push(format!("{ssa}: N/A\n"));
                 }
@@ -427,7 +427,6 @@ impl Buffer {
             let s = s.as_bytes();
             let mut i = 0;
             let mut line_len = 0;
-            let mut wait_until_m = false;
 
             loop {
                 match (s.get(i), s.get(i + 1)) {
@@ -500,7 +499,7 @@ impl Buffer {
     }
 }
 
-fn debug_stack(value: u32, stack: &Stack, heap: &Heap) -> String {
+fn debug_stack(value: u32, heap: &Heap) -> String {
     let int = match try_inspect_int(&heap.data, value as usize) {
         Some((is_neg, ns)) => bi_to_string(is_neg, ns),
         None => String::from("????"),

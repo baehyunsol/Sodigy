@@ -1135,7 +1135,7 @@ impl Session {
                     }
 
                     match &field[0] {
-                        Field::Name { name, name_span, .. } => {
+                        Field::Name { name, .. } => {
                             for field in struct_shape.fields.iter() {
                                 if field.name == *name {
                                     match self.types.get(&field.name_span) {

@@ -46,7 +46,7 @@ pub fn inspect_basic_blocks(global_label: GlobalLabel, basic_blocks: &HashMap<Lo
     let mut phi = HashMap::new();
     let mut has_recursion = false;
 
-    for (label, basic_block) in basic_blocks.iter() {
+    for basic_block in basic_blocks.values() {
         if let Terminator::TailCall { func, .. } = &basic_block.terminator && *func == global_label {
             has_recursion = true;
         }

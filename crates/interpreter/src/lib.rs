@@ -127,7 +127,6 @@ fn tail_call_loop(
 ) -> CallResult {
     loop {
         let code = &object_file.code.get(&label).unwrap();
-        let basic_blocks = &code.basic_blocks;
 
         if let Some(debug_session) = debug_session {
             if let Some(span) = &code.span && let Entry::Vacant(e) = debug_session.func_spans.entry(code.label) {

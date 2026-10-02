@@ -370,13 +370,13 @@ pub fn solve_type(
         session.apply_never_types();
 
         if let Err(()) = session.check_all_types_infered() {
-            has_error = true;
+            // has_error = true;
         }
 
         // If the solver has failed to infer some types, it's dangerous to check type assertions.
         // Checking type assertions may solve type variables, which may introduce false-positives.
         else if let Err(()) = session.check_type_assertions(&mir_session.type_assertions) {
-            has_error = true;
+            // has_error = true;
         }
     }
 

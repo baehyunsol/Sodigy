@@ -116,7 +116,6 @@ fn dump_timings_html(
 
     let mut curr_stage = vec![None; worker_ids.len()];
     let mut frames_per_stage: HashMap<Stage, usize> = HashMap::new();
-    let mut total_frames = 0;
 
     for frame in 0..FRAME_COUNT {
         for (i, row) in rows.iter().enumerate() {
@@ -134,7 +133,6 @@ fn dump_timings_html(
         for stage in curr_stage.iter() {
             if let Some(stage) = stage {
                 frames_per_stage.insert(*stage, *frames_per_stage.get(stage).unwrap_or(&0) + 1);
-                total_frames += 1;
             }
         }
     }
