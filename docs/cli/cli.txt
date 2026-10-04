@@ -1,0 +1,25 @@
+sodigy(1)
+==========
+
+NAME
+----
+sodigy - Compiler and interpreter for the Sodigy programming language
+
+SYNOPSIS
+--------
+[verse]
+'sodigy' [-C <path>] [<command>] [<args>]
+
+DESCRIPTION
+-----------
+
+Options:
+
+Commands:
+    build
+    clean
+    help
+    interpret
+    new
+    run
+    test

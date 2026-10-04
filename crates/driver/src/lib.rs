@@ -25,6 +25,7 @@ pub use sodigy_optimize::OptimizeLevel;
 use sodigy_span::{Color, Span};
 use sodigy_stages::{STAGES, Stage};
 use sodigy_timings::TimingsEntry;
+use sodigy_utils::get_closest_string;
 use std::collections::HashMap;
 use std::sync::mpsc;
 use std::time::Instant;
@@ -93,6 +94,9 @@ pub fn main_() {
                         // TODO: what do I do here?
                     },
                     Error::CompileError => {
+                        // The errors are already dumped!
+                    },
+                    Error::CliError => {
                         // The errors are already dumped!
                     },
                     Error::BytecodeParseError(e) => {
@@ -181,6 +185,8 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
 
             match bytecode {
                 Some(bytecode) => {
+                    // TODO: Currently, it only works with `sodigy build --emit=bytecode`.
+                    //       I want it to also work with `sodigy build --emit=bytecode-exe`.
                     let bytecode = read_bytes(bytecode)?;
                     let object_file = parse_bytecode(&bytecode)?;
                     todo!()
@@ -210,6 +216,8 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                 ),
             }
         },
+        // TODO: Currently, it only works with `sodigy build --emit=bytecode-exe`.
+        //       I want it to also work with `sodigy build --emit=bytecode`.
         CliCommand::Interpret { bytecodes_path, profile, check_allocator, debug_bytecode } => interpret(
             StoreIrAt::File(bytecodes_path.to_string()),
             *profile,
@@ -224,7 +232,34 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
 
             Ok(())
         },
-        CliCommand::Help(command) => todo!(),
+        CliCommand::Help { command, wrong_command } => {
+            let wrong_command_str = match wrong_command {
+                Some(command) => match get_closest_string(&CliCommand::all_commands(), command) {
+                    Some(similar_command) => format!("There's no such command: `{command}`, but there's a similar command: `{similar_command}`.\n\n"),
+                    None => format!("There's no such command: `{command}`.\n\n"),
+                },
+                None => String::new(),
+            };
+
+            let help = match command.as_ref().map(|c| c.as_str()) {
+                Some("build") => include_str!("../../../docs/cli/build.txt"),
+                Some("clean") => include_str!("../../../docs/cli/clean.txt"),
+                Some("help") => include_str!("../../../docs/cli/help.txt"),
+                Some("interpret") => include_str!("../../../docs/cli/interpret.txt"),
+                Some("new") => include_str!("../../../docs/cli/new.txt"),
+                Some("run") => include_str!("../../../docs/cli/run.txt"),
+                Some("test") => include_str!("../../../docs/cli/test.txt"),
+                None => include_str!("../../../docs/cli/cli.txt"),
+                _ => unreachable!(),
+            };
+            println!("{wrong_command_str}{help}");
+
+            if wrong_command.is_some() {
+                Err(Error::CliError)
+            } else {
+                Ok(())
+            }
+        },
     }
 }
 

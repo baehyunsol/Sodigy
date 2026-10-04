@@ -1,0 +1,27 @@
+sodigy-clean(1)
+==========
+
+NAME
+----
+sodigy-clean - Remove compiler caches
+
+SYNOPSIS
+--------
+[verse]
+'sodigy clean'
+
+DESCRIPTION
+-----------
+(TODO)
+
+OPTIONS
+-------
+(TODO)
+
+EXIT STATUS
+-----------
+(TODO)
+
+EXAMPLES
+--------
+(TODO)

@@ -15,6 +15,11 @@ pub enum Error {
     /// to do with Sodigy.
     CompileError,
 
+    // Usually, cli-errors are handled by sodigy_cli::Error enum. But sometimes,
+    // you want to throw a cli-error, but you can't use functions in sodigy_cli.
+    // Then, you use this variant.
+    CliError,
+
     BytecodeParseError(BytecodeParseError),
     FileError(FileError),
     DecodeError(DecodeError),
@@ -32,8 +37,7 @@ impl Error {
         match self {
             Error::RuntimeError(_) => 10,
             Error::CompileError => 11,
-
-            // CliError will return 12
+            Error::CliError => 12,
 
             // `RuntimeError`, `CompileError` and `CliError` are obvious, but
             // the other variants are subject to change.

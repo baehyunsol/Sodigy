@@ -1,0 +1,27 @@
+sodigy-help(1)
+==========
+
+NAME
+----
+sodigy-help - Display help message
+
+SYNOPSIS
+--------
+[verse]
+'sodigy help' [<command>]
+
+DESCRIPTION
+-----------
+(TODO)
+
+OPTIONS
+-------
+(TODO)
+
+EXIT STATUS
+-----------
+(TODO)
+
+EXAMPLES
+--------
+(TODO)

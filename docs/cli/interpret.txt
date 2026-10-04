@@ -1,0 +1,27 @@
+sodigy-interpret(1)
+==========
+
+NAME
+----
+sodigy-interpret - Interpret a sodigy bytecode object file
+
+SYNOPSIS
+--------
+[verse]
+'sodigy interpret' [--test] [--debug-bytecode] [--check-allocator] <file>
+
+DESCRIPTION
+-----------
+(TODO)
+
+OPTIONS
+-------
+(TODO)
+
+EXIT STATUS
+-----------
+(TODO)
+
+EXAMPLES
+--------
+(TODO)

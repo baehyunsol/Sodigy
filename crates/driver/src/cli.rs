@@ -62,7 +62,10 @@ pub enum CliCommand {
         dump_timings: bool,
     },
     Clean,
-    Help(String),
+    Help {
+        command: Option<String>,
+        wrong_command: Option<String>,
+    },
     Interpret {
         bytecodes_path: String,
         profile: Profile,
@@ -72,6 +75,27 @@ pub enum CliCommand {
     New {
         project_name: String,
     },
+}
+
+impl CliCommand {
+    pub fn help(command: &str) -> CliCommand {
+        CliCommand::Help {
+            command: Some(command.to_string()),
+            wrong_command: None,
+        }
+    }
+
+    pub fn all_commands() -> Vec<String> {
+        vec![
+            String::from("build"),
+            String::from("clean"),
+            String::from("help"),
+            String::from("interpret"),
+            String::from("new"),
+            String::from("run"),
+            String::from("test"),
+        ]
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -109,7 +133,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .parse(args, 2)?;
 
             if parsed_args.show_help() {
-                return Ok(CliCommand::Help(String::from("build")));
+                return Ok(CliCommand::help("build"));
             }
 
             let output_path = parsed_args.arg_flags.get("--output").map(|p| p.to_string());
@@ -213,23 +237,24 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .parse(args, 2)?;
 
             if parsed_args.show_help() {
-                return Ok(CliCommand::Help(String::from("clean")));
+                return Ok(CliCommand::help("clean"));
             }
 
             Ok(CliCommand::Clean)
         },
         Some("help") => {
             let parsed_args = ArgParser::new()
-                .args(ArgType::String, ArgCount::Exact(1))
+                .args(ArgType::String, ArgCount::Leq(1))
                 .parse(args, 2)?;
 
             if parsed_args.show_help() {
-                return Ok(CliCommand::Help(String::from("clean")));
+                return Ok(CliCommand::help("help"));
             }
 
-            let help = parsed_args.get_args_exact(1)?[0].to_string();
-
-            Ok(CliCommand::Help(help))
+            Ok(CliCommand::Help {
+                command: parsed_args.get_args().get(0).map(|s| s.to_string()),
+                wrong_command: None,
+            })
         },
         Some("interpret") => {
             let parsed_args = ArgParser::new()
@@ -240,7 +265,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .parse(args, 2)?;
 
             if parsed_args.show_help() {
-                return Ok(CliCommand::Help(String::from("interpret")));
+                return Ok(CliCommand::help("interpret"));
             }
 
             let profile = if parsed_args.get_flag(0).is_some() { Profile::Test } else { Profile::Run };
@@ -261,7 +286,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .parse(args, 2)?;
 
             if parsed_args.show_help() {
-                return Ok(CliCommand::Help(String::from("new")));
+                return Ok(CliCommand::help("new"));
             }
 
             let project_name = parsed_args.get_args_exact(1)?[0].to_string();
@@ -292,7 +317,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .parse(args, 2)?;
 
             if parsed_args.show_help() {
-                return Ok(CliCommand::Help(String::from("run")));
+                return Ok(CliCommand::help("run"));
             }
 
             let optimize_level = match parsed_args.get_flag(0).as_ref().map(|f| f.as_str()) {
@@ -382,7 +407,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .parse(args, 2)?;
 
             if parsed_args.show_help() {
-                return Ok(CliCommand::Help(String::from("test")));
+                return Ok(CliCommand::help("test"));
             }
 
             let optimize_level = match parsed_args.get_flag(0).as_ref().map(|f| f.as_str()) {
@@ -447,7 +472,13 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 dump_timings,
             })
         },
-        Some(_) => todo!(),
-        None => todo!(),
+        Some(command) => Ok(CliCommand::Help {
+            command: None,
+            wrong_command: Some(command.to_string()),
+        }),
+        None => Ok(CliCommand::Help {
+            command: None,
+            wrong_command: None,
+        }),
     }
 }

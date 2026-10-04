@@ -1,0 +1,37 @@
+sodigy-run(1)
+==========
+
+NAME
+----
+sodigy-run - Run the current sodigy project
+
+SYNOPSIS
+--------
+[verse]
+'sodigy run' [--bytecode <path>] [--backend=native|interpret|mir-interpret]
+             [--color=auto|always|never] [--jobs|-j <n>] [--release|-O]
+             [--emit-irs] [--dump-post-mir-log] [--dump-timings]
+             [--debug-bytecode] [--check-allocator]
+             [--no-validate-token-spans|--validate-token-spans|--validate-std-token-spans|--validate-lib-token-spans]
+
+DESCRIPTION
+-----------
+(TODO)
+
+OPTIONS
+-------
+(TODO)
+
+EXIT STATUS
+-----------
+
+    0: Successful
+    10: Runtime Error
+    11: Compile Error
+    12: Cli Error
+    101: There's a bug in the compiler.
+    13: Etc Error
+
+EXAMPLES
+--------
+(TODO)

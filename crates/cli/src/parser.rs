@@ -1,7 +1,7 @@
-use crate::dist::get_closest_string;
 use crate::error::{Error, ErrorKind, RawError};
 use crate::file_size::parse_file_size;
 use crate::span::Span;
+use sodigy_utils::get_closest_string;
 use std::collections::HashMap;
 
 pub struct ArgParser {

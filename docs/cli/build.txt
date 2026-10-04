@@ -1,0 +1,87 @@
+sodigy-build(1)
+==========
+
+NAME
+----
+sodigy-build - Build a sodigy project
+
+SYNOPSIS
+--------
+[verse]
+'sodigy build' [--output|-o <path>] [--emit=exe|bytecode|bytecode-exe|rust]
+               [--bytecode <path>] [--color=auto|always|never] [--jobs|-j <n>]
+               [--release|-O] [--test] [--emit-irs] [--dump-post-mir-log]
+               [--dump-timings] [--debug-bytecode] [--check-allocator]
+               [--no-validate-token-spans|--validate-token-spans|--validate-std-token-spans|--validate-lib-token-spans]
+
+DESCRIPTION
+-----------
+Compile source files in `src/` and emit a single output file.
+
+OPTIONS
+-------
+    --output <path>, -o <path>
+
+    --emit=exe
+        Emit a single executable file (default). The compiler first lowers
+        the sodigy project to a rust crate, then uses the system's cargo and
+        rustc to create the executable.
+    --emit=bytecode
+        Emit a readable sodigy object file.
+    --emit=bytecode-exe
+        Emit a binary-encoded sodigy object file. Files emitted by
+        `--emit=bytecode-exe` and `--emit=bytecode` have the same content. If
+        you want readability, use `bytecode` option. With `--emit=bytecde-exe`,
+        you can save start-up time by skipping the parser. 
+    --emit=rust
+        Emit a single rust file that you can later compile with cargo and
+        rustc. (WIP)
+
+    --bytecode <path>
+        Instead of reading the `src/` directory, it reads a single object file.
+        You can create an object file with `--emit=bytecode` or
+        `--emit=bytecode-exe` option.
+
+    --color=auto, --color=always, --color=never
+        Control whether to color the output. Currently, it *cannot* detect
+        whether the terminal supports coloring.
+
+    --jobs <n>, -j <n>
+        Number of parallel workers to spawn. By default, it uses rust std's
+        `std::thread::available_parallelism` function to decide the number of
+        the workers.
+
+    --release, -O
+
+    --test
+        Compile the project with test profile. If you run it, it will run all
+        the top-level assertions and report how many failed. It also enables
+        all the inline assertions.
+        You cannot use this option with `--emit=bytecode` or
+        `--emit=bytecode-exe` because a sodigy object file always has enough
+        information to run in both profiles.
+
+    --emit-irs
+        I used to debug the compiler with this option. But not anymore.
+        I'll remove this option.
+
+    --dump-post-mir-log
+    --dump-timings
+    --debug-bytecode
+    --check-allocator
+    --no-validate-token-spans, --validate-token-spans, --validate-std-token-spans, --validate-lib-token-spans
+
+Undocumented options are for debugging the compiler.
+
+EXIT STATUS
+-----------
+
+    0: Successful
+    11: Compile Error
+    12: Cli Error
+    101: There's a bug in the compiler.
+    13: Etc Error
+
+EXAMPLES
+--------
+(TODO)

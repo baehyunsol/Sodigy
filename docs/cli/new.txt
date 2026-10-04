@@ -1,0 +1,27 @@
+sodigy-new(1)
+==========
+
+NAME
+----
+sodigy-new - Create a new sodigy project
+
+SYNOPSIS
+--------
+[verse]
+'sodigy new' <name>
+
+DESCRIPTION
+-----------
+(TODO)
+
+OPTIONS
+-------
+(TODO)
+
+EXIT STATUS
+-----------
+(TODO)
+
+EXAMPLES
+--------
+(TODO)

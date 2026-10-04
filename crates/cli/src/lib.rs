@@ -1,4 +1,3 @@
-mod dist;
 mod error;
 mod file_size;
 mod parser;

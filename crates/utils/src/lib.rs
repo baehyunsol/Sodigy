@@ -1,3 +1,7 @@
+mod dist;
+
+pub use dist::{get_closest_string, substr_edit_distance};
+
 pub fn dump_hex(n: u128, l: usize) -> String {
     // damn...
     match l {
