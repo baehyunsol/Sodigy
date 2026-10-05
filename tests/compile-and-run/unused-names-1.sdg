@@ -1,5 +1,4 @@
 //% compile-warning == 3
-//% run-pass
 
 let global_value = 42;
 

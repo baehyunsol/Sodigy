@@ -32,8 +32,13 @@ pub struct CompileAndRun {
 
     // test-runner generates this error message.
     pub error: Option<String>,
-    pub stdout: String,
-    pub stderr: String,
+
+    pub build_stdout: Option<String>,
+    pub build_stderr: Option<String>,
+    pub run_stdout: Option<String>,
+    pub run_stderr: Option<String>,
+    pub test_stdout: Option<String>,
+    pub test_stderr: Option<String>,
 
     // This has nothing to do with test pass/fail.
     // For example, if the test expects this case to compile-fail, but this case
@@ -43,16 +48,21 @@ pub struct CompileAndRun {
     pub status: Status,
 
     // Uses ANSI-terminal colors.
-    pub stdout_colored: String,
-    pub stderr_colored: String,
+    pub build_stdout_colored: Option<String>,
+    pub build_stderr_colored: Option<String>,
+    pub run_stdout_colored: Option<String>,
+    pub run_stderr_colored: Option<String>,
+    pub test_stdout_colored: Option<String>,
+    pub test_stderr_colored: Option<String>,
 
     // Hash of the test file(s).
     pub hash: String,
 
-    pub compile_elapsed_ms: u64,
+    pub build_elapsed_ms: u64,
 
-    // It's None if the compilation failed.
+    // It's None if the build failed.
     pub run_elapsed_ms: Option<u64>,
+    pub test_elapsed_ms: Option<u64>,
 }
 
 impl Default for CompileAndRun {
@@ -60,36 +70,64 @@ impl Default for CompileAndRun {
         CompileAndRun {
             name: String::new(),
             error: None,
-            stdout: String::new(),
-            stderr: String::new(),
-            status: Status::MiscError,
-            stdout_colored: String::new(),
-            stderr_colored: String::new(),
+            build_stdout: None,
+            build_stderr: None,
+            run_stdout: None,
+            run_stderr: None,
+            test_stdout: None,
+            test_stderr: None,
+            status: Status::not_run_yet(),
+            build_stdout_colored: None,
+            build_stderr_colored: None,
+            run_stdout_colored: None,
+            run_stderr_colored: None,
+            test_stdout_colored: None,
+            test_stderr_colored: None,
             hash: String::new(),
-            compile_elapsed_ms: 0,
+            build_elapsed_ms: 0,
             run_elapsed_ms: None,
+            test_elapsed_ms: None,
         }
     }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub enum Status {
-    // Failed before `sodigy build`.
-    // It could be a file-IO error, an error at `sodigy clean`, ... etc.
-    MiscError,
+pub enum StatusKind {
+    NotRunYet,
+    Timeout,
+    Pass,
+    Fail,
+}
 
-    CompileTimeout,
-    CompileFail,
+impl From<bool> for StatusKind {
+    fn from(b: bool) -> StatusKind {
+        if b { StatusKind::Pass } else { StatusKind::Fail }
+    }
+}
 
-    // This has 2 use cases.
-    // 1. The directive wants the test runner to make sure that the compile passes, but doesn't care about the run pass/fail.
-    // 2. The runner checked that the compile passes, but didn't run it.
-    CompilePass,
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct Status {
+    // e.g. `sodigy clean`, basic file IO for test files, ...
+    prepare: StatusKind,
 
-    // It implies `CompilePass`.
-    RunTimeout,
-    RunFail,
-    RunPass,
+    build: StatusKind,
+    test: StatusKind,
+    run: StatusKind,
+}
+
+impl Status {
+    pub fn failed_to_build(&self) -> bool {
+        matches!(self.build, StatusKind::Timeout | StatusKind::Fail)
+    }
+
+    pub fn not_run_yet() -> Status {
+        Status {
+            prepare: StatusKind::NotRunYet,
+            build: StatusKind::NotRunYet,
+            test: StatusKind::NotRunYet,
+            run: StatusKind::NotRunYet,
+        }
+    }
 }
 
 struct CnrContext {
@@ -127,6 +165,10 @@ pub fn run_cases(
             || file.strip_suffix(".run.stdout")
         ).or_else(
             || file.strip_suffix(".run.stderr")
+        ).or_else(
+            || file.strip_suffix(".test.stdout")
+        ).or_else(
+            || file.strip_suffix(".test.stderr")
         ) {
             if !exists(&set_extension(case_name, "sdg").unwrap()) && !is_dir(case_name) {
                 panic!(
@@ -234,6 +276,8 @@ fn prepare_cnr(
         compile_stderr: parse_expected_output(&set_extension(&base_path, "compile.stderr").unwrap()),
         run_stdout: parse_expected_output(&set_extension(&base_path, "run.stdout").unwrap()),
         run_stderr: parse_expected_output(&set_extension(&base_path, "run.stderr").unwrap()),
+        test_stdout: parse_expected_output(&set_extension(&base_path, "test.stdout").unwrap()),
+        test_stderr: parse_expected_output(&set_extension(&base_path, "test.stderr").unwrap()),
     };
     let mut sdg_files = 1;
 

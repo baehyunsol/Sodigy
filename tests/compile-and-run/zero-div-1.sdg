@@ -1,4 +1,5 @@
-//% run-fail
+//% test-fail
+//% test-error == 2
 
 #[name("must-fail")]
 assert 3 / 0 == 0;

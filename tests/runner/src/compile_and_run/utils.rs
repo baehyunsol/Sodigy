@@ -4,7 +4,11 @@ enum AnsiParseState {
     Escape,
 }
 
-pub fn remove_ansi_characters(s: &str) -> String {
+pub fn remove_ansi_characters(s: &Option<String>) -> Option<String> {
+    s.as_ref().map(|s| remove_ansi_characters_worker(s))
+}
+
+fn remove_ansi_characters_worker(s: &String) -> String {
     let mut state = AnsiParseState::Text;
     let mut result = vec![];
 
@@ -29,3 +33,4 @@ pub fn remove_ansi_characters(s: &str) -> String {
 
     result.iter().collect()
 }
+

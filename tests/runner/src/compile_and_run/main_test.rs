@@ -3,6 +3,7 @@ use super::{
     CompileAndRun,
     LineMatcher,
     Status,
+    StatusKind,
     hash_dir,
     match_lines,
     remove_ansi_characters,
@@ -18,14 +19,46 @@ pub struct ExpectedOutput {
     pub compile_stderr: Option<Vec<LineMatcher>>,
     pub run_stdout: Option<Vec<LineMatcher>>,
     pub run_stderr: Option<Vec<LineMatcher>>,
+    pub test_stdout: Option<Vec<LineMatcher>>,
+    pub test_stderr: Option<Vec<LineMatcher>>,
+}
+
+// If it's `{ compile: true, run: true, test: false }`, that means
+// `sodigy build` must succeed, `sodigy run` must succeed and `sodigy test` must fail.
+// If `.compile` is false, it ignores the other fields.
+#[derive(Clone, Debug)]
+pub struct ExpectedStatus {
+    pub compile: bool,
+    pub run: bool,
+    pub test: bool,
+}
+
+impl ExpectedStatus {
+    pub fn all_pass() -> ExpectedStatus {
+        ExpectedStatus {
+            compile: true,
+            run: true,
+            test: true,
+        }
+    }
+
+    pub fn compile_fail() -> ExpectedStatus {
+        ExpectedStatus {
+            compile: false,
+
+            // Don't care
+            run: true,
+            test: true,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct Directive {
-    pub expected_status: Status,
+    pub expected_status: ExpectedStatus,
     pub compile_error: Option<(Comparison, usize)>,
     pub compile_warning: Option<(Comparison, usize)>,
-    pub run_error: Option<(Comparison, usize)>,
+    pub test_error: Option<(Comparison, usize)>,
 }
 
 impl CnrContext {
@@ -33,13 +66,23 @@ impl CnrContext {
     pub fn main_test(&self) -> CompileAndRun {
         let lib_src = join3(&self.project_dir, "src", "lib.sdg").unwrap();
         let directive = parse_directive(&lib_src).unwrap();
-        let mut stdout_colored = vec![];
-        let mut stderr_colored = vec![];
+        let build_stdout_colored: Option<Vec<u8>>;
+        let build_stderr_colored: Option<Vec<u8>>;
+        let mut run_stdout_colored: Option<Vec<u8>> = None;
+        let mut run_stderr_colored: Option<Vec<u8>> = None;
+        let mut test_stdout_colored: Option<Vec<u8>> = None;
+        let mut test_stderr_colored: Option<Vec<u8>> = None;
+        let mut status = Status {
+            prepare: StatusKind::NotRunYet,
+            build: StatusKind::NotRunYet,
+            test: StatusKind::NotRunYet,
+            run: StatusKind::NotRunYet,
+        };
 
         // TODO: do we have to hash expected_output?
         let hash = format!("{:024x}", hash_dir(&join(&self.project_dir, "src").unwrap()));
 
-        if directive.expected_status == Status::CompileFail && self.expected_output.compile_stderr.is_none() {
+        if !directive.expected_status.compile && self.expected_output.compile_stderr.is_none() {
             panic!("If you want to assert that `{}` fails to compile, please add `{}.compile.stderr` file.", self.name, self.name);
         }
 
@@ -47,19 +90,21 @@ impl CnrContext {
         if self.sdg_files > 1 {
             match subprocess::run(&self.sodigy_path, &["clean"], &self.project_dir, 5.0, false, false) {
                 Ok(output) if !output.success() => {
+                    status.prepare = StatusKind::Fail;
                     return CompileAndRun {
                         name: self.name.to_string(),
                         error: Some(format!("error with `sodigy clean` (exit status {:?})", output.code())),
-                        status: Status::MiscError,
+                        status, 
                         hash,
                         ..CompileAndRun::default()
                     };
                 },
                 Err(e) => {
+                    status.prepare = StatusKind::Fail;
                     return CompileAndRun {
                         name: self.name.to_string(),
                         error: Some(format!("error with `sodigy clean`: {e:?}")),
-                        status: Status::MiscError,
+                        status,
                         hash,
                         ..CompileAndRun::default()
                     };
@@ -89,7 +134,7 @@ impl CnrContext {
             },
         }
 
-        let compile_started_at = Instant::now();
+        let build_started_at = Instant::now();
         let output = match subprocess::run(
             &self.sodigy_path,
             &args,
@@ -100,16 +145,22 @@ impl CnrContext {
         ) {
             Ok(output) => output,
             Err(e) => {
-                let (error, status) = match e {
-                    SubprocessError::Timeout => (String::from("compile-timeout"), Status::CompileTimeout),
-                    e => (format!("error with `sodigy build --test -o=target/run: {e:?}`"), Status::MiscError),
+                let error = match e {
+                    SubprocessError::Timeout => {
+                        status.build = StatusKind::Timeout;
+                        String::from("build-timeout")
+                    },
+                    e => {
+                        status.build = StatusKind::Fail;
+                        format!("error with `sodigy build --test -o=target/run: {e:?}`")
+                    },
                 };
 
                 return CompileAndRun {
                     name: self.name.to_string(),
                     error: Some(error),
                     status,
-                    compile_elapsed_ms: Instant::now().duration_since(compile_started_at).as_millis() as u64,
+                    build_elapsed_ms: Instant::now().duration_since(build_started_at).as_millis() as u64,
                     hash,
                     ..CompileAndRun::default()
                 };
@@ -118,6 +169,7 @@ impl CnrContext {
 
         if self.debug_bytecode {
             std::process::Command::new(&self.sodigy_path)
+                // TODO: set profile
                 .args(&["interpret", "target/run", "--test", "--debug-bytecode"])
                 .current_dir(&self.project_dir)
                 .stdin(std::process::Stdio::inherit())
@@ -127,19 +179,21 @@ impl CnrContext {
             return CompileAndRun::default();
         }
 
-        let compile_elapsed_ms = Instant::now().duration_since(compile_started_at).as_millis() as u64;
-        stdout_colored.extend(&output.stdout);
-        stderr_colored.extend(&output.stderr);
+        let build_elapsed_ms = Instant::now().duration_since(build_started_at).as_millis() as u64;
+        build_stdout_colored = Some(output.stdout.to_vec());
+        build_stderr_colored = Some(output.stderr.to_vec());
 
-        let mut error = match check_compile_output(&output, &directive, &self.expected_output) {
+        let mut error = match check_build_output(&output, &directive, &self.expected_output) {
             Ok(()) => None,
             Err(e) => Some(e),
         };
-        let mut status = if output.status.success() { Status::CompilePass } else { Status::CompileFail };
+        let mut test_elapsed_ms = None;
         let mut run_elapsed_ms = None;
+        status.prepare = StatusKind::Pass;
+        status.build = output.status.success().into();
 
-        if status != Status::CompileFail {
-            let run_started_at = Instant::now();
+        if status.build == StatusKind::Pass {
+            let test_started_at = Instant::now();
             match subprocess::run(
                 &self.sodigy_path,
                 &["interpret", "target/run", "--test"],
@@ -149,28 +203,68 @@ impl CnrContext {
                 false,
             ) {
                 Ok(output) => {
+                    test_elapsed_ms = Some(Instant::now().duration_since(test_started_at).as_millis() as u64);
+                    test_stdout_colored = Some(output.stdout.to_vec());
+                    test_stderr_colored = Some(output.stderr.to_vec());
+
+                    error = match (error, check_test_output(&output, &directive, &self.expected_output)) {
+                        (None, Err(e)) => Some(e),
+                        (e, _) => e,
+                    };
+
+                    status.test = output.status.success().into();
+                },
+                Err(SubprocessError::Timeout) => {
+                    test_elapsed_ms = Some(Instant::now().duration_since(test_started_at).as_millis() as u64);
+                    error = Some(String::from("test-timeout"));
+                    status.test = StatusKind::Timeout;
+                },
+                Err(e) => {
+                    status.test = StatusKind::Fail;
+                    return CompileAndRun {
+                        name: self.name.to_string(),
+                        error: Some(format!("error with `sodigy interpret target/run --test`: {e:?}")),
+                        status,
+                        build_elapsed_ms,
+                        hash,
+                        ..CompileAndRun::default()
+                    };
+                },
+            }
+
+            let run_started_at = Instant::now();
+            match subprocess::run(
+                &self.sodigy_path,
+                &["interpret", "target/run"],
+                &self.project_dir,
+                30.0,
+                self.dump_output,
+                false,
+            ) {
+                Ok(output) => {
                     run_elapsed_ms = Some(Instant::now().duration_since(run_started_at).as_millis() as u64);
-                    stdout_colored.extend(&output.stdout);
-                    stderr_colored.extend(&output.stderr);
+                    run_stdout_colored = Some(output.stdout.to_vec());
+                    run_stderr_colored = Some(output.stderr.to_vec());
 
                     error = match (error, check_run_output(&output, &directive, &self.expected_output)) {
                         (None, Err(e)) => Some(e),
                         (e, _) => e,
                     };
 
-                    status = if output.status.success() { Status::RunPass } else { Status::RunFail };
+                    status.run = output.status.success().into();
                 },
                 Err(SubprocessError::Timeout) => {
                     run_elapsed_ms = Some(Instant::now().duration_since(run_started_at).as_millis() as u64);
                     error = Some(String::from("run-timeout"));
-                    status = Status::RunTimeout;
+                    status.run = StatusKind::Timeout;
                 },
                 Err(e) => {
+                    status.run = StatusKind::Fail;
                     return CompileAndRun {
                         name: self.name.to_string(),
                         error: Some(format!("error with `sodigy interpret target/run`: {e:?}")),
-                        status: Status::MiscError,
-                        compile_elapsed_ms,
+                        status,
+                        build_elapsed_ms,
                         hash,
                         ..CompileAndRun::default()
                     };
@@ -178,20 +272,33 @@ impl CnrContext {
             }
         }
 
-        let stdout_colored = String::from_utf8_lossy(&stdout_colored).to_string();
-        let stderr_colored = String::from_utf8_lossy(&stderr_colored).to_string();
+        let build_stdout_colored = build_stdout_colored.as_ref().map(|s| String::from_utf8_lossy(s).to_string());
+        let build_stderr_colored = build_stderr_colored.as_ref().map(|s| String::from_utf8_lossy(s).to_string());
+        let run_stdout_colored = run_stdout_colored.as_ref().map(|s| String::from_utf8_lossy(s).to_string());
+        let run_stderr_colored = run_stderr_colored.as_ref().map(|s| String::from_utf8_lossy(s).to_string());
+        let test_stdout_colored = test_stdout_colored.as_ref().map(|s| String::from_utf8_lossy(s).to_string());
+        let test_stderr_colored = test_stderr_colored.as_ref().map(|s| String::from_utf8_lossy(s).to_string());
 
         CompileAndRun {
             name: self.name.to_string(),
             error,
-            stdout: remove_ansi_characters(&stdout_colored),
-            stderr: remove_ansi_characters(&stderr_colored),
+            build_stdout: remove_ansi_characters(&build_stdout_colored),
+            build_stderr: remove_ansi_characters(&build_stderr_colored),
+            run_stdout: remove_ansi_characters(&run_stdout_colored),
+            run_stderr: remove_ansi_characters(&run_stderr_colored),
+            test_stdout: remove_ansi_characters(&test_stdout_colored),
+            test_stderr: remove_ansi_characters(&test_stderr_colored),
             status,
-            stdout_colored,
-            stderr_colored,
+            build_stdout_colored,
+            build_stderr_colored,
+            run_stdout_colored,
+            run_stderr_colored,
+            test_stdout_colored,
+            test_stderr_colored,
             hash,
-            compile_elapsed_ms,
+            build_elapsed_ms,
             run_elapsed_ms,
+            test_elapsed_ms,
         }
     }
 }
@@ -202,37 +309,47 @@ fn parse_directive(file_path: &str) -> Result<Directive, FileError> {
     }
 
     let s = read_string(&file_path)?;
-    let mut expected_status = None;
-    let mut compile_error = None;
-    let mut compile_warning = None;
-    let mut run_error = None;
+    let mut expected_compile: Option<bool> = None;
+    let mut expected_run: Option<bool> = None;
+    let mut expected_test: Option<bool> = None;
+    let mut compile_error: Option<(Comparison, usize)> = None;
+    let mut compile_warning: Option<(Comparison, usize)> = None;
+    let mut test_error: Option<(Comparison, usize)> = None;
 
     for line in s.lines() {
         if line.starts_with("//%") {
             let directive = line.strip_prefix("//%").unwrap().trim();
 
             match directive {
-                "compile-pass" => match expected_status {
-                    Some(_) => error(file_path, line),
-                    None => { expected_status = Some(Status::CompilePass); },
+                "compile-pass" => match (expected_compile, expected_run, expected_test) {
+                    (Some(_), _, _) => error(file_path, line),
+                    _ => { expected_compile = Some(true); },
                 },
-                "compile-fail" => match expected_status {
-                    Some(_) => error(file_path, line),
-                    None => { expected_status = Some(Status::CompileFail); },
+                "compile-fail" => match (expected_compile, expected_run, expected_test) {
+                    (Some(_), _, _) | (_, Some(_), _) | (_, _, Some(_)) => error(file_path, line),
+                    _ => { expected_compile = Some(false); },
                 },
-                "run-pass" => match expected_status {
-                    Some(_) => error(file_path, line),
-                    None => { expected_status = Some(Status::RunPass); },
+                "run-pass" => match (expected_compile, expected_run, expected_test) {
+                    (Some(false), _, _) | (_, Some(_), _) => error(file_path, line),
+                    _ => { expected_run = Some(true); },
                 },
-                "run-fail" => match expected_status {
-                    Some(_) => error(file_path, line),
-                    None => { expected_status = Some(Status::RunFail); },
+                "run-fail" => match (expected_compile, expected_run, expected_test) {
+                    (Some(false), _, _) | (_, Some(_), _) => error(file_path, line),
+                    _ => { expected_run = Some(false); },
                 },
-                _ if directive.starts_with("compile-error") || directive.starts_with("compile-warning") || directive.starts_with("run-error") => {
+                "test-pass" => match (expected_compile, expected_run, expected_test) {
+                    (Some(false), _, _) | (_, _, Some(_)) => error(file_path, line),
+                    _ => { expected_test = Some(true); },
+                },
+                "test-fail" => match (expected_compile, expected_run, expected_test) {
+                    (Some(false), _, _) | (_, _, Some(_)) => error(file_path, line),
+                    _ => { expected_test = Some(false); },
+                },
+                _ if directive.starts_with("compile-error") || directive.starts_with("compile-warning") || directive.starts_with("test-error") => {
                     let (kind, directive) = match directive {
                         _ if directive.starts_with("compile-error") => ("ce", directive.get(13..).unwrap().trim()),
                         _ if directive.starts_with("compile-warning") => ("cw", directive.get(15..).unwrap().trim()),
-                        _ if directive.starts_with("run-error") => ("re", directive.get(9..).unwrap().trim()),
+                        _ if directive.starts_with("test-error") => ("te", directive.get(10..).unwrap().trim()),
                         _ => error(file_path, line),
                     };
                     let (cmp, directive) = match directive {
@@ -258,9 +375,9 @@ fn parse_directive(file_path: &str) -> Result<Directive, FileError> {
                             Some(_) => error(file_path, line),
                             None => { compile_warning = Some((cmp, n)); },
                         },
-                        "re" => match run_error {
+                        "te" => match test_error {
                             Some(_) => error(file_path, line),
-                            None => { run_error = Some((cmp, n)); },
+                            None => { test_error = Some((cmp, n)); },
                         },
                         _ => unreachable!(),
                     }
@@ -270,40 +387,58 @@ fn parse_directive(file_path: &str) -> Result<Directive, FileError> {
         }
     }
 
+    let mut expected_status = match (expected_compile, expected_run, expected_test) {
+        (Some(false), _, _) => Some(ExpectedStatus::compile_fail()),
+        (None, None, None) => None,
+        (_, run, test) => Some(ExpectedStatus {
+            compile: true,
+            run: run.unwrap_or(true),
+            test: test.unwrap_or(true),
+        }),
+    };
+
     // If the user expects compile errors, that implies compile-fail!
     if let Some((cmp, n)) = compile_error && expected_status.is_none() {
         match (cmp, n) {
             (Comparison::Gt | Comparison::Geq, _) => {
-                expected_status = Some(Status::CompileFail);
+                expected_status = Some(ExpectedStatus::compile_fail());
             },
             (Comparison::Eq, n) if n != 0 => {
-                expected_status = Some(Status::CompileFail);
+                expected_status = Some(ExpectedStatus::compile_fail());
             },
             _ => {},
         }
     }
 
-    if let Some((cmp, n)) = run_error && expected_status.is_none() {
+    if let Some((cmp, n)) = test_error && expected_status.is_none() {
         match (cmp, n) {
             (Comparison::Gt | Comparison::Geq, _) => {
-                expected_status = Some(Status::RunFail);
+                expected_status = Some(ExpectedStatus {
+                    compile: true,
+                    run: true,
+                    test: false,
+                });
             },
             (Comparison::Eq, n) if n != 0 => {
-                expected_status = Some(Status::RunFail);
+                expected_status = Some(ExpectedStatus {
+                    compile: true,
+                    run: true,
+                    test: false,
+                });
             },
             _ => {},
         }
     }
 
     Ok(Directive {
-        expected_status: expected_status.unwrap_or(Status::RunPass),
+        expected_status: expected_status.unwrap_or(ExpectedStatus::all_pass()),
         compile_error,
         compile_warning,
-        run_error,
+        test_error,
     })
 }
 
-fn check_compile_output(output: &subprocess::Output, directive: &Directive, expected_output: &ExpectedOutput) -> Result<(), String> {
+fn check_build_output(output: &subprocess::Output, directive: &Directive, expected_output: &ExpectedOutput) -> Result<(), String> {
     let (compile_errors, compile_warnings) = match count_compile_errors_and_warnings(&String::from_utf8_lossy(&output.stderr)) {
         Some((e, w)) => (e, w),
         None => {
@@ -311,9 +446,12 @@ fn check_compile_output(output: &subprocess::Output, directive: &Directive, expe
         },
     };
 
-    match (output.status.success(), directive.expected_status) {
-        (true, Status::CompileFail) => { return Err(String::from("expected compile-fail, but it passed")); },
-        (false, Status::CompilePass | Status::RunFail | Status::RunPass) => { return Err(String::from("expected compile-pass, but it failed")); },
+    // TODO: The term `build` and `compile` are mixed and is confusing.
+    //       The user-facing API of the test harness uses the term `compile`,
+    //       but everyone else uses the term `build`.
+    match (output.status.success(), directive.expected_status.compile) {
+        (true, false) => { return Err(String::from("expected compile-fail, but it passed")); },
+        (false, true) => { return Err(String::from("expected compile-pass, but it failed")); },
         _ => {},
     }
 
@@ -325,24 +463,36 @@ fn check_compile_output(output: &subprocess::Output, directive: &Directive, expe
         cmp.check(n, compile_warnings, "the number of compile warnings")?;
     }
 
-    match_lines(&String::from_utf8_lossy(&output.stdout), &expected_output.compile_stdout).map_err(|e| format!("expected compile_stdout and actual stdout do not match\n{e}"))?;
-    match_lines(&String::from_utf8_lossy(&output.stderr), &expected_output.compile_stderr).map_err(|e| format!("expected compile_stderr and actual stderr do not match\n{e}"))?;
+    match_lines(&String::from_utf8_lossy(&output.stdout), &expected_output.compile_stdout).map_err(|e| format!("expected compile.stdout and actual stdout do not match\n{e}"))?;
+    match_lines(&String::from_utf8_lossy(&output.stderr), &expected_output.compile_stderr).map_err(|e| format!("expected compile.stderr and actual stderr do not match\n{e}"))?;
     Ok(())
 }
 
 fn check_run_output(output: &subprocess::Output, directive: &Directive, expected_output: &ExpectedOutput) -> Result<(), String> {
-    match (output.status.success(), directive.expected_status) {
-        (true, Status::RunFail) => { return Err(String::from("expected run-fail, but it passed")); },
-        (false, Status::RunPass) => { return Err(String::from("expected run-pass, but it failed")); },
+    match (output.status.success(), directive.expected_status.run) {
+        (true, false) => { return Err(String::from("expected run-fail, but it passed")); },
+        (false, true) => { return Err(String::from("expected run-pass, but it failed")); },
         _ => {},
     }
 
-    if let Some((cmp, n)) = directive.run_error {
+    match_lines(&String::from_utf8_lossy(&output.stdout), &expected_output.run_stdout).map_err(|e| format!("expected run.stdout and actual stdout do not match\n{e}"))?;
+    match_lines(&String::from_utf8_lossy(&output.stderr), &expected_output.run_stderr).map_err(|e| format!("expected run.stderr and actual stderr do not match\n{e}"))?;
+    Ok(())
+}
+
+fn check_test_output(output: &subprocess::Output, directive: &Directive, expected_output: &ExpectedOutput) -> Result<(), String> {
+    match (output.status.success(), directive.expected_status.test) {
+        (true, false) => { return Err(String::from("expected test-fail, but it passed")); },
+        (false, true) => { return Err(String::from("expected test-pass, but it failed")); },
+        _ => {},
+    }
+
+    if let Some((cmp, n)) = directive.test_error {
         todo!();
     }
 
-    match_lines(&String::from_utf8_lossy(&output.stdout), &expected_output.run_stdout).map_err(|e| format!("expected run_stdout and actual stdout do not match\n{e}"))?;
-    match_lines(&String::from_utf8_lossy(&output.stderr), &expected_output.run_stderr).map_err(|e| format!("expected run_stderr and actual stderr do not match\n{e}"))?;
+    match_lines(&String::from_utf8_lossy(&output.stdout), &expected_output.test_stdout).map_err(|e| format!("expected test.stdout and actual stdout do not match\n{e}"))?;
+    match_lines(&String::from_utf8_lossy(&output.stderr), &expected_output.test_stderr).map_err(|e| format!("expected test.stderr and actual stderr do not match\n{e}"))?;
     Ok(())
 }
 

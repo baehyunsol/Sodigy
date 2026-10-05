@@ -196,7 +196,7 @@ fn match_line(tokens: &[Token], line: &str) -> bool {
 }
 
 fn normalize(line: &str) -> String {
-    remove_ansi_characters(line.trim())
+    remove_ansi_characters(&Some(line.trim().to_string())).unwrap()
 }
 
 fn unexpected_end(matchers: &[LineMatcher], cursor: usize) -> String {

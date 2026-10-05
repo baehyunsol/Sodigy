@@ -51,12 +51,7 @@ enum CheckIncrementalCompilation {
 
 impl CnrContext {
     pub fn extra_tests(&mut self, result: &mut CompileAndRun) {
-        if result.error.is_some() || !(
-            result.status == Status::CompilePass ||
-            result.status == Status::RunTimeout ||
-            result.status == Status::RunFail ||
-            result.status == Status::RunPass
-        ) {
+        if result.error.is_some() || result.status.failed_to_build() {
             return;
         }
 

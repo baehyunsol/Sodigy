@@ -28,7 +28,7 @@ Every case has a timeout: 30 seconds for compile and 30 seconds for run. You can
 
 It panics if there's an error in the test itself. For example, if there's a syntax error in an expected-output file, the entire test runner will panic. So, if the runner panics, please read the panic message, fix your test case and rerun the test runner.
 
-Test cases always run with `test` profile, not `run` profile. So, adding `main` function to a test case is no-op. Add assertions.
+All test cases run twice. Once with the test profile (running top-level assertions) and once with the run profile (running the main function). If there's no assertions or no main function, nothing happens.
 
 #### Add cases (single-file)
 
@@ -46,7 +46,7 @@ You can also add expected-output files. Create `tests/compile-and-run/foo-2.comp
 
 #### Expected Output
 
-There are 4 possible extensions: `.compile.stdout`, `.compile.stderr`, `.run.stdout` and `.run.stderr`. For example, `tests/compile-and-run/foo.compile.stderr` is an expected-output of the stderr of the compilation of `tests/compile-and-run/foo.sdg` or `tests/compile-and-run/foo/`. Each test case consists of 2 stages: it first compiles the sodigy code, then it checks the assertions in the sodigy code. The output of the first stage is matched against `.compile.xxxxxx` and the second stage is matched against `.run.xxxxxx`.
+There are 6 possible extensions: `.compile.stdout`, `.compile.stderr`, `test.stdout`, `test.stderr`, `.run.stdout` and `.run.stderr`. For example, `tests/compile-and-run/foo.compile.stderr` is an expected-output of the stderr of the compilation of `tests/compile-and-run/foo.sdg` or `tests/compile-and-run/foo/`. Each test case consists of 3 stages: it first compiles the sodigy code, runs the built binary in the test profile (checking the top-level assertions), then it runs in the run profile (running the main function). The output of the first stage is matched against `.compile.xxxxxx`, the second stage is matched against `.test.xxxxxx` and the last stage is matched against `.run.xxxxxx`.
 
 It normalizes the output before comparison. ANSI terminal colors are removed, and it trims each line.
 
@@ -67,24 +67,28 @@ Goodbye, World
 You can add directives to the test file. If the case is multi-file, you have to add directives to `src/lib.sdg` of the project. A directive is a line that starts with `//%`, and followed by commands.
 
 - `//% compile-pass`
-  - This test case must be successfully compiled.
+  - This case must be successfully compiled.
 - `//% compile-fail`
-  - This test case must not be successfully compiled.
+  - This case must not be successfully compiled.
+- `//% test-pass`
+  - This case must be successfully compiled, and assertions in the test case must all succeed.
+- `//% test-fail`
+  - This case must be successfully compiled, and there must be a failing assertion in the test case.
 - `//% run-pass`
-  - This test case must be successfully compiled, and assertions in the test case must all succeed.
+  - This case must be successfully compiled, and the main function must return successfully.
 - `//% run-fail`
-  - This test case must be successfully compiled, and there must be a failing assertion in the test case.
+  - This case must be successfully compiled, and the main function must not return successfully.
 - `//% compile-error > 3`
   - There must be more than 3 compile errors.
   - You can use 6 operators: `>`, `>=`, `<`, `<=`, `==`, `!=`
 - `//% compile-warning > 3`
   - There must be more than 3 compiler warnings.
   - You can use 6 operators: `>`, `>=`, `<`, `<=`, `==`, `!=`
-- `//% run-error > 3`
+- `//% test-error > 3`
   - There must be more than 3 failing assertions.
   - You can use 6 operators: `>`, `>=`, `<`, `<=`, `==`, `!=`
 
-TODO: If an assertion's name starts with "must-fail", it must fail.
+If there are no directives, the case must be successfully compiled, all the assertions must pass and the main function ,if exists, must return successfully.
 
 ### crates
 

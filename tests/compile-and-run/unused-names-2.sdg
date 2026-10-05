@@ -1,5 +1,4 @@
 //% compile-warning == 3
-//% run-pass
 
 fn foo() -> Option<Int> = None;
 

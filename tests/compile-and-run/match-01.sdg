@@ -1,4 +1,3 @@
-//% run-pass
 //% compile-warning == 1
 
 fn test_wildcard(n: Int) = match n {

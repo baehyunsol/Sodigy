@@ -1,4 +1,4 @@
-//% run-fail
+//% test-fail
 
 fn always_fails() = {
     #[always]
@@ -8,3 +8,4 @@ fn always_fails() = {
 };
 
 assert always_fails();
+
