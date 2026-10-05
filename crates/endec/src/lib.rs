@@ -30,16 +30,3 @@ pub trait Endec {
     fn encode_impl(&self, buffer: &mut Vec<u8>);
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> where Self: Sized;
 }
-
-// It dumps contents of a session in a human-readable format.
-pub trait DumpSession {
-    fn dump_session(&self) -> Vec<u8>;
-}
-
-// The last stage (code gen) doesn't have a session and instead directly generates the code (in Vec<u8>).
-// So, this trait is used to dump the code.
-impl DumpSession for Vec<u8> {
-    fn dump_session(&self) -> Vec<u8> {
-        self.to_vec()
-    }
-}

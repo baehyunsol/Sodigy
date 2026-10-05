@@ -1,4 +1,4 @@
-use crate::{EmitIrOption, StoreIrAt};
+use crate::{StoreIrAt, StoreIrOption};
 use sodigy_code_gen::{Emit, Profile};
 use sodigy_file::{FileOrStd, ModulePath};
 use sodigy_optimize::OptimizeLevel;
@@ -23,7 +23,7 @@ pub enum Command {
         // hir, it doesn't have to do so.
         find_modules: bool,
 
-        emit_ir_options: Vec<EmitIrOption>,
+        store_ir: Option<StoreIrOption>,
         dump_post_mir_log: bool,
         stop_after: Stage,
         validate_token_spans: ValidateTokenSpans,
@@ -32,13 +32,11 @@ pub enum Command {
     InterHir {
         modules: HashMap<ModulePath, Span>,
         intermediate_dir: String,
-        emit_ir_options: Vec<EmitIrOption>,
     },
     // Collects MIRs and runs InterMir stage.
     InterMir {
         modules: HashMap<ModulePath, Span>,
         intermediate_dir: String,
-        emit_ir_options: Vec<EmitIrOption>,
 
         // It has nothing to do with the actual compilation.
         // It checks if the built_in funcs in the sodigy std and the

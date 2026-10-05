@@ -10,9 +10,8 @@ SYNOPSIS
 [verse]
 'sodigy build' [--output|-o <path>] [--emit=exe|bytecode|bytecode-exe|rust]
                [--bytecode <path>] [--color=auto|always|never] [--jobs|-j <n>]
-               [--release|-O] [--test] [--emit-irs] [--dump-post-mir-log]
-               [--dump-timings] [--debug-bytecode] [--check-allocator]
-               [--no-validate-token-spans|--validate-token-spans|--validate-std-token-spans|--validate-lib-token-spans]
+               [--release|-O] [--test] [--dump-post-mir-log] [--dump-timings]
+               [--debug-bytecode] [--check-allocator] [--no-validate-token-spans|--validate-token-spans|--validate-std-token-spans|--validate-lib-token-spans]
 
 DESCRIPTION
 -----------
@@ -60,10 +59,6 @@ OPTIONS
         You cannot use this option with `--emit=bytecode` or
         `--emit=bytecode-exe` because a sodigy object file always has enough
         information to run in both profiles.
-
-    --emit-irs
-        I used to debug the compiler with this option. But not anymore.
-        I'll remove this option.
 
     --dump-post-mir-log
     --dump-timings

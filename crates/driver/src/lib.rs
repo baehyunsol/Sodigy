@@ -44,11 +44,11 @@ mod tests;
 pub use cli::{CliCommand, ColorWhen};
 pub use command::{Command, ValidateTokenSpans};
 pub use error::Error;
-pub use ir_store::{EmitIrOption, StoreIrAt};
+pub use ir_store::{StoreIrAt, StoreIrOption};
 
 use cli::parse_args;
 use global_context::GlobalContext;
-use ir_store::{emit_irs_if_has_to, get_cached_ir};
+use ir_store::{store_ir_if_has_to, get_cached_ir};
 use log::{
     dump_inter_hir_log,
     dump_inter_mir_log,
@@ -149,9 +149,9 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             Ok(())
         },
         cli_command @ (
-            CliCommand::Build { bytecode, optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, check_allocator, debug_bytecode, jobs, color, dump_post_mir_log, dump_timings, .. } |
-            CliCommand::Run { bytecode, optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, check_allocator, debug_bytecode, jobs, color, dump_post_mir_log, dump_timings, .. } |
-            CliCommand::Test { bytecode, optimize_level, custom_error_levels, emit_irs, graceful_shutdown, validate_token_spans, check_allocator, debug_bytecode, jobs, color, dump_post_mir_log, dump_timings, .. }
+            CliCommand::Build { bytecode, optimize_level, custom_error_levels, graceful_shutdown, validate_token_spans, check_allocator, debug_bytecode, jobs, color, dump_post_mir_log, dump_timings, .. } |
+            CliCommand::Run { bytecode, optimize_level, custom_error_levels, graceful_shutdown, validate_token_spans, check_allocator, debug_bytecode, jobs, color, dump_post_mir_log, dump_timings, .. } |
+            CliCommand::Test { bytecode, optimize_level, custom_error_levels, graceful_shutdown, validate_token_spans, check_allocator, debug_bytecode, jobs, color, dump_post_mir_log, dump_timings, .. }
         ) => {
             // TODO: make these configurable
             let incremental_compilation = true;
@@ -200,7 +200,6 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                     ir_dir,
                     *optimize_level,
                     custom_error_levels,
-                    *emit_irs,
                     *dump_post_mir_log,
                     *dump_timings,
                     *graceful_shutdown,
@@ -274,7 +273,6 @@ pub fn init_workers_and_compile(
     ir_dir: String,
     optimize_level: OptimizeLevel,
     custom_error_levels: &HashMap<u16, CustomErrorLevel>,
-    emit_irs: bool,
     dump_post_mir_log: bool,
     dump_timings_flag: bool,
     graceful_shutdown: u32,  // in milliseconds
@@ -303,7 +301,6 @@ pub fn init_workers_and_compile(
         ir_dir.clone(),
         optimize_level,
         custom_error_levels,
-        emit_irs,
         dump_post_mir_log,
         graceful_shutdown,
         incremental_compilation,
@@ -402,7 +399,6 @@ fn compile(
     ir_dir: String,
     optimize_level: OptimizeLevel,
     custom_error_levels: &HashMap<u16, CustomErrorLevel>,
-    emit_irs: bool,
     dump_post_mir_log_flag: bool,
     graceful_shutdown: u32,  // in milliseconds
     incremental_compilation: bool,
@@ -416,28 +412,6 @@ fn compile(
     let mut shutdown_countdown: Option<Instant> = None;
     let mut round_robin = 0;
     let mut modules: HashMap<ModulePath, ModuleCompileState> = HashMap::new();
-    let emit_irs = if emit_irs {
-        [
-            Stage::Lex,
-            Stage::Parse,
-            Stage::Hir,
-            Stage::InterHir,
-            Stage::Mir,
-            Stage::InterMir,
-            Stage::PostMir,
-            Stage::MirOptimize,
-            Stage::Bytecode,
-            Stage::BytecodeOptimize,
-        ].into_iter().map(
-            |stage| EmitIrOption {
-                stage,
-                store: StoreIrAt::IntermediateDir,
-                human_readable: true,
-            }
-        ).collect()
-    } else {
-        vec![]
-    };
 
     let lib_module_path = ModulePath::lib();
     let lib_file_path = match lib_module_path.get_file_path(&src_dir) {
@@ -502,13 +476,10 @@ fn compile(
                         optimize_level,
                         intermediate_dir: ir_dir.clone(),
                         find_modules: true,
-                        emit_ir_options: emit_irs.clone_and_push(
-                            EmitIrOption {
-                                stage: Stage::Hir,
-                                store: StoreIrAt::IntermediateDir,
-                                human_readable: false,
-                            },
-                        ),
+                        store_ir: Some(StoreIrOption {
+                            stage: Stage::Hir,
+                            at: StoreIrAt::IntermediateDir,
+                        }),
                         dump_post_mir_log: dump_post_mir_log_flag,
                         stop_after: Stage::Hir,
                         validate_token_spans,
@@ -545,13 +516,6 @@ fn compile(
                         |module| (module.module_path.clone(), module.span.clone())
                     ).collect(),
                     intermediate_dir: ir_dir.clone(),
-                    emit_ir_options: emit_irs.clone_and_push(
-                        EmitIrOption {
-                            stage: Stage::InterHir,
-                            store: StoreIrAt::IntermediateDir,
-                            human_readable: false,
-                        },
-                    ),
                 },
             ))?;
             round_robin += 1;
@@ -569,13 +533,6 @@ fn compile(
                         |module| (module.module_path.clone(), module.span.clone())
                     ).collect(),
                     intermediate_dir: ir_dir.clone(),
-                    emit_ir_options: emit_irs.clone_and_push(
-                        EmitIrOption {
-                            stage: Stage::InterMir,
-                            store: StoreIrAt::IntermediateDir,
-                            human_readable: false,
-                        },
-                    ),
                     verify_built_ins,
                 },
             ))?;
@@ -692,13 +649,10 @@ fn compile(
                                             optimize_level,
                                             intermediate_dir: ir_dir.clone(),
                                             find_modules: false,
-                                            emit_ir_options: emit_irs.clone_and_push(
-                                                EmitIrOption {
-                                                    stage: Stage::Mir,
-                                                    store: StoreIrAt::IntermediateDir,
-                                                    human_readable: false,
-                                                },
-                                            ),
+                                            store_ir: Some(StoreIrOption {
+                                                stage: Stage::Mir,
+                                                at: StoreIrAt::IntermediateDir,
+                                            }),
                                             dump_post_mir_log: dump_post_mir_log_flag,
                                             stop_after: Stage::Mir,
                                             validate_token_spans,
@@ -725,13 +679,10 @@ fn compile(
                                             optimize_level,
                                             intermediate_dir: ir_dir.clone(),
                                             find_modules: false,
-                                            emit_ir_options: emit_irs.clone_and_push(
-                                                EmitIrOption {
-                                                    stage: Stage::InsertRefCount,
-                                                    store: StoreIrAt::IntermediateDir,
-                                                    human_readable: false,
-                                                },
-                                            ),
+                                            store_ir: Some(StoreIrOption {
+                                                stage: Stage::InsertRefCount,
+                                                at: StoreIrAt::IntermediateDir,
+                                            }),
                                             dump_post_mir_log: dump_post_mir_log_flag,
                                             stop_after: Stage::InsertRefCount,
                                             validate_token_spans,
@@ -929,15 +880,3 @@ fn has_forbidden_warning(
     false
 }
 
-// I want purely functional `push` method, but rust doesn't have one. So I created one!
-trait CloneAndPush<T> {
-    fn clone_and_push(&self, element: T) -> Vec<T>;
-}
-
-impl<T: Clone> CloneAndPush<T> for Vec<T> {
-    fn clone_and_push(&self, element: T) -> Vec<T> {
-        let mut r = self.to_vec();
-        r.push(element);
-        r
-    }
-}

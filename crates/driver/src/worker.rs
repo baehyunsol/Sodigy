@@ -1,14 +1,14 @@
 use crate::{
     Command,
-    EmitIrOption,
     Error,
     GlobalContext,
     StoreIrAt,
+    StoreIrOption,
     TimingsEntry,
     dump_inter_mir_log,
-    emit_irs_if_has_to,
     get_cached_ir,
     store_inter_hir_log,
+    store_ir_if_has_to,
 };
 use sodigy_code_gen::Emit;
 use sodigy_endec::Endec;
@@ -201,7 +201,7 @@ impl Worker {
                 optimize_level,
                 intermediate_dir,
                 find_modules,
-                emit_ir_options,
+                store_ir,
                 dump_post_mir_log,
                 stop_after,
                 validate_token_spans,
@@ -252,13 +252,15 @@ impl Worker {
                         );
                         let file_span = lex_session.file_span();
 
-                        emit_irs_if_has_to(
-                            &lex_session,
-                            &emit_ir_options,
-                            Stage::Lex,
-                            Some(content_hash),
-                            &intermediate_dir,
-                        )?;
+                        if let Some(store_ir) = &store_ir {
+                            store_ir_if_has_to(
+                                &lex_session,
+                                store_ir,
+                                Stage::Lex,
+                                Some(content_hash),
+                                &intermediate_dir,
+                            )?;
+                        }
 
                         if !lex_session.errors.is_empty() || stop_after <= Stage::Lex {
                             tx_to_main.send(MessageToMain::StageComplete {
@@ -273,13 +275,15 @@ impl Worker {
 
                         let parse_session = sodigy_parse::parse(lex_session, file_span, &mut self.timings);
 
-                        emit_irs_if_has_to(
-                            &parse_session,
-                            &emit_ir_options,
-                            Stage::Parse,
-                            Some(content_hash),
-                            &intermediate_dir,
-                        )?;
+                        if let Some(store_ir) = &store_ir {
+                            store_ir_if_has_to(
+                                &parse_session,
+                                store_ir,
+                                Stage::Parse,
+                                Some(content_hash),
+                                &intermediate_dir,
+                            )?;
+                        }
 
                         if !parse_session.errors.is_empty() || stop_after <= Stage::Parse {
                             tx_to_main.send(MessageToMain::StageComplete {
@@ -294,13 +298,16 @@ impl Worker {
 
                         let hir_session = sodigy_hir::lower(parse_session, &mut self.timings);
 
-                        emit_irs_if_has_to(
-                            &hir_session,
-                            &emit_ir_options,
-                            Stage::Hir,
-                            Some(content_hash),
-                            &intermediate_dir,
-                        )?;
+                        if let Some(store_ir) = &store_ir {
+                            store_ir_if_has_to(
+                                &hir_session,
+                                store_ir,
+                                Stage::Hir,
+                                Some(content_hash),
+                                &intermediate_dir,
+                            )?;
+                        }
+
                         hir_session
                     };
 
@@ -366,13 +373,15 @@ impl Worker {
                     let mir_session = sodigy_mir::lower(hir_session, global_context.inter_hir_session.as_ref().unwrap());
                     self.timings.stage_end(!mir_session.errors.is_empty());
 
-                    emit_irs_if_has_to(
-                        &mir_session,
-                        &emit_ir_options,
-                        Stage::Mir,
-                        Some(content_hash),
-                        &intermediate_dir,
-                    )?;
+                    if let Some(store_ir) = &store_ir {
+                        store_ir_if_has_to(
+                            &mir_session,
+                            store_ir,
+                            Stage::Mir,
+                            Some(content_hash),
+                            &intermediate_dir,
+                        )?;
+                    }
 
                     mir_session
                 };
@@ -400,13 +409,15 @@ impl Worker {
                     tx_to_main.send(MessageToMain::PostMirLog(post_mir_session.match_dumps.as_ref().unwrap().clone()))?;
                 }
 
-                emit_irs_if_has_to(
-                    &mir_session,
-                    &emit_ir_options,
-                    Stage::PostMir,
-                    Some(content_hash),
-                    &intermediate_dir,
-                )?;
+                if let Some(store_ir) = &store_ir {
+                    store_ir_if_has_to(
+                        &mir_session,
+                        store_ir,
+                        Stage::PostMir,
+                        Some(content_hash),
+                        &intermediate_dir,
+                    )?;
+                }
 
                 if !mir_session.errors.is_empty() || stop_after <= Stage::PostMir {
                     tx_to_main.send(MessageToMain::StageComplete {
@@ -423,13 +434,15 @@ impl Worker {
                 let optimized_mir_session = sodigy_optimize::optimize_mir(mir_session, optimize_level);
                 self.timings.stage_end(!optimized_mir_session.errors.is_empty());
 
-                emit_irs_if_has_to(
-                    &optimized_mir_session,
-                    &emit_ir_options,
-                    Stage::MirOptimize,
-                    Some(content_hash),
-                    &intermediate_dir,
-                )?;
+                if let Some(store_ir) = &store_ir {
+                    store_ir_if_has_to(
+                        &optimized_mir_session,
+                        store_ir,
+                        Stage::MirOptimize,
+                        Some(content_hash),
+                        &intermediate_dir,
+                    )?;
+                }
 
                 if !optimized_mir_session.errors.is_empty() || stop_after <= Stage::MirOptimize {
                     tx_to_main.send(MessageToMain::StageComplete {
@@ -447,13 +460,15 @@ impl Worker {
                 let bytecode_session = sodigy_bytecode::lower(optimized_mir_session, lower_built_ins);
                 self.timings.stage_end(!bytecode_session.errors.is_empty());
 
-                emit_irs_if_has_to(
-                    &bytecode_session,
-                    &emit_ir_options,
-                    Stage::Bytecode,
-                    Some(content_hash),
-                    &intermediate_dir,
-                )?;
+                if let Some(store_ir) = &store_ir {
+                    store_ir_if_has_to(
+                        &bytecode_session,
+                        store_ir,
+                        Stage::Bytecode,
+                        Some(content_hash),
+                        &intermediate_dir,
+                    )?;
+                }
 
                 if !bytecode_session.errors.is_empty() || stop_after <= Stage::Bytecode {
                     tx_to_main.send(MessageToMain::StageComplete {
@@ -470,13 +485,15 @@ impl Worker {
                 let optimized_bytecode_session = sodigy_optimize::optimize_bytecode(bytecode_session, optimize_level);
                 self.timings.stage_end(!optimized_bytecode_session.errors.is_empty());
 
-                emit_irs_if_has_to(
-                    &optimized_bytecode_session,
-                    &emit_ir_options,
-                    Stage::BytecodeOptimize,
-                    Some(content_hash),
-                    &intermediate_dir,
-                )?;
+                if let Some(store_ir) = &store_ir {
+                    store_ir_if_has_to(
+                        &optimized_bytecode_session,
+                        store_ir,
+                        Stage::BytecodeOptimize,
+                        Some(content_hash),
+                        &intermediate_dir,
+                    )?;
+                }
 
                 if !optimized_bytecode_session.errors.is_empty() || stop_after <= Stage::BytecodeOptimize {
                     tx_to_main.send(MessageToMain::StageComplete {
@@ -493,13 +510,15 @@ impl Worker {
                 let ref_count_session = sodigy_bytecode::insert_ref_count(optimized_bytecode_session);
                 self.timings.stage_end(!ref_count_session.errors.is_empty());
 
-                emit_irs_if_has_to(
-                    &ref_count_session,
-                    &emit_ir_options,
-                    Stage::InsertRefCount,
-                    Some(content_hash),
-                    &intermediate_dir,
-                )?;
+                if let Some(store_ir) = &store_ir {
+                    store_ir_if_has_to(
+                        &ref_count_session,
+                        store_ir,
+                        Stage::InsertRefCount,
+                        Some(content_hash),
+                        &intermediate_dir,
+                    )?;
+                }
 
                 // This is the last stage...
                 tx_to_main.send(MessageToMain::StageComplete {
@@ -512,7 +531,6 @@ impl Worker {
             Command::InterHir {
                 modules,
                 intermediate_dir,
-                emit_ir_options,
             } => {
                 self.timings.module = None;
                 self.timings.stage_start(Stage::InterHir, Some(Substage::LoadHirModules));
@@ -558,9 +576,12 @@ impl Worker {
                 self.timings.stage_end(r.is_err());
                 r?;
 
-                emit_irs_if_has_to(
+                store_ir_if_has_to(
                     &inter_hir_session,
-                    &emit_ir_options,
+                    &StoreIrOption {
+                        stage: Stage::InterHir,
+                        at: StoreIrAt::IntermediateDir,
+                    },
                     Stage::InterHir,
                     None,
                     &intermediate_dir,
@@ -580,7 +601,6 @@ impl Worker {
             Command::InterMir {
                 modules,
                 intermediate_dir,
-                emit_ir_options,
                 verify_built_ins,
             } => {
                 self.timings.module = None;
@@ -668,15 +688,12 @@ impl Worker {
                         mir_session.funcs.extend(items.monomorphized_funcs.drain(..));
                     }
 
-                    emit_irs_if_has_to(
+                    store_ir_if_has_to(
                         &mir_session,
-                        &[
-                            EmitIrOption {
-                                stage: Stage::Mir,
-                                store: StoreIrAt::IntermediateDir,
-                                human_readable: false,
-                            },
-                        ],
+                        &StoreIrOption {
+                            stage: Stage::Mir,
+                            at: StoreIrAt::IntermediateDir,
+                        },
                         Stage::Mir,
                         Some(content_hash),
                         &intermediate_dir,
@@ -684,9 +701,12 @@ impl Worker {
                 }
 
                 self.timings.stage_end(false);
-                emit_irs_if_has_to(
+                store_ir_if_has_to(
                     &inter_mir_session,
-                    &emit_ir_options,
+                    &StoreIrOption {
+                        stage: Stage::InterMir,
+                        at: StoreIrAt::IntermediateDir,
+                    },
                     Stage::InterMir,
                     None,
                     &intermediate_dir,
@@ -751,13 +771,12 @@ impl Worker {
                         write_bytes(&f, &code, WriteMode::CreateOrTruncate)?;
                     },
                     StoreIrAt::IntermediateDir => {
-                        emit_irs_if_has_to(
+                        store_ir_if_has_to(
                             &code,
-                            &[EmitIrOption {
+                            &StoreIrOption {
                                 stage: Stage::CodeGen,
-                                store: StoreIrAt::IntermediateDir,
-                                human_readable: false,
-                            }],
+                                at: StoreIrAt::IntermediateDir,
+                            },
                             Stage::CodeGen,
                             None,
                             &intermediate_dir,

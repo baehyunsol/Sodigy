@@ -1,5 +1,5 @@
 use crate::{ObjectFile, Session};
-use sodigy_endec::{DecodeError, DumpSession, Endec};
+use sodigy_endec::{DecodeError, Endec};
 use sodigy_error::{Error, Warning};
 use sodigy_mir::{GlobalContext, Intrinsic};
 use sodigy_span::Span;
@@ -56,11 +56,5 @@ impl Endec for Session<'_, '_> {
             },
             cursor,
         ))
-    }
-}
-
-impl DumpSession for Session<'_, '_> {
-    fn dump_session(&self) -> Vec<u8> {
-        self.object_file.to_string().into_bytes()
     }
 }

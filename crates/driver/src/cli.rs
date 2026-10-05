@@ -21,7 +21,6 @@ pub enum CliCommand {
         profile: Profile,
         optimize_level: OptimizeLevel,
         custom_error_levels: HashMap<u16, CustomErrorLevel>,
-        emit_irs: bool,
         graceful_shutdown: u32,  // in millis
         validate_token_spans: ValidateTokenSpans,
         check_allocator: bool,
@@ -36,7 +35,6 @@ pub enum CliCommand {
         optimize_level: OptimizeLevel,
         backend: Backend,
         custom_error_levels: HashMap<u16, CustomErrorLevel>,
-        emit_irs: bool,
         graceful_shutdown: u32,  // in millis
         validate_token_spans: ValidateTokenSpans,
         check_allocator: bool,
@@ -51,7 +49,6 @@ pub enum CliCommand {
         optimize_level: OptimizeLevel,
         backend: Backend,
         custom_error_levels: HashMap<u16, CustomErrorLevel>,
-        emit_irs: bool,
         graceful_shutdown: u32,  // in millis
         validate_token_spans: ValidateTokenSpans,
         check_allocator: bool,
@@ -116,7 +113,6 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
                 .optional_flag(&["--release"])
                 .optional_flag(&["--test"])
-                .optional_flag(&["--emit-irs"])
                 .optional_flag(&["--dump-post-mir-log"])
                 .optional_flag(&["--dump-timings"])
                 .flag_with_default(&[
@@ -177,11 +173,10 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 (_, false) => Profile::Run,
             };
 
-            let emit_irs = parsed_args.get_flag(2).is_some();
-            let dump_post_mir_log = parsed_args.get_flag(3).is_some();
-            let dump_timings = parsed_args.get_flag(4).is_some();
+            let dump_post_mir_log = parsed_args.get_flag(2).is_some();
+            let dump_timings = parsed_args.get_flag(3).is_some();
 
-            let validate_token_spans = match parsed_args.get_flag(5).as_ref().map(|s| s.as_str()) {
+            let validate_token_spans = match parsed_args.get_flag(4).as_ref().map(|s| s.as_str()) {
                 Some("--no-validate-token-spans") => ValidateTokenSpans::Never,
                 Some("--validate-token-spans") => ValidateTokenSpans::Always,
                 Some("--validate-std-token-spans") => ValidateTokenSpans::OnlyStd,
@@ -189,7 +184,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 _ => unreachable!(),
             };
 
-            let debug_bytecode = match (emit, parsed_args.get_flag(6).is_some()) {
+            let debug_bytecode = match (emit, parsed_args.get_flag(5).is_some()) {
                 (Emit::Exe | Emit::Rust, true) => true,
                 (Emit::ReadableBytecode | Emit::ExecutableBytecode, true) => {
                     // This is a cli error. You can set `--debug-bytecode` flag only if the emit option is `rust` or `exe`,
@@ -199,7 +194,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 },
                 (_, false) => false,
             };
-            let check_allocator = parsed_args.get_flag(7).is_some();
+            let check_allocator = parsed_args.get_flag(6).is_some();
 
             let output_path = match output_path {
                 Some(output_path) => output_path,
@@ -224,7 +219,6 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 validate_token_spans,
                 check_allocator,
                 debug_bytecode,
-                emit_irs,
                 jobs,
                 color,
                 dump_post_mir_log,
@@ -300,7 +294,6 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_arg_flag("--color", ArgType::enum_(&["auto", "always", "never"]))
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
                 .optional_flag(&["--release"])
-                .optional_flag(&["--emit-irs"])
                 .optional_flag(&["--dump-post-mir-log"])
                 .optional_flag(&["--dump-timings"])
                 .flag_with_default(&[
@@ -352,11 +345,10 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             ).unwrap_or_else(
                 || std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4)
             );
-            let emit_irs = parsed_args.get_flag(1).is_some();
-            let dump_post_mir_log = parsed_args.get_flag(2).is_some();
-            let dump_timings = parsed_args.get_flag(3).is_some();
+            let dump_post_mir_log = parsed_args.get_flag(1).is_some();
+            let dump_timings = parsed_args.get_flag(2).is_some();
 
-            let validate_token_spans = match parsed_args.get_flag(4).as_ref().map(|s| s.as_str()) {
+            let validate_token_spans = match parsed_args.get_flag(3).as_ref().map(|s| s.as_str()) {
                 Some("--no-validate-token-spans") => ValidateTokenSpans::Never,
                 Some("--validate-token-spans") => ValidateTokenSpans::Always,
                 Some("--validate-std-token-spans") => ValidateTokenSpans::OnlyStd,
@@ -364,8 +356,8 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 _ => unreachable!(),
             };
 
-            let debug_bytecode = parsed_args.get_flag(5).is_some();
-            let check_allocator = parsed_args.get_flag(6).is_some();
+            let debug_bytecode = parsed_args.get_flag(4).is_some();
+            let check_allocator = parsed_args.get_flag(5).is_some();
 
             Ok(CliCommand::Run {
                 bytecode,
@@ -376,7 +368,6 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 validate_token_spans,
                 check_allocator,
                 debug_bytecode,
-                emit_irs,
                 jobs,
                 color,
                 dump_post_mir_log,
@@ -390,7 +381,6 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_arg_flag("--color", ArgType::enum_(&["auto", "always", "never"]))
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
                 .optional_flag(&["--release"])
-                .optional_flag(&["--emit-irs"])
                 .optional_flag(&["--dump-post-mir-log"])
                 .optional_flag(&["--dump-timings"])
                 .flag_with_default(&[
@@ -442,11 +432,10 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             ).unwrap_or_else(
                 || std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4)
             );
-            let emit_irs = parsed_args.get_flag(1).is_some();
-            let dump_post_mir_log = parsed_args.get_flag(2).is_some();
-            let dump_timings = parsed_args.get_flag(3).is_some();
+            let dump_post_mir_log = parsed_args.get_flag(1).is_some();
+            let dump_timings = parsed_args.get_flag(2).is_some();
 
-            let validate_token_spans = match parsed_args.get_flag(4).as_ref().map(|s| s.as_str()) {
+            let validate_token_spans = match parsed_args.get_flag(3).as_ref().map(|s| s.as_str()) {
                 Some("--no-validate-token-spans") => ValidateTokenSpans::Never,
                 Some("--validate-token-spans") => ValidateTokenSpans::Always,
                 Some("--validate-std-token-spans") => ValidateTokenSpans::OnlyStd,
@@ -465,7 +454,6 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 validate_token_spans,
                 check_allocator,
                 debug_bytecode,
-                emit_irs,
                 jobs,
                 color,
                 dump_post_mir_log,

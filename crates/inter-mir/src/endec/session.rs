@@ -1,5 +1,5 @@
 use crate::{Monomorphization, Session};
-use sodigy_endec::{DecodeError, DumpSession, Endec};
+use sodigy_endec::{DecodeError, Endec};
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{EnumShape, FuncShape, Poly, StructShape};
 use sodigy_mir::Type;
@@ -81,18 +81,5 @@ impl Endec for Session {
             },
             cursor,
         ))
-    }
-}
-
-impl DumpSession for Session {
-    fn dump_session(&self) -> Vec<u8> {
-        let s = format!(
-            "{{ types: {:?}, generic_args: {:?} }}",
-            self.types,
-            self.generic_args,
-        );
-        let mut c = sodigy_prettify::Context::new(s.as_bytes().to_vec());
-        c.step_all();
-        c.output().to_vec()
     }
 }

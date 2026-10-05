@@ -71,10 +71,6 @@ impl CnrContext {
         // TODO: collect timings data... for all cnrs!
         let mut args = vec!["build", "--emit=bytecode-exe", "-o=target/run", "--dump-timings"];
 
-        if self.emit_irs {
-            args.push("--emit-irs");
-        }
-
         if self.dump_post_mir_log {
             args.push("--dump-post-mir-log");
         }
