@@ -89,6 +89,7 @@ impl Session {
             enum_shapes: HashMap::new(),
             name_aliases,
             type_aliases: HashMap::new(),
+            entry_point: None,
             item_name_map: HashMap::new(),
             lang_items: HashMap::new(),
             built_in_funcs: HashSet::new(),

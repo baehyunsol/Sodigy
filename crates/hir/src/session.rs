@@ -19,7 +19,7 @@ use crate::{
     Use,
     prelude::prelude_namespace,
 };
-use sodigy_error::{Error, Warning, WarningKind};
+use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
 use sodigy_name_analysis::{Counter, NameKind, Namespace, UseCount};
 use sodigy_parse::{self as ast, Session as ParseSession};
 use sodigy_session::SodigySession;
@@ -184,20 +184,54 @@ impl Session {
     }
 
     pub fn add_entry_point(&mut self, func: &ast::Func) -> Result<(), ()> {
+        let mut has_error = false;
+
         if let Some(entry_point) = &self.entry_point {
-            todo!()  // an error
+            self.errors.push(Error {
+                kind: ErrorKind::MultipleEntryPoint,
+                spans: vec![
+                    RenderableSpan {
+                        span: entry_point.clone(),
+                        auxiliary: true,
+                        note: Some(String::from("You already have an entry point here.")),
+                    },
+                    RenderableSpan {
+                        span: func.name_span.clone(),
+                        auxiliary: false,
+                        note: Some(String::from("Another entry point here.")),
+                    },
+                ],
+                note: None,
+            });
+            has_error = true;
         }
 
         if !func.generics.is_empty() {
-            todo!()  // also an error
+            self.errors.push(Error {
+                kind: ErrorKind::EntryPointWithGeneric,
+                spans: todo!(),  // point to the generic def!
+                note: None,
+            });
+            has_error = true;
         }
 
         if !func.params.is_empty() {
-            todo!()  // also an error
+            self.errors.push(Error {
+                kind: ErrorKind::EntryPointWithParam,
+                spans: todo!(),  // point to the params?
+                note: None,
+            });
+            has_error = true;
         }
 
-        self.entry_point = Some(func.name_span.clone());
-        Ok(())
+        if has_error {
+            Err(())
+        }
+
+        else {
+            self.entry_point = Some(func.name_span.clone());
+            Ok(())
+        }
     }
 
     // If a function has 5 params and 3 are unused, it throws 1 warning instead of 3.

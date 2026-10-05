@@ -27,6 +27,7 @@ impl Endec for Session {
         self.enum_shapes.encode_impl(buffer);
         self.name_aliases.encode_impl(buffer);
         self.type_aliases.encode_impl(buffer);
+        self.entry_point.encode_impl(buffer);
 
         self.item_name_map.encode_impl(buffer);
         self.lang_items.encode_impl(buffer);
@@ -47,6 +48,7 @@ impl Endec for Session {
         let (enum_shapes, cursor) = HashMap::<Span, EnumShape>::decode_impl(buffer, cursor)?;
         let (name_aliases, cursor) = HashMap::<_, _>::decode_impl(buffer, cursor)?;
         let (type_aliases, cursor) = HashMap::<_, _>::decode_impl(buffer, cursor)?;
+        let (entry_point, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (item_name_map, cursor) = HashMap::<Span, (NameKind, HashMap<InternedString, (Span, NameKind)>)>::decode_impl(buffer, cursor)?;
         let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
         let (built_in_funcs, cursor) = HashSet::<Span>::decode_impl(buffer, cursor)?;
@@ -68,6 +70,7 @@ impl Endec for Session {
                 enum_shapes,
                 name_aliases,
                 type_aliases,
+                entry_point,
                 item_name_map,
                 lang_items,
                 built_in_funcs,

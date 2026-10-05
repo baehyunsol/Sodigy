@@ -74,7 +74,7 @@ fn lower_main(object_file: ObjectFile, profile: Profile, errors: &mut Vec<Error>
             Some(m) => todo!(),
             None => {
                 errors.push(Error {
-                    kind: ErrorKind::CannotFindMainEntry,
+                    kind: ErrorKind::CannotFindEntryPoint,
                     spans: vec![],
                     note: None,
                 });
