@@ -70,6 +70,7 @@ pub fn interpret(
         Profile::Test => {
             let mut heap = Heap::new();
             let mut ever_failed = false;
+            let (mut pass_count, mut fail_count) = (0, 0);
 
             for (name, label) in object_file.asserts.iter() {
                 if let Some(debug_session) = &mut debug_session {
@@ -102,12 +103,20 @@ pub fn interpret(
 
                 println!("assertion `{name}`: {}", if fail { "fail" } else { "pass" });
 
+                if fail {
+                    fail_count += 1;
+                } else {
+                    pass_count += 1;
+                }
+
                 // FIXME
                 // I want it to reset heap only when it panics.
                 // But currently, there's no memory manager and it goes out of control so easily...
                 // I have to remove this line when the memory manager is stable.
                 heap = Heap::new();
             }
+
+            println!("Ran {} assertions, {pass_count} passed and {fail_count} failed.", pass_count + fail_count);
 
             if ever_failed {
                 Err(Error::TestFail)
