@@ -28,6 +28,7 @@ pub struct Session {
     pub enum_shapes: HashMap<Span, EnumShape>,
     pub name_aliases: HashMap<Span, Use>,
     pub type_aliases: HashMap<Span, Alias>,
+    pub entry_point: Option<Span>,
 
     // DefSpan of a module `foo` points to `foo` in `mod foo;`.
     // If it's the root module (lib) or std, it uses a special span `Span::Lib` or `Span::Std`.
@@ -108,6 +109,12 @@ impl Session {
         module_span: Span,  // of this hir
         mut hir_session: sodigy_hir::Session,
     ) {
+        match (hir_session.entry_point.take(), &self.entry_point) {
+            (Some(e1), Some(e2)) => todo!(),  // an error
+            (Some(e), None) => { self.entry_point = Some(e); },
+            _ => {},
+        }
+
         for func in hir_session.funcs.iter() {
             self.func_shapes.insert(func.name_span.clone(), func.shape());
 

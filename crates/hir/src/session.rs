@@ -21,7 +21,7 @@ use crate::{
 };
 use sodigy_error::{Error, Warning, WarningKind};
 use sodigy_name_analysis::{Counter, NameKind, Namespace, UseCount};
-use sodigy_parse::Session as ParseSession;
+use sodigy_parse::{self as ast, Session as ParseSession};
 use sodigy_session::SodigySession;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, intern_string};
@@ -56,6 +56,8 @@ pub struct Session {
 
     // modules are always top-level
     pub modules: Vec<Module>,
+
+    pub entry_point: Option<Span>,
 
     // collected all the `#[assert_type(..)]` in this module
     pub type_assertions: Vec<TypeAssertion>,
@@ -122,6 +124,7 @@ impl Session {
             asserts: vec![],
             uses: vec![],
             modules: vec![],
+            entry_point: None,
             type_assertions: vec![],
             associated_items: vec![],
             trivial_lets: HashMap::new(),
@@ -178,6 +181,23 @@ impl Session {
 
     pub fn push_lambda(&mut self, lambda: Func) {
         self.block_stack.last_mut().unwrap().lambdas.push(lambda);
+    }
+
+    pub fn add_entry_point(&mut self, func: &ast::Func) -> Result<(), ()> {
+        if let Some(entry_point) = &self.entry_point {
+            todo!()  // an error
+        }
+
+        if !func.generics.is_empty() {
+            todo!()  // also an error
+        }
+
+        if !func.params.is_empty() {
+            todo!()  // also an error
+        }
+
+        self.entry_point = Some(func.name_span.clone());
+        Ok(())
     }
 
     // If a function has 5 params and 3 are unused, it throws 1 warning instead of 3.

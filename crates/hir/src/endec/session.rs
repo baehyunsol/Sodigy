@@ -13,9 +13,8 @@ use crate::{
     TrivialLet,
     TypeAssertion,
     Use,
-    dump::{dump_assert, dump_func, dump_let},
 };
-use sodigy_endec::{DecodeError, Endec, IndentedLines};
+use sodigy_endec::{DecodeError, Endec};
 use sodigy_error::{Error, Warning};
 use sodigy_span::Span;
 use std::collections::HashMap;
@@ -43,6 +42,7 @@ impl Endec for Session {
         self.aliases.encode_impl(buffer);
         self.uses.encode_impl(buffer);
         self.modules.encode_impl(buffer);
+        self.entry_point.encode_impl(buffer);
         self.type_assertions.encode_impl(buffer);
         self.associated_items.encode_impl(buffer);
         self.trivial_lets.encode_impl(buffer);
@@ -64,6 +64,7 @@ impl Endec for Session {
         let (aliases, cursor) = Vec::<Alias>::decode_impl(buffer, cursor)?;
         let (uses, cursor) = Vec::<Use>::decode_impl(buffer, cursor)?;
         let (modules, cursor) = Vec::<Module>::decode_impl(buffer, cursor)?;
+        let (entry_point, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (type_assertions, cursor) = Vec::<TypeAssertion>::decode_impl(buffer, cursor)?;
         let (associated_items, cursor) = Vec::<AssociatedItem>::decode_impl(buffer, cursor)?;
         let (trivial_lets, cursor) = HashMap::<Span, TrivialLet>::decode_impl(buffer, cursor)?;
@@ -96,6 +97,7 @@ impl Endec for Session {
                 aliases,
                 uses,
                 modules,
+                entry_point,
                 type_assertions,
                 associated_items,
                 trivial_lets,
@@ -110,3 +112,4 @@ impl Endec for Session {
         ))
     }
 }
+

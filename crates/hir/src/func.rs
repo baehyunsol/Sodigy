@@ -162,6 +162,12 @@ impl Func {
         let unused_effect = attribute.get_decorator(b"unused_effect", &session.intermediate_dir).is_some();
         let breakpoint = attribute.get_decorator(b"breakpoint", &session.intermediate_dir).is_some();
 
+        if attribute.get_decorator(b"entry", &session.intermediate_dir).is_some() {
+            if let Err(()) = session.add_entry_point(ast_func) {
+                has_error = true;
+            }
+        }
+
         let is_poly = match attribute.get_decorator(b"poly", &session.intermediate_dir) {
             Some(d) => {
                 session.polys.insert(ast_func.name_span.clone(), Poly {
@@ -526,6 +532,14 @@ impl Func {
                     intern_string(b"breakpoint", intermediate_dir).unwrap(),
                     DecoratorRule {
                         name: intern_string(b"breakpoint", intermediate_dir).unwrap(),
+                        requirement: Requirement::Maybe,
+                        arg_requirement: Requirement::Never,
+                        ..DecoratorRule::default()
+                    },
+                ), (
+                    intern_string(b"entry", intermediate_dir).unwrap(),
+                    DecoratorRule {
+                        name: intern_string(b"entry", intermediate_dir).unwrap(),
                         requirement: Requirement::Maybe,
                         arg_requirement: Requirement::Never,
                         ..DecoratorRule::default()
