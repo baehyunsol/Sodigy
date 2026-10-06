@@ -11,6 +11,7 @@ use sodigy_error::FuncEffect;
 use sodigy_span::Span;
 use std::collections::HashMap;
 
+mod assert;
 mod basic_block;
 mod dump;
 mod endec;
@@ -19,6 +20,7 @@ mod parse;
 mod ref_count;
 mod session;
 
+pub use assert::Assert;
 pub use basic_block::{BasicBlock, Terminator, to_basic_blocks};
 pub use dump::Highlight;
 pub use link::link;
@@ -30,7 +32,7 @@ pub struct ObjectFile {
     pub data: HashMap<ExprHash, Value>,
     pub code: HashMap<GlobalLabel, Code>,
     pub main_entry: Option<GlobalLabel>,
-    pub asserts: Vec<(String, GlobalLabel)>,
+    pub asserts: Vec<Assert>,
 }
 
 // It can be a func, an assertion or a global let.

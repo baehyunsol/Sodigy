@@ -1,10 +1,11 @@
 use crate::{
-    to_basic_blocks,
+    Assert,
     BasicBlock,
     Code,
     CodeKind,
     ObjectFile,
     Terminator,
+    to_basic_blocks,
 };
 use sodigy_bytecode::{
     Bytecode,
@@ -32,7 +33,7 @@ impl Session {
         lower_built_ins: bool,
     ) -> Session {
         let mut code = HashMap::with_capacity(bytecode_session.lets.len() + bytecode_session.funcs.len() + bytecode_session.asserts.len());
-        let mut assert_labels = Vec::with_capacity(bytecode_session.asserts.len());
+        let mut asserts = Vec::with_capacity(bytecode_session.asserts.len());
 
         for mut func in bytecode_session.funcs.drain(..) {
             let label = GlobalLabel::new(func.name_span.hash());
@@ -69,7 +70,8 @@ impl Session {
         for mut assert in bytecode_session.asserts.drain(..) {
             let name = String::from_utf8_lossy(&unintern_string(assert.name, &bytecode_session.intermediate_dir).unwrap().unwrap()).to_string();
             let label = GlobalLabel::new(assert.keyword_span.hash());
-            assert_labels.push((name.clone(), label));
+            let is_std = assert.keyword_span.is_std();
+            asserts.push(Assert { name: name.clone(), label, is_std });
             code.insert(
                 label,
                 Code {
@@ -126,7 +128,7 @@ impl Session {
             data: std::mem::take(&mut bytecode_session.data_section),
             code,
             main_entry: None,  // TODO
-            asserts: assert_labels,
+            asserts,
         };
 
         Session {

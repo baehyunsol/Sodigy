@@ -21,7 +21,7 @@ impl Display for ObjectFile {
             labels.push(String::from("asserts:"));
 
             for assert in self.asserts.iter() {
-                labels.push(format!("    @G{}", assert.1.hex(20)));
+                labels.push(format!("    @G{}", assert.label.hex(20)));
             }
         }
 

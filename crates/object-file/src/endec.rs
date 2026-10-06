@@ -1,4 +1,5 @@
 use crate::{
+    Assert,
     BasicBlock,
     Bytecode,
     CodeKind,
@@ -33,6 +34,22 @@ impl Endec for Session {
     }
 }
 
+impl Endec for Assert {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.name.encode_impl(buffer);
+        self.label.encode_impl(buffer);
+        self.is_std.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (name, cursor) = String::decode_impl(buffer, cursor)?;
+        let (label, cursor) = GlobalLabel::decode_impl(buffer, cursor)?;
+        let (is_std, cursor) = bool::decode_impl(buffer, cursor)?;
+
+        Ok((Assert { name, label, is_std }, cursor))
+    }
+}
+
 impl Endec for ObjectFile {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         self.data.encode_impl(buffer);
@@ -45,7 +62,7 @@ impl Endec for ObjectFile {
         let (data, cursor) = HashMap::<ExprHash, Value>::decode_impl(buffer, cursor)?;
         let (code, cursor) = HashMap::<GlobalLabel, Code>::decode_impl(buffer, cursor)?;
         let (main_entry, cursor) = Option::<GlobalLabel>::decode_impl(buffer, cursor)?;
-        let (asserts, cursor) = Vec::<(String, GlobalLabel)>::decode_impl(buffer, cursor)?;
+        let (asserts, cursor) = Vec::<Assert>::decode_impl(buffer, cursor)?;
 
         Ok((ObjectFile { data, code, main_entry, asserts }, cursor))
     }
@@ -190,3 +207,4 @@ impl Endec for Terminator {
         }
     }
 }
+

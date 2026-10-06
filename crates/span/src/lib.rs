@@ -34,6 +34,13 @@ impl SpanHash {
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct SpanId(pub u128);
 
+impl SpanId {
+    pub fn is_std(&self) -> bool {
+        let file = ((self.0 >> 64) & 0xffff_ffff) as u32;
+        file >= 0x8000_0000
+    }
+}
+
 impl fmt::Debug for SpanId {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let file = File(((self.0 >> 64) & 0xffff_ffff) as u32);
@@ -259,6 +266,19 @@ impl Span {
             _ => self.clone(),
         }
     }
+
+    pub fn is_std(&self) -> bool {
+        match self {
+            Span::Range(r) => r.is_std(),
+            Span::Monomorphize { span, .. } | Span::Derived { span, .. } => span.is_std(),
+            Span::Prelude(_) |
+            Span::Poly { .. } |
+            Span::IntermediateTypeVar { .. } |  // TODO: maybe we have to check its inner span..??
+            Span::Lib |
+            Span::None => false,
+            Span::Std => true,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -268,3 +288,4 @@ pub enum PolySpanKind {
     ParamName(usize),
     ReturnType,
 }
+

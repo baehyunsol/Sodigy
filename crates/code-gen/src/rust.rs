@@ -91,6 +91,7 @@ fn lower_main(object_file: ObjectFile, profile: Profile, errors: &mut Vec<Error>
                 body.push(format!("            ({name:?}, c_{}),", label.hex(20)));
             }
 
+            // TODO: filter assertions
             body.push(String::from(r#"        ];
         for (name, f) in samples {
             let c = CallResult::TailCallShort { f, x0: 0, x1: 0 };
@@ -818,3 +819,4 @@ fn calc_free_blocks(simulated_heap_len: usize) -> Vec<(u32, usize)> {
 
     result
 }
+

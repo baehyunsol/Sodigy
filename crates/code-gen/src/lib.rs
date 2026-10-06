@@ -4,10 +4,20 @@ use sodigy_object_file::{self as object_file, ObjectFile};
 
 mod rust;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Profile {
     Run,
-    Test,
+    Test {
+        std_assertions: bool,
+        filter: Option<Vec<Filter>>,
+    },
+}
+
+#[derive(Clone, Debug)]
+pub struct Filter {
+    pub keyword: String,
+    pub match_start: bool,  // `^`
+    pub match_end: bool,  // `$`
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -49,3 +59,4 @@ pub fn lower(
         },
     }
 }
+
