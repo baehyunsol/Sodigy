@@ -1,60 +1,60 @@
 use std.string.String;
 
-#[name("number-string-test-0")]
+#[name("std.number-string-test-0")]
 assert 0.0 as <String> == "0.0";
-#[name("number-string-test-1")]
+#[name("std.number-string-test-1")]
 assert 0.5 as <String> == "0.5";
-#[name("number-string-test-2")]
+#[name("std.number-string-test-2")]
 assert -0.5 as <String> == "-0.5";
-#[name("number-string-test-3")]
+#[name("std.number-string-test-3")]
 assert 1.0 as <String> == "1.0";
-#[name("number-string-test-4")]
+#[name("std.number-string-test-4")]
 assert -1.0 as <String> == "-1.0";
-#[name("number-string-test-5")]
+#[name("std.number-string-test-5")]
 assert 1.5 as <String> == "1.5";
-#[name("number-string-test-6")]
+#[name("std.number-string-test-6")]
 assert -1.5 as <String> == "-1.5";
-#[name("number-string-test-7")]
+#[name("std.number-string-test-7")]
 assert 2.0 as <String> == "2.0";
-#[name("number-string-test-8")]
+#[name("std.number-string-test-8")]
 assert -2.0 as <String> == "-2.0";
-#[name("number-string-test-9")]
+#[name("std.number-string-test-9")]
 assert 2.5 as <String> == "2.5";
-#[name("number-string-test-10")]
+#[name("std.number-string-test-10")]
 assert -2.5 as <String> == "-2.5";
 
-#[name("number-string-test-11")]
+#[name("std.number-string-test-11")]
 assert 3.1 as <String> == "3.1";
-#[name("number-string-test-12")]
+#[name("std.number-string-test-12")]
 assert 3.2 as <String> == "3.2";
-#[name("number-string-test-13")]
+#[name("std.number-string-test-13")]
 assert 3.3 as <String> == "3.3";
-#[name("number-string-test-14")]
+#[name("std.number-string-test-14")]
 assert 3.4 as <String> == "3.4";
-#[name("number-string-test-15")]
+#[name("std.number-string-test-15")]
 assert 3.5 as <String> == "3.5";
-#[name("number-string-test-16")]
+#[name("std.number-string-test-16")]
 assert 3.6 as <String> == "3.6";
-#[name("number-string-test-17")]
+#[name("std.number-string-test-17")]
 assert 3.7 as <String> == "3.7";
 
-#[name("number-string-test-18")]
+#[name("std.number-string-test-18")]
 assert 0.000314159265358979323 as <String> == "0.000314159265358979323";
-#[name("number-string-test-19")]
+#[name("std.number-string-test-19")]
 assert 0.00314159265358979323 as <String> == "0.00314159265358979323";
-#[name("number-string-test-20")]
+#[name("std.number-string-test-20")]
 assert 0.0314159265358979323 as <String> == "0.0314159265358979323";
-#[name("number-string-test-21")]
+#[name("std.number-string-test-21")]
 assert 0.314159265358979323 as <String> == "0.314159265358979323";
-#[name("number-string-test-22")]
+#[name("std.number-string-test-22")]
 assert 3.14159265358979323 as <String> == "3.14159265358979323";
-#[name("number-string-test-23")]
+#[name("std.number-string-test-23")]
 assert 3.14159265358979323 as <String> == "3.14159265358979323";
-#[name("number-string-test-24")]
+#[name("std.number-string-test-24")]
 assert 31.4159265358979323 as <String> == "31.4159265358979323";
-#[name("number-string-test-25")]
+#[name("std.number-string-test-25")]
 assert 314.159265358979323 as <String> == "314.159265358979323";
-#[name("number-string-test-26")]
+#[name("std.number-string-test-26")]
 assert 3141.59265358979323 as <String> == "3141.59265358979323";
-#[name("number-string-test-27")]
+#[name("std.number-string-test-27")]
 assert 31415.9265358979323 as <String> == "31415.9265358979323";

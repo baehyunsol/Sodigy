@@ -1,7 +1,7 @@
 use std.bool.Bool.True;
 use std.option.Option.{None, Some};
 
-#[name("format-debug-char-test")]
+#[name("std.format-debug-char-test")]
 assert match [
     ('\0', "'\\0'"),
     ('\x01', "'\\x01'"),

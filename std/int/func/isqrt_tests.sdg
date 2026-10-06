@@ -12,7 +12,7 @@ fn assert_isqrt_multi(ns: [Int]) = match ns.find(\n => !check_isqrt(n)) {
     None => True,
 };
 
-#[name("isqrt power of 1000s")]
+#[name("std.isqrt-power-of-1000s")]
 assert assert_isqrt_multi([
     1_000,
     1_000_000,
@@ -29,7 +29,7 @@ assert assert_isqrt_multi([
     1_000_000_000_000_000_000_000_000_000_000_000_000_000,
 ]);
 
-#[name("isqrt small numbers")]
+#[name("std.isqrt-small-numbers")]
 assert assert_isqrt_multi([
     0, 1, 2, 3, 4,
     5, 6, 7, 8, 9,
@@ -39,7 +39,7 @@ assert assert_isqrt_multi([
     25, 26, 27, 28, 29,
 ]);
 
-#[name("isqrt pp2")]
+#[name("std.isqrt-pp2")]
 assert assert_isqrt_multi([
     198, 199, 200, 201, 202,
     298, 299, 300, 301, 302,
@@ -51,7 +51,7 @@ assert assert_isqrt_multi([
     898, 899, 900, 901, 902,
 ]);
 
-#[name("isqrt pp3")]
+#[name("std.isqrt-pp3")]
 assert assert_isqrt_multi([
     1998, 1999, 2000, 2001, 2002,
     2998, 2999, 3000, 3001, 3002,
@@ -63,7 +63,7 @@ assert assert_isqrt_multi([
     8998, 8999, 9000, 9001, 9002,
 ]);
 
-#[name("isqrt pp4")]
+#[name("std.isqrt-pp4")]
 assert assert_isqrt_multi([
     19998, 19999, 20000, 20001, 20002,
     29998, 29999, 30000, 30001, 30002,
@@ -75,7 +75,7 @@ assert assert_isqrt_multi([
     89998, 89999, 90000, 90001, 90002,
 ]);
 
-#[name("isqrt power of 2s")]
+#[name("std.isqrt-power-of-2s")]
 assert assert_isqrt_multi([
     (1 << 32) - 2, (1 << 32) - 1, 1 << 32, (1 << 32) + 1, (1 << 32) + 2,
     (1 << 33) - 2, (1 << 33) - 1, 1 << 33, (1 << 33) + 1, (1 << 33) + 2,
@@ -87,7 +87,7 @@ assert assert_isqrt_multi([
     (1 << 39) - 2, (1 << 39) - 1, 1 << 39, (1 << 39) + 1, (1 << 39) + 2,
 ]);
 
-#[name("isqrt pp7")]
+#[name("std.isqrt-pp7")]
 assert assert_isqrt_multi([
     19_999_998, 19_999_999, 20_000_000, 20_000_001, 20_000_002,
     29_999_998, 29_999_999, 30_000_000, 30_000_001, 30_000_002,
@@ -99,7 +99,7 @@ assert assert_isqrt_multi([
     89_999_998, 89_999_999, 90_000_000, 90_000_001, 90_000_002,
 ]);
 
-#[name("isqrt pp8")]
+#[name("std.isqrt-pp8")]
 assert assert_isqrt_multi([
     199_999_998, 199_999_999, 200_000_000, 200_000_001, 200_000_002,
     299_999_998, 299_999_999, 300_000_000, 300_000_001, 300_000_002,
@@ -111,7 +111,7 @@ assert assert_isqrt_multi([
     899_999_998, 899_999_999, 900_000_000, 900_000_001, 900_000_002,
 ]);
 
-#[name("isqrt pp9")]
+#[name("std.isqrt-pp9")]
 assert assert_isqrt_multi([
     1_999_999_998, 1_999_999_999, 2_000_000_000, 2_000_000_001, 2_000_000_002,
     2_999_999_998, 2_999_999_999, 3_000_000_000, 3_000_000_001, 3_000_000_002,
@@ -123,7 +123,7 @@ assert assert_isqrt_multi([
     8_999_999_998, 8_999_999_999, 9_000_000_000, 9_000_000_001, 9_000_000_002,
 ]);
 
-#[name("isqrt pp10")]
+#[name("std.isqrt-pp10")]
 assert assert_isqrt_multi([
     19_999_999_998, 19_999_999_999, 20_000_000_000, 20_000_000_001, 20_000_000_002,
     29_999_999_998, 29_999_999_999, 30_000_000_000, 30_000_000_001, 30_000_000_002,
