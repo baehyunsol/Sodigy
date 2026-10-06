@@ -1,7 +1,6 @@
 use sodigy_error::FuncEffect;
 use sodigy_mir::{Intrinsic, Session as MirSession};
 use sodigy_span::Span;
-use sodigy_utils::camel_to_snake;
 
 mod assert;
 mod dump;
@@ -11,10 +10,6 @@ mod expr_hash;
 mod func;
 mod label;
 mod r#let;
-mod link;
-mod object_file;
-mod parse;
-mod ref_count;
 mod session;
 mod value;
 
@@ -22,22 +17,12 @@ mod value;
 mod tests;
 
 pub use assert::Assert;
-pub use dump::Highlight;
+pub use dump::dump_debug_info;
 pub use expr_hash::ExprHash;
 pub(crate) use expr::lower_expr;
 pub use func::Func;
 pub use label::{GlobalLabel, LocalLabel};
 pub use r#let::Let;
-pub use link::link;
-pub use object_file::{
-    BasicBlock,
-    CodeKind,
-    CodeSection,
-    ObjectFile,
-    Terminator,
-};
-pub use parse::{BytecodeParseError, parse as parse_bytecode};
-pub use ref_count::insert_ref_count;
 pub use session::{LocalValue, Session};
 pub use value::{InternedValue, Value};
 
@@ -394,10 +379,7 @@ impl Bytecode {
     }
 }
 
-pub fn lower<'hir, 'mir>(
-    mir_session: MirSession<'hir, 'mir>,
-    lower_built_ins: bool,
-) -> Session<'hir, 'mir> {
+pub fn lower<'hir, 'mir>(mir_session: MirSession<'hir, 'mir>) -> Session<'hir, 'mir> {
     let mut session = Session::from_mir(mir_session.clone());
     let mut lets = Vec::with_capacity(mir_session.lets.len());
     let mut funcs = Vec::with_capacity(mir_session.funcs.len());
@@ -415,51 +397,10 @@ pub fn lower<'hir, 'mir>(
         asserts.push(Assert::from_mir(assert, &mut session, true /* is_top_level */));
     }
 
-    session.object_file = ObjectFile::new(
-        &mut lets,
-        &mut funcs,
-        &mut asserts,
-        &mut session.data_section,
-        &mir_session.intermediate_dir,
-    );
-
-    // We need code sections for built-ins when we want to create function pointers
-    // for built-in functions.
-    if lower_built_ins {
-        for (intrinsic, lang_item) in Intrinsic::ALL_WITH_LANG_ITEM.iter() {
-            let def_span = mir_session.global_context.get_lang_item_span(lang_item);
-            let label = GlobalLabel::new(def_span.hash());
-            session.object_file.code.insert(
-                label,
-                CodeSection {
-                    label,
-                    span: Some(def_span.clone()),
-                    kind: CodeKind::Func,
-                    name: camel_to_snake(&format!("{intrinsic:?}")),
-                    params: Some(intrinsic.num_params()),
-                    effect: intrinsic.effect(),
-                    basic_blocks: [(
-                        LocalLabel::start(),
-                        BasicBlock {
-                            label: LocalLabel::start(),
-                            code: vec![
-                                Bytecode::Intrinsic {
-                                    intrinsic: *intrinsic,
-                                    args: (0..intrinsic.num_params()).map(
-                                        |i| SSA(i as u32)
-                                    ).collect(),
-                                    dst: Memory::SSA(SSA(intrinsic.num_params() as u32 + 1)),
-                                    debug_info: None,
-                                },
-                            ],
-                            terminator: Terminator::Return(SSA(intrinsic.num_params() as u32 + 1)),
-                            terminator_debug_info: None,
-                        },
-                    )].into_iter().collect(),
-                },
-            );
-        }
-    }
+    session.lets = lets;
+    session.funcs = funcs;
+    session.asserts = asserts;
 
     session
 }
+

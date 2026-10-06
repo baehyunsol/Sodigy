@@ -27,7 +27,6 @@ fn verify_built_ins() {
         String::from("verify_built_ins/target/"),
         OptimizeLevel::None,
         &HashMap::new(),
-        false,  // emit-irs
         false,  // dump-post-mir-log
         false,   // dump-timings
         0,  // graceful-shutdown
@@ -44,3 +43,4 @@ fn verify_built_ins() {
 
     remove_dir_all("verify_built_ins").unwrap();
 }
+

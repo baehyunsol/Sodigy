@@ -17,6 +17,7 @@ use sodigy_file::{File, FileOrStd, ModulePath, std_root};
 use sodigy_fs_api::{WriteMode, write_bytes};
 use sodigy_hir as hir;
 use sodigy_mir::{self as mir, GlobalContext as MirGlobalContext};
+use sodigy_object_file::Session as ObjectFileSession;
 use sodigy_post_mir::MatchDump;
 use sodigy_span::Span;
 use sodigy_stages::{Stage, Substage};
@@ -456,8 +457,7 @@ impl Worker {
                 }
 
                 self.timings.stage_start(Stage::Bytecode, None);
-                let lower_built_ins = input_file_path == std_root().1;
-                let bytecode_session = sodigy_bytecode::lower(optimized_mir_session, lower_built_ins);
+                let bytecode_session = sodigy_bytecode::lower(optimized_mir_session);
                 self.timings.stage_end(!bytecode_session.errors.is_empty());
 
                 if let Some(store_ir) = &store_ir {
@@ -481,13 +481,39 @@ impl Worker {
                     return compile_error_if_not_empty(&bytecode_session.errors);
                 }
 
-                self.timings.stage_start(Stage::BytecodeOptimize, None);
-                let optimized_bytecode_session = sodigy_optimize::optimize_bytecode(bytecode_session, optimize_level);
-                self.timings.stage_end(!optimized_bytecode_session.errors.is_empty());
+                self.timings.stage_start(Stage::ObjectFile, None);
+                let lower_built_ins = input_file_path == std_root().1;
+                let object_file_session = ObjectFileSession::from_bytecode_session(bytecode_session, lower_built_ins);
+                self.timings.stage_end(!object_file_session.errors.is_empty());
 
                 if let Some(store_ir) = &store_ir {
                     store_ir_if_has_to(
-                        &optimized_bytecode_session,
+                        &object_file_session,
+                        store_ir,
+                        Stage::ObjectFile,
+                        Some(content_hash),
+                        &intermediate_dir,
+                    )?;
+                }
+
+                if !object_file_session.errors.is_empty() || stop_after <= Stage::ObjectFile {
+                    tx_to_main.send(MessageToMain::StageComplete {
+                        module_path: Some(input_module_path),
+                        compile_stage: Stage::ObjectFile,
+                        errors: object_file_session.errors.clone(),
+                        warnings: object_file_session.warnings.clone(),
+                    })?;
+
+                    return compile_error_if_not_empty(&object_file_session.errors);
+                }
+
+                self.timings.stage_start(Stage::BytecodeOptimize, None);
+                let optimized_object_file_session = sodigy_optimize::optimize_bytecode(object_file_session, optimize_level);
+                self.timings.stage_end(!optimized_object_file_session.errors.is_empty());
+
+                if let Some(store_ir) = &store_ir {
+                    store_ir_if_has_to(
+                        &optimized_object_file_session,
                         store_ir,
                         Stage::BytecodeOptimize,
                         Some(content_hash),
@@ -495,24 +521,24 @@ impl Worker {
                     )?;
                 }
 
-                if !optimized_bytecode_session.errors.is_empty() || stop_after <= Stage::BytecodeOptimize {
+                if !optimized_object_file_session.errors.is_empty() || stop_after <= Stage::BytecodeOptimize {
                     tx_to_main.send(MessageToMain::StageComplete {
                         module_path: Some(input_module_path),
                         compile_stage: Stage::BytecodeOptimize,
-                        errors: optimized_bytecode_session.errors.clone(),
-                        warnings: optimized_bytecode_session.warnings.clone(),
+                        errors: optimized_object_file_session.errors.clone(),
+                        warnings: optimized_object_file_session.warnings.clone(),
                     })?;
 
-                    return compile_error_if_not_empty(&optimized_bytecode_session.errors);
+                    return compile_error_if_not_empty(&optimized_object_file_session.errors);
                 }
 
                 self.timings.stage_start(Stage::InsertRefCount, None);
-                let ref_count_session = sodigy_bytecode::insert_ref_count(optimized_bytecode_session);
-                self.timings.stage_end(!ref_count_session.errors.is_empty());
+                let ref_counted_object_file_session = sodigy_object_file::insert_ref_count(optimized_object_file_session);
+                self.timings.stage_end(!ref_counted_object_file_session.errors.is_empty());
 
                 if let Some(store_ir) = &store_ir {
                     store_ir_if_has_to(
-                        &ref_count_session,
+                        &ref_counted_object_file_session,
                         store_ir,
                         Stage::InsertRefCount,
                         Some(content_hash),
@@ -524,8 +550,8 @@ impl Worker {
                 tx_to_main.send(MessageToMain::StageComplete {
                     module_path: Some(input_module_path),
                     compile_stage: Stage::InsertRefCount,
-                    errors: ref_count_session.errors.clone(),
-                    warnings: ref_count_session.warnings.clone(),
+                    errors: ref_counted_object_file_session.errors.clone(),
+                    warnings: ref_counted_object_file_session.warnings.clone(),
                 })?;
             },
             Command::InterHir {
@@ -752,15 +778,15 @@ impl Worker {
                         &intermediate_dir,
                     )?.ok_or(Error::MiscError)?;
                     let content_hash = file.get_content_hash(&intermediate_dir)?;
-                    let bytecode_session_bytes = get_cached_ir(
+                    let object_file_session_bytes = get_cached_ir(
                         &intermediate_dir,
                         Stage::InsertRefCount,
                         Some(content_hash),
                     )?.ok_or(Error::IrCacheNotFound(Stage::InsertRefCount))?;
-                    let mut bytecode_session = sodigy_bytecode::Session::decode(&bytecode_session_bytes)?;
-                    object_files.push(std::mem::take(&mut bytecode_session.object_file));
-                    errors.extend(bytecode_session.errors.drain(..));
-                    warnings.extend(bytecode_session.warnings.drain(..));
+                    let mut object_file_session = ObjectFileSession::decode(&object_file_session_bytes)?;
+                    errors.extend(object_file_session.errors.drain(..));
+                    warnings.extend(object_file_session.warnings.drain(..));
+                    object_files.push(object_file_session.object_file);
                 }
 
                 self.timings.stage_end(false);
@@ -839,3 +865,4 @@ fn compile_error_if_not_empty<E>(errors: &[E]) -> Result<(), Error> {
         Err(Error::CompileError)
     }
 }
+

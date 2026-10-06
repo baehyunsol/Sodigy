@@ -1,7 +1,8 @@
 use crate::OptimizeLevel;
-use sodigy_bytecode::Session;
+use sodigy_object_file::Session as ObjectFileSession;
 
-pub fn optimize_bytecode<'hir, 'mir>(mut session: Session<'hir, 'mir>, level: OptimizeLevel) -> Session<'hir, 'mir> {
+pub fn optimize_bytecode(session: ObjectFileSession, level: OptimizeLevel) -> ObjectFileSession {
     // TODO
     session
 }
+

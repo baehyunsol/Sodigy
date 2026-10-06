@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-sodigy-bytecode = { version = "0.1.0", path = "../bytecode" }
 sodigy-mir = { version = "0.1.0", path = "../mir" }
+sodigy-object-file = { version = "0.1.0", path = "../object-file" }
 
 [features]
-log = ["sodigy-bytecode/log", "sodigy-mir/log"]
+log = ["sodigy-mir/log", "sodigy-object-file/log"]
+

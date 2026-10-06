@@ -1,13 +1,7 @@
 use crate::{Heap, Stack};
-use sodigy_bytecode::{
-    BasicBlock,
-    CodeSection,
-    GlobalLabel,
-    LocalLabel,
-    Highlight,
-    SSA,
-};
+use sodigy_bytecode::{GlobalLabel, LocalLabel, SSA};
 use sodigy_number::bi_to_string;
+use sodigy_object_file::{BasicBlock, Code, Highlight};
 use sodigy_span::{
     Color,
     ColorOption,
@@ -23,7 +17,7 @@ use std::io::{Write, self};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Context {
     EnterEntry,
-    EnterCodeSection,
+    EnterCode,
     EnterBasicBlock,
     Bytecode(usize),
     Terminator,
@@ -35,7 +29,7 @@ pub enum SkipUntil {
     // skips if the call_stack depth is deeper than this
     Bytecode { stack: usize },
     BasicBlock { stack: usize },
-    CodeSection { stack: usize },
+    Code { stack: usize },
 
     Entry,
     Forever,
@@ -82,7 +76,7 @@ impl Session {
         &mut self,
         stack: &Stack,
         heap: &Heap,
-        code: Option<&CodeSection>,
+        code: Option<&Code>,
         basic_block: Option<&BasicBlock>,
         context: Context,
     ) {
@@ -110,14 +104,14 @@ impl Session {
                 self.skip_until = None;
             },
             (Some(SkipUntil::Bytecode { .. }), _) => return,
-            (Some(SkipUntil::BasicBlock { stack }), Context::EnterBasicBlock | Context::EnterCodeSection | Context::EnterEntry) if stack >= self.call_stack.len() => {
+            (Some(SkipUntil::BasicBlock { stack }), Context::EnterBasicBlock | Context::EnterCode | Context::EnterEntry) if stack >= self.call_stack.len() => {
                 self.skip_until = None;
             },
             (Some(SkipUntil::BasicBlock { .. }), _) => return,
-            (Some(SkipUntil::CodeSection { stack }), Context::EnterCodeSection | Context::EnterEntry) if stack >= self.call_stack.len() => {
+            (Some(SkipUntil::Code { stack }), Context::EnterCode | Context::EnterEntry) if stack >= self.call_stack.len() => {
                 self.skip_until = None;
             },
-            (Some(SkipUntil::CodeSection { .. }), _) => return,
+            (Some(SkipUntil::Code { .. }), _) => return,
             (Some(SkipUntil::Entry), Context::EnterEntry) => {
                 self.skip_until = None;
             },
@@ -172,7 +166,7 @@ impl Session {
         } else {
             buffer_top.push(format!("---- {context:?} ----\n"));
 
-            if let Context::EnterCodeSection = context && let Some(label) = self.call_stack.last() {
+            if let Context::EnterCode = context && let Some(label) = self.call_stack.last() {
                 buffer_top.push(format!("label: {}\n", label.hex(20)));
             }
         }
@@ -364,7 +358,7 @@ impl Session {
                         self.skip_until = Some(SkipUntil::BasicBlock { stack: self.call_stack.len() });
                     },
                     "v" => {
-                        self.skip_until = Some(SkipUntil::CodeSection { stack: self.call_stack.len() });
+                        self.skip_until = Some(SkipUntil::Code { stack: self.call_stack.len() });
                     },
                     "b" => {
                         self.skip_until = Some(SkipUntil::Entry);

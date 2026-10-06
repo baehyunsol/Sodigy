@@ -17,6 +17,7 @@ sodigy-inter-mir = { version = "0.1.0", path = "../inter-mir" }
 sodigy-interpreter = { version = "0.1.0", path = "../interpreter" }
 sodigy-lex = { version = "0.1.0", path = "../lex" }
 sodigy-mir = { version = "0.1.0", path = "../mir" }
+sodigy-object-file = { version = "0.1.0", path = "../object-file" }
 sodigy-optimize = { version = "0.1.0", path = "../optimize" }
 sodigy-parse = { version = "0.1.0", path = "../parse" }
 sodigy-post-mir = { version = "0.1.0", path = "../post-mir" }
@@ -34,6 +35,8 @@ log = [
     "sodigy-inter-mir/log",
     "sodigy-interpreter/log",
     "sodigy-mir/log",
+    "sodigy-object-file/log",
     "sodigy-optimize/log",
     "sodigy-post-mir/log",
 ]
+

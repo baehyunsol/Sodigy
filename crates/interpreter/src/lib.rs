@@ -1,13 +1,9 @@
 use sodigy_bytecode::{
-    BasicBlock,
     Bytecode,
-    CodeSection,
     GlobalLabel,
     InternedValue,
     LocalLabel,
     Memory,
-    ObjectFile,
-    Terminator,
     Value,
 };
 use sodigy_code_gen::Profile;
@@ -26,6 +22,12 @@ use sodigy_number::{
     shl_ubi,
     shr_ubi,
     sub_bi,
+};
+use sodigy_object_file::{
+    BasicBlock,
+    Code,
+    ObjectFile,
+    Terminator,
 };
 use std::collections::hash_map::Entry;
 
@@ -148,7 +150,7 @@ fn tail_call_loop(
                 heap,
                 Some(code),
                 None,
-                DebugContext::EnterCodeSection,
+                DebugContext::EnterCode,
             );
         }
 
@@ -177,19 +179,19 @@ fn call(
     mut stack: Stack,
     heap: &mut Heap,
     object_file: &ObjectFile,
-    code_section: &CodeSection,
+    code: &Code,
     debug_session: &mut Option<DebugSession>,
 ) -> CallResult {
     let mut curr_label = LocalLabel::start();
 
     loop {
-        let curr_basic_block: &BasicBlock = code_section.basic_blocks.get(&curr_label).unwrap();
+        let curr_basic_block: &BasicBlock = code.basic_blocks.get(&curr_label).unwrap();
 
         if let Some(debug_session) = debug_session {
             debug_session.dump(
                 &stack,
                 heap,
-                Some(code_section),
+                Some(code),
                 Some(curr_basic_block),
                 DebugContext::EnterBasicBlock,
             );
@@ -200,7 +202,7 @@ fn call(
                 debug_session.dump(
                     &stack,
                     heap,
-                    Some(code_section),
+                    Some(code),
                     Some(curr_basic_block),
                     DebugContext::Bytecode(i),
                 );
@@ -563,11 +565,11 @@ fn call(
                 Bytecode::Breakpoint => {
                     if let Some(debug_session) = debug_session {
                         // If it's newly inserted, we have to dump again to guarantee that the breakpoint is dumped.
-                        if debug_session.breakpoints.insert((code_section.label, curr_label)) {
+                        if debug_session.breakpoints.insert((code.label, curr_label)) {
                             debug_session.dump(
                                 &stack,
                                 heap,
-                                Some(code_section),
+                                Some(code),
                                 Some(curr_basic_block),
                                 DebugContext::ExplicitBreakpoint,
                             );
@@ -581,7 +583,7 @@ fn call(
             debug_session.dump(
                 &stack,
                 heap,
-                Some(code_section),
+                Some(code),
                 Some(curr_basic_block),
                 DebugContext::Terminator,
             );

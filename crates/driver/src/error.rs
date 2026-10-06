@@ -1,7 +1,7 @@
-use sodigy_bytecode::BytecodeParseError;
 use sodigy_endec::DecodeError;
 use sodigy_fs_api::FileError;
 use sodigy_interpreter::Error as RuntimeError;
+use sodigy_object_file::ParseError as ObjectFileParseError;
 use sodigy_stages::Stage;
 
 /// It decides the exit code of the compiler process.
@@ -20,7 +20,7 @@ pub enum Error {
     // Then, you use this variant.
     CliError,
 
-    BytecodeParseError(BytecodeParseError),
+    ObjectFileParseError(ObjectFileParseError),
     FileError(FileError),
     DecodeError(DecodeError),
     MpscError,
@@ -46,9 +46,9 @@ impl Error {
     }
 }
 
-impl From<BytecodeParseError> for Error {
-    fn from(e: BytecodeParseError) -> Error {
-        Error::BytecodeParseError(e)
+impl From<ObjectFileParseError> for Error {
+    fn from(e: ObjectFileParseError) -> Error {
+        Error::ObjectFileParseError(e)
     }
 }
 

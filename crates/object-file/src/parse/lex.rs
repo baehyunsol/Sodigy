@@ -1,9 +1,9 @@
-use super::{BytecodeParseError, Keyword, Section, Token};
+use super::{ParseError, Keyword, Section, Token};
 use crate::{GlobalLabel, LocalLabel, Memory, SSA, Value};
 use sodigy_number::{BigInt, add_ubi, mul_ubi, or_ubi, shl_ubi};
 use sodigy_span::SpanHash;
 
-pub fn lex(b: &[u8]) -> Result<[Vec<Token>; 3], BytecodeParseError> {
+pub fn lex(b: &[u8]) -> Result<[Vec<Token>; 3], ParseError> {
     let mut cursor = 0;
     let mut data = None;
     let mut code = None;
@@ -14,7 +14,7 @@ pub fn lex(b: &[u8]) -> Result<[Vec<Token>; 3], BytecodeParseError> {
             (Some(b'.'), _) => {
                 if b.len() > cursor + 6 && &b[cursor..(cursor + 6)] == b".data:" {
                     if data.is_some() {
-                        return Err(BytecodeParseError::DuplicateSection(Section::Data));
+                        return Err(ParseError::DuplicateSection(Section::Data));
                     }
 
                     cursor += 6;
@@ -23,7 +23,7 @@ pub fn lex(b: &[u8]) -> Result<[Vec<Token>; 3], BytecodeParseError> {
                     cursor = new_cursor;
                 } else if b.len() > cursor + 6 && &b[cursor..(cursor + 6)] == b".code:" {
                     if code.is_some() {
-                        return Err(BytecodeParseError::DuplicateSection(Section::Code));
+                        return Err(ParseError::DuplicateSection(Section::Code));
                     }
 
                     cursor += 6;
@@ -32,7 +32,7 @@ pub fn lex(b: &[u8]) -> Result<[Vec<Token>; 3], BytecodeParseError> {
                     cursor = new_cursor;
                 } else if b.len() > cursor + 7 && &b[cursor..(cursor + 7)] == b".label:" {
                     if label.is_some() {
-                        return Err(BytecodeParseError::DuplicateSection(Section::Label));
+                        return Err(ParseError::DuplicateSection(Section::Label));
                     }
 
                     cursor += 7;
@@ -40,7 +40,7 @@ pub fn lex(b: &[u8]) -> Result<[Vec<Token>; 3], BytecodeParseError> {
                     label = Some(new_label);
                     cursor = new_cursor;
                 } else {
-                    return Err(BytecodeParseError::InvalidSection { cursor });
+                    return Err(ParseError::InvalidSection { cursor });
                 }
             },
             (Some(b' ' | b'\n' | b'\t' | b'\r'), _) => {
@@ -54,7 +54,7 @@ pub fn lex(b: &[u8]) -> Result<[Vec<Token>; 3], BytecodeParseError> {
                 }
             },
             (Some(b), _) => {
-                return Err(BytecodeParseError::UnexpectedByte {
+                return Err(ParseError::UnexpectedByte {
                     expected: Some(b'.'),
                     got: *b,
                     cursor,
@@ -65,20 +65,20 @@ pub fn lex(b: &[u8]) -> Result<[Vec<Token>; 3], BytecodeParseError> {
                     return Ok([data, code, label]);
                 },
                 (None, _, _) => {
-                    return Err(BytecodeParseError::MissingSection(Section::Data));
+                    return Err(ParseError::MissingSection(Section::Data));
                 },
                 (_, None, _) => {
-                    return Err(BytecodeParseError::MissingSection(Section::Code));
+                    return Err(ParseError::MissingSection(Section::Code));
                 },
                 (_, _, None) => {
-                    return Err(BytecodeParseError::MissingSection(Section::Label));
+                    return Err(ParseError::MissingSection(Section::Label));
                 },
             },
         }
     }
 }
 
-fn lex_data_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), BytecodeParseError> {
+fn lex_data_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), ParseError> {
     let mut tokens = vec![];
 
     loop {
@@ -104,7 +104,7 @@ fn lex_data_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), 
                         tokens.push(Token::InternedValue(value));
                     },
                     Err(_) => {
-                        return Err(BytecodeParseError::IntRangeError { cursor: int_start_cursor });
+                        return Err(ParseError::IntRangeError { cursor: int_start_cursor });
                     },
                 }
             },
@@ -128,7 +128,7 @@ fn lex_data_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), 
     }
 }
 
-fn lex_code_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), BytecodeParseError> {
+fn lex_code_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), ParseError> {
     let mut tokens = vec![];
 
     loop {
@@ -159,14 +159,14 @@ fn lex_code_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), 
                         cursor += 1;
                     },
                     Some(b) => {
-                        return Err(BytecodeParseError::UnexpectedByte {
+                        return Err(ParseError::UnexpectedByte {
                             expected: Some(b']'),
                             got: *b,
                             cursor,
                         });
                     },
                     None => {
-                        return Err(BytecodeParseError::UnexpectedEnd);
+                        return Err(ParseError::UnexpectedEnd);
                     },
                 }
 
@@ -190,13 +190,13 @@ fn lex_code_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), 
                             b'L' => match u32::try_from(&n) {
                                 Ok(n) => Token::LocalLabel(LocalLabel::new(n)),
                                 _ => {
-                                    return Err(BytecodeParseError::IntRangeError { cursor: int_start_cursor });
+                                    return Err(ParseError::IntRangeError { cursor: int_start_cursor });
                                 },
                             },
                             b'G' => match u128::try_from(&n) {
                                 Ok(n) => Token::GlobalLabel(GlobalLabel::new(SpanHash(n))),
                                 _ => {
-                                    return Err(BytecodeParseError::IntRangeError { cursor: int_start_cursor });
+                                    return Err(ParseError::IntRangeError { cursor: int_start_cursor });
                                 },
                             },
                             _ => unreachable!(),
@@ -204,7 +204,7 @@ fn lex_code_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), 
                         tokens.push(token);
                     },
                     _ => {
-                        return Err(BytecodeParseError::InvalidLabelPrefix { cursor });
+                        return Err(ParseError::InvalidLabelPrefix { cursor });
                     },
                 }
             },
@@ -216,16 +216,16 @@ fn lex_code_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), 
 
                 match u32::try_from(&i) {
                     Ok(i) => {
-                        tokens.push(Token::Memory(Memory::SSA(SSA(i))));
+                        tokens.push(Token::Memory(Memory::SSA(SSA::from_u32(i))));
                     },
                     Err(_) => {
-                        return Err(BytecodeParseError::IntRangeError { cursor: int_start_cursor });
+                        return Err(ParseError::IntRangeError { cursor: int_start_cursor });
                     },
                 }
             },
             (Some(b'_'), Some(b'g')) => todo!(),
             (Some(b'_'), _) => {
-                return Err(BytecodeParseError::InvalidMemory { cursor });
+                return Err(ParseError::InvalidMemory { cursor });
             },
             (Some(b'a'..=b'z' | b'A'..=b'Z'), _) => {
                 let (ident, new_cursor) = lex_ident(b, cursor)?;
@@ -245,7 +245,7 @@ fn lex_code_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), 
     }
 }
 
-fn lex_label_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), BytecodeParseError> {
+fn lex_label_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), ParseError> {
     let tokens = vec![];
 
     loop {
@@ -268,7 +268,7 @@ fn lex_label_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize),
     }
 }
 
-fn lex_decimal(b: &[u8], mut cursor: usize) -> Result<(BigInt, usize), BytecodeParseError> {
+fn lex_decimal(b: &[u8], mut cursor: usize) -> Result<(BigInt, usize), ParseError> {
     let mut nums = vec![0];
     let mut is_neg = false;
 
@@ -279,7 +279,7 @@ fn lex_decimal(b: &[u8], mut cursor: usize) -> Result<(BigInt, usize), BytecodeP
             cursor += 1;
         },
         _ => {
-            return Err(BytecodeParseError::FailedToParseHex { cursor });
+            return Err(ParseError::FailedToParseHex { cursor });
         },
     }
 
@@ -300,7 +300,7 @@ fn lex_decimal(b: &[u8], mut cursor: usize) -> Result<(BigInt, usize), BytecodeP
     }
 }
 
-fn lex_hex(b: &[u8], mut cursor: usize) -> Result<(BigInt, usize), BytecodeParseError> {
+fn lex_hex(b: &[u8], mut cursor: usize) -> Result<(BigInt, usize), ParseError> {
     let mut nums = vec![0];
     let mut is_neg = false;
 
@@ -311,7 +311,7 @@ fn lex_hex(b: &[u8], mut cursor: usize) -> Result<(BigInt, usize), BytecodeParse
             cursor += 1;
         },
         _ => {
-            return Err(BytecodeParseError::FailedToParseHex { cursor });
+            return Err(ParseError::FailedToParseHex { cursor });
         },
     }
 
@@ -342,7 +342,7 @@ fn lex_hex(b: &[u8], mut cursor: usize) -> Result<(BigInt, usize), BytecodeParse
     }
 }
 
-fn lex_value(b: &[u8], mut cursor: usize) -> Result<(Value, usize), BytecodeParseError> {
+fn lex_value(b: &[u8], mut cursor: usize) -> Result<(Value, usize), ParseError> {
     match b.get(cursor) {
         Some(start @ (b'[' | b'{')) => {
             let end = match *start { b'[' => b']', b'{' => b'}', _ => unreachable!() };
@@ -374,7 +374,7 @@ fn lex_value(b: &[u8], mut cursor: usize) -> Result<(Value, usize), BytecodePars
                             expecting_value = false;
                         },
                         (None, _) => {
-                            return Err(BytecodeParseError::FailedToParseValue { cursor });
+                            return Err(ParseError::FailedToParseValue { cursor });
                         },
                     }
                 }
@@ -401,7 +401,7 @@ fn lex_value(b: &[u8], mut cursor: usize) -> Result<(Value, usize), BytecodePars
                             break;
                         },
                         (Some(_) | None, _) => {
-                            return Err(BytecodeParseError::FailedToParseValue { cursor });
+                            return Err(ParseError::FailedToParseValue { cursor });
                         },
                     }
                 }
@@ -421,23 +421,23 @@ fn lex_value(b: &[u8], mut cursor: usize) -> Result<(Value, usize), BytecodePars
             match (b.get(cursor), b.get(cursor + 1)) {
                 (Some(b'#'), Some(b'f')) => match u128::try_from(&value) {
                     Ok(s) => Ok((Value::FuncPointer(SpanHash(s)), cursor + 2)),
-                    Err(_) => Err(BytecodeParseError::IntRangeError { cursor: int_start_cursor }),
+                    Err(_) => Err(ParseError::IntRangeError { cursor: int_start_cursor }),
                 },
                 (Some(b'#'), Some(b'n')) => Ok((Value::Int(value), cursor + 2)),
                 (Some(b'#'), Some(b's')) => match u32::try_from(&value) {
                     Ok(n) => Ok((Value::Scalar(n), cursor + 2)),
-                    Err(_) => Err(BytecodeParseError::IntRangeError {
+                    Err(_) => Err(ParseError::IntRangeError {
                         cursor: int_start_cursor,
                     }),
                 },
-                _ => Err(BytecodeParseError::FailedToParseValue { cursor }),
+                _ => Err(ParseError::FailedToParseValue { cursor }),
             }
         },
-        None => Err(BytecodeParseError::FailedToParseValue { cursor }),
+        None => Err(ParseError::FailedToParseValue { cursor }),
     }
 }
 
-fn lex_ident(b: &[u8], mut cursor: usize) -> Result<(Vec<u8>, usize), BytecodeParseError> {
+fn lex_ident(b: &[u8], mut cursor: usize) -> Result<(Vec<u8>, usize), ParseError> {
     let mut buffer = vec![];
 
     match b.get(cursor) {
@@ -446,7 +446,7 @@ fn lex_ident(b: &[u8], mut cursor: usize) -> Result<(Vec<u8>, usize), BytecodePa
             cursor += 1;
         },
         _ => {
-            return Err(BytecodeParseError::FailedToParseIdent { cursor });
+            return Err(ParseError::FailedToParseIdent { cursor });
         },
     }
 
@@ -463,13 +463,13 @@ fn lex_ident(b: &[u8], mut cursor: usize) -> Result<(Vec<u8>, usize), BytecodePa
     }
 }
 
-fn lex_idents_in_group(b: &[u8], mut cursor: usize) -> Result<(Vec<Vec<u8>>, usize), BytecodeParseError> {
+fn lex_idents_in_group(b: &[u8], mut cursor: usize) -> Result<(Vec<Vec<u8>>, usize), ParseError> {
     let (start, end) = match b.get(cursor) {
         Some(b'(') => (b'(', b')'),
         Some(b'[') => (b'[', b']'),
         Some(b'{') => (b'{', b'}'),
         _ => {
-            return Err(BytecodeParseError::FailedToParseIdents { cursor });
+            return Err(ParseError::FailedToParseIdents { cursor });
         },
     };
 
@@ -501,7 +501,7 @@ fn lex_idents_in_group(b: &[u8], mut cursor: usize) -> Result<(Vec<Vec<u8>>, usi
                     expecting_ident = false;
                 },
                 (None, _) => {
-                    return Err(BytecodeParseError::FailedToParseIdents { cursor });
+                    return Err(ParseError::FailedToParseIdents { cursor });
                 },
             }
         }
@@ -527,7 +527,7 @@ fn lex_idents_in_group(b: &[u8], mut cursor: usize) -> Result<(Vec<Vec<u8>>, usi
                     expecting_ident = true;
                 },
                 (Some(_) | None, _) => {
-                    return Err(BytecodeParseError::FailedToParseIdents { cursor });
+                    return Err(ParseError::FailedToParseIdents { cursor });
                 },
             }
         }

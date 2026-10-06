@@ -1,4 +1,4 @@
-use crate::{ObjectFile, Session};
+use crate::{Assert, Func, Let, Session};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_error::{Error, Warning};
 use sodigy_mir::{GlobalContext, Intrinsic};
@@ -18,18 +18,22 @@ impl Endec for Session<'_, '_> {
         // self.string_to_expr_hash.encode_impl(buffer);
         // self.data_section.encode_impl(buffer);
 
+        self.lets.encode_impl(buffer);
+        self.funcs.encode_impl(buffer);
+        self.asserts.encode_impl(buffer);
         self.intrinsics.encode_impl(buffer);
         self.errors.encode_impl(buffer);
         self.warnings.encode_impl(buffer);
-        self.object_file.encode_impl(buffer);
         self.debug_info.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (lets, cursor) = Vec::<Let>::decode_impl(buffer, cursor)?;
+        let (funcs, cursor) = Vec::<Func>::decode_impl(buffer, cursor)?;
+        let (asserts, cursor) = Vec::<Assert>::decode_impl(buffer, cursor)?;
         let (intrinsics, cursor) = HashMap::<Span, Intrinsic>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
         let (warnings, cursor) = Vec::<Warning>::decode_impl(buffer, cursor)?;
-        let (object_file, cursor) = ObjectFile::decode_impl(buffer, cursor)?;
         let (debug_info, cursor) = bool::decode_impl(buffer, cursor)?;
 
         Ok((
@@ -45,10 +49,12 @@ impl Endec for Session<'_, '_> {
                 string_to_expr_hash: HashMap::new(),
                 data_section: HashMap::new(),
 
+                lets,
+                funcs,
+                asserts,
                 intrinsics,
                 errors,
                 warnings,
-                object_file,
 
                 // worker will load this
                 global_context: GlobalContext::new(),

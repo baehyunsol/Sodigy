@@ -10,3 +10,4 @@ pub enum OptimizeLevel {
     Mild,
     Extreme,
 }
+

@@ -1,4 +1,3 @@
-use sodigy_bytecode::parse_bytecode;
 use sodigy_code_gen::{Emit, Profile};
 use sodigy_endec::Endec;
 use sodigy_error::{
@@ -21,6 +20,7 @@ use sodigy_fs_api::{
     remove_dir_all,
     write_string,
 };
+pub use sodigy_object_file::parse as parse_object_file;
 pub use sodigy_optimize::OptimizeLevel;
 use sodigy_span::{Color, Span};
 use sodigy_stages::{STAGES, Stage};
@@ -99,8 +99,8 @@ pub fn main_() {
                     Error::CliError => {
                         // The errors are already dumped!
                     },
-                    Error::BytecodeParseError(e) => {
-                        eprintln!("BytecodeParseError: {e:?}");
+                    Error::ObjectFileParseError(e) => {
+                        eprintln!("ObjectFileParseError: {e:?}");
                     },
                     Error::FileError(e) => {
                         eprintln!("FileError: {e:?}");
@@ -188,7 +188,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                     // TODO: Currently, it only works with `sodigy build --emit=bytecode`.
                     //       I want it to also work with `sodigy build --emit=bytecode-exe`.
                     let bytecode = read_bytes(bytecode)?;
-                    let object_file = parse_bytecode(&bytecode)?;
+                    let object_file = parse_object_file(&bytecode)?;
                     todo!()
                 },
                 None => init_workers_and_compile(
@@ -754,7 +754,7 @@ fn interpret(
 
     // `emit_irs_if_has_to` will encode `Vec<u8>` twice...
     let exe_bytes = Vec::<u8>::decode(&exe_bytes)?;
-    let exe = sodigy_bytecode::ObjectFile::decode(&exe_bytes)?;
+    let exe = sodigy_object_file::ObjectFile::decode(&exe_bytes)?;
 
     match sodigy_interpreter::interpret(&exe, profile, check_allocator, debug_bytecode, intermediate_dir) {
         Ok(()) => Ok(()),

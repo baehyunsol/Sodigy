@@ -7,7 +7,6 @@ mod bytecode;
 mod expr_hash;
 mod func;
 mod r#let;
-mod object_file;
 mod session;
 mod value;
 

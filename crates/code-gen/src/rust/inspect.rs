@@ -1,12 +1,11 @@
 use sodigy_bytecode::{
-    BasicBlock,
     Bytecode,
     GlobalLabel,
     LocalLabel,
     Memory,
     SSA,
-    Terminator,
 };
+use sodigy_object_file::{BasicBlock, Terminator};
 use std::collections::{HashMap, HashSet};
 
 pub struct BasicBlocksInspection {

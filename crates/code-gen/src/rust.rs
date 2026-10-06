@@ -1,20 +1,22 @@
 use crate::Profile;
 use sodigy_bytecode::{
-    BasicBlock,
     Bytecode,
-    CodeSection,
     ExprHash,
     GlobalLabel,
     InternedValue,
     LocalLabel,
     Memory,
-    ObjectFile,
     SSA,
-    Terminator,
     Value,
 };
 use sodigy_error::{Error, ErrorKind, Warning};
 use sodigy_mir::Intrinsic;
+use sodigy_object_file::{
+    BasicBlock,
+    Code,
+    ObjectFile,
+    Terminator,
+};
 use sodigy_span::SpanHash;
 use std::collections::HashMap;
 
@@ -43,7 +45,7 @@ pub fn lower(
         funcs.push(lower_data(hash, value));
     }
 
-    let mut code: Vec<(GlobalLabel, CodeSection)> = object_file.code.drain().collect();
+    let mut code: Vec<(GlobalLabel, Code)> = object_file.code.drain().collect();
     code.sort_by_key(|(l, _)| *l);
 
     for (_, code) in code.into_iter() {
@@ -198,7 +200,7 @@ fn lower_data(hash: ExprHash, value: Value) -> String {
     )
 }
 
-fn lower_code(mut code: CodeSection) -> String {
+fn lower_code(mut code: Code) -> String {
     let inspection = inspect_basic_blocks(code.label, &code.basic_blocks);
     let mut session = Session::from_inspection(&inspection);
     let name = format!("c_{}", code.label.hex(20));

@@ -1,6 +1,6 @@
-use sodigy_bytecode::{self as bytecode, ObjectFile};
 use sodigy_endec::Endec;
 use sodigy_error::{Error, Warning};
+use sodigy_object_file::{self as object_file, ObjectFile};
 
 mod rust;
 
@@ -28,18 +28,18 @@ pub fn lower(
     match emit {
         Emit::Exe => todo!(),
         Emit::ReadableBytecode => (
-            bytecode::link(object_files).to_string().into_bytes(),
+            object_file::link(object_files).to_string().into_bytes(),
             errors,
             warnings,
         ),
         Emit::ExecutableBytecode => (
-            bytecode::link(object_files).encode(),
+            object_file::link(object_files).encode(),
             errors,
             warnings,
         ),
         Emit::Rust => {
             let code = rust::lower(
-                bytecode::link(object_files),
+                object_file::link(object_files),
                 profile,
                 &mut errors,
                 &mut warnings,

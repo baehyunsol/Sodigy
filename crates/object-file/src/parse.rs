@@ -7,10 +7,10 @@ mod token;
 #[cfg(test)]
 mod tests;
 
-pub use error::BytecodeParseError;
+pub use error::ParseError;
 use token::{Keyword, Token};
 
-pub fn parse(b: &[u8]) -> Result<ObjectFile, BytecodeParseError> {
+pub fn parse(b: &[u8]) -> Result<ObjectFile, ParseError> {
     let [data, code, entries] = lex::lex(b)?;
     todo!()
 }
@@ -21,3 +21,4 @@ pub enum Section {
     Code,
     Label,
 }
+

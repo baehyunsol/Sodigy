@@ -1,7 +1,7 @@
 use super::Section;
 
 #[derive(Debug)]
-pub enum BytecodeParseError {
+pub enum ParseError {
     UnexpectedByte {
         expected: Option<u8>,
         got: u8,

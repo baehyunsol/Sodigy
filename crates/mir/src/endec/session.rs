@@ -8,9 +8,8 @@ use crate::{
     Struct,
     Type,
     TypeAssertion,
-    dump::{dump_assert, dump_func, dump_let},
 };
-use sodigy_endec::{DecodeError, Endec, IndentedLines};
+use sodigy_endec::{DecodeError, Endec};
 use sodigy_error::{Error, Warning};
 use sodigy_span::Span;
 use sodigy_string::InternedString;

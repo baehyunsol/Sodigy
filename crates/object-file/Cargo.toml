@@ -1,16 +1,18 @@
 [package]
-name = "sodigy-interpreter"
+name = "sodigy-object-file"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 sodigy-bytecode = { version = "0.1.0", path = "../bytecode" }
-sodigy-code-gen = { version = "0.1.0", path = "../code-gen" }
+sodigy-endec = { version = "0.1.0", path = "../endec" }
+sodigy-error = { version = "0.1.0", path = "../error" }
 sodigy-mir = { version = "0.1.0", path = "../mir" }
 sodigy-number = { version = "0.1.0", path = "../number" }
-sodigy-object-file = { version = "0.1.0", path = "../object-file" }
 sodigy-span = { version = "0.1.0", path = "../span" }
+sodigy-string = { version = "0.1.0", path = "../string" }
+sodigy-utils = { version = "0.1.0", path = "../utils" }
 
 [features]
-log = ["sodigy-bytecode/log", "sodigy-mir/log", "sodigy-object-file/log"]
+log = ["sodigy-mir/log"]
 

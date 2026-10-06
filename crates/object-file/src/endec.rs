@@ -2,19 +2,36 @@ use crate::{
     BasicBlock,
     Bytecode,
     CodeKind,
-    CodeSection,
+    Code,
     ExprHash,
     GlobalLabel,
     LocalLabel,
     ObjectFile,
+    Session,
     SSA,
     Terminator,
     Value,
 };
 use sodigy_endec::{DecodeError, Endec};
-use sodigy_error::FuncEffect;
+use sodigy_error::{FuncEffect, Error, Warning};
 use sodigy_span::Span;
 use std::collections::HashMap;
+
+impl Endec for Session {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.object_file.encode_impl(buffer);
+        self.errors.encode_impl(buffer);
+        self.warnings.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (object_file, cursor) = ObjectFile::decode_impl(buffer, cursor)?;
+        let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
+        let (warnings, cursor) = Vec::<Warning>::decode_impl(buffer, cursor)?;
+
+        Ok((Session { object_file, errors, warnings }, cursor))
+    }
+}
 
 impl Endec for ObjectFile {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
@@ -26,7 +43,7 @@ impl Endec for ObjectFile {
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (data, cursor) = HashMap::<ExprHash, Value>::decode_impl(buffer, cursor)?;
-        let (code, cursor) = HashMap::<GlobalLabel, CodeSection>::decode_impl(buffer, cursor)?;
+        let (code, cursor) = HashMap::<GlobalLabel, Code>::decode_impl(buffer, cursor)?;
         let (main_entry, cursor) = Option::<GlobalLabel>::decode_impl(buffer, cursor)?;
         let (asserts, cursor) = Vec::<(String, GlobalLabel)>::decode_impl(buffer, cursor)?;
 
@@ -34,7 +51,7 @@ impl Endec for ObjectFile {
     }
 }
 
-impl Endec for CodeSection {
+impl Endec for Code {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         self.label.encode_impl(buffer);
         self.span.encode_impl(buffer);
@@ -54,7 +71,7 @@ impl Endec for CodeSection {
         let (effect, cursor) = FuncEffect::decode_impl(buffer, cursor)?;
         let (basic_blocks, cursor) = HashMap::<LocalLabel, BasicBlock>::decode_impl(buffer, cursor)?;
 
-        Ok((CodeSection { label, span, kind, name, params, effect, basic_blocks }, cursor))
+        Ok((Code { label, span, kind, name, params, effect, basic_blocks }, cursor))
     }
 }
 

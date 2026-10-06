@@ -1,10 +1,12 @@
 use crate::{
+    Assert,
     Bytecode,
     DropType,
     ExprHash,
+    Func,
+    Let,
     LocalLabel,
     Memory,
-    ObjectFile,
     SSA,
     Value,
 };
@@ -26,6 +28,10 @@ pub struct Session<'hir, 'mir> {
     pub ssa_counter: u32,
     pub ssa_map: HashMap<Span, SSA>,
 
+    pub lets: Vec<Let>,
+    pub funcs: Vec<Func>,
+    pub asserts: Vec<Assert>,
+
     // for data section in the object file
     pub number_to_expr_hash: HashMap<InternedNumber, ExprHash>,
     pub string_to_expr_hash: HashMap<(InternedString, /* binary: */ bool), ExprHash>,
@@ -36,7 +42,6 @@ pub struct Session<'hir, 'mir> {
 
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
-    pub object_file: ObjectFile,
     pub global_context: GlobalContext<'hir, 'mir>,
     pub debug_info: bool,
 }
@@ -58,6 +63,9 @@ impl Session<'_, '_> {
             label_counter: 0,
             ssa_counter: 0,
             ssa_map: HashMap::new(),
+            lets: vec![],
+            funcs: vec![],
+            asserts: vec![],
             number_to_expr_hash: HashMap::new(),
             string_to_expr_hash: HashMap::new(),
             data_section: HashMap::new(),
@@ -66,7 +74,6 @@ impl Session<'_, '_> {
             ).collect(),
             errors: mir_session.errors.drain(..).collect(),
             warnings: mir_session.warnings.drain(..).collect(),
-            object_file: ObjectFile::default(),
             global_context: mir_session.global_context,
             debug_info: true,  // TODO: make it configurable
         }
