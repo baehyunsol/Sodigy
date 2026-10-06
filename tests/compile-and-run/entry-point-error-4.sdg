@@ -1,0 +1,7 @@
+//% compile-error == 1
+
+#[entry]
+fn main<T>() -> T = foo();
+
+fn foo<T>(a: T = 100) -> T = a;
+

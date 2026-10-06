@@ -209,7 +209,13 @@ impl Session {
         if !func.generics.is_empty() {
             self.errors.push(Error {
                 kind: ErrorKind::EntryPointWithGeneric,
-                spans: todo!(),  // point to the generic def!
+                spans: func.generics.iter().map(
+                    |generic| RenderableSpan {
+                        span: generic.name_span.clone(),
+                        auxiliary: false,
+                        note: Some(String::from("Remove this generic parameter.")),
+                    }
+                ).collect(),
                 note: None,
             });
             has_error = true;
@@ -218,7 +224,13 @@ impl Session {
         if !func.params.is_empty() {
             self.errors.push(Error {
                 kind: ErrorKind::EntryPointWithParam,
-                spans: todo!(),  // point to the params?
+                spans: func.params.iter().map(
+                    |param| RenderableSpan {
+                        span: param.name_span.clone(),
+                        auxiliary: false,
+                        note: Some(String::from("Remove this parameter.")),
+                    }
+                ).collect(),
                 note: None,
             });
             has_error = true;

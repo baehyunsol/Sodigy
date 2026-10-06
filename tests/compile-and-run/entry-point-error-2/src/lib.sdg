@@ -1,0 +1,7 @@
+//% compile-error == 1
+
+mod en2;
+
+#[entry]
+fn main1() = 0;
+

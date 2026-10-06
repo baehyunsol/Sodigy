@@ -1,0 +1,5 @@
+//% compile-error == 1
+
+#[entry]
+fn main(a, b) = a + b;
+

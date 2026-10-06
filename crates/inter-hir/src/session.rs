@@ -1,5 +1,5 @@
 use crate::LogEntry;
-use sodigy_error::{Error, Warning};
+use sodigy_error::{Error, ErrorKind, Warning};
 use sodigy_hir::{
     Alias,
     AssociatedItem,
@@ -15,7 +15,7 @@ use sodigy_hir::{
     remove_struct_fields_type_annot,
 };
 use sodigy_name_analysis::NameKind;
-use sodigy_span::Span;
+use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, intern_string};
 use std::collections::{HashMap, HashSet};
 
@@ -109,9 +109,28 @@ impl Session {
         &mut self,
         module_span: Span,  // of this hir
         mut hir_session: sodigy_hir::Session,
-    ) {
+    ) -> Result<(), ()> {
         match (hir_session.entry_point.take(), &self.entry_point) {
-            (Some(e1), Some(e2)) => todo!(),  // an error
+            (Some(e1), Some(e2)) => {
+                self.errors.push(Error {
+                    kind: ErrorKind::MultipleEntryPoint,
+                    spans: vec![
+                        RenderableSpan {
+                            span: e1.clone(),
+                            auxiliary: true,
+                            note: Some(String::from("You already have an entry point here.")),
+                        },
+                        RenderableSpan {
+                            span: e2.clone(),
+                            auxiliary: false,
+                            note: Some(String::from("Another entry point here.")),
+                        },
+                    ],
+                    note: None,
+                });
+
+                return Err(());
+            },
             (Some(e), None) => { self.entry_point = Some(e); },
             _ => {},
         }
@@ -195,6 +214,7 @@ impl Session {
         self.poly_impls.extend(hir_session.poly_impls.drain(..));
         self.associated_items.extend(hir_session.associated_items.drain(..));
         self.generic_to_def_span.extend(hir_session.generic_to_def_span.drain());
+        Ok(())
     }
 
     pub fn get_item_shape<'s>(&'s mut self, def_span: &Span) -> Option<ItemShapeMut<'s>> {

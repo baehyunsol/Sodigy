@@ -535,6 +535,7 @@ impl Worker {
                 self.timings.module = None;
                 self.timings.stage_start(Stage::InterHir, Some(Substage::LoadHirModules));
                 let mut inter_hir_session = sodigy_inter_hir::Session::new(&intermediate_dir);
+                let mut has_error = false;
 
                 for (path, span) in modules.iter() {
                     let file = File::from_module_path(
@@ -549,19 +550,27 @@ impl Worker {
                     )?.ok_or(Error::IrCacheNotFound(Stage::Hir))?;
                     let mut hir_session = sodigy_hir::Session::decode(&hir_session_bytes)?;
                     hir_session.intermediate_dir = intermediate_dir.clone();
-                    inter_hir_session.ingest(span.clone(), hir_session);
-                }
 
-                self.timings.stage_end(false);
-
-                if let Ok(()) = inter_hir_session.resolve_alias(&mut self.timings) {
-                    // `resolve_associated_items` will create new poly-impls
-                    if let Ok(()) = inter_hir_session.resolve_associated_items(&mut self.timings) {
-                        let _ = inter_hir_session.resolve_poly(&mut self.timings);
+                    if let Err(()) = inter_hir_session.ingest(span.clone(), hir_session) {
+                        has_error = true;
+                        break;
                     }
                 }
 
-                let has_error = !inter_hir_session.errors.is_empty();
+                self.timings.stage_end(has_error);
+
+                if !has_error {
+                    if let Ok(()) = inter_hir_session.resolve_alias(&mut self.timings) {
+                        // `resolve_associated_items` will create new poly-impls
+                        if let Ok(()) = inter_hir_session.resolve_associated_items(&mut self.timings) {
+                            let _ = inter_hir_session.resolve_poly(&mut self.timings);
+                        } else {
+                            has_error = true;
+                        }
+                    } else {
+                        has_error = true;
+                    }
+                }
 
                 // `.log` field always exists, but it would be empty if logging is disabled.
                 //

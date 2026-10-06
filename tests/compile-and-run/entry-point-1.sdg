@@ -1,0 +1,3 @@
+#[entry]
+ndet proc main() = std.io.print("Hello, World!");
+
