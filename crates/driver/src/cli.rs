@@ -5,7 +5,7 @@ use sodigy_cli::{
     ArgType,
     Error as CliError,
 };
-use sodigy_code_gen::{Emit, Profile};
+use sodigy_code_gen::{AssertionFilter, Emit, Profile, TestConfig};
 use sodigy_error::CustomErrorLevel;
 use sodigy_optimize::OptimizeLevel;
 use std::collections::HashMap;
@@ -50,6 +50,8 @@ pub enum CliCommand {
         backend: Backend,
         custom_error_levels: HashMap<u16, CustomErrorLevel>,
         graceful_shutdown: u32,  // in millis
+        std_assertions: bool,
+        filters: Option<Vec<AssertionFilter>>,
         validate_token_spans: ValidateTokenSpans,
         check_allocator: bool,
         debug_bytecode: bool,
@@ -66,6 +68,7 @@ pub enum CliCommand {
     Interpret {
         bytecodes_path: String,
         profile: Profile,
+        test_config: Option<TestConfig>,
         check_allocator: bool,
         debug_bytecode: bool,
     },
@@ -252,7 +255,9 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
         },
         Some("interpret") => {
             let parsed_args = ArgParser::new()
+                .optional_arg_flag("--filter", ArgType::String)
                 .optional_flag(&["--test"])
+                .optional_flag(&["--std-assertions"])
                 .optional_flag(&["--debug-bytecode"])
                 .optional_flag(&["--check-allocator"])
                 .args(ArgType::String, ArgCount::Exact(1))  // bytecodes path
@@ -262,14 +267,25 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 return Ok(CliCommand::help("interpret"));
             }
 
-            let profile = if parsed_args.get_flag(0).is_some() { Profile::Test } else { Profile::Run };
-            let debug_bytecode = parsed_args.get_flag(1).is_some();
-            let check_allocator = parsed_args.get_flag(2).is_some();
+            let (profile, test_config) = match (parsed_args.get_flag(0), parsed_args.get_flag(1), parsed_args.arg_flags.get("--filter")) {
+                (None, Some(_), _) | (None, _, Some(_)) => todo!(),  // a cli error
+                (None, _, _) => (Profile::Run, None),
+                (Some(_), std_assertions, filter) => (
+                    Profile::Test,
+                    Some(TestConfig {
+                        std_assertions: std_assertions.is_some(),
+                        filters: filter.map(|f| todo!()),
+                    }),
+                ),
+            };
+            let debug_bytecode = parsed_args.get_flag(2).is_some();
+            let check_allocator = parsed_args.get_flag(3).is_some();
             let bytecodes_path = parsed_args.get_args_exact(1)?[0].to_string();
 
             Ok(CliCommand::Interpret {
                 bytecodes_path,
                 profile,
+                test_config,
                 check_allocator,
                 debug_bytecode,
             })
@@ -378,9 +394,11 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             let parsed_args = ArgParser::new()
                 .optional_arg_flag("--bytecode", ArgType::String)
                 .optional_arg_flag("--backend", ArgType::enum_(&["native", "interpret", "mir-interpret"]))
+                .optional_arg_flag("--filter", ArgType::String)
                 .optional_arg_flag("--color", ArgType::enum_(&["auto", "always", "never"]))
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
                 .optional_flag(&["--release"])
+                .optional_flag(&["--std-assertions"])
                 .optional_flag(&["--dump-post-mir-log"])
                 .optional_flag(&["--dump-timings"])
                 .flag_with_default(&[
@@ -420,6 +438,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
 
                 _ => unreachable!(),
             };
+            let filter = parsed_args.arg_flags.get("--filter").map(|f| todo!());
             let color = match parsed_args.arg_flags.get("--color").map(|f| f.as_str()) {
                 Some("auto") => ColorWhen::Auto,
                 Some("always") => ColorWhen::Always,
@@ -432,10 +451,11 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             ).unwrap_or_else(
                 || std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4)
             );
-            let dump_post_mir_log = parsed_args.get_flag(1).is_some();
-            let dump_timings = parsed_args.get_flag(2).is_some();
+            let std_assertions = parsed_args.get_flag(1).is_some();
+            let dump_post_mir_log = parsed_args.get_flag(2).is_some();
+            let dump_timings = parsed_args.get_flag(3).is_some();
 
-            let validate_token_spans = match parsed_args.get_flag(3).as_ref().map(|s| s.as_str()) {
+            let validate_token_spans = match parsed_args.get_flag(4).as_ref().map(|s| s.as_str()) {
                 Some("--no-validate-token-spans") => ValidateTokenSpans::Never,
                 Some("--validate-token-spans") => ValidateTokenSpans::Always,
                 Some("--validate-std-token-spans") => ValidateTokenSpans::OnlyStd,
@@ -451,6 +471,8 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 backend,
                 custom_error_levels: HashMap::new(),  // TODO: make it configurable
                 graceful_shutdown: 300,  // TODO: make it configurable
+                std_assertions,
+                filters: filter,
                 validate_token_spans,
                 check_allocator,
                 debug_bytecode,

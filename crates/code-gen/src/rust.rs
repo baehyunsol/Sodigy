@@ -87,8 +87,8 @@ fn lower_main(object_file: ObjectFile, profile: Profile, errors: &mut Vec<Error>
         let mut ever_failed = false;
         let samples: Vec<(&'static str, unsafe fn(&mut Heap, u32, u32) -> CallResult)> = vec!["#));
 
-            for (name, label) in object_file.asserts.iter() {
-                body.push(format!("            ({name:?}, c_{}),", label.hex(20)));
+            for assert in object_file.asserts.iter() {
+                body.push(format!("            ({:?}, c_{}),", assert.name, assert.label.hex(20)));
             }
 
             // TODO: filter assertions

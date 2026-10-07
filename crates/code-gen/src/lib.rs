@@ -4,17 +4,20 @@ use sodigy_object_file::{self as object_file, ObjectFile};
 
 mod rust;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Profile {
     Run,
-    Test {
-        std_assertions: bool,
-        filter: Option<Vec<Filter>>,
-    },
+    Test,
 }
 
 #[derive(Clone, Debug)]
-pub struct Filter {
+pub struct TestConfig {
+    pub std_assertions: bool,
+    pub filters: Option<Vec<AssertionFilter>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct AssertionFilter {
     pub keyword: String,
     pub match_start: bool,  // `^`
     pub match_end: bool,  // `$`

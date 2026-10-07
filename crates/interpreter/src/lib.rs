@@ -6,7 +6,7 @@ use sodigy_bytecode::{
     Memory,
     Value,
 };
-use sodigy_code_gen::Profile;
+use sodigy_code_gen::{Profile, TestConfig};
 use sodigy_mir::Intrinsic;
 use sodigy_number::{
     BigInt,
@@ -44,6 +44,7 @@ pub use stack::Stack;
 pub fn interpret(
     object_file: &ObjectFile,
     profile: Profile,
+    test_config: Option<TestConfig>,
     check_allocator: bool,
     debug: bool,
     intermediate_dir: &str,
@@ -73,8 +74,20 @@ pub fn interpret(
             let mut heap = Heap::new();
             let mut ever_failed = false;
             let (mut pass_count, mut fail_count) = (0, 0);
+            let (std_assertions, filters) = match test_config {
+                Some(TestConfig { std_assertions, filters }) => (std_assertions, filters),
+                None => (false, None),
+            };
 
-            for (name, label) in object_file.asserts.iter() {
+            for assert in object_file.asserts.iter() {
+                if assert.is_std && !std_assertions {
+                    continue;
+                }
+
+                if let Some(filters) = &filters {
+                    todo!()  // filter
+                }
+
                 if let Some(debug_session) = &mut debug_session {
                     debug_session.dump(
                         &Stack::new(),
@@ -85,7 +98,7 @@ pub fn interpret(
                     );
                 }
 
-                let result = tail_call_loop(Stack::new(), &mut heap, object_file, *label, &mut debug_session);
+                let result = tail_call_loop(Stack::new(), &mut heap, object_file, assert.label, &mut debug_session);
 
                 if check_allocator {
                     heap.check_integrity();
@@ -103,7 +116,7 @@ pub fn interpret(
                     },
                 };
 
-                println!("assertion `{name}`: {}", if fail { "fail" } else { "pass" });
+                println!("assertion `{}`: {}", assert.name, if fail { "fail" } else { "pass" });
 
                 if fail {
                     fail_count += 1;

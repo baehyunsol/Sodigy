@@ -1,4 +1,4 @@
-use sodigy_code_gen::{Emit, Profile};
+use sodigy_code_gen::{Emit, Profile, TestConfig};
 use sodigy_endec::Endec;
 use sodigy_error::{
     CustomErrorLevel,
@@ -158,26 +158,32 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             let quiet = false;
             let verify_built_ins = false;
 
-            let (output_path, emit, backend, build_profile, run_profile) = match cli_command {
+            let (output_path, emit, backend, build_profile, run_profile, assertion_filter) = match cli_command {
                 CliCommand::Run { backend, .. } => (
                     StoreIrAt::IntermediateDir,
                     None,
                     Some(*backend),
                     Profile::Run,
                     Some(Profile::Run),
+                    None,
                 ),
-                CliCommand::Test { backend, .. } => (
+                CliCommand::Test { backend, std_assertions, filters, .. } => (
                     StoreIrAt::IntermediateDir,
                     None,
                     Some(*backend),
                     Profile::Test,
                     Some(Profile::Test),
+                    Some(TestConfig {
+                        std_assertions: *std_assertions,
+                        filters: filters.clone(),
+                    }),
                 ),
                 CliCommand::Build { output_path, emit, profile, .. } => (
                     StoreIrAt::File(output_path.to_string()),
                     Some(*emit),
                     None,
                     *profile,
+                    None,
                     None,
                 ),
                 _ => unreachable!(),
@@ -211,15 +217,17 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                     *check_allocator,
                     *debug_bytecode,
                     run_profile,
+                    assertion_filter,
                     quiet,
                 ),
             }
         },
         // TODO: Currently, it only works with `sodigy build --emit=bytecode-exe`.
         //       I want it to also work with `sodigy build --emit=bytecode`.
-        CliCommand::Interpret { bytecodes_path, profile, check_allocator, debug_bytecode } => interpret(
+        CliCommand::Interpret { bytecodes_path, profile, test_config, check_allocator, debug_bytecode } => interpret(
             StoreIrAt::File(bytecodes_path.to_string()),
             *profile,
+            test_config.clone(),
             *check_allocator,
             *debug_bytecode,
             &ir_dir,
@@ -284,6 +292,7 @@ pub fn init_workers_and_compile(
     check_allocator: bool,
     debug_bytecode: bool,
     run_with_profile: Option<Profile>,
+    test_config: Option<TestConfig>,
     quiet: bool,
 ) -> Result<(), Error> {
     let started_at = Instant::now();
@@ -372,9 +381,9 @@ pub fn init_workers_and_compile(
 
     if let Some(profile) = run_with_profile {
         match backend {
-            Some(Backend::Native) => interpret(StoreIrAt::IntermediateDir, profile, check_allocator, debug_bytecode, &ir_dir),
-            Some(Backend::Interpret) => interpret(StoreIrAt::IntermediateDir, profile, check_allocator, debug_bytecode, &ir_dir),
-            Some(Backend::MirInterpret) => interpret(StoreIrAt::IntermediateDir, profile, check_allocator, debug_bytecode, &ir_dir),
+            Some(Backend::Native) => interpret(StoreIrAt::IntermediateDir, profile, test_config, check_allocator, debug_bytecode, &ir_dir),
+            Some(Backend::Interpret) => interpret(StoreIrAt::IntermediateDir, profile, test_config, check_allocator, debug_bytecode, &ir_dir),
+            Some(Backend::MirInterpret) => interpret(StoreIrAt::IntermediateDir, profile, test_config, check_allocator, debug_bytecode, &ir_dir),
             None => unreachable!(),
         }
     } else {
@@ -739,6 +748,7 @@ fn compile(
 fn interpret(
     exe: StoreIrAt,
     profile: Profile,
+    test_config: Option<TestConfig>,
     check_allocator: bool,
     debug_bytecode: bool,
     intermediate_dir: &str,
@@ -756,7 +766,7 @@ fn interpret(
     let exe_bytes = Vec::<u8>::decode(&exe_bytes)?;
     let exe = sodigy_object_file::ObjectFile::decode(&exe_bytes)?;
 
-    match sodigy_interpreter::interpret(&exe, profile, check_allocator, debug_bytecode, intermediate_dir) {
+    match sodigy_interpreter::interpret(&exe, profile, test_config, check_allocator, debug_bytecode, intermediate_dir) {
         Ok(()) => Ok(()),
         Err(e) => Err(Error::RuntimeError(e)),
     }
