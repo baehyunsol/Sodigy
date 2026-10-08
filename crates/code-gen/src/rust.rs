@@ -8,7 +8,6 @@ use sodigy_bytecode::{
     SSA,
     Value,
 };
-use sodigy_error::{Error, Warning};
 use sodigy_mir::Intrinsic;
 use sodigy_object_file::{
     BasicBlock,
@@ -30,11 +29,7 @@ pub struct RustModule {
     pub code: String,
 }
 
-pub fn lower(
-    mut object_file: ObjectFile,
-    errors: &mut Vec<Error>,
-    warnings: &mut Vec<Warning>,
-) -> RustModule {
+pub fn lower(mut object_file: ObjectFile) -> RustModule {
     let mut funcs = vec![];
 
     let mut data: Vec<(ExprHash, Value)> = object_file.data.drain().collect();
@@ -51,7 +46,7 @@ pub fn lower(
         funcs.push(lower_code(code));
     }
 
-    funcs.push(lower_main(object_file, errors, warnings));
+    funcs.push(lower_main(object_file));
 
     // dependencies
     funcs.push(RUNNER.to_string());
@@ -67,7 +62,7 @@ const RUNNER: &str = include_str!("../rust-runtime-src/run.rs");
 const HEAP: &str = include_str!("../rust-runtime-src/heap.rs");
 const INT: &str = include_str!("../rust-runtime-src/int.rs");
 
-fn lower_main(object_file: ObjectFile, errors: &mut Vec<Error>, warnigs: &mut Vec<Warning>) -> String {
+fn lower_main(object_file: ObjectFile) -> String {
     let mut body = vec![];
 
     match &object_file.entry {

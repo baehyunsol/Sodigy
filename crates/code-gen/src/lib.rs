@@ -15,7 +15,7 @@ pub enum Emit {
 pub fn lower(
     object_files: Vec<ObjectFile>,
     mut errors: Vec<Error>,
-    mut warnings: Vec<Warning>,
+    warnings: Vec<Warning>,
     emit: Emit,
 ) -> (Vec<u8>, Vec<Error>, Vec<Warning>) {
     // TODO: Why not just get a linked object file as an input?
@@ -43,12 +43,7 @@ pub fn lower(
             warnings,
         ),
         Emit::Rust => {
-            let code = rust::lower(
-                linked_object_file,
-                &mut errors,
-                &mut warnings,
-            ).code.into_bytes();
-
+            let code = rust::lower(linked_object_file).code.into_bytes();
             (code, errors, warnings)
         },
     }

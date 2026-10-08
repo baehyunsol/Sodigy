@@ -4,5 +4,5 @@ use std::num::NonZero;
 pub enum Error {
     NonZeroExit(NonZero<u8>),
     TestFail,
-    CannotFindEntry,
 }
+

@@ -21,12 +21,12 @@ fn verify_built_ins() {
     init_workers_and_compile(
         String::from("verify_built_ins/src"),
         StoreIrAt::IntermediateDir,
-        None,
+        None,  // emit
         Some(Backend::Interpret),
-        Profile::Test,
+        Profile::Test { std_assertions: false, filters: None },
         String::from("verify_built_ins/target/"),
         OptimizeLevel::None,
-        &HashMap::new(),
+        &HashMap::new(),  // custom_error_levels
         false,  // dump-post-mir-log
         false,   // dump-timings
         0,  // graceful-shutdown
@@ -37,8 +37,8 @@ fn verify_built_ins() {
         true,   // verify-built-ins
         false,  // check-allocator
         false,  // debug-bytecode
-        Some(Profile::Test),
-        true,  // quiet
+        true,   // run
+        true,   // quiet
     ).unwrap();
 
     remove_dir_all("verify_built_ins").unwrap();

@@ -27,7 +27,6 @@ use sodigy_object_file::{
     Code,
     Entry,
     ObjectFile,
-    Profile,
     Terminator,
 };
 use std::collections::hash_map::Entry as HashMapEntry;
