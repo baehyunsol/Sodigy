@@ -1,4 +1,11 @@
-use crate::{BasicBlock, Code, CodeKind, ObjectFile, Terminator};
+use crate::{
+    BasicBlock,
+    Code,
+    CodeKind,
+    Entry,
+    ObjectFile,
+    Terminator,
+};
 use sodigy_bytecode::{
     ExprHash,
     GlobalLabel,
@@ -10,21 +17,6 @@ use std::fmt::{Display, Error, Formatter};
 
 impl Display for ObjectFile {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        let mut labels = vec![];
-
-        if let Some(main_entry) = &self.main_entry {
-            labels.push(String::from("main:"));
-            labels.push(format!("    @G{}", main_entry.hex(20)));
-        }
-
-        if !self.asserts.is_empty() {
-            labels.push(String::from("asserts:"));
-
-            for assert in self.asserts.iter() {
-                labels.push(format!("    @G{}", assert.label.hex(20)));
-            }
-        }
-
         let mut data: Vec<(&ExprHash, &Value)> = self.data.iter().collect();
         data.sort_by_key(|(h, _)| **h);
         let data = data.iter().map(|(h, v)| format!("    %I{} = {v};", h.hex(20))).collect::<Vec<_>>();
@@ -32,6 +24,25 @@ impl Display for ObjectFile {
         let mut code: Vec<(&GlobalLabel, &Code)> = self.code.iter().collect();
         code.sort_by_key(|(g, _)| **g);
         let code = code.iter().map(|(_, c)| c.to_string()).collect::<Vec<_>>();
+
+        let mut labels = vec![];
+
+        match &self.entry {
+            Entry::Main(e) => {
+                labels.push(String::from("main:"));
+                labels.push(format!("    @G{}", e.hex(20)));
+            },
+            Entry::Asserts(asserts) => {
+                if !asserts.is_empty() {
+                    labels.push(String::from("asserts:"));
+
+                    for assert in asserts.iter() {
+                        labels.push(format!("    @G{}", assert.label.hex(20)));
+                    }
+                }
+            },
+            Entry::NoEntry => {},
+        }
 
         write!(fmt, r#".data:
 {}

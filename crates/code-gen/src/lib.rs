@@ -1,27 +1,8 @@
 use sodigy_endec::Endec;
-use sodigy_error::{Error, Warning};
-use sodigy_object_file::{self as object_file, ObjectFile};
+use sodigy_error::{Error, ErrorKind, Warning};
+use sodigy_object_file::{self as object_file, Entry, ObjectFile};
 
 mod rust;
-
-#[derive(Clone, Copy, Debug)]
-pub enum Profile {
-    Run,
-    Test,
-}
-
-#[derive(Clone, Debug)]
-pub struct TestConfig {
-    pub std_assertions: bool,
-    pub filters: Option<Vec<AssertionFilter>>,
-}
-
-#[derive(Clone, Debug)]
-pub struct AssertionFilter {
-    pub keyword: String,
-    pub match_start: bool,  // `^`
-    pub match_end: bool,  // `$`
-}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Emit {
@@ -33,27 +14,37 @@ pub enum Emit {
 
 pub fn lower(
     object_files: Vec<ObjectFile>,
-    profile: Profile,
     mut errors: Vec<Error>,
     mut warnings: Vec<Warning>,
     emit: Emit,
 ) -> (Vec<u8>, Vec<Error>, Vec<Warning>) {
+    // TODO: Why not just get a linked object file as an input?
+    let linked_object_file = object_file::link(object_files);
+
+    if let Entry::NoEntry = linked_object_file.entry {
+        errors.push(Error {
+            kind: ErrorKind::CannotFindEntryPoint,
+            spans: vec![],
+            note: None,
+        });
+        return (vec![], errors, warnings);
+    }
+
     match emit {
         Emit::Exe => todo!(),
         Emit::ReadableBytecode => (
-            object_file::link(object_files).to_string().into_bytes(),
+            linked_object_file.to_string().into_bytes(),
             errors,
             warnings,
         ),
         Emit::ExecutableBytecode => (
-            object_file::link(object_files).encode(),
+            linked_object_file.encode(),
             errors,
             warnings,
         ),
         Emit::Rust => {
             let code = rust::lower(
-                object_file::link(object_files),
-                profile,
+                linked_object_file,
                 &mut errors,
                 &mut warnings,
             ).code.into_bytes();

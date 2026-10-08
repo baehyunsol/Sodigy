@@ -199,6 +199,7 @@ impl Worker {
             Command::PerFileIr {
                 input_file_path,
                 input_module_path,
+                profile,
                 optimize_level,
                 intermediate_dir,
                 find_modules,
@@ -483,7 +484,7 @@ impl Worker {
 
                 self.timings.stage_start(Stage::ObjectFile, None);
                 let lower_built_ins = input_file_path == std_root().1;
-                let object_file_session = ObjectFileSession::from_bytecode_session(bytecode_session, lower_built_ins);
+                let object_file_session = ObjectFileSession::from_bytecode_session(bytecode_session, profile, lower_built_ins);
                 self.timings.stage_end(!object_file_session.errors.is_empty());
 
                 if let Some(store_ir) = &store_ir {
@@ -792,7 +793,7 @@ impl Worker {
                 self.timings.stage_end(false);
 
                 self.timings.stage_start(Stage::CodeGen, Some(Substage::CodeGen));
-                let (code, errors, warnings) = sodigy_code_gen::lower(object_files, profile, errors, warnings, emit);
+                let (code, errors, warnings) = sodigy_code_gen::lower(object_files, errors, warnings, emit);
                 self.timings.stage_end(!errors.is_empty());
 
                 match output_path {

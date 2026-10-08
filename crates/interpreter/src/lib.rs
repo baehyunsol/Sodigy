@@ -6,7 +6,6 @@ use sodigy_bytecode::{
     Memory,
     Value,
 };
-use sodigy_code_gen::{Profile, TestConfig};
 use sodigy_mir::Intrinsic;
 use sodigy_number::{
     BigInt,
@@ -26,10 +25,12 @@ use sodigy_number::{
 use sodigy_object_file::{
     BasicBlock,
     Code,
+    Entry,
     ObjectFile,
+    Profile,
     Terminator,
 };
-use std::collections::hash_map::Entry;
+use std::collections::hash_map::Entry as HashMapEntry;
 
 mod debug;
 mod error;
@@ -43,8 +44,6 @@ pub use stack::Stack;
 
 pub fn interpret(
     object_file: &ObjectFile,
-    profile: Profile,
-    test_config: Option<TestConfig>,
     check_allocator: bool,
     debug: bool,
     intermediate_dir: &str,
@@ -52,42 +51,27 @@ pub fn interpret(
     let mut heap = Heap::new();
     let mut debug_session = if debug { Some(DebugSession::new(intermediate_dir)) } else { None };
 
-    match profile {
-        Profile::Run => match object_file.main_entry {
-            Some(label) => {
-                let result = tail_call_loop(Stack::new(), &mut heap, object_file, label, &mut debug_session);
+    match &object_file.entry {
+        Entry::Main(label) => {
+            let result = tail_call_loop(Stack::new(), &mut heap, object_file, *label, &mut debug_session);
 
-                if check_allocator {
-                    heap.check_integrity();
-                }
+            if check_allocator {
+                heap.check_integrity();
+            }
 
-                match result {
-                    CallResult::Return(_) |
-                    CallResult::Exit(0) => Ok(()),
-                    CallResult::TailCall { .. } => unreachable!(),
-                    CallResult::Exit(n) => Err(Error::NonZeroExit(n.try_into().unwrap())),
-                }
-            },
-            None => Err(Error::CannotFindEntry),
+            match result {
+                CallResult::Return(_) |
+                CallResult::Exit(0) => Ok(()),
+                CallResult::TailCall { .. } => unreachable!(),
+                CallResult::Exit(n) => Err(Error::NonZeroExit(n.try_into().unwrap())),
+            }
         },
-        Profile::Test => {
+        Entry::Asserts(asserts) => {
             let mut heap = Heap::new();
             let mut ever_failed = false;
             let (mut pass_count, mut fail_count) = (0, 0);
-            let (std_assertions, filters) = match test_config {
-                Some(TestConfig { std_assertions, filters }) => (std_assertions, filters),
-                None => (false, None),
-            };
 
-            for assert in object_file.asserts.iter() {
-                if assert.is_std && !std_assertions {
-                    continue;
-                }
-
-                if let Some(filters) = &filters {
-                    todo!()  // filter
-                }
-
+            for assert in asserts.iter() {
                 if let Some(debug_session) = &mut debug_session {
                     debug_session.dump(
                         &Stack::new(),
@@ -139,6 +123,7 @@ pub fn interpret(
                 Ok(())
             }
         },
+        Entry::NoEntry => unreachable!(),
     }
 }
 
@@ -153,7 +138,7 @@ fn tail_call_loop(
         let code = &object_file.code.get(&label).unwrap();
 
         if let Some(debug_session) = debug_session {
-            if let Some(span) = &code.span && let Entry::Vacant(e) = debug_session.func_spans.entry(code.label) {
+            if let Some(span) = &code.span && let HashMapEntry::Vacant(e) = debug_session.func_spans.entry(code.label) {
                 e.insert(span.clone());
             }
 

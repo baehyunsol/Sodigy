@@ -1,4 +1,3 @@
-use crate::Profile;
 use sodigy_bytecode::{
     Bytecode,
     ExprHash,
@@ -9,11 +8,12 @@ use sodigy_bytecode::{
     SSA,
     Value,
 };
-use sodigy_error::{Error, ErrorKind, Warning};
+use sodigy_error::{Error, Warning};
 use sodigy_mir::Intrinsic;
 use sodigy_object_file::{
     BasicBlock,
     Code,
+    Entry,
     ObjectFile,
     Terminator,
 };
@@ -32,7 +32,6 @@ pub struct RustModule {
 
 pub fn lower(
     mut object_file: ObjectFile,
-    profile: Profile,
     errors: &mut Vec<Error>,
     warnings: &mut Vec<Warning>,
 ) -> RustModule {
@@ -52,7 +51,7 @@ pub fn lower(
         funcs.push(lower_code(code));
     }
 
-    funcs.push(lower_main(object_file, profile, errors, warnings));
+    funcs.push(lower_main(object_file, errors, warnings));
 
     // dependencies
     funcs.push(RUNNER.to_string());
@@ -68,30 +67,20 @@ const RUNNER: &str = include_str!("../rust-runtime-src/run.rs");
 const HEAP: &str = include_str!("../rust-runtime-src/heap.rs");
 const INT: &str = include_str!("../rust-runtime-src/int.rs");
 
-fn lower_main(object_file: ObjectFile, profile: Profile, errors: &mut Vec<Error>, warnigs: &mut Vec<Warning>) -> String {
+fn lower_main(object_file: ObjectFile, errors: &mut Vec<Error>, warnigs: &mut Vec<Warning>) -> String {
     let mut body = vec![];
 
-    match profile {
-        Profile::Run => match object_file.main_entry {
-            Some(m) => todo!(),
-            None => {
-                errors.push(Error {
-                    kind: ErrorKind::CannotFindEntryPoint,
-                    spans: vec![],
-                    note: None,
-                });
-            },
-        },
-        Profile::Test => {
+    match &object_file.entry {
+        Entry::Main(m) => todo!(),
+        Entry::Asserts(asserts) => {
             body.push(String::from(r#"        let mut heap = Heap::new();
         let mut ever_failed = false;
         let samples: Vec<(&'static str, unsafe fn(&mut Heap, u32, u32) -> CallResult)> = vec!["#));
 
-            for assert in object_file.asserts.iter() {
+            for assert in asserts.iter() {
                 body.push(format!("            ({:?}, c_{}),", assert.name, assert.label.hex(20)));
             }
 
-            // TODO: filter assertions
             body.push(String::from(r#"        ];
         for (name, f) in samples {
             let c = CallResult::TailCallShort { f, x0: 0, x1: 0 };
@@ -115,6 +104,7 @@ fn lower_main(object_file: ObjectFile, profile: Profile, errors: &mut Vec<Error>
         }"#,
             ));
         },
+        Entry::NoEntry => unreachable!(),
     }
 
     let body = body.join("\n");

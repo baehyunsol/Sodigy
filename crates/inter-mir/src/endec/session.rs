@@ -23,6 +23,7 @@ impl Endec for Session {
         self.span_string_map.encode_impl(buffer);
         self.lang_items.encode_impl(buffer);
         self.built_in_funcs.encode_impl(buffer);
+        self.entry_point.encode_impl(buffer);
         self.errors.encode_impl(buffer);
         self.warnings.encode_impl(buffer);
     }
@@ -41,6 +42,7 @@ impl Endec for Session {
         let (span_string_map, cursor) = HashMap::<SpanId, InternedString>::decode_impl(buffer, cursor)?;
         let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
         let (built_in_funcs, cursor) = HashSet::<Span>::decode_impl(buffer, cursor)?;
+        let (entry_point, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
         let (warnings, cursor) = Vec::<Warning>::decode_impl(buffer, cursor)?;
 
@@ -71,6 +73,7 @@ impl Endec for Session {
                 span_string_map,
                 lang_items,
                 built_in_funcs,
+                entry_point,
                 intermediate_dir: String::new(),
                 type_errors: vec![],
                 type_warnings: vec![],

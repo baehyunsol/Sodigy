@@ -3,7 +3,9 @@ use crate::{
     BasicBlock,
     Code,
     CodeKind,
+    Entry,
     ObjectFile,
+    Profile,
     Terminator,
     to_basic_blocks,
 };
@@ -30,10 +32,11 @@ pub struct Session {
 impl Session {
     pub fn from_bytecode_session(
         mut bytecode_session: BytecodeSession<'_, '_>,
+        profile: Profile,
         lower_built_ins: bool,
     ) -> Session {
         let mut code = HashMap::with_capacity(bytecode_session.lets.len() + bytecode_session.funcs.len() + bytecode_session.asserts.len());
-        let mut asserts = Vec::with_capacity(bytecode_session.asserts.len());
+        let mut asserts = vec![];
 
         for mut func in bytecode_session.funcs.drain(..) {
             let label = GlobalLabel::new(func.name_span.hash());
@@ -71,7 +74,13 @@ impl Session {
             let name = String::from_utf8_lossy(&unintern_string(assert.name, &bytecode_session.intermediate_dir).unwrap().unwrap()).to_string();
             let label = GlobalLabel::new(assert.keyword_span.hash());
             let is_std = assert.keyword_span.is_std();
-            asserts.push(Assert { name: name.clone(), label, is_std });
+            let assert_label = Assert { name: name.clone(), label, is_std };
+
+            if !profile.has_to_check_this_assertion(&assert_label) {
+                continue;
+            }
+
+            asserts.push(assert_label);
             code.insert(
                 label,
                 Code {
@@ -124,11 +133,17 @@ impl Session {
             }
         }
 
+        let entry = match (profile, &bytecode_session.global_context.entry_point) {
+            // FIXME: `global_context.entry_point` is of the entire project, but this object-file is
+            //        only for a single session.
+            (Profile::Run, Some(Some(e))) => Entry::Main(GlobalLabel::new(e.hash())),
+            (Profile::Run, _) => Entry::NoEntry,
+            (Profile::Test { .. }, _) => Entry::Asserts(asserts),
+        };
         let object_file = ObjectFile {
             data: std::mem::take(&mut bytecode_session.data_section),
             code,
-            main_entry: None,  // TODO
-            asserts,
+            entry,
         };
 
         Session {
@@ -138,3 +153,4 @@ impl Session {
         }
     }
 }
+

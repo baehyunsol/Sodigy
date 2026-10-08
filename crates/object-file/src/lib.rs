@@ -17,22 +17,23 @@ mod dump;
 mod endec;
 mod link;
 mod parse;
+mod profile;
 mod ref_count;
 mod session;
 
-pub use assert::Assert;
+pub use assert::{Assert, AssertionFilter};
 pub use basic_block::{BasicBlock, Terminator, to_basic_blocks};
 pub use dump::Highlight;
 pub use link::link;
 pub use parse::{ParseError, parse};
+pub use profile::Profile;
 pub use ref_count::insert_ref_count;
 pub use session::Session;
 
 pub struct ObjectFile {
     pub data: HashMap<ExprHash, Value>,
     pub code: HashMap<GlobalLabel, Code>,
-    pub main_entry: Option<GlobalLabel>,
-    pub asserts: Vec<Assert>,
+    pub entry: Entry,
 }
 
 // It can be a func, an assertion or a global let.
@@ -57,14 +58,12 @@ pub enum CodeKind {
     Assert,
 }
 
-impl Default for ObjectFile {
-    fn default() -> ObjectFile {
-        ObjectFile {
-            data: HashMap::new(),
-            code: HashMap::new(),
-            main_entry: None,
-            asserts: vec![],
-        }
-    }
+#[derive(Clone, Debug)]
+pub enum Entry {
+    Main(GlobalLabel),
+    Asserts(Vec<Assert>),
+
+    // The compiler will turn this into an error later.
+    NoEntry,
 }
 

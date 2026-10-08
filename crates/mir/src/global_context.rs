@@ -21,6 +21,7 @@ pub struct GlobalContext<'hir, 'mir> {
 
     pub lang_items: Option<&'hir HashMap<String, Span>>,
     pub built_in_funcs: Option<&'hir HashSet<Span>>,
+    pub entry_point: Option<&'hir Option<Span>>,
 
     pub types: Option<Arc<RwLock<HashMap<Span, Type>>>>,
     pub generic_args: Option<&'mir HashMap<(Span, Span), Type>>,
@@ -38,6 +39,7 @@ impl<'hir> GlobalContext<'hir, '_> {
             variant_to_enum_span: None,
             lang_items: None,
             built_in_funcs: None,
+            entry_point: None,
             types: None,
             generic_args: None,
             span_string_map: None,
@@ -54,6 +56,7 @@ impl<'hir> GlobalContext<'hir, '_> {
             variant_to_enum_span: Some(&session.variant_to_enum_span),
             lang_items: Some(&session.lang_items),
             built_in_funcs: Some(&session.built_in_funcs),
+            entry_point: Some(&session.entry_point),
             types: None,
             generic_args: None,
             span_string_map: None,
@@ -92,3 +95,4 @@ impl<'hir> GlobalContext<'hir, '_> {
         self.get_lang_item_span(lang_item).id().unwrap()
     }
 }
+

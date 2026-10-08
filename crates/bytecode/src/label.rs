@@ -33,3 +33,4 @@ impl GlobalLabel {
         self.0
     }
 }
+

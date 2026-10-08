@@ -41,9 +41,11 @@ impl GlobalContext {
             variant_to_enum_span: Some(&self.inter_mir_session.as_ref().unwrap().variant_to_enum_span),
             lang_items: Some(&self.inter_mir_session.as_ref().unwrap().lang_items),
             built_in_funcs: Some(&self.inter_mir_session.as_ref().unwrap().built_in_funcs),
+            entry_point: Some(&self.inter_mir_session.as_ref().unwrap().entry_point),
             types: self.types.clone(),
             generic_args: Some(&self.inter_mir_session.as_ref().unwrap().generic_args),
             span_string_map: Some(&self.inter_mir_session.as_ref().unwrap().span_string_map),
         }
     }
 }
+

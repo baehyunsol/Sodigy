@@ -4,6 +4,7 @@ use crate::{
     Bytecode,
     CodeKind,
     Code,
+    Entry,
     ExprHash,
     GlobalLabel,
     LocalLabel,
@@ -54,17 +55,15 @@ impl Endec for ObjectFile {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         self.data.encode_impl(buffer);
         self.code.encode_impl(buffer);
-        self.main_entry.encode_impl(buffer);
-        self.asserts.encode_impl(buffer);
+        self.entry.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (data, cursor) = HashMap::<ExprHash, Value>::decode_impl(buffer, cursor)?;
         let (code, cursor) = HashMap::<GlobalLabel, Code>::decode_impl(buffer, cursor)?;
-        let (main_entry, cursor) = Option::<GlobalLabel>::decode_impl(buffer, cursor)?;
-        let (asserts, cursor) = Vec::<Assert>::decode_impl(buffer, cursor)?;
+        let (entry, cursor) = Entry::decode_impl(buffer, cursor)?;
 
-        Ok((ObjectFile { data, code, main_entry, asserts }, cursor))
+        Ok((ObjectFile { data, code, entry }, cursor))
     }
 }
 
@@ -112,6 +111,40 @@ impl Endec for CodeKind {
             Some(0) => Ok((CodeKind::Func, cursor + 1)),
             Some(1) => Ok((CodeKind::Let, cursor + 1)),
             Some(2) => Ok((CodeKind::Assert, cursor + 1)),
+            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+
+impl Endec for Entry {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            Entry::Main(e) => {
+                buffer.push(0);
+                e.encode_impl(buffer);
+            },
+            Entry::Asserts(a) => {
+                buffer.push(1);
+                a.encode_impl(buffer);
+            },
+            Entry::NoEntry => {
+                buffer.push(2);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => {
+                let (e, cursor) = GlobalLabel::decode_impl(buffer, cursor + 1)?;
+                Ok((Entry::Main(e), cursor))
+            },
+            Some(1) => {
+                let (a, cursor) = Vec::<Assert>::decode_impl(buffer, cursor + 1)?;
+                Ok((Entry::Asserts(a), cursor))
+            },
+            Some(2) => Ok((Entry::NoEntry, cursor + 1)),
             Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }

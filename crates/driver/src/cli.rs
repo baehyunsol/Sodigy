@@ -5,8 +5,9 @@ use sodigy_cli::{
     ArgType,
     Error as CliError,
 };
-use sodigy_code_gen::{AssertionFilter, Emit, Profile, TestConfig};
+use sodigy_code_gen::Emit;
 use sodigy_error::CustomErrorLevel;
+use sodigy_object_file::{AssertionFilter, Profile};
 use sodigy_optimize::OptimizeLevel;
 use std::collections::HashMap;
 
@@ -67,8 +68,6 @@ pub enum CliCommand {
     },
     Interpret {
         bytecodes_path: String,
-        profile: Profile,
-        test_config: Option<TestConfig>,
         check_allocator: bool,
         debug_bytecode: bool,
     },
@@ -112,10 +111,12 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_arg_flag("--output", ArgType::String)
                 .optional_arg_flag("--emit", ArgType::enum_(&["exe", "bytecode", "bytecode-exe", "rust"]))
                 .optional_arg_flag("--bytecode", ArgType::String)
+                .optional_arg_flag("--filter", ArgType::String)
                 .optional_arg_flag("--color", ArgType::enum_(&["auto", "always", "never"]))
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
                 .optional_flag(&["--release"])
                 .optional_flag(&["--test"])
+                .optional_flag(&["--std-assertions"])
                 .optional_flag(&["--dump-post-mir-log"])
                 .optional_flag(&["--dump-timings"])
                 .flag_with_default(&[
@@ -165,21 +166,23 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 _ => unreachable!(),
             };
 
-            let profile = match (emit, parsed_args.get_flag(1).is_some()) {
-                (Emit::Exe | Emit::Rust, true) => Profile::Test,
-                (Emit::ReadableBytecode | Emit::ExecutableBytecode, true) => {
-                    // This is a cli error. You can set `--test` flag only if the emit option is `rust` or `exe`,
-                    // because an object file has enough information to run with both profiles.
-                    // But there's no way I can construct such CliError...
-                    todo!()
+            let profile = match (
+                parsed_args.get_flag(1).is_some(),
+                parsed_args.get_flag(2).is_some(),
+                parsed_args.arg_flags.get("--filter"),
+            ) {
+                (false, true, _) | (false, _, Some(_)) => todo!(),  // a cli error
+                (false, _, _) => Profile::Run,
+                (true, std_assertions, filter) => Profile::Test {
+                    std_assertions,
+                    filters: filter.map(|f| todo!()),
                 },
-                (_, false) => Profile::Run,
             };
 
-            let dump_post_mir_log = parsed_args.get_flag(2).is_some();
-            let dump_timings = parsed_args.get_flag(3).is_some();
+            let dump_post_mir_log = parsed_args.get_flag(3).is_some();
+            let dump_timings = parsed_args.get_flag(4).is_some();
 
-            let validate_token_spans = match parsed_args.get_flag(4).as_ref().map(|s| s.as_str()) {
+            let validate_token_spans = match parsed_args.get_flag(5).as_ref().map(|s| s.as_str()) {
                 Some("--no-validate-token-spans") => ValidateTokenSpans::Never,
                 Some("--validate-token-spans") => ValidateTokenSpans::Always,
                 Some("--validate-std-token-spans") => ValidateTokenSpans::OnlyStd,
@@ -187,7 +190,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 _ => unreachable!(),
             };
 
-            let debug_bytecode = match (emit, parsed_args.get_flag(5).is_some()) {
+            let debug_bytecode = match (emit, parsed_args.get_flag(6).is_some()) {
                 (Emit::Exe | Emit::Rust, true) => true,
                 (Emit::ReadableBytecode | Emit::ExecutableBytecode, true) => {
                     // This is a cli error. You can set `--debug-bytecode` flag only if the emit option is `rust` or `exe`,
@@ -197,7 +200,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 },
                 (_, false) => false,
             };
-            let check_allocator = parsed_args.get_flag(6).is_some();
+            let check_allocator = parsed_args.get_flag(7).is_some();
 
             let output_path = match output_path {
                 Some(output_path) => output_path,
@@ -255,9 +258,6 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
         },
         Some("interpret") => {
             let parsed_args = ArgParser::new()
-                .optional_arg_flag("--filter", ArgType::String)
-                .optional_flag(&["--test"])
-                .optional_flag(&["--std-assertions"])
                 .optional_flag(&["--debug-bytecode"])
                 .optional_flag(&["--check-allocator"])
                 .args(ArgType::String, ArgCount::Exact(1))  // bytecodes path
@@ -267,25 +267,12 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 return Ok(CliCommand::help("interpret"));
             }
 
-            let (profile, test_config) = match (parsed_args.get_flag(0), parsed_args.get_flag(1), parsed_args.arg_flags.get("--filter")) {
-                (None, Some(_), _) | (None, _, Some(_)) => todo!(),  // a cli error
-                (None, _, _) => (Profile::Run, None),
-                (Some(_), std_assertions, filter) => (
-                    Profile::Test,
-                    Some(TestConfig {
-                        std_assertions: std_assertions.is_some(),
-                        filters: filter.map(|f| todo!()),
-                    }),
-                ),
-            };
-            let debug_bytecode = parsed_args.get_flag(2).is_some();
-            let check_allocator = parsed_args.get_flag(3).is_some();
+            let debug_bytecode = parsed_args.get_flag(0).is_some();
+            let check_allocator = parsed_args.get_flag(1).is_some();
             let bytecodes_path = parsed_args.get_args_exact(1)?[0].to_string();
 
             Ok(CliCommand::Interpret {
                 bytecodes_path,
-                profile,
-                test_config,
                 check_allocator,
                 debug_bytecode,
             })

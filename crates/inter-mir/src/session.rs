@@ -100,6 +100,7 @@ pub struct Session {
     pub span_string_map: HashMap<SpanId, InternedString>,
     pub lang_items: HashMap<String, Span>,
     pub built_in_funcs: HashSet<Span>,
+    pub entry_point: Option<Span>,
     pub intermediate_dir: String,
     pub type_errors: Vec<TypeError>,
     pub type_warnings: Vec<TypeWarning>,
@@ -150,6 +151,7 @@ impl Session {
             span_string_map: HashMap::new(),
             lang_items: parent.lang_items.clone(),
             built_in_funcs: parent.built_in_funcs.clone(),
+            entry_point: None,
             intermediate_dir: parent.intermediate_dir.to_string(),
             type_errors: vec![],
             type_warnings: vec![],
@@ -190,6 +192,7 @@ impl Session {
             span_string_map: HashMap::new(),
             lang_items: mir_session.global_context.lang_items.take().unwrap().clone(),
             built_in_funcs: mir_session.global_context.built_in_funcs.take().unwrap().clone(),
+            entry_point: mir_session.global_context.entry_point.take().unwrap().clone(),
             intermediate_dir: mir_session.intermediate_dir.to_string(),
             type_errors: vec![],
             type_warnings: vec![],
@@ -301,3 +304,4 @@ impl Session {
         result
     }
 }
+

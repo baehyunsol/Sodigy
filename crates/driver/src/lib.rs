@@ -1,4 +1,4 @@
-use sodigy_code_gen::{Emit, Profile, TestConfig};
+use sodigy_code_gen::Emit;
 use sodigy_endec::Endec;
 use sodigy_error::{
     CustomErrorLevel,
@@ -20,8 +20,8 @@ use sodigy_fs_api::{
     remove_dir_all,
     write_string,
 };
-pub use sodigy_object_file::parse as parse_object_file;
-pub use sodigy_optimize::OptimizeLevel;
+use sodigy_object_file::{Profile, parse as parse_object_file};
+use sodigy_optimize::OptimizeLevel;
 use sodigy_span::{Color, Span};
 use sodigy_stages::{STAGES, Stage};
 use sodigy_timings::TimingsEntry;
@@ -158,33 +158,27 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             let quiet = false;
             let verify_built_ins = false;
 
-            let (output_path, emit, backend, build_profile, run_profile, assertion_filter) = match cli_command {
+            let (output_path, emit, backend, profile, run) = match cli_command {
                 CliCommand::Run { backend, .. } => (
                     StoreIrAt::IntermediateDir,
                     None,
                     Some(*backend),
                     Profile::Run,
-                    Some(Profile::Run),
-                    None,
+                    true,
                 ),
                 CliCommand::Test { backend, std_assertions, filters, .. } => (
                     StoreIrAt::IntermediateDir,
                     None,
                     Some(*backend),
-                    Profile::Test,
-                    Some(Profile::Test),
-                    Some(TestConfig {
-                        std_assertions: *std_assertions,
-                        filters: filters.clone(),
-                    }),
+                    Profile::Test { std_assertions: *std_assertions, filters: filters.clone() },
+                    true,
                 ),
                 CliCommand::Build { output_path, emit, profile, .. } => (
                     StoreIrAt::File(output_path.to_string()),
                     Some(*emit),
                     None,
-                    *profile,
-                    None,
-                    None,
+                    profile.clone(),
+                    false,
                 ),
                 _ => unreachable!(),
             };
@@ -202,7 +196,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                     output_path,
                     emit,
                     backend,
-                    build_profile,
+                    profile,
                     ir_dir,
                     *optimize_level,
                     custom_error_levels,
@@ -216,18 +210,15 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                     verify_built_ins,
                     *check_allocator,
                     *debug_bytecode,
-                    run_profile,
-                    assertion_filter,
+                    run,
                     quiet,
                 ),
             }
         },
         // TODO: Currently, it only works with `sodigy build --emit=bytecode-exe`.
         //       I want it to also work with `sodigy build --emit=bytecode`.
-        CliCommand::Interpret { bytecodes_path, profile, test_config, check_allocator, debug_bytecode } => interpret(
+        CliCommand::Interpret { bytecodes_path, check_allocator, debug_bytecode } => interpret(
             StoreIrAt::File(bytecodes_path.to_string()),
-            *profile,
-            test_config.clone(),
             *check_allocator,
             *debug_bytecode,
             &ir_dir,
@@ -291,8 +282,7 @@ pub fn init_workers_and_compile(
     verify_built_ins: bool,
     check_allocator: bool,
     debug_bytecode: bool,
-    run_with_profile: Option<Profile>,
-    test_config: Option<TestConfig>,
+    run: bool,
     quiet: bool,
 ) -> Result<(), Error> {
     let started_at = Instant::now();
@@ -379,11 +369,11 @@ pub fn init_workers_and_compile(
 
     result?;
 
-    if let Some(profile) = run_with_profile {
+    if run {
         match backend {
-            Some(Backend::Native) => interpret(StoreIrAt::IntermediateDir, profile, test_config, check_allocator, debug_bytecode, &ir_dir),
-            Some(Backend::Interpret) => interpret(StoreIrAt::IntermediateDir, profile, test_config, check_allocator, debug_bytecode, &ir_dir),
-            Some(Backend::MirInterpret) => interpret(StoreIrAt::IntermediateDir, profile, test_config, check_allocator, debug_bytecode, &ir_dir),
+            Some(Backend::Native) => interpret(StoreIrAt::IntermediateDir, check_allocator, debug_bytecode, &ir_dir),
+            Some(Backend::Interpret) => interpret(StoreIrAt::IntermediateDir, check_allocator, debug_bytecode, &ir_dir),
+            Some(Backend::MirInterpret) => interpret(StoreIrAt::IntermediateDir, check_allocator, debug_bytecode, &ir_dir),
             None => unreachable!(),
         }
     } else {
@@ -482,6 +472,7 @@ fn compile(
                     Command::PerFileIr {
                         input_file_path: module.file_path.clone(),
                         input_module_path: module.module_path.clone(),
+                        profile: profile.clone(),
                         optimize_level,
                         intermediate_dir: ir_dir.clone(),
                         find_modules: true,
@@ -570,7 +561,7 @@ fn compile(
                     ).collect(),
                     intermediate_dir: ir_dir.clone(),
                     emit,
-                    profile,
+                    profile: profile.clone(),
                     output_path: output_path.clone(),
                 },
             ))?;
@@ -655,6 +646,7 @@ fn compile(
                                         Command::PerFileIr {
                                             input_file_path: module.file_path.clone(),
                                             input_module_path: module.module_path.clone(),
+                                            profile: profile.clone(),
                                             optimize_level,
                                             intermediate_dir: ir_dir.clone(),
                                             find_modules: false,
@@ -685,6 +677,7 @@ fn compile(
                                         Command::PerFileIr {
                                             input_file_path: module.file_path.clone(),
                                             input_module_path: module.module_path.clone(),
+                                            profile: profile.clone(),
                                             optimize_level,
                                             intermediate_dir: ir_dir.clone(),
                                             find_modules: false,
@@ -747,8 +740,6 @@ fn compile(
 
 fn interpret(
     exe: StoreIrAt,
-    profile: Profile,
-    test_config: Option<TestConfig>,
     check_allocator: bool,
     debug_bytecode: bool,
     intermediate_dir: &str,
@@ -766,7 +757,7 @@ fn interpret(
     let exe_bytes = Vec::<u8>::decode(&exe_bytes)?;
     let exe = sodigy_object_file::ObjectFile::decode(&exe_bytes)?;
 
-    match sodigy_interpreter::interpret(&exe, profile, test_config, check_allocator, debug_bytecode, intermediate_dir) {
+    match sodigy_interpreter::interpret(&exe, check_allocator, debug_bytecode, intermediate_dir) {
         Ok(()) => Ok(()),
         Err(e) => Err(Error::RuntimeError(e)),
     }

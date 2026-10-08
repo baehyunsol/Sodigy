@@ -1,6 +1,7 @@
 use crate::{StoreIrAt, StoreIrOption};
-use sodigy_code_gen::{Emit, Profile};
+use sodigy_code_gen::Emit;
 use sodigy_file::{FileOrStd, ModulePath};
+use sodigy_object_file::Profile;
 use sodigy_optimize::OptimizeLevel;
 use sodigy_span::Span;
 use sodigy_stages::Stage;
@@ -14,6 +15,7 @@ pub enum Command {
         // A module `foo/bar` can be found in either `src/foo/bar.sdg` or `src/foo/bar/mod.sdg`.
         input_file_path: FileOrStd,
         input_module_path: ModulePath,
+        profile: Profile,
         optimize_level: OptimizeLevel,
 
         intermediate_dir: String,
