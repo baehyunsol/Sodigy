@@ -8,7 +8,7 @@ sodigy-interpret - Interpret a sodigy bytecode object file
 SYNOPSIS
 --------
 [verse]
-'sodigy interpret' [--test] [--debug-bytecode] [--check-allocator] <file>
+'sodigy interpret' [--debug-bytecode] [--check-allocator] <file>
 
 DESCRIPTION
 -----------
@@ -25,3 +25,4 @@ EXIT STATUS
 EXAMPLES
 --------
 (TODO)
+

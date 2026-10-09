@@ -10,8 +10,9 @@ SYNOPSIS
 [verse]
 'sodigy build' [--output|-o <path>] [--emit=exe|bytecode|bytecode-exe|rust]
                [--bytecode <path>] [--color=auto|always|never] [--jobs|-j <n>]
-               [--release|-O] [--test] [--dump-post-mir-log] [--dump-timings]
-               [--debug-bytecode] [--check-allocator] [--no-validate-token-spans|--validate-token-spans|--validate-std-token-spans|--validate-lib-token-spans]
+               [--release|-O] [--test] [--std-assertions] [--filter <filter>]
+               [--dump-post-mir-log] [--dump-timings] [--debug-bytecode]
+               [--check-allocator] [--no-validate-token-spans|--validate-token-spans|--validate-std-token-spans|--validate-lib-token-spans]
 
 DESCRIPTION
 -----------
@@ -24,7 +25,7 @@ OPTIONS
     --emit=exe
         Emit a single executable file (default). The compiler first lowers
         the sodigy project to a rust crate, then uses the system's cargo and
-        rustc to create the executable.
+        rustc to create the executable. (WIP)
     --emit=bytecode
         Emit a readable sodigy object file.
     --emit=bytecode-exe
@@ -56,9 +57,16 @@ OPTIONS
         Compile the project with test profile. If you run it, it will run all
         the top-level assertions and report how many failed. It also enables
         all the inline assertions.
-        You cannot use this option with `--emit=bytecode` or
-        `--emit=bytecode-exe` because a sodigy object file always has enough
-        information to run in both profiles.
+
+    --std-assertions
+        When you compile the project with `--test` option, assertions in std
+        are disabled by default. You can use this option to enable them.
+        If you use this option without `--test`, that's an error.
+
+    --filter <filter>
+        When you compile the project with `--test` option, you can use this
+        option to filter out assertions.
+        If you use this option without `--test`, that's an error.
 
     --dump-post-mir-log
     --dump-timings
@@ -74,9 +82,10 @@ EXIT STATUS
     0: Successful
     11: Compile Error
     12: Cli Error
-    101: There's a bug in the compiler.
     13: Etc Error
+    101: There's a bug in the compiler.
 
 EXAMPLES
 --------
 (TODO)
+

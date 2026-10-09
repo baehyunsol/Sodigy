@@ -167,8 +167,8 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             };
 
             let profile = match (
-                parsed_args.get_flag(1).is_some(),
-                parsed_args.get_flag(2).is_some(),
+                parsed_args.get_flag(1).is_some(),  // --test
+                parsed_args.get_flag(2).is_some(),  // --std-assertions
                 parsed_args.arg_flags.get("--filter"),
             ) {
                 (false, true, _) | (false, _, Some(_)) => todo!(),  // a cli error

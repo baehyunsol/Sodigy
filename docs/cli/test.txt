@@ -9,9 +9,10 @@ SYNOPSIS
 --------
 [verse]
 'sodigy test' [--bytecode <path>] [--backend=native|interpret|mir-interpret]
-             [--color=auto|always|never] [--jobs|-j <n>] [--release|-O]
-             [--dump-post-mir-log] [--dump-timings] [--debug-bytecode]
-             [--check-allocator] [--no-validate-token-spans|--validate-token-spans|--validate-std-token-spans|--validate-lib-token-spans]
+              [--color=auto|always|never] [--jobs|-j <n>] [--release|-O]
+              [--std-assertions] [--filter <filter>] [--dump-post-mir-log]
+              [--dump-timings] [--debug-bytecode] [--check-allocator]
+              [--no-validate-token-spans|--validate-token-spans|--validate-std-token-spans|--validate-lib-token-spans]
 
 DESCRIPTION
 -----------
@@ -28,3 +29,4 @@ EXIT STATUS
 EXAMPLES
 --------
 (TODO)
+

@@ -28,9 +28,10 @@ EXIT STATUS
     10: Runtime Error
     11: Compile Error
     12: Cli Error
-    101: There's a bug in the compiler.
     13: Etc Error
+    101: There's a bug in the compiler.
 
 EXAMPLES
 --------
 (TODO)
+
