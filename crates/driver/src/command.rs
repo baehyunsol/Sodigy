@@ -51,7 +51,6 @@ pub enum Command {
         modules: HashMap<ModulePath, Span>,
         intermediate_dir: String,
         emit: Emit,
-        profile: Profile,
         output_path: StoreIrAt,
     },
     LoadInterHirSession {

@@ -561,7 +561,6 @@ fn compile(
                     ).collect(),
                     intermediate_dir: ir_dir.clone(),
                     emit,
-                    profile: profile.clone(),
                     output_path: output_path.clone(),
                 },
             ))?;

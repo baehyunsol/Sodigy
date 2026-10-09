@@ -764,7 +764,6 @@ impl Worker {
                 modules,
                 intermediate_dir,
                 emit,
-                profile,
                 output_path,
             } => {
                 self.timings.module = None;
