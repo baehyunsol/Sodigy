@@ -11,7 +11,7 @@ use super::{
 use crate::subprocess::{self, SubprocessError};
 use lazy_static::lazy_static;
 use regex::Regex;
-use sodigy_fs_api::{FileError, join, join3, read_string};
+use sodigy_fs_api::{FileError, WriteMode, join, join3, read_string, write_string};
 use std::time::Instant;
 
 pub struct ExpectedOutput {
@@ -86,38 +86,52 @@ impl CnrContext {
             panic!("If you want to assert that `{}` fails to compile, please add `{}.compile.stderr` file.", self.name, self.name);
         }
 
-        // It's not using a tmp project, and there may be compilation artifacts from previous tests.
-        if self.sdg_files > 1 {
-            match subprocess::run(&self.sodigy_path, &["clean"], &self.project_dir, 5.0, false, false) {
-                Ok(output) if !output.success() => {
-                    status.prepare = StatusKind::Fail;
-                    return CompileAndRun {
-                        name: self.name.to_string(),
-                        error: Some(format!("error with `sodigy clean` (exit status {:?})", output.code())),
-                        status, 
-                        hash,
-                        ..CompileAndRun::default()
-                    };
-                },
-                Err(e) => {
-                    status.prepare = StatusKind::Fail;
-                    return CompileAndRun {
-                        name: self.name.to_string(),
-                        error: Some(format!("error with `sodigy clean`: {e:?}")),
-                        status,
-                        hash,
-                        ..CompileAndRun::default()
-                    };
-                },
-                _ => {},
+        if let (Ok(o1), Ok(o2)) = (
+            subprocess::run(&self.sodigy_path, &["check"], &self.project_dir, 30.0, false, false),
+            subprocess::run(&self.sodigy_path, &["check", "--test"], &self.project_dir, 30.0, false, false),
+        ) {
+            // It's a cnr case that has no other compile error, but doesn't have an entry.
+            // The harness will insert an entry. Otherwise, it'd be too annoying to create a
+            // cnr case if all case have to have an entry.
+            if let (Some(11), Some(0)) = (o1.code(), o2.code()) {
+                let lib = join3(&self.project_dir, "src", "lib.sdg").unwrap();
+                write_string(
+                    &lib,
+                    "\n\n#[entry] fn main_entry_1234_i_hope_there_s_no_name_collision() = 0;",
+                    WriteMode::AlwaysAppend,
+                ).unwrap();
             }
         }
 
+        match subprocess::run(&self.sodigy_path, &["clean"], &self.project_dir, 5.0, false, false) {
+            Ok(output) if !output.success() => {
+                status.prepare = StatusKind::Fail;
+                return CompileAndRun {
+                    name: self.name.to_string(),
+                    error: Some(format!("error with `sodigy clean` (exit status {:?})", output.code())),
+                    status,
+                    hash,
+                    ..CompileAndRun::default()
+                };
+            },
+            Err(e) => {
+                status.prepare = StatusKind::Fail;
+                return CompileAndRun {
+                    name: self.name.to_string(),
+                    error: Some(format!("error with `sodigy clean`: {e:?}")),
+                    status,
+                    hash,
+                    ..CompileAndRun::default()
+                };
+            },
+            _ => {},
+        }
+
         // TODO: collect timings data... for all cnrs!
-        let mut args = vec!["build", "--emit=bytecode-exe", "-o=target/run", "--dump-timings"];
+        let mut args_run = vec!["build", "--emit=bytecode-exe", "--dump-timings"];
 
         if self.dump_post_mir_log {
-            args.push("--dump-post-mir-log");
+            args_run.push("--dump-post-mir-log");
         }
 
         // The cnr test runner has to validate the spans of the tokens. But it doesn't
@@ -127,21 +141,26 @@ impl CnrContext {
         // `--validate-token-spans` for the first 5 cases.
         match self.cnr_seq {
             ..5 => {
-                args.push("--validate-token-spans");
+                args_run.push("--validate-token-spans");
             },
             _ => {
-                args.push("--validate-lib-token-spans");
+                args_run.push("--validate-lib-token-spans");
             },
         }
 
+        let mut args_test = args_run.clone();
+        args_test.push("--test");
+        args_test.push("-o=target/test");
+        args_run.push("-o=target/run");
+
         let build_started_at = Instant::now();
         let output = match subprocess::run(
-            &self.sodigy_path,
-            &args,
+             &self.sodigy_path,
+            &args_run,
             &self.project_dir,
-            30.0,
+            30.0,  // timeout (s)
             self.dump_output,
-            false,
+            false,  // check_nonzero_status
         ) {
             Ok(output) => output,
             Err(e) => {
@@ -152,7 +171,7 @@ impl CnrContext {
                     },
                     e => {
                         status.build = StatusKind::Fail;
-                        format!("error with `sodigy build --test -o=target/run: {e:?}`")
+                        format!("error with `sodigy build -o=target/run: {e:?}`")
                     },
                 };
 
@@ -169,8 +188,8 @@ impl CnrContext {
 
         if self.debug_bytecode {
             std::process::Command::new(&self.sodigy_path)
-                // TODO: set profile
-                .args(&["interpret", "target/run", "--test", "--debug-bytecode"])
+                // TODO: choose profile: target/run vs target/test
+                .args(&["interpret", "target/run", "--debug-bytecode"])
                 .current_dir(&self.project_dir)
                 .stdin(std::process::Stdio::inherit())
                 .status()
@@ -187,6 +206,21 @@ impl CnrContext {
             Ok(()) => None,
             Err(e) => Some(e),
         };
+
+        // If `sodigy build -o=target/run` succeeds and `sodigy build -o=target/test --test` fails,
+        // then it'd be very tough to debug. Let's hope that never happens.
+        if let Err(e) = subprocess::run(
+            &self.sodigy_path,
+            &args_test,
+            &self.project_dir,
+            30.0,  // timeout (s)
+            self.dump_output,
+            false,  // check_nonzero_status
+        ) {
+            // eprintln vs return Err
+            todo!()
+        }
+
         let mut test_elapsed_ms = None;
         let mut run_elapsed_ms = None;
         status.prepare = StatusKind::Pass;
@@ -196,11 +230,11 @@ impl CnrContext {
             let test_started_at = Instant::now();
             match subprocess::run(
                 &self.sodigy_path,
-                &["interpret", "target/run", "--test"],
+                &["interpret", "target/test"],
                 &self.project_dir,
-                30.0,
+                30.0,   // timeout
                 self.dump_output,
-                false,
+                false,  // check_nonzero_status
             ) {
                 Ok(output) => {
                     test_elapsed_ms = Some(Instant::now().duration_since(test_started_at).as_millis() as u64);
@@ -223,7 +257,7 @@ impl CnrContext {
                     status.test = StatusKind::Fail;
                     return CompileAndRun {
                         name: self.name.to_string(),
-                        error: Some(format!("error with `sodigy interpret target/run --test`: {e:?}")),
+                        error: Some(format!("error with `sodigy interpret target/test`: {e:?}")),
                         status,
                         build_elapsed_ms,
                         hash,
@@ -237,9 +271,9 @@ impl CnrContext {
                 &self.sodigy_path,
                 &["interpret", "target/run"],
                 &self.project_dir,
-                30.0,
+                30.0,   // timeout
                 self.dump_output,
-                false,
+                false,  // check_nonzero_status
             ) {
                 Ok(output) => {
                     run_elapsed_ms = Some(Instant::now().duration_since(run_started_at).as_millis() as u64);
@@ -541,3 +575,4 @@ impl Comparison {
         }
     }
 }
+

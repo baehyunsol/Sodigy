@@ -149,9 +149,46 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             Ok(())
         },
         cli_command @ (
-            CliCommand::Build { bytecode, optimize_level, custom_error_levels, graceful_shutdown, validate_token_spans, check_allocator, debug_bytecode, jobs, color, dump_post_mir_log, dump_timings, .. } |
-            CliCommand::Run { bytecode, optimize_level, custom_error_levels, graceful_shutdown, validate_token_spans, check_allocator, debug_bytecode, jobs, color, dump_post_mir_log, dump_timings, .. } |
-            CliCommand::Test { bytecode, optimize_level, custom_error_levels, graceful_shutdown, validate_token_spans, check_allocator, debug_bytecode, jobs, color, dump_post_mir_log, dump_timings, .. }
+            CliCommand::Build {
+                bytecode,
+                optimize_level,
+                custom_error_levels,
+                graceful_shutdown,
+                validate_token_spans,
+                check_allocator,
+                debug_bytecode,
+                jobs,
+                color,
+                dump_post_mir_log,
+                dump_timings,
+                ..
+            } | CliCommand::Run {
+                bytecode,
+                optimize_level,
+                custom_error_levels,
+                graceful_shutdown,
+                validate_token_spans,
+                check_allocator,
+                debug_bytecode,
+                jobs,
+                color,
+                dump_post_mir_log,
+                dump_timings,
+                ..
+            } | CliCommand::Test {
+                bytecode,
+                optimize_level,
+                custom_error_levels,
+                graceful_shutdown,
+                validate_token_spans,
+                check_allocator,
+                debug_bytecode,
+                jobs,
+                color,
+                dump_post_mir_log,
+                dump_timings,
+                ..
+            }
         ) => {
             // TODO: make these configurable
             let incremental_compilation = true;
@@ -215,6 +252,54 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                 ),
             }
         },
+        CliCommand::Check {
+            bytecode,
+            profile,
+            custom_error_levels,
+            graceful_shutdown,
+            validate_token_spans,
+            jobs,
+            color,
+            dump_post_mir_log,
+            dump_timings,
+        } => {
+            // TODO: make these configurable
+            let incremental_compilation = true;
+            let verify_built_ins = false;
+            let quiet = false;
+
+            match bytecode {
+                Some(bytecode) => {
+                    // TODO: Currently, it only works with `sodigy build --emit=bytecode`.
+                    //       I want it to also work with `sodigy build --emit=bytecode-exe`.
+                    let bytecode = read_bytes(bytecode)?;
+                    let object_file = parse_object_file(&bytecode)?;
+                    todo!()
+                },
+                None => init_workers_and_compile(
+                    src_dir,
+                    StoreIrAt::IntermediateDir,  // output_path
+                    None,  // emit
+                    None,  // backend
+                    profile.clone(),
+                    ir_dir,
+                    OptimizeLevel::None,
+                    custom_error_levels,
+                    *dump_post_mir_log,
+                    *dump_timings,
+                    *graceful_shutdown,
+                    *jobs,
+                    *color,
+                    incremental_compilation,
+                    *validate_token_spans,
+                    verify_built_ins,
+                    false,  // check_allocator
+                    false,  // debug_bytecode
+                    false,  // run
+                    quiet,
+                ),
+            }
+        },
         // TODO: Currently, it only works with `sodigy build --emit=bytecode-exe`.
         //       I want it to also work with `sodigy build --emit=bytecode`.
         CliCommand::Interpret { bytecodes_path, check_allocator, debug_bytecode } => interpret(
@@ -241,6 +326,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
 
             let help = match command.as_ref().map(|c| c.as_str()) {
                 Some("build") => include_str!("../../../docs/cli/build.txt"),
+                Some("check") => include_str!("../../../docs/cli/check.txt"),
                 Some("clean") => include_str!("../../../docs/cli/clean.txt"),
                 Some("help") => include_str!("../../../docs/cli/help.txt"),
                 Some("interpret") => include_str!("../../../docs/cli/interpret.txt"),
@@ -551,7 +637,7 @@ fn compile(
                 (None, Some(Backend::Native)) => Emit::Exe,
                 (None, Some(Backend::Interpret)) => Emit::ExecutableBytecode,
                 (None, Some(Backend::MirInterpret)) => todo!(),
-                _ => unreachable!(),
+                (None, None) => Emit::Nothing,
             };
 
             workers[round_robin % workers.len()].send(MessageToWorker::Run(

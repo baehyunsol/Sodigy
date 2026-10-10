@@ -10,6 +10,7 @@ pub enum Emit {
     ReadableBytecode,
     ExecutableBytecode,
     Rust,  // WIP
+    Nothing,
 }
 
 pub fn lower(
@@ -46,6 +47,7 @@ pub fn lower(
             let code = rust::lower(linked_object_file).code.into_bytes();
             (code, errors, warnings)
         },
+        Emit::Nothing => (vec![], errors, warnings),
     }
 }
 

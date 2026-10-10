@@ -793,33 +793,33 @@ impl Worker {
 
                 self.timings.stage_start(Stage::CodeGen, Some(Substage::CodeGen));
                 let (code, errors, warnings) = sodigy_code_gen::lower(object_files, errors, warnings, emit);
-                self.timings.stage_end(!errors.is_empty());
+                let has_error = !errors.is_empty();
+                self.timings.stage_end(has_error);
 
-                match output_path {
-                    StoreIrAt::File(f) => {
-                        let code = match emit {
-                            Emit::Exe |
-                            Emit::ReadableBytecode |
-                            Emit::Rust => code,
-                            Emit::ExecutableBytecode => code.encode(),
-                        };
-                        write_bytes(&f, &code, WriteMode::CreateOrTruncate)?;
-                    },
-                    StoreIrAt::IntermediateDir => {
-                        store_ir_if_has_to(
-                            &code,
-                            &StoreIrOption {
-                                stage: Stage::CodeGen,
-                                at: StoreIrAt::IntermediateDir,
-                            },
-                            Stage::CodeGen,
-                            None,
-                            &intermediate_dir,
-                        )?;
-                    },
+                if !has_error {
+                    match (output_path, emit) {
+                        (_, Emit::Nothing) => {},
+                        (StoreIrAt::File(f), Emit::Exe | Emit::ReadableBytecode | Emit::Rust) => {
+                            write_bytes(&f, &code, WriteMode::CreateOrTruncate)?;
+                        },
+                        (StoreIrAt::File(f), Emit::ExecutableBytecode) => {
+                            write_bytes(&f, &code.encode(), WriteMode::CreateOrTruncate)?;
+                        },
+                        (StoreIrAt::IntermediateDir, _) => {
+                            store_ir_if_has_to(
+                                &code,
+                                &StoreIrOption {
+                                    stage: Stage::CodeGen,
+                                    at: StoreIrAt::IntermediateDir,
+                                },
+                                Stage::CodeGen,
+                                None,
+                                &intermediate_dir,
+                            )?;
+                        },
+                    }
                 }
 
-                let has_error = !errors.is_empty();
                 tx_to_main.send(MessageToMain::StageComplete {
                     module_path: None,
                     compile_stage: Stage::CodeGen,

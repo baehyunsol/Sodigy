@@ -61,6 +61,17 @@ pub enum CliCommand {
         dump_post_mir_log: bool,
         dump_timings: bool,
     },
+    Check {
+        bytecode: Option<String>,
+        profile: Profile,
+        custom_error_levels: HashMap<u16, CustomErrorLevel>,
+        graceful_shutdown: u32,  // inmillis
+        validate_token_spans: ValidateTokenSpans,
+        jobs: usize,
+        color: ColorWhen,
+        dump_post_mir_log: bool,
+        dump_timings: bool,
+    },
     Clean,
     Help {
         command: Option<String>,
@@ -87,6 +98,7 @@ impl CliCommand {
     pub fn all_commands() -> Vec<String> {
         vec![
             String::from("build"),
+            String::from("check"),
             String::from("clean"),
             String::from("help"),
             String::from("interpret"),
@@ -191,6 +203,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             };
 
             let debug_bytecode = match (emit, parsed_args.get_flag(6).is_some()) {
+                (Emit::Nothing, _) => unreachable!(),
                 (Emit::Exe | Emit::Rust, true) => true,
                 (Emit::ReadableBytecode | Emit::ExecutableBytecode, true) => {
                     // This is a cli error. You can set `--debug-bytecode` flag only if the emit option is `rust` or `exe`,
@@ -211,6 +224,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                     Emit::ReadableBytecode => "out.sdgb",
                     Emit::ExecutableBytecode => "out.sdge",
                     Emit::Rust => "out.rs",
+                    Emit::Nothing => unreachable!(),
                 }.to_string(),
             };
 
@@ -231,6 +245,71 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 dump_timings,
             })
         },
+        Some("check") => {
+            let parsed_args = ArgParser::new()
+                .optional_arg_flag("--bytecode", ArgType::String)
+                .optional_arg_flag("--color", ArgType::enum_(&["auto", "always", "never"]))
+                .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
+                .optional_flag(&["--test"])
+                .optional_flag(&["--dump-post-mir-log"])
+                .optional_flag(&["--dump-timings"])
+                .flag_with_default(&[
+                    "--no-validate-token-spans",
+                    "--validate-token-spans",
+                    "--validate-std-token-spans",
+                    "--validate-lib-token-spans",
+                ])
+                .short_flag(&["--jobs"])
+                .args(ArgType::String, ArgCount::None)
+                .parse(args, 2)?;
+
+            if parsed_args.show_help() {
+                return Ok(CliCommand::help("check"));
+            }
+
+            let bytecode = parsed_args.arg_flags.get("--bytecode").map(|b| b.to_string());
+            let color = match parsed_args.arg_flags.get("--color").map(|f| f.as_str()) {
+                Some("auto") => ColorWhen::Auto,
+                Some("always") => ColorWhen::Always,
+                Some("never") => ColorWhen::Never,
+                None => ColorWhen::Auto,  // default
+                _ => unreachable!(),
+            };
+            let jobs = parsed_args.arg_flags.get("--jobs").map(
+                |n| n.parse::<usize>().unwrap()
+            ).unwrap_or_else(
+                || std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4)
+            );
+
+            let profile = if parsed_args.get_flag(0).is_some() {
+                Profile::Test { std_assertions: true, filters: None }
+            } else {
+                Profile::Run
+            };
+
+            let dump_post_mir_log = parsed_args.get_flag(1).is_some();
+            let dump_timings = parsed_args.get_flag(2).is_some();
+
+            let validate_token_spans = match parsed_args.get_flag(3).as_ref().map(|s| s.as_str()) {
+                Some("--no-validate-token-spans") => ValidateTokenSpans::Never,
+                Some("--validate-token-spans") => ValidateTokenSpans::Always,
+                Some("--validate-std-token-spans") => ValidateTokenSpans::OnlyStd,
+                Some("--validate-lib-token-spans") => ValidateTokenSpans::ExceptStd,
+                _ => unreachable!(),
+            };
+
+            Ok(CliCommand::Check {
+                bytecode,
+                profile,
+                custom_error_levels: HashMap::new(),  // TODO: make it configurable
+                graceful_shutdown: 300,  // TODO: make it configurable
+                validate_token_spans,
+                jobs,
+                color,
+                dump_post_mir_log,
+                dump_timings,
+            })
+        }
         Some("clean") => {
             let parsed_args = ArgParser::new()
                 .args(ArgType::String, ArgCount::None)
