@@ -1,4 +1,3 @@
-use crate::subprocess;
 use serde::{Deserialize, Serialize};
 use sodigy_fs_api::{
     basename,
@@ -11,6 +10,7 @@ use sodigy_fs_api::{
     read_dir,
     remove_dir_all,
 };
+use sodigy_subprocess as subprocess;
 use std::process::{Child, Command, Stdio};
 use std::time::Instant;
 

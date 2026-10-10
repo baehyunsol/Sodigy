@@ -8,10 +8,10 @@ use super::{
     match_lines,
     remove_ansi_characters,
 };
-use crate::subprocess::{self, SubprocessError};
 use lazy_static::lazy_static;
 use regex::Regex;
 use sodigy_fs_api::{FileError, WriteMode, join, join3, read_string, write_string};
+use sodigy_subprocess::{self as subprocess, SubprocessError};
 use std::time::Instant;
 
 pub struct ExpectedOutput {

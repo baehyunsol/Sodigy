@@ -1,12 +1,19 @@
 use sodigy_bytecode::{
     Bytecode,
     ExprHash,
-    GlobalLabel,
     InternedValue,
     LocalLabel,
     Memory,
     SSA,
     Value,
+};
+use sodigy_error::{Error, ErrorKind};
+use sodigy_fs_api::{
+    WriteMode,
+    exists,
+    join,
+    join3,
+    write_string,
 };
 use sodigy_mir::Intrinsic;
 use sodigy_object_file::{
@@ -68,7 +75,56 @@ impl fmt::Display for RustFunc {
     }
 }
 
-pub fn lower(mut object_file: ObjectFile) -> RustModule {
+// TODO: I'm not sure if these unwraps are okay...
+//       My current policy is "compiler errors are for errors in the
+//       user code", so these file system errors are just ICE.
+//       But, still, there are too many unwraps!
+//       By the way, if `cargo` or `rustc` is missing in the user's
+//       machine, that's a compile error because that's the user's
+//       fault!
+pub fn lower_to_crates(
+    object_file: ObjectFile,
+    intermediate_dir: &str,
+    errors: &mut Vec<Error>,
+) -> Result<String, ()> {  // when successful, it returns the path of the top-level crate
+    if let Err(e) = check_cargo() {
+        errors.push(Error {
+            kind: ErrorKind::CargoNotFound,
+            spans: vec![],
+            note: None,
+        });
+        return Err(());
+    }
+
+    let crate_at = join(intermediate_dir, "rust-crate").unwrap();
+
+    if !exists(&crate_at) {
+        sodigy_subprocess::run(
+            "cargo",
+            &["new", "rust-crate"],
+            intermediate_dir,
+            5.0,
+            false,
+            true,
+        ).unwrap();
+    }
+
+    // TODO: I want to split it into multiple crates, so that
+    //       1. The sodigy compiler can run in parallel
+    //       2. Cargo can run in parallel
+    //       3. Cargo can benefit from incremental compilation
+    //       But I'm too lazy to implement that...
+    let module = lower_to_single_module(object_file).to_string();
+    let src = join3(&crate_at, "src", "main.rs").unwrap();
+    write_string(
+        &src,
+        &module,
+        WriteMode::CreateOrTruncate,
+    ).unwrap();
+    Ok(crate_at)
+}
+
+pub fn lower_to_single_module(mut object_file: ObjectFile) -> RustModule {
     let mut prefixes: Vec<String> = vec![];
     let mut funcs = vec![];
 
@@ -80,8 +136,8 @@ pub fn lower(mut object_file: ObjectFile) -> RustModule {
         funcs.push(lower_code(code));
     }
 
-    funcs.push(lower_main(object_file));
     funcs.sort_by_key(|f| f.name.clone());
+    funcs.push(lower_main(object_file.entry));
 
     // dependencies
     prefixes.push(RUNNER.to_string());
@@ -99,10 +155,10 @@ const RUNNER: &str = include_str!("../rust-runtime-src/run.rs");
 const HEAP: &str = include_str!("../rust-runtime-src/heap.rs");
 const INT: &str = include_str!("../rust-runtime-src/int.rs");
 
-fn lower_main(object_file: ObjectFile) -> RustFunc {
+fn lower_main(entry: Entry) -> RustFunc {
     let mut body = vec![];
 
-    match &object_file.entry {
+    match entry {
         Entry::Main(m) => todo!(),
         Entry::Asserts(asserts) => {
             body.push(String::from(r#"        let mut heap = Heap::new();

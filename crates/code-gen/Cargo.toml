@@ -7,9 +7,11 @@ edition = "2024"
 sodigy-bytecode = { version = "0.1.0", path = "../bytecode" }
 sodigy-endec = { version = "0.1.0", path = "../endec" }
 sodigy-error = { version = "0.1.0", path = "../error" }
+sodigy-fs-api = { version = "0.1.0", path = "../fs-api" }
 sodigy-mir = { version = "0.1.0", path = "../mir" }
 sodigy-object-file = { version = "0.1.0", path = "../object-file" }
 sodigy-span = { version = "0.1.0", path = "../span" }
+sodigy-subprocess = { version = "0.1.0", path = "../subprocess" }
 
 [features]
 log = ["sodigy-bytecode/log", "sodigy-object-file/log"]

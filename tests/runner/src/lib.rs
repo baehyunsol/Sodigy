@@ -14,7 +14,6 @@ pub mod crate_test;
 pub mod fuzzer;
 pub mod harness;
 pub mod meta;
-pub mod subprocess;
 
 pub use compile_and_run::{CompileAndRun, hash_dir};
 pub use crate_test::{CrateTest, CrateTestResult};

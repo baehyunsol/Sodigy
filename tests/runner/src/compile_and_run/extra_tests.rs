@@ -1,5 +1,5 @@
 use super::{CnrContext, CompileAndRun, Status};
-use crate::subprocess;
+use sodigy_subprocess as subprocess;
 use sodigy_fs_api::{join, read_bytes};
 
 #[derive(Debug)]
