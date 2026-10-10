@@ -2,10 +2,12 @@ use std.int.Int;
 use std.number.Number;
 use std.string.String;
 
+mod int_tests;
 mod string_tests;
 
+// TODO: If n.denom is 0, the number is inf. What should we do then?
 #[impl(std.convert.convert)]
-fn number_to_int(n: Number) -> Int = std.panic("TODO");
+fn number_to_int(n: Number) -> Int = n.numer / n.denom;
 
 let EXP_TABLE = [
     (1_000_000_000_000_000_000_000, 0),
