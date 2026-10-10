@@ -45,6 +45,9 @@ pub struct Session {
     dump_history: Vec<Buffer>,
     skip_until: Option<SkipUntil>,
     auto_run: bool,
+    division: (usize, usize),
+    screen_width: usize,
+    show_commands: bool,
 }
 
 impl Session {
@@ -55,7 +58,7 @@ impl Session {
             breakpoints: HashSet::new(),
             span_option: RenderSpanOption {
                 max_height: 20,
-                max_width: 96,
+                max_width: 88,
                 context: 5,
                 render_source: true,
                 color: Some(ColorOption {
@@ -69,6 +72,9 @@ impl Session {
             dump_history: vec![],
             skip_until: None,
             auto_run: false,
+            division: (3, 3),
+            screen_width: 24,
+            show_commands: false,
         }
     }
 
@@ -162,9 +168,9 @@ impl Session {
         let mut buffer_bottom = vec![];
 
         if reached_breakpoint {
-            buffer_top.push(format!("---- Breakpoint ----\n"));
+            buffer_top.push(format!("----- Breakpoint -----\n"));
         } else {
-            buffer_top.push(format!("---- {context:?} ----\n"));
+            buffer_top.push(format!("----- {context:?} -----\n"));
 
             if let Context::EnterCode = context && let Some(label) = self.call_stack.last() {
                 buffer_top.push(format!("label: {}\n", label.hex(20)));
@@ -181,7 +187,7 @@ impl Session {
         }
 
         if let Some(basic_block) = basic_block {
-            buffer_bottom.push(String::from("--- SSA ---\n"));
+            buffer_bottom.push(String::from("----- SSA -----\n"));
             let mut used_ssa_indexes: Vec<SSA> = vec![];
             used_ssa_indexes.extend(basic_block.terminator.used_ssa_indexes());
 
@@ -201,7 +207,7 @@ impl Session {
             }
         }
 
-        buffer_bottom.push(String::from("--- call stack ---\n"));
+        buffer_bottom.push(String::from("----- call stack -----\n"));
 
         for (i, call) in self.call_stack.iter().enumerate() {
             let span = self.func_spans.get(call);
@@ -253,7 +259,8 @@ impl Session {
             }
 
             else {
-                println!("{}", self.dump_history[cursor].render(72, " |", 72));
+                let (left, right) = self.division;
+                println!("{}", self.dump_history[cursor].render(left * self.screen_width, right * self.screen_width));
             }
 
             let commands = if let Overlay::Full(_) = &overlay {
@@ -264,6 +271,11 @@ impl Session {
                 vec![
                     if cursor > 0 { Some("n: see previous dump") } else { None },
                     Some("m: go to current dump"),
+                    Some("-: show less characters"),
+                    Some("+: show more characters"),
+                    Some("<: move divider left"),
+                    Some(">: move divider right"),
+                    Some("?: show/hide commands"),
                 ]
             } else {
                 vec![
@@ -276,21 +288,28 @@ impl Session {
                     } else {
                         Some("d: set breakpoint")
                     },
-                    Some("z: next bytecode (or press any key)"),
+                    Some("z: next bytecode (or just press enter)"),
                     Some("x: next bytecode, but don't jump into another function"),
                     Some("c: next basic block"),
                     Some("v: next code section"),
                     Some("b: next entry"),
                     Some("hN: inspect heap, at address N"),
                     if cursor > 0 { Some("n: see previous dump") } else { None },
+                    Some("-: show less characters"),
+                    Some("+: show more characters"),
+                    Some("<: move divider left"),
+                    Some(">: move divider right"),
+                    Some("?: show/hide commands"),
                 ]
             };
 
-            println!("");
+            if self.show_commands {
+                println!("----- commands -----");
 
-            for command in commands.iter() {
-                if let Some(s) = command {
-                    println!("{s}");
+                for command in commands.iter() {
+                    if let Some(s) = command {
+                        println!("{s}");
+                    }
                 }
             }
 
@@ -315,18 +334,47 @@ impl Session {
                         overlay = Overlay::None;
                         continue;
                     },
-                    _ => {},
+                    c => {
+                        overlay = Overlay::Bottom(format!("{c:?} is not a valid command. Input 'q' to close the overlay."));
+                    },
                 }
             } else if watching_history {
                 match command.trim() {
                     "n" => {
-                        cursor -= 1;
+                        if cursor == 0 {
+                            overlay = Overlay::Bottom(String::from("This is the first dump in the buffer."));
+                        }
+
+                        cursor = cursor.max(1) - 1;
                     },
                     "m" => {
                         cursor = self.dump_history.len() - 1;
                         watching_history = false;
                     },
-                    _ => {},
+                    "<" => {
+                        let (mut left, mut right) = self.division;
+                        left = left.max(2) - 1;
+                        right = 6 - left;
+                        self.division = (left, right);
+                    },
+                    ">" => {
+                        let (mut left, mut right) = self.division;
+                        right = right.max(2) - 1;
+                        left = 6 - right;
+                        self.division = (left, right);
+                    },
+                    "-" => {
+                        self.screen_width = self.screen_width.max(12) - 6;
+                    },
+                    "+" => {
+                        self.screen_width = self.screen_width.min(48) + 6;
+                    },
+                    "?" => {
+                        self.show_commands = !self.show_commands;
+                    },
+                    c => {
+                        overlay = Overlay::Bottom(format!("{c:?} is not a valid command.{}", if self.show_commands { "" } else { " Input '?' to see the commands." }));
+                    },
                 }
 
                 continue;
@@ -351,6 +399,7 @@ impl Session {
                             continue;
                         }
                     },
+                    "z" | "" => {},
                     "x" => {
                         self.skip_until = Some(SkipUntil::Bytecode { stack: self.call_stack.len() });
                     },
@@ -386,12 +435,45 @@ impl Session {
 
                         continue;
                     },
-                    "n" if cursor > 0 => {
-                        cursor -= 1;
+                    "n" => {
+                        cursor = cursor.max(1) - 1;
                         watching_history = true;
                         continue;
                     },
-                    _ => {},
+                    "j" => {
+                        self.division = (2, 4);
+                        continue;
+                    },
+                    "<" => {
+                        let (mut left, mut right) = self.division;
+                        left = left.max(2) - 1;
+                        right = 6 - left;
+                        self.division = (left, right);
+                        continue;
+                    },
+                    ">" => {
+                        let (mut left, mut right) = self.division;
+                        right = right.max(2) - 1;
+                        left = 6 - right;
+                        self.division = (left, right);
+                        continue;
+                    },
+                    "-" => {
+                        self.screen_width = self.screen_width.max(12) - 6;
+                        continue;
+                    },
+                    "+" => {
+                        self.screen_width = self.screen_width.min(48) + 6;
+                        continue;
+                    },
+                    "?" => {
+                        self.show_commands = !self.show_commands;
+                        continue;
+                    },
+                    c => {
+                        overlay = Overlay::Bottom(format!("{c:?} is not a valid command.{}", if self.show_commands { "" } else { " Input '?' to see the commands." }));
+                        continue;
+                    },
                 }
             }
 
@@ -415,12 +497,13 @@ struct Buffer {
 }
 
 impl Buffer {
-    pub fn render(&self, left: usize, delim: &str, right: usize) -> String {
-        fn set_len(s: &str, l: usize) -> String {
+    pub fn render(&self, left: usize, right: usize) -> String {
+        fn set_len(s: &str, l: usize) -> (String, bool) {
             let mut buffer = vec![];
             let s = s.as_bytes();
             let mut i = 0;
             let mut line_len = 0;
+            let mut over = true;
 
             loop {
                 match (s.get(i), s.get(i + 1)) {
@@ -453,6 +536,7 @@ impl Buffer {
                         line_len += 1;
                     },
                     (None, _) => {
+                        over = false;
                         while line_len < l {
                             buffer.push(b' ');
                             line_len += 1;
@@ -465,7 +549,7 @@ impl Buffer {
                 }
             }
 
-            String::from_utf8(buffer).unwrap()
+            (String::from_utf8_lossy(&buffer).to_string(), over)
         }
 
         let mut lines = vec![];
@@ -476,13 +560,23 @@ impl Buffer {
 
         let left_lines: Vec<_> = self.left.lines().collect();
         let right_lines: Vec<_> = self.right.lines().collect();
+        lines.push(format!("*{}*{}*", "-".repeat(left + 2), "-".repeat(right + 2)));
 
         for i in 0..(left_lines.len().max(right_lines.len())) {
             let left_line = left_lines.get(i).unwrap_or(&"");
             let right_line = right_lines.get(i).unwrap_or(&"");
-            lines.push(format!("{}{delim}{}", set_len(left_line, left), set_len(right_line, right)));
+            let (left_line, left_over) = set_len(left_line, left);
+            let (right_line, right_over) = set_len(right_line, right);
+            lines.push(format!(
+                // lines might include an unterminated ANSI coloring. so it inserts
+                // "\x1b[0m" to reset the colors.
+                "| {left_line} \x1b[0m{} {right_line} \x1b[0m{}",
+                if left_over { ":" } else { "|" },
+                if right_over { ":" } else { "|" },
+            ));
         }
 
+        lines.push(format!("*{}*{}*", "-".repeat(left + 2), "-".repeat(right + 2)));
         lines.push(String::new());
 
         for line in self.bottom.lines() {
