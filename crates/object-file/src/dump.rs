@@ -87,8 +87,12 @@ impl Code {
         lines.push(format!("#[name({})]", self.name));
 
         lines.push(format!(
-            "code @G{}{}:",
-            self.label.hex(20),
+            "{}{}:",
+            if raw_bytecode {
+                format!("{:?}", self.label)
+            } else {
+                format!("code @G{}", self.label.hex(20))
+            },
             match self.params {
                 Some(params) => format!("({})", (0..params).map(|i| format!("_{i}")).collect::<Vec<_>>().join(", ")),
                 None => String::new(),
@@ -185,10 +189,14 @@ impl BasicBlock {
             }
         ).collect::<Vec<_>>().join("\n");
 
-        let lines = format!(r#"label {}:
+        let lines = format!("{}:
 {code}
-    {}{}"#,
-            self.label,
+    {}{}",
+            if raw_bytecode {
+                format!("{:?}", self.label)
+            } else {
+                format!("label {}", self.label)
+            },
             if raw_bytecode {
                 format!("{:?}", self.terminator)
             } else {
