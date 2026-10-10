@@ -64,6 +64,7 @@ impl Code {
     pub fn dump(
         &self,
         show_line_number: bool,
+        raw_bytecode: bool,
         highlight: Option<(LocalLabel, Highlight)>,
         context: Option<usize>,
         debug_info: bool,
@@ -98,7 +99,7 @@ impl Code {
         basic_blocks.sort_by_key(|(label, _)| *label);
 
         for (label, basic_block) in basic_blocks.iter() {
-            for (i, line) in basic_block.dump(false, 0, None, debug_info).lines().enumerate() {
+            for (i, line) in basic_block.dump(false, raw_bytecode, 0, None, debug_info).lines().enumerate() {
                 if line.is_empty() {
                     continue;
                 }
@@ -156,7 +157,7 @@ impl Code {
 
 impl Display for Code {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        write!(fmt, "{}", self.dump(false, None, None, true))
+        write!(fmt, "{}", self.dump(false, false, None, None, true))
     }
 }
 
@@ -171,19 +172,28 @@ impl BasicBlock {
     pub fn dump(
         &self,
         show_line_number: bool,
+        raw_bytecode: bool,
         line_number_offset: usize,
         highlight: Option<Highlight>,
         debug_info: bool,
     ) -> String {
         let code = self.code.iter().map(
-            |bytecode| format!("    {}", bytecode.dump(debug_info))
+            |bytecode| if raw_bytecode {
+                format!("    {bytecode:?}")
+            } else {
+                format!("    {}", bytecode.dump(debug_info))
+            }
         ).collect::<Vec<_>>().join("\n");
 
         let lines = format!(r#"label {}:
 {code}
     {}{}"#,
             self.label,
-            self.terminator,
+            if raw_bytecode {
+                format!("{:?}", self.terminator)
+            } else {
+                self.terminator.dump()
+            },
             dump_debug_info(&self.terminator_debug_info, debug_info),
         );
 
@@ -216,35 +226,39 @@ impl BasicBlock {
 
 impl Display for BasicBlock {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        write!(fmt, "{}", self.dump(false, 0, None, true))
+        write!(fmt, "{}", self.dump(false, false, 0, None, true))
+    }
+}
+
+impl Terminator {
+    fn dump(&self) -> String {
+        match self {
+            Terminator::Jump(label) => format!("jump {label};"),
+            Terminator::TailCall { func, args } => format!(
+                "return {func}({});",
+                args.iter().map(
+                    |i| format!("{i}")
+                ).collect::<Vec<_>>().join(", "),
+            ),
+            Terminator::TailCallDynamic { func, args } => format!(
+                "return {func}({});",
+                args.iter().map(
+                    |i| format!("{i}")
+                ).collect::<Vec<_>>().join(", "),
+            ),
+            Terminator::JumpIf { value, t, f } => format!("if {value} {{ jump {t}; }} else {{ jump {f}; }}"),
+            Terminator::TryInitGlobal { global, label } => format!(
+                "if !is_init(_g{}) {{ call {global}(); }} jump {label};",
+                global.hex(20),
+            ),
+            Terminator::Return(ssa) => format!("return {ssa};"),
+        }
     }
 }
 
 impl Display for Terminator {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        match self {
-            Terminator::Jump(label) => write!(fmt, "jump {label};"),
-            Terminator::TailCall { func, args } => write!(
-                fmt,
-                "return {func}({});",
-                args.iter().map(
-                    |i| format!("{i}")
-                ).collect::<Vec<_>>().join(", "),
-            ),
-            Terminator::TailCallDynamic { func, args } => write!(
-                fmt,
-                "return {func}({});",
-                args.iter().map(
-                    |i| format!("{i}")
-                ).collect::<Vec<_>>().join(", "),
-            ),
-            Terminator::JumpIf { value, t, f } => write!(fmt, "if {value} {{ jump {t}; }} else {{ jump {f}; }}"),
-            Terminator::TryInitGlobal { global, label } => write!(
-                fmt,
-                "if !is_init(_g{}) {{ call {global}(); }} jump {label};",
-                global.hex(20),
-            ),
-            Terminator::Return(ssa) => write!(fmt, "return {ssa};"),
-        }
+        write!(fmt, "{}", self.dump())
     }
 }
+

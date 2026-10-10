@@ -48,6 +48,7 @@ pub struct Session {
     division: (usize, usize),
     screen_width: usize,
     show_commands: bool,
+    raw_bytecode: bool,
 }
 
 impl Session {
@@ -75,6 +76,7 @@ impl Session {
             division: (3, 3),
             screen_width: 24,
             show_commands: false,
+            raw_bytecode: false,
         }
     }
 
@@ -223,7 +225,7 @@ impl Session {
                 (Some(BasicBlock { label, .. }), Context::Terminator) => Some((*label, Highlight::Terminator)),
                 _ => None,
             };
-            let mut object_file_dump = code.dump(true, highlight, Some(8), false);
+            let mut object_file_dump = code.dump(true, self.raw_bytecode, highlight, Some(8), false);
 
             if object_file_dump.lines().count() > 20 {
                 object_file_dump = object_file_dump.lines().take(20).map(
@@ -300,6 +302,7 @@ impl Session {
                     Some("<: move divider left"),
                     Some(">: move divider right"),
                     Some("?: show/hide commands"),
+                    Some("1: toggle raw bytecode (applies from next step)"),
                 ]
             };
 
@@ -468,6 +471,10 @@ impl Session {
                     },
                     "?" => {
                         self.show_commands = !self.show_commands;
+                        continue;
+                    },
+                    "1" => {
+                        self.raw_bytecode = !self.raw_bytecode;
                         continue;
                     },
                     c => {
