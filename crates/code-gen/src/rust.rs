@@ -18,6 +18,7 @@ use sodigy_object_file::{
 };
 use sodigy_span::SpanHash;
 use std::collections::HashMap;
+use std::fmt;
 
 mod inspect;
 mod session;
@@ -26,35 +27,71 @@ use inspect::{BasicBlocksInspection, Shape, inspect_basic_blocks};
 use session::Session;
 
 pub struct RustModule {
-    pub code: String,
+    pub prefix: String,
+    pub funcs: Vec<RustFunc>,
+    pub suffix: String,
+}
+
+impl fmt::Display for RustModule {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(
+            fmt,
+            "{}\n{}\n{}",
+            self.prefix,
+            self.funcs.iter().map(
+                |f| f.to_string()
+            ).collect::<Vec<_>>().join("\n\n"),
+            self.suffix,
+        )
+    }
+}
+
+pub struct RustFunc {
+    r#unsafe: bool,
+    name: String,
+    params: String,
+    return_type: String,
+    body: String,
+}
+
+impl fmt::Display for RustFunc {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(
+            fmt,
+            "{}fn {}({}) -> {} {{\n{}\n}}",
+            if self.r#unsafe { "unsafe " } else { "" },
+            self.name,
+            self.params,
+            self.return_type,
+            self.body,
+        )
+    }
 }
 
 pub fn lower(mut object_file: ObjectFile) -> RustModule {
+    let mut prefixes: Vec<String> = vec![];
     let mut funcs = vec![];
 
-    let mut data: Vec<(ExprHash, Value)> = object_file.data.drain().collect();
-    data.sort_by_key(|(h, _)| *h);
-
-    for (hash, value) in data.into_iter() {
+    for (hash, value) in object_file.data.drain() {
         funcs.push(lower_data(hash, value));
     }
 
-    let mut code: Vec<(GlobalLabel, Code)> = object_file.code.drain().collect();
-    code.sort_by_key(|(l, _)| *l);
-
-    for (_, code) in code.into_iter() {
+    for (_, code) in object_file.code.drain() {
         funcs.push(lower_code(code));
     }
 
     funcs.push(lower_main(object_file));
+    funcs.sort_by_key(|f| f.name.clone());
 
     // dependencies
-    funcs.push(RUNNER.to_string());
-    funcs.push(HEAP.to_string());
-    funcs.push(INT.to_string());
+    prefixes.push(RUNNER.to_string());
+    prefixes.push(HEAP.to_string());
+    prefixes.push(INT.to_string());
 
     RustModule {
-        code: funcs.join("\n\n"),
+        prefix: prefixes.join("\n"),
+        funcs,
+        suffix: String::new(),
     }
 }
 
@@ -62,7 +99,7 @@ const RUNNER: &str = include_str!("../rust-runtime-src/run.rs");
 const HEAP: &str = include_str!("../rust-runtime-src/heap.rs");
 const INT: &str = include_str!("../rust-runtime-src/int.rs");
 
-fn lower_main(object_file: ObjectFile) -> String {
+fn lower_main(object_file: ObjectFile) -> RustFunc {
     let mut body = vec![];
 
     match &object_file.entry {
@@ -103,14 +140,18 @@ fn lower_main(object_file: ObjectFile) -> String {
     }
 
     let body = body.join("\n");
-    format!(r#"fn main() -> std::process::ExitCode {{
-    unsafe {{
-{body}
-    }}
-}}"#)
+    let body = format!("    unsafe {{\n{body}\n    }}");
+
+    RustFunc {
+        r#unsafe: false,
+        name: String::from("main"),
+        params: String::new(),
+        return_type: String::from("std::process::ExitCode"),
+        body,
+    }
 }
 
-fn lower_data(hash: ExprHash, value: Value) -> String {
+fn lower_data(hash: ExprHash, value: Value) -> RustFunc {
     let name = format!("d_{}", hash.hex(20));
     let mut body = vec![];
 
@@ -180,13 +221,16 @@ fn lower_data(hash: ExprHash, value: Value) -> String {
     body.push(format!("    }}"));
 
     let body = body.join("\n");
-    format!(r#"unsafe fn {name}(heap: &mut Heap) -> u32 {{
-{body}
-}}"#,
-    )
+    RustFunc {
+        r#unsafe: true,
+        name,
+        params: String::from("heap: &mut Heap"),
+        return_type: String::from("u32"),
+        body,
+    }
 }
 
-fn lower_code(mut code: Code) -> String {
+fn lower_code(mut code: Code) -> RustFunc {
     let inspection = inspect_basic_blocks(code.label, &code.basic_blocks);
     let mut session = Session::from_inspection(&inspection);
     let name = format!("c_{}", code.label.hex(20));
@@ -276,9 +320,13 @@ fn lower_code(mut code: Code) -> String {
     }
 
     let body = body.join("\n");
-    format!(r#"unsafe fn {name}({params}) -> CallResult {{
-{body}
-}}"#)
+    RustFunc {
+        r#unsafe: true,
+        name,
+        params: params.to_string(),
+        return_type: String::from("CallResult"),
+        body,
+    }
 }
 
 fn lower_basic_block(

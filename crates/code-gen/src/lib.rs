@@ -44,7 +44,7 @@ pub fn lower(
             warnings,
         ),
         Emit::Rust => {
-            let code = rust::lower(linked_object_file).code.into_bytes();
+            let code = rust::lower(linked_object_file).to_string().into_bytes();
             (code, errors, warnings)
         },
         Emit::Nothing => (vec![], errors, warnings),
