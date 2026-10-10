@@ -616,9 +616,9 @@ fn call(
                             return CallResult::Exit(n);
                         },
                     }
-
-                    curr_label = *label;
                 }
+
+                curr_label = *label;
             },
             Terminator::Return(src) => {
                 if let Some(debug_session) = debug_session {
