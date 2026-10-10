@@ -56,6 +56,8 @@ impl CnrContext {
         }
 
         let instructions = vec![
+            ExtraTest::Break,  // I'll be back later...
+
             ExtraTest::Note {
                 step: 0,
                 note: "It runs every possible combination of `sodigy build`, which builds from the code files in `src/`.",

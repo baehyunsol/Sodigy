@@ -186,18 +186,6 @@ impl CnrContext {
             },
         };
 
-        if self.debug_bytecode {
-            std::process::Command::new(&self.sodigy_path)
-                // TODO: choose profile: target/run vs target/test
-                .args(&["interpret", "target/run", "--debug-bytecode"])
-                .current_dir(&self.project_dir)
-                .stdin(std::process::Stdio::inherit())
-                .status()
-                .unwrap();
-
-            return CompileAndRun::default();
-        }
-
         let build_elapsed_ms = Instant::now().duration_since(build_started_at).as_millis() as u64;
         build_stdout_colored = Some(output.stdout.to_vec());
         build_stderr_colored = Some(output.stderr.to_vec());
@@ -219,6 +207,18 @@ impl CnrContext {
         ) {
             // eprintln vs return Err
             todo!()
+        }
+
+        if self.debug_bytecode {
+            std::process::Command::new(&self.sodigy_path)
+                // TODO: choose profile: target/run vs target/test
+                .args(&["interpret", "target/test", "--debug-bytecode"])
+                .current_dir(&self.project_dir)
+                .stdin(std::process::Stdio::inherit())
+                .status()
+                .unwrap();
+
+            return CompileAndRun::default();
         }
 
         let mut test_elapsed_ms = None;
