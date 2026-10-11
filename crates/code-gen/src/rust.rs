@@ -104,7 +104,15 @@ fn lower_main(entry: Entry) -> RustFunc {
     let mut body = vec![];
 
     match entry {
-        Entry::Main(m) => todo!(),
+        Entry::Main(m) => {
+            body.push(String::from(r#"        let mut heap = Heap::new();"#));
+            body.push(format!(r#"        let c = CallResult::TailCallShort {{ f: c_{}, x0: 0, x1: 0 }};"#, m.hex(20)));
+            body.push(String::from(r#"        match call(&mut heap, c) {
+            CallResult::TailCallShort { .. } | CallResult::TailCallLong { .. } => unreachable!(),
+            CallResult::Return(_) => std::process::ExitCode::SUCCESS,
+            CallResult::Exit(n) => std::process::ExitCode::from(n as u8),
+        }"#));
+        },
         Entry::Asserts(asserts) => {
             body.push(String::from(r#"        let mut heap = Heap::new();
         let mut ever_failed = false;

@@ -352,6 +352,7 @@ fn parse_directive(file_path: &str) -> Result<Directive, FileError> {
     let mut compile_error: Option<(Comparison, usize)> = None;
     let mut compile_warning: Option<(Comparison, usize)> = None;
     let mut test_error: Option<(Comparison, usize)> = None;
+    let mut std_assertions = false;
 
     for line in s.lines() {
         if line.starts_with("//%") {
@@ -381,6 +382,9 @@ fn parse_directive(file_path: &str) -> Result<Directive, FileError> {
                 "test-fail" => match (expected_compile, expected_run, expected_test) {
                     (Some(false), _, _) | (_, _, Some(_)) => error(file_path, line),
                     _ => { expected_test = Some(false); },
+                },
+                "std-assertions" => {
+                    std_assertions = true;
                 },
                 _ if directive.starts_with("compile-error") || directive.starts_with("compile-warning") || directive.starts_with("test-error") => {
                     let (kind, directive) = match directive {
@@ -472,6 +476,7 @@ fn parse_directive(file_path: &str) -> Result<Directive, FileError> {
         compile_error,
         compile_warning,
         test_error,
+        std_assertions,
     })
 }
 

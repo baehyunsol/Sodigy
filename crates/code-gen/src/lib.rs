@@ -17,11 +17,17 @@ pub enum Emit {
 
 impl Emit {
     pub fn flag(&self) -> &'static str {
-        todo!()
+        match self {
+            Emit::Exe => "exe",
+            Emit::ReadableBytecode => "bytecode",
+            Emit::ExecutableBytecode => "bytecode-exe",
+            Emit::Rust => "rust",
+            Emit::Nothing => unreachable!(),
+        }
     }
 
     pub fn all() -> Vec<Emit> {
-        todo!()
+        vec![Emit::Exe, Emit::ReadableBytecode, Emit::ExecutableBytecode, Emit::Rust, Emit::Nothing]
     }
 }
 

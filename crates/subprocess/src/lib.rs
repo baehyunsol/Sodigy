@@ -23,7 +23,7 @@ impl Output {
 #[derive(Debug)]
 pub enum SubprocessError {
     Timeout,
-    NonzeroStatus,
+    NonzeroStatus { code: Option<i32> },
     IoError(IoError),
 }
 
@@ -93,7 +93,7 @@ pub fn run(
     if check_nonzero_status && !status.success() {
         // println!("{}", String::from_utf8_lossy(&stdout));
         // eprintln!("{}", String::from_utf8_lossy(&stderr));
-        return Err(SubprocessError::NonzeroStatus);
+        return Err(SubprocessError::NonzeroStatus { code: status.code() });
     }
 
     Ok(Output {

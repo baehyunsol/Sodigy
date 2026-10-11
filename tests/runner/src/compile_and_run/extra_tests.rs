@@ -100,6 +100,7 @@ impl Build {
             Emit::ReadableBytecode | Emit::ExecutableBytecode => todo!(),  // use `sodigy interpret` to run
             Emit::Rust => todo!(),  // use `rustc` to run
             Emit::Exe => todo!(),  // just run
+            Emit::Nothing => unreachable!(),
         }
     }
 
@@ -138,6 +139,14 @@ struct Run {
 
 impl Run {
     pub fn all() -> Vec<Run> {
+        todo!()
+    }
+
+    pub fn command(&self) -> String {
+        todo!()
+    }
+
+    pub fn run(&self) -> Result<Output, SubprocessError> {
         todo!()
     }
 }
@@ -209,17 +218,17 @@ impl CnrContext {
                 },
             };
 
-            match (build.test_mode, run_output, test_output) {
+            match (build.test_mode, &run_output, &test_output) {
                 (true, _, None) => { test_output = Some(output); },
                 (true, _, Some(o)) => {
-                    if o != output {
+                    if o != &output {
                         result.error = Some(format!("error at extra_tests\nloop: 3\niter: {i}\ncommand: {}\ndiff: (TODO)", build.command(self.std_assertions)));
                         return;
                     }
                 },
                 (false, None, _) => { run_output = Some(output); },
                 (false, Some(o), _) => {
-                    if o != output {
+                    if o != &output {
                         result.error = Some(format!("error at extra_tests\nloop: 3\niter: {i}\ncommand: {}\ndiff: (TODO)", build.command(self.std_assertions)));
                         return;
                     }
