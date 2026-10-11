@@ -156,9 +156,13 @@ impl CnrContext {
         args_test.push("-o=target/test");
         args_run.push("-o=target/run");
 
+        if self.std_assertions {
+            args_test.push("--std-assertions");
+        }
+
         let build_started_at = Instant::now();
         let output = match subprocess::run(
-             &self.sodigy_path,
+            &self.sodigy_path,
             &args_run,
             &self.project_dir,
             30.0,  // timeout (s)
