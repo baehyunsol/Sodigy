@@ -59,13 +59,16 @@ pub struct Directive {
     pub compile_error: Option<(Comparison, usize)>,
     pub compile_warning: Option<(Comparison, usize)>,
     pub test_error: Option<(Comparison, usize)>,
+    pub std_assertions: bool,
 }
 
 impl CnrContext {
     // Build and run the test case, and compare the output with the expected output.
-    pub fn main_test(&self) -> CompileAndRun {
+    pub fn main_test(&mut self) -> CompileAndRun {
         let lib_src = join3(&self.project_dir, "src", "lib.sdg").unwrap();
         let directive = parse_directive(&lib_src).unwrap();
+        self.std_assertions = directive.std_assertions;
+
         let build_stdout_colored: Option<Vec<u8>>;
         let build_stderr_colored: Option<Vec<u8>>;
         let mut run_stdout_colored: Option<Vec<u8>> = None;

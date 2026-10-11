@@ -15,6 +15,16 @@ pub enum Emit {
     Nothing,
 }
 
+impl Emit {
+    pub fn flag(&self) -> &'static str {
+        todo!()
+    }
+
+    pub fn all() -> Vec<Emit> {
+        todo!()
+    }
+}
+
 pub fn lower(
     object_files: Vec<ObjectFile>,
     mut errors: Vec<Error>,

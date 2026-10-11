@@ -139,6 +139,7 @@ struct CnrContext {
     pub sdg_files: usize,
     pub dump_output: bool,
     pub dump_post_mir_log: bool,
+    pub std_assertions: bool,
 
     // If this flag is set, it doesn't check the output.
     // It just launches an interactive interpreter and quit.
@@ -308,6 +309,7 @@ fn prepare_cnr(
         sdg_files,
         dump_output,
         dump_post_mir_log,
+        std_assertions: false,  // main_test will update this field
         debug_bytecode,
         cnr_seq,
         total_cnr,

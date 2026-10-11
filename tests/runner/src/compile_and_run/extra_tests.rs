@@ -1,52 +1,145 @@
-use super::{CnrContext, CompileAndRun, Status};
-use sodigy_subprocess as subprocess;
-use sodigy_fs_api::{join, read_bytes};
+use super::{CnrContext, CompileAndRun};
+use sodigy_code_gen::Emit;
+use sodigy_driver::Backend;
+use sodigy_subprocess::{self as subprocess, Output, SubprocessError};
+use sodigy_fs_api::read_bytes;
 
-#[derive(Debug)]
-enum ExtraTest {
-    Note {
-        step: usize,
-        note: &'static str,
-    },
-    Build {
-        args: Vec<&'static str>,
-
-        // if set, it checks the modified time of the incremental compilation artifacts before and after the run,
-        // and asserts that the timestamp doesn't change
-        check_incremental_compilation: Option<CheckIncrementalCompilation>,
-    },
-    RunBytecode {
-        // It should start with "run", "test" or "interpret".
-        args: Vec<&'static str>,
-
-        // "run" / "test"
-        key: &'static str,
-    },
-    RunFromSource {
-        // It should start with "run" or "test".
-        args: Vec<&'static str>,
-        key: &'static str,
-        check_incremental_compilation: Option<CheckIncrementalCompilation>,
-    },
-    Clean,  // runs `sodigy clean`
-
-    AssertEq {
-        // compares 2 files
-        a: &'static str,
-        b: &'static str,
-
-        note: &'static str,
-    },
-    AssertEqRunResults,
-
-    BreakIfLessThan3Files,
-    Break,
+// `sodigy build` can take 3 different kinds of input.
+#[derive(Clone, Copy, Debug)]
+enum Input {
+    Source,
+    ReadableBytecode,
+    ExecutableBytecode,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum CheckIncrementalCompilation {
-    All,
-    BeforeOptimization,
+// A `sodigy build` command.
+#[derive(Clone, Debug)]
+struct Build {
+    input: Input,
+    optimize: bool,
+    test_mode: bool,
+    output: Emit,
+}
+
+impl Build {
+    pub fn is_deterministic(&self) -> bool {
+        match self.output {
+            // I don't trust the rust compiler.
+            Emit::Exe => false,
+            _ => true,
+        }
+    }
+
+    pub fn output_path(&self) -> String {
+        format!(
+            "{}-{}-{}-{}",
+            match self.input {
+                Input::Source => "sdg",
+                Input::ReadableBytecode => "bytecode",
+                Input::ExecutableBytecode => "bytecode-exe",
+            },
+            if self.optimize { "o" } else { "d" },
+            if self.test_mode { "t" } else { "r" },
+            self.output.flag(),
+        )
+    }
+
+    pub fn command(&self, std_assertions: bool) -> String {
+        format!(
+            "sodigy build{}{}{}{} --emit={} -o={}",
+            match self.input {
+                Input::Source => String::new(),
+                Input::ReadableBytecode => {
+                    let bytecode_artifact = Build {
+                        input: Input::Source,
+                        output: Emit::ReadableBytecode,
+                        ..self.clone()
+                    };
+                    format!(" --bytecode={}", bytecode_artifact.output_path())
+                },
+                Input::ExecutableBytecode => {
+                    let bytecode_artifact = Build {
+                        input: Input::Source,
+                        output: Emit::ExecutableBytecode,
+                        ..self.clone()
+                    };
+                    format!(" --bytecode={}", bytecode_artifact.output_path())
+                },
+            },
+            if self.optimize { " --release" } else { "" },
+            if self.test_mode { " --test" } else { "" },
+            if std_assertions { " --std-assertions" } else { "" },
+            self.output.flag(),
+            self.output_path(),
+        )
+    }
+
+    pub fn build(
+        &self,
+        sodigy_path: &str,
+        project_dir: &str,
+        std_assertions: bool,
+    ) -> Result<(), SubprocessError> {
+        let command = self.command(std_assertions);
+        let command: Vec<&str> = command.split_whitespace().collect();
+
+        subprocess::run(
+            sodigy_path,
+            &command[1..],
+            project_dir,
+            30.0,
+            false,
+            true,
+        ).map(|_| ())
+    }
+
+    pub fn run(&self) -> Result<Output, SubprocessError> {
+        let output = self.output_path();
+
+        match self.output {
+            Emit::ReadableBytecode | Emit::ExecutableBytecode => todo!(),  // use `sodigy interpret` to run
+            Emit::Rust => todo!(),  // use `rustc` to run
+            Emit::Exe => todo!(),  // just run
+        }
+    }
+
+    // I'm too lazy to implement an iterator haha
+    pub fn all() -> Vec<Build> {
+        let mut result = vec![];
+
+        // `input` must be the outer-most loop and `Input::Source` must be the first because,
+        // in order for `Input::ReadableBytecode` and `Input::ExecutableBytecode` to work,
+        // bytecode must be built!
+        for input in [Input::Source, Input::ReadableBytecode, Input::ExecutableBytecode] {
+            for optimize in [true, false] {
+                for test_mode in [true, false] {
+                    for output in Emit::all() {
+                        if output == Emit::Nothing {
+                            continue;
+                        }
+
+                        result.push(Build { input, optimize, test_mode, output });
+                    }
+                }
+            }
+        }
+
+        result
+    }
+}
+
+// A `sodigy run` or `sodigy test` command.
+struct Run {
+    input: Input,
+    optimize: bool,
+    test_mode: bool,
+    backend: Backend,
+}
+
+impl Run {
+    pub fn all() -> Vec<Run> {
+        todo!()
+    }
 }
 
 impl CnrContext {
@@ -55,426 +148,155 @@ impl CnrContext {
             return;
         }
 
-        let instructions = vec![
-            ExtraTest::Break,  // I'll be back later...
+        // loop 1. Build the project with different options.
+        for (i, build) in Build::all().into_iter().enumerate() {
+            // It regularly runs `sodigy clean` to stress-test the incremental compilation.
+            if i % 3 == 0 {
+                if let Err(e) = clean(&self.sodigy_path, &self.project_dir) {
+                    result.error = Some(format!("error at extra_tests\nloop: 1\niter: {i}\ncommand: sodigy clean\nerror: {e:?}"));
+                    return;
+                }
+            }
 
-            ExtraTest::Note {
-                step: 0,
-                note: "It runs every possible combination of `sodigy build`, which builds from the code files in `src/`.",
-            },
-            ExtraTest::Build {
-                args: vec!["--emit=bytecode", "-o=bc-debug-0"],
-                check_incremental_compilation: None,
-            },
-            ExtraTest::Build {
-                args: vec!["--emit=bytecode", "-o=bc-release-0", "--release"],
-                check_incremental_compilation: Some(CheckIncrementalCompilation::BeforeOptimization),
-            },
-            ExtraTest::Build {
-                args: vec!["--emit=bytecode-exe", "-o=bcx-debug-0"],
-                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
-            },
-            ExtraTest::Clean,
-            ExtraTest::Build {
-                args: vec!["--emit=bytecode-exe", "-o=bcx-release-0", "--release"],
-                check_incremental_compilation: None,
-            },
-            ExtraTest::Build {
-                args: vec!["--emit=rust", "-o=rs-debug-run-0"],
-                check_incremental_compilation: Some(CheckIncrementalCompilation::BeforeOptimization),
-            },
-            ExtraTest::Build {
-                args: vec!["--emit=rust", "--test", "-o=rs-debug-test-0"],
-                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
-            },
-            ExtraTest::Build {
-                args: vec!["--emit=rust", "-o=rs-release-run-0", "--release"],
-                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
-            },
-            ExtraTest::Build {
-                args: vec!["--emit=rust", "--test", "-o=rs-release-test-0", "--release"],
-                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
-            },
-            ExtraTest::Clean,
-            ExtraTest::Build {
-                args: vec!["--emit=exe", "-o=exe-debug-run-0"],
-                check_incremental_compilation: None,
-            },
-            ExtraTest::Build {
-                args: vec!["--emit=exe", "--test", "-o=exe-debug-test-0"],
-                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
-            },
-            ExtraTest::Build {
-                args: vec!["--emit=exe", "-o=exe-release-run-0", "--release"],
-                check_incremental_compilation: Some(CheckIncrementalCompilation::BeforeOptimization),
-            },
-            ExtraTest::Build {
-                args: vec!["--emit=exe", "--test", "-o=exe-release-test-0", "--release"],
-                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
-            },
+            if let Err(e) = build.build(&self.sodigy_path, &self.project_dir, self.std_assertions) {
+                result.error = Some(format!("error at extra_tests\nloop: 1\niter: {i}\ncommand: {}\nerror: {e:?}", build.command(self.std_assertions)));
+                return;
+            }
+        }
 
-            ExtraTest::Note {
-                step: 1,
-                note: "It runs a few extra `sodigy build` and makes sure that the outputs are deterministic.",
-            },
-            ExtraTest::Clean,
-            ExtraTest::Build {
-                args: vec!["--emit=bytecode", "-o=bc-debug-1"],
-                check_incremental_compilation: None,
-            },
-            ExtraTest::Clean,
-            ExtraTest::Build {
-                args: vec!["--emit=bytecode", "-o=bc-release-1", "--release"],
-                check_incremental_compilation: None,
-            },
-            ExtraTest::Clean,
-            ExtraTest::Build {
-                args: vec!["--emit=rust", "-o=rs-debug-run-1"],
-                check_incremental_compilation: None,
-            },
-            ExtraTest::Clean,
-            ExtraTest::Build {
-                args: vec!["--emit=rust", "--test", "-o=rs-debug-test-1"],
-                check_incremental_compilation: None,
-            },
-            ExtraTest::Clean,
-            ExtraTest::Build {
-                args: vec!["--emit=rust", "-o=rs-release-run-1", "--release"],
-                check_incremental_compilation: None,
-            },
-            ExtraTest::Clean,
-            ExtraTest::Build {
-                args: vec!["--emit=rust", "--test", "-o=rs-release-test-1", "--release"],
-                check_incremental_compilation: None,
-            },
-            ExtraTest::AssertEq {
-                a: "bc-debug-0",
-                b: "bc-debug-1",
-                note: "`sodigy build --emit=bytecode` is not deterministic",
-            },
-            ExtraTest::AssertEq {
-                a: "bc-release-0",
-                b: "bc-release-1",
-                note: "`sodigy build --emit=bytecode --release` is not deterministic",
-            },
-            ExtraTest::AssertEq {
-                a: "rs-debug-run-0",
-                b: "rs-debug-run-1",
-                note: "`sodigy build --emit=rust` is not deterministic",
-            },
-            ExtraTest::AssertEq {
-                a: "rs-debug-test-0",
-                b: "rs-debug-test-1",
-                note: "`sodigy build --emit=rust --test` is not deterministic",
-            },
-            ExtraTest::AssertEq {
-                a: "rs-release-run-0",
-                b: "rs-release-run-1",
-                note: "`sodigy build --emit=rust --release` is not deterministic",
-            },
-            ExtraTest::AssertEq {
-                a: "rs-release-test-0",
-                b: "rs-release-test-1",
-                note: "`sodigy build --emit=rust --test --release` is not deterministic",
-            },
+        // loop 2. Build the project with different options, again.
+        //         Some options are supposed to be deterministic (e.g. bytecode output).
+        //         It checks if the previous output and the current output are identical.
+        for (i, build) in Build::all().into_iter().enumerate() {
+            if !build.is_deterministic() {
+                continue;
+            }
 
-            ExtraTest::Note {
-                step: 2,
-                note: "It runs every possible combination of `sodigy build --bytecode=<path>`.",
-            },
-            ExtraTest::Build {
-                args: vec!["--bytecode=bc-debug-0", "--emit=bytecode-exe", "-o=bcx-debug-1"],
-                check_incremental_compilation: None,
-            },
-            ExtraTest::Build {
-                args: vec!["--bytecode=bc-debug-0", "--emit=rust", "-o=rs-debug-2"],
-                check_incremental_compilation: None,
-            },
-            ExtraTest::Build {
-                args: vec!["--bytecode=bc-debug-0", "--emit=exe", "-o=exe-debug-1"],
-                check_incremental_compilation: None,
-            },
-            ExtraTest::Build {
-                args: vec!["--bytecode=bc-release-0", "--emit=bytecode-exe", "-o=bcx-release-1"],
-                check_incremental_compilation: None,
-            },
-            ExtraTest::Build {
-                args: vec!["--bytecode=bc-release-0", "--emit=rust", "-o=rs-release-2"],
-                check_incremental_compilation: None,
-            },
-            ExtraTest::Build {
-                args: vec!["--bytecode=bc-release-0", "--emit=exe", "-o=exe-release-1"],
-                check_incremental_compilation: None,
-            },
+            // It regularly runs `sodigy clean` to stress-test the incremental compilation.
+            if i % 3 == 0 {
+                if let Err(e) = clean(&self.sodigy_path, &self.project_dir) {
+                    result.error = Some(format!("error at extra_tests\nloop: 2\niter: {i}\ncommand: sodigy clean\nerror: {e:?}"));
+                    return;
+                }
+            }
 
-            ExtraTest::Note {
-                step: 3,
-                note: "It runs `sodigy run --bytecode=<path>` and `sodigy test --bytecode=<path>` with bytecode files from the previous steps, and collects their outputs.",
-            },
+            let prev_result = read_bytes(&build.output_path()).unwrap();
 
-            ExtraTest::RunBytecode {
-                args: vec!["run", "--bytecode=bc-debug-0", "--backend=interpret"],
-                key: "run",
-            },
-            ExtraTest::RunBytecode {
-                args: vec!["run", "--bytecode=bc-debug-0", "--backend=native"],
-                key: "run",
-            },
-            ExtraTest::RunBytecode {
-                args: vec!["run", "--bytecode=bc-release-0", "--backend=interpret"],
-                key: "run",
-            },
-            ExtraTest::RunBytecode {
-                args: vec!["run", "--bytecode=bc-release-0", "--backend=native"],
-                key: "run",
-            },
-            ExtraTest::RunBytecode {
-                args: vec!["test", "--bytecode=bc-debug-0", "--backend=interpret"],
-                key: "test",
-            },
-            ExtraTest::RunBytecode {
-                args: vec!["test", "--bytecode=bc-debug-0", "--backend=native"],
-                key: "test",
-            },
-            ExtraTest::RunBytecode {
-                args: vec!["test", "--bytecode=bc-release-0", "--backend=interpret"],
-                key: "test",
-            },
-            ExtraTest::RunBytecode {
-                args: vec!["test", "--bytecode=bc-release-0", "--backend=native"],
-                key: "test",
-            },
+            if let Err(e) = build.build(&self.sodigy_path, &self.project_dir, self.std_assertions) {
+                result.error = Some(format!("error at extra_tests\nloop: 2\niter: {i}\ncommand: {}\nerror: {e:?}", build.command(self.std_assertions)));
+                return;
+            }
 
-            ExtraTest::Note {
-                step: 4,
-                note: "It runs C, bytecode-exe and exe files from the previous steps. It uses the system's C compiler to compile the C files. It collects all the outputs.",
-            },
-            ExtraTest::RunBytecode {
-                args: vec!["interpret", "bcx-debug-0"],
-                key: "run",
-            },
-            ExtraTest::RunBytecode {
-                args: vec!["interpret", "bcx-debug-0", "--test"],
-                key: "test",
-            },
-            ExtraTest::RunBytecode {
-                args: vec!["interpret", "bcx-release-0"],
-                key: "run",
-            },
-            ExtraTest::RunBytecode {
-                args: vec!["interpret", "bcx-release-0", "--test"],
-                key: "test",
-            },
+            let curr_result = read_bytes(&build.output_path()).unwrap();
 
-            // TODO: rs-debug-run-0, rs-debug-test-0, rs-release-run-0, rs-release-test-0, exe-debug-run-0, exe-debug-test-0, exe-release-run-0, exe-release-test-0
+            if prev_result != curr_result {
+                result.error = Some(format!("error at extra_tests\nloop: 2\niter: {i}\ncommand: {}\ndiff: (TODO)", build.command(self.std_assertions)));
+                return;
+            }
+        }
 
-            ExtraTest::AssertEqRunResults,
+        let mut run_output: Option<Output> = None;
+        let mut test_output: Option<Output> = None;
 
-            ExtraTest::Note {
-                step: 5,
-                note: "It runs remaining possible combinations of `sodigy run` and `sodigy test` and collects their outputs.",
-            },
-            ExtraTest::Clean,
-            ExtraTest::RunFromSource {
-                args: vec!["run", "--backend=mir-interpret"],
-                key: "run",
-                check_incremental_compilation: None,
-            },
-            ExtraTest::RunFromSource {
-                args: vec!["run", "--backend=interpret"],
-                key: "run",
-                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
-            },
-            ExtraTest::RunFromSource {
-                args: vec!["run", "--backend=native"],
-                key: "run",
-                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
-            },
-            ExtraTest::RunFromSource {
-                args: vec!["run", "--backend=mir-interpret", "--release"],
-                key: "run",
-                check_incremental_compilation: Some(CheckIncrementalCompilation::BeforeOptimization),
-            },
-            ExtraTest::RunFromSource {
-                args: vec!["run", "--backend=interpret", "--release"],
-                key: "run",
-                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
-            },
-            ExtraTest::Clean,
-            ExtraTest::RunFromSource {
-                args: vec!["run", "--backend=native", "--release"],
-                key: "run",
-                check_incremental_compilation: None,
-            },
-            ExtraTest::RunFromSource {
-                args: vec!["test", "--backend=mir-interpret"],
-                key: "test",
-                check_incremental_compilation: Some(CheckIncrementalCompilation::BeforeOptimization),
-            },
-            ExtraTest::RunFromSource {
-                args: vec!["test", "--backend=interpret"],
-                key: "test",
-                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
-            },
-            ExtraTest::RunFromSource {
-                args: vec!["test", "--backend=native"],
-                key: "test",
-                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
-            },
-            ExtraTest::RunFromSource {
-                args: vec!["test", "--backend=mir-interpret", "--release"],
-                key: "test",
-                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
-            },
-            ExtraTest::RunFromSource {
-                args: vec!["test", "--backend=interpret", "--release"],
-                key: "test",
-                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
-            },
-            ExtraTest::RunFromSource {
-                args: vec!["test", "--backend=native", "--release"],
-                key: "test",
-                check_incremental_compilation: Some(CheckIncrementalCompilation::All),
-            },
-            ExtraTest::AssertEqRunResults,
-
-            ExtraTest::Note {
-                step: 6,
-                note: "It tests multiple incremental compilation scenarios by adding, removing and editing files.",
-            },
-            ExtraTest::BreakIfLessThan3Files,
-
-            // TODO: if there are more than 2 files, test incremental compilation more thoroughly
-            //
-            // I'll choose 3 files. I'll call them lib.sdg, foo.sdg and bar.sdg.
-            //
-            // 0. remove artifacts
-            // 0. remove foo.sdg
-            // 0. sodigy run --backend=native
-            // 0. restore foo.sdg
-            // 0. sodigy run --backend=native --release
-            // 0. add erroneous statements to bar.sdg
-            // 0. sodigy run --backend=native
-            // 0. sodigy run --backend=native
-            // 0. restore bar.sdg
-            // 0. sodigy run --backend=native --release
-            // 0. sodigy run --backend=native
-            // 0. add a tmp module (and also define it in lib.sdg)
-            // 0. sodigy test --backend=native
-            // 0. sodigy test --backend=native --release
-            // 0. add harmless statements to tmp
-            // 0. sodigy test --backend=native --release
-            // 0. add harmful statements to tmp (compile-pass, run-fail)
-            // 0. sodigy test --backend=native --release
-            // 0. sodigy test --backend=interpret
-            // 0. remove tmp.sdg and restore lib.sdg
-            // 0. sodigy test --backend=interpret --release
-            // 0. sodigy test --backend=native
-        ];
-
-        let mut curr_step = 0;
-        let mut curr_note = String::new();
-
-        for instruction in instructions.into_iter() {
-            let instruction_str = format!("{instruction:?}");
-
-            match instruction {
-                ExtraTest::Note { step, note } => {
-                    curr_step = step;
-                    curr_note = note.to_string();
+        // loop 3. Run the built outputs. Outputs with the same profiles
+        //         must have the same behavior (stdout, stderr, exit-code).
+        for (i, build) in Build::all().into_iter().enumerate() {
+            let output = match build.run() {
+                Ok(o) => o,
+                Err(e) => {
+                    result.error = Some(format!("error at extra_tests\nloop: 3\niter: {i}\ncommand: {}\nerror: {e:?}", build.command(self.std_assertions)));
+                    return;
                 },
-                ExtraTest::Build { mut args, check_incremental_compilation } => {
-                    // TODO: check_incremental_compilation
-                    let args = [vec!["build"], args].concat();
+            };
 
-                    if let Err(e) = subprocess::run(
-                        &self.sodigy_path,
-                        &args,
-                        &self.project_dir,
-                        30.0,
-                        false,  // dump_output
-                        true,   // check_nonzero_status
-                    ) {
-                        result.error = Some(format!("Extra cnr test failure\nstep: {curr_step}\nnote: {curr_note}\ninstruction: {instruction_str}\nerror: {e:?}\nFailed to build a sodigy project!"));
+            match (build.test_mode, run_output, test_output) {
+                (true, _, None) => { test_output = Some(output); },
+                (true, _, Some(o)) => {
+                    if o != output {
+                        result.error = Some(format!("error at extra_tests\nloop: 3\niter: {i}\ncommand: {}\ndiff: (TODO)", build.command(self.std_assertions)));
                         return;
                     }
                 },
-                ExtraTest::RunBytecode { args, key } => {
-                    match subprocess::run(
-                        &self.sodigy_path,
-                        &args,
-                        &self.project_dir,
-                        30.0,
-                        false,  // dump_output
-                        false,  // check_nonzero_status
-                    ) {
-                        Ok(o) => todo!(),
-                        Err(e) => {
-                            result.error = Some(format!("Extra cnr test failure\nstep: {curr_step}\nnote: {curr_note}\ninstruction: {instruction_str}\nerror: {e:?}\nFailed to run bytecode!"));
-                            return;
-                        },
+                (false, None, _) => { run_output = Some(output); },
+                (false, Some(o), _) => {
+                    if o != output {
+                        result.error = Some(format!("error at extra_tests\nloop: 3\niter: {i}\ncommand: {}\ndiff: (TODO)", build.command(self.std_assertions)));
+                        return;
                     }
                 },
-                ExtraTest::RunFromSource { args, key, check_incremental_compilation } => {
-                    // TODO: check_incremental_compilation
-                    match subprocess::run(
-                        &self.sodigy_path,
-                        &args,
-                        &self.project_dir,
-                        30.0,
-                        false,  // dump_output
-                        false,  // check_nonzero_status
-                    ) {
-                        Ok(o) => todo!(),
-                        Err(e) => {
-                            result.error = Some(format!("Extra cnr test failure\nstep: {curr_step}\nnote: {curr_note}\ninstruction: {instruction_str}\nerror: {e:?}\nFailed to run from source code!"));
-                            return;
-                        },
-                    }
-                },
-                ExtraTest::Clean => {
-                    match subprocess::run(
-                        &self.sodigy_path,
-                        &["clean"],
-                        &self.project_dir,
-                        30.0,
-                        false,  // dump_output
-                        true,   // check_nonzero_status
-                    ) {
-                        Ok(_) => {},
-                        Err(e) => {
-                            result.error = Some(format!("Extra cnr test failure\nstep: {curr_step}\nnote: {curr_note}\ninstruction: {instruction_str}\nerror: {e:?}\nFailed to run from source code!"));
-                            return;
-                        },
-                    }
-                },
-                ExtraTest::AssertEq { a, b, note } => {
-                    let path_a = join(&self.project_dir, a).unwrap();
-                    let path_b = join(&self.project_dir, b).unwrap();
-                    let (content_a, content_b) = match (read_bytes(&path_a), read_bytes(&path_b)) {
-                        (Ok(a), Ok(b)) => (String::from_utf8_lossy(&a).to_string(), String::from_utf8_lossy(&b).to_string()),
-                        (Err(e), _) => {
-                            result.error = Some(format!("Extra cnr test failure\nstep: {curr_step}\nnote: {curr_note}\ninstruction: {instruction_str}\nerror: {e:?}\nFailed to read an asserted file!"));
-                            return;
-                        },
-                        (_, Err(e)) => {
-                            result.error = Some(format!("Extra cnr test failure\nstep: {curr_step}\nnote: {curr_note}\ninstruction: {instruction_str}\nerror: {e:?}\nFailed to read an asserted file!"));
-                            return;
-                        },
-                    };
-
-                    if content_a != content_b {
-                        todo!();
-                    }
-                },
-                ExtraTest::AssertEqRunResults => todo!(),
-                ExtraTest::BreakIfLessThan3Files => {
-                    if self.sdg_files < 3 {
-                        break;
-                    }
-                },
-                ExtraTest::Break => break,
             }
         }
+
+        let run_output = run_output.unwrap();
+        let test_output = test_output.unwrap();
+
+        // loop 4. Run the project with `sodigy run` or `sodigy test`.
+        //         Their output (stdout, stderr, exit-code) must be the
+        //         same with those in loop 3.
+        for (i, run) in Run::all().into_iter().enumerate() {
+            // It regularly runs `sodigy clean` to stress-test the incremental compilation.
+            if i % 3 == 0 {
+                if let Err(e) = clean(&self.sodigy_path, &self.project_dir) {
+                    result.error = Some(format!("error at extra_tests\nloop: 4\niter: {i}\ncommand: sodigy clean\nerror: {e:?}"));
+                    return;
+                }
+            }
+
+            let output = match run.run() {
+                Ok(o) => o,
+                Err(e) => {
+                    result.error = Some(format!("error at extra_tests\nloop: 4\niter: {i}\ncommand: {}\nerror: {e:?}", run.command()));
+                    return;
+                },
+            };
+
+            if run.test_mode && test_output != output {
+                result.error = Some(format!("error at extra_tests\nloop: 4\niter: {i}\ncommand: {}\ndiff: (TODO)", run.command()));
+                return;
+            } else if !run.test_mode && run_output != output {
+                result.error = Some(format!("error at extra_tests\nloop: 4\niter: {i}\ncommand: {}\ndiff: (TODO)", run.command()));
+                return;
+            }
+        }
+
+        if self.sdg_files < 3 {
+            return;
+        }
+
+        // TODO: more thorough incremental compilation test
+        // 1. sodigy clean
+        // 2. remove foo.sdg
+        // 3. sodigy run --backend=native
+        // 4. restore foo.sdg
+        // 5. sodigy run --backend=native --release
+        // 6. add erroneous statements to bar.sdg
+        // 7. sodigy run --backend=native
+        // 8. sodigy run --backend=native
+        // 9. restore bar.sdg
+        // 10. sodigy run --backend=native --release
+        // 11. sodigy run --backend=native
+        // 12. add a tmp module (and also define it in lib.sdg)
+        // 13. sodigy test --backend=native
+        // 14. sodigy test --backend=native --release
+        // 15. add harmless statements to tmp
+        // 16. sodigy test --backend=native --release
+        // 17. add harmful statements to tmp (compile-pass, run-fail)
+        // 18. sodigy test --backend=native --release
+        // 19. sodigy test --backend=interpret
+        // 20. remove tmp.sdg and restore lib.sdg
+        // 21. sodigy test --backend=interpret --release
+        // 22. sodigy test --backend=native
     }
 }
+
+fn clean(sodigy_path: &str, project_dir: &str) -> Result<(), SubprocessError> {
+    subprocess::run(
+        sodigy_path,
+        &["clean"],
+        project_dir,
+        5.0,
+        false,
+        true,
+    ).map(|_| ())
+}
+
