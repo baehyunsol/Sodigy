@@ -792,7 +792,7 @@ impl Worker {
                 self.timings.stage_end(false);
 
                 self.timings.stage_start(Stage::CodeGen, Some(Substage::CodeGen));
-                let (code, errors, warnings) = sodigy_code_gen::lower(object_files, errors, warnings, emit);
+                let (code, errors, warnings) = sodigy_code_gen::lower(object_files, errors, warnings, emit, &intermediate_dir);
                 let has_error = !errors.is_empty();
                 self.timings.stage_end(has_error);
 

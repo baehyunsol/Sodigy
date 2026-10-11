@@ -133,6 +133,7 @@ CannotFindEntryPoint/510/Error
 MultipleEntryPoint/515/Error
 EntryPointWithGeneric/520/Error
 EntryPointWithParam/525/Error
+DependencyNotInstalled/550/Error
 UnusedNames/5000/Warning
 UseUnusedName/5001/Warning
 UnreachableMatchArm/5005/Warning

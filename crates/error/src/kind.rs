@@ -204,6 +204,8 @@ error_kinds!(
     (EntryPointWithGeneric,                                          520,    Error),
     (EntryPointWithParam,                                            525,    Error),
 
+    (DependencyNotInstalled { dependency: String},                   550,    Error),
+
     // Warnings from here
     (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),
     (UseUnusedName { name: InternedString, kind: NameKind },        5001,  Warning),
@@ -308,3 +310,4 @@ pub enum EnumFieldKind {
     Tuple,
     Struct,
 }
+

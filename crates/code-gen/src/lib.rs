@@ -2,6 +2,7 @@ use sodigy_endec::Endec;
 use sodigy_error::{Error, ErrorKind, Warning};
 use sodigy_fs_api::{join4, read_bytes};
 use sodigy_object_file::{self as object_file, Entry, ObjectFile};
+use sodigy_subprocess as subprocess;
 
 mod rust;
 
@@ -35,7 +36,7 @@ pub fn lower(
 
     match emit {
         Emit::Exe => match rust::lower_to_crates(linked_object_file, intermediate_dir, &mut errors) {
-            Ok(crate_path) => match sodigy_subprocess::run(
+            Ok(crate_path) => match subprocess::run(
                 "cargo",
                 &["build", "--release"],
                 &crate_path,

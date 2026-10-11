@@ -82,7 +82,8 @@
     { poly_params: usize, impl_params: usize }, CannotImplPoly
     { poly_type: String, impl_type: String, param_index: ParamIndex },
     MultiplePolyCandidates(usize), CannotFindEntryPoint, MultipleEntryPoint,
-    EntryPointWithGeneric, EntryPointWithParam, UnusedNames
+    EntryPointWithGeneric, EntryPointWithParam, DependencyNotInstalled
+    { dependency: String }, UnusedNames
     { names: Vec<InternedString>, kind: NameKind }, UseUnusedName
     { name: InternedString, kind: NameKind }, UnreachableMatchArm,
     UnreachableOrPattern, NoImpureCallInImpureContext { context: FuncEffect },
@@ -203,14 +204,15 @@
             MultiplePolyCandidates(_,) => 505u16, ErrorKind ::
             CannotFindEntryPoint => 510u16, ErrorKind :: MultipleEntryPoint =>
             515u16, ErrorKind :: EntryPointWithGeneric => 520u16, ErrorKind ::
-            EntryPointWithParam => 525u16, ErrorKind :: UnusedNames { .. } =>
-            5000u16, ErrorKind :: UseUnusedName { .. } => 5001u16, ErrorKind
-            :: UnreachableMatchArm => 5005u16, ErrorKind ::
-            UnreachableOrPattern => 5006u16, ErrorKind ::
-            NoImpureCallInImpureContext { .. } => 5010u16, ErrorKind ::
-            FuncWithoutTypeAnnot => 8000u16, ErrorKind :: LetWithoutTypeAnnot
-            => 8005u16, ErrorKind :: StructWithoutTypeAnnot => 8010u16,
-            ErrorKind :: EnumVariantWithoutTypeAnnot => 8011u16, ErrorKind ::
+            EntryPointWithParam => 525u16, ErrorKind :: DependencyNotInstalled
+            { .. } => 550u16, ErrorKind :: UnusedNames { .. } => 5000u16,
+            ErrorKind :: UseUnusedName { .. } => 5001u16, ErrorKind ::
+            UnreachableMatchArm => 5005u16, ErrorKind :: UnreachableOrPattern
+            => 5006u16, ErrorKind :: NoImpureCallInImpureContext { .. } =>
+            5010u16, ErrorKind :: FuncWithoutTypeAnnot => 8000u16, ErrorKind
+            :: LetWithoutTypeAnnot => 8005u16, ErrorKind ::
+            StructWithoutTypeAnnot => 8010u16, ErrorKind ::
+            EnumVariantWithoutTypeAnnot => 8011u16, ErrorKind ::
             SelfParamNotNamedSelf => 8015u16, ErrorKind :: Todo { .. } =>
             9998u16, ErrorKind :: InternalCompilerError { .. } => 9999u16,
         }
@@ -354,6 +356,7 @@
             ErrorLevel :: Error, ErrorKind :: MultipleEntryPoint => ErrorLevel
             :: Error, ErrorKind :: EntryPointWithGeneric => ErrorLevel ::
             Error, ErrorKind :: EntryPointWithParam => ErrorLevel :: Error,
+            ErrorKind :: DependencyNotInstalled { .. } => ErrorLevel :: Error,
             ErrorKind :: UnusedNames { .. } => ErrorLevel :: Warning,
             ErrorKind :: UseUnusedName { .. } => ErrorLevel :: Warning,
             ErrorKind :: UnreachableMatchArm => ErrorLevel :: Warning,
@@ -721,7 +724,11 @@
             ErrorKind :: EntryPointWithGeneric =>
             { buffer.push(2u8); buffer.push(8u8); }, ErrorKind ::
             EntryPointWithParam => { buffer.push(2u8); buffer.push(13u8); },
-            ErrorKind :: UnusedNames { r#names, r#kind, } =>
+            ErrorKind :: DependencyNotInstalled { r#dependency, } =>
+            {
+                buffer.push(2u8); buffer.push(38u8);
+                r#dependency.encode_impl(buffer);
+            }, ErrorKind :: UnusedNames { r#names, r#kind, } =>
             {
                 buffer.push(19u8); buffer.push(136u8);
                 r#names.encode_impl(buffer); r#kind.encode_impl(buffer);
@@ -1197,7 +1204,13 @@
             }, 510u16 => Ok((ErrorKind :: CannotFindEntryPoint, cursor)),
             515u16 => Ok((ErrorKind :: MultipleEntryPoint, cursor)), 520u16 =>
             Ok((ErrorKind :: EntryPointWithGeneric, cursor)), 525u16 =>
-            Ok((ErrorKind :: EntryPointWithParam, cursor)), 5000u16 =>
+            Ok((ErrorKind :: EntryPointWithParam, cursor)), 550u16 =>
+            {
+                let (r#dependency, cursor) = String ::
+                decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: DependencyNotInstalled { r#dependency, },
+                cursor))
+            }, 5000u16 =>
             {
                 let (r#names, cursor) = Vec :: < InternedString >::
                 decode_impl(buffer, cursor) ? ; let (r#kind, cursor) =
