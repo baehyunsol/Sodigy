@@ -128,12 +128,12 @@ error_kinds!(
     (UndefinedMacro(InternedString),                                 331,    Error),
 
     (EnumVariantInTypeAnnot,                                         335,    Error),
-    (KeywordArgRepeated(InternedString),                        340,    Error),
-    (KeywordArgNotAllowed,                                      345,    Error),
+    (KeywordArgRepeated(InternedString),                             340,    Error),
+    (KeywordArgNotAllowed,                                           345,    Error),
     (AliasResolveRecursionLimitReached,                              350,    Error),
     (MissingTypeParameter { expected: usize, got: usize },           355,    Error),
     (UnexpectedTypeParameter { expected: usize, got: usize },        360,    Error),
-    (MissingKeywordArg(InternedString),                         366,    Error),
+    (MissingKeywordArg(InternedString),                              366,    Error),
 
     // TODO: more context!
     // TODO: suggest similar names
