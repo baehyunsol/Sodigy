@@ -1,537 +1,94 @@
-use super::{ParseError, Keyword, Section, Token};
-use crate::{GlobalLabel, LocalLabel, Memory, SSA, Value};
-use sodigy_number::{BigInt, add_ubi, mul_ubi, or_ubi, shl_ubi};
-use sodigy_span::SpanHash;
+use super::{Error, Keyword, SectionName, Token};
 
-pub fn lex(b: &[u8]) -> Result<[Vec<Token>; 3], ParseError> {
+// TODO: string interning?
+pub fn lex(b: &[u8]) -> Result<Vec<Token>, Error> {
     let mut cursor = 0;
-    let mut data = None;
-    let mut code = None;
-    let mut label = None;
+    let mut tokens = vec![];
 
     loop {
         match (b.get(cursor), b.get(cursor + 1)) {
+            (Some(b' ' | b'\t' | b'\r' | b'\n'), _) => {
+                cursor += 1;
+            },
+            (Some(b'/'), Some(b'/')) => {
+                cursor += 1;
+
+                while let Some(b) = b.get(cursor) && *b != b'\n' {
+                    cursor += 1;
+                }
+            },
+            (Some(b'"'), _) => todo!(),
+            (Some(b'(' | b'[' | b'{'), _) => todo!(),
             (Some(b'.'), _) => {
-                if b.len() > cursor + 6 && &b[cursor..(cursor + 6)] == b".data:" {
-                    if data.is_some() {
-                        return Err(ParseError::DuplicateSection(Section::Data));
-                    }
-
-                    cursor += 6;
-                    let (new_data, new_cursor) = lex_data_section(b, cursor)?;
-                    data = Some(new_data);
-                    cursor = new_cursor;
-                } else if b.len() > cursor + 6 && &b[cursor..(cursor + 6)] == b".code:" {
-                    if code.is_some() {
-                        return Err(ParseError::DuplicateSection(Section::Code));
-                    }
-
-                    cursor += 6;
-                    let (new_code, new_cursor) = lex_code_section(b, cursor)?;
-                    code = Some(new_code);
-                    cursor = new_cursor;
-                } else if b.len() > cursor + 7 && &b[cursor..(cursor + 7)] == b".label:" {
-                    if label.is_some() {
-                        return Err(ParseError::DuplicateSection(Section::Label));
-                    }
-
-                    cursor += 7;
-                    let (new_label, new_cursor) = lex_label_section(b, cursor)?;
-                    label = Some(new_label);
-                    cursor = new_cursor;
-                } else {
-                    return Err(ParseError::InvalidSection { cursor });
-                }
-            },
-            (Some(b' ' | b'\n' | b'\t' | b'\r'), _) => {
                 cursor += 1;
-            },
-            (Some(b'/'), Some(b'/')) => {
-                cursor += 2;
-
-                while let Some(b) = b.get(cursor) && *b != b'\n' {
-                    cursor += 1;
-                }
-            },
-            (Some(b), _) => {
-                return Err(ParseError::UnexpectedByte {
-                    expected: Some(b'.'),
-                    got: *b,
-                    cursor,
-                });
-            },
-            (None, _) => match (data, code, label) {
-                (Some(data), Some(code), Some(label)) => {
-                    return Ok([data, code, label]);
-                },
-                (None, _, _) => {
-                    return Err(ParseError::MissingSection(Section::Data));
-                },
-                (_, None, _) => {
-                    return Err(ParseError::MissingSection(Section::Code));
-                },
-                (_, _, None) => {
-                    return Err(ParseError::MissingSection(Section::Label));
-                },
-            },
-        }
-    }
-}
-
-fn lex_data_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), ParseError> {
-    let mut tokens = vec![];
-
-    loop {
-        match (b.get(cursor), b.get(cursor + 1)) {
-            (Some(b' ' | b'\n' | b'\t' | b'\r'), _) => {
-                cursor += 1;
-            },
-            (Some(b'/'), Some(b'/')) => {
-                cursor += 2;
-
-                while let Some(b) = b.get(cursor) && *b != b'\n' {
-                    cursor += 1;
-                }
-            },
-            (Some(b'%'), Some(b'I')) => {
-                cursor += 2;
-                let int_start_cursor = cursor;
-                let (value, new_cursor) = lex_hex(b, cursor)?;
-                cursor = new_cursor;
-
-                match u128::try_from(&value) {
-                    Ok(value) => {
-                        tokens.push(Token::InternedValue(value));
-                    },
-                    Err(_) => {
-                        return Err(ParseError::IntRangeError { cursor: int_start_cursor });
-                    },
-                }
-            },
-            (Some(b'='), _) => {
-                cursor += 1;
-                tokens.push(Token::Assign);
-            },
-            (Some(b';'), _) => {
-                cursor += 1;
-                tokens.push(Token::Semicolon);
-            },
-            (Some(b'.') | None, _) => {
-                return Ok((tokens, cursor));
-            },
-            (Some(_), _) => {
-                let (value, new_cursor) = lex_value(b, cursor)?;
-                cursor = new_cursor;
-                tokens.push(Token::Value(value));
-            },
-        }
-    }
-}
-
-fn lex_code_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), ParseError> {
-    let mut tokens = vec![];
-
-    loop {
-        match (b.get(cursor), b.get(cursor + 1)) {
-            (Some(b' ' | b'\n' | b'\t' | b'\r'), _) => {
-                cursor += 1;
-            },
-            (Some(b'/'), Some(b'/')) => {
-                cursor += 2;
-
-                while let Some(b) = b.get(cursor) && *b != b'\n' {
-                    cursor += 1;
-                }
-            },
-            (Some(b'.') | None, _) => {
-                return Ok((tokens, cursor));
-            },
-            (Some(b'#'), Some(b'[')) => {
-                cursor += 2;
-
-                let (ident, new_cursor) = lex_ident(b, cursor)?;
-                cursor = new_cursor;
-                let (args, new_cursor) = lex_idents_in_group(b, cursor)?;
-                cursor = new_cursor;
-
-                match b.get(cursor) {
-                    Some(b']') => {
-                        cursor += 1;
-                    },
-                    Some(b) => {
-                        return Err(ParseError::UnexpectedByte {
-                            expected: Some(b']'),
-                            got: *b,
-                            cursor,
-                        });
-                    },
-                    None => {
-                        return Err(ParseError::UnexpectedEnd);
-                    },
-                }
-
-                tokens.push(Token::Decorator {
-                    ident,
-                    args,
-                });
-            },
-            (Some(b'@'), _) => {
-                cursor += 1;
-
-                match b.get(cursor) {
-                    Some(prefix @ (b'L' | b'G')) => {
-                        let prefix = *prefix;
-                        cursor += 1;
-                        let int_start_cursor = cursor;
-                        let (n, new_cursor) = lex_hex(b, cursor)?;
-                        cursor = new_cursor;
-
-                        let token = match prefix {
-                            b'L' => match u32::try_from(&n) {
-                                Ok(n) => Token::LocalLabel(LocalLabel::new(n)),
-                                _ => {
-                                    return Err(ParseError::IntRangeError { cursor: int_start_cursor });
-                                },
-                            },
-                            b'G' => match u128::try_from(&n) {
-                                Ok(n) => Token::GlobalLabel(GlobalLabel::new(SpanHash(n))),
-                                _ => {
-                                    return Err(ParseError::IntRangeError { cursor: int_start_cursor });
-                                },
-                            },
-                            _ => unreachable!(),
-                        };
-                        tokens.push(token);
-                    },
-                    _ => {
-                        return Err(ParseError::InvalidLabelPrefix { cursor });
-                    },
-                }
-            },
-            (Some(b'_'), Some(b'0'..=b'9')) => {
-                cursor += 1;
-                let int_start_cursor = cursor;
-                let (i, new_cursor) = lex_decimal(b, cursor)?;
-                cursor = new_cursor;
-
-                match u32::try_from(&i) {
-                    Ok(i) => {
-                        tokens.push(Token::Memory(Memory::SSA(SSA::from_u32(i))));
-                    },
-                    Err(_) => {
-                        return Err(ParseError::IntRangeError { cursor: int_start_cursor });
-                    },
-                }
-            },
-            (Some(b'_'), Some(b'g')) => todo!(),
-            (Some(b'_'), _) => {
-                return Err(ParseError::InvalidMemory { cursor });
-            },
-            (Some(b'a'..=b'z' | b'A'..=b'Z'), _) => {
-                let (ident, new_cursor) = lex_ident(b, cursor)?;
-                cursor = new_cursor;
-
-                let token = match &ident[..] {
-                    b"call" => Token::Keyword(Keyword::Call),
-                    b"code" => Token::Keyword(Keyword::Code),
-                    b"if" => Token::Keyword(Keyword::If),
-                    b"jump" => Token::Keyword(Keyword::Jump),
-                    _ => todo!(),  // an error?
+                let ident = lex_ident(b, &mut cursor)?;
+                let token = match ident {
+                    b"data" => Token::Section(SectionName::Data),
+                    b"code" => Token::Section(SectionName::Code),
+                    b"main" => Token::Section(SectionName::Main),
+                    b"assert" => Token::Section(SectionName::Assert),
+                    _ => todo!(),  // error
                 };
                 tokens.push(token);
             },
-            _ => todo!(),
-        }
-    }
-}
-
-fn lex_label_section(b: &[u8], mut cursor: usize) -> Result<(Vec<Token>, usize), ParseError> {
-    let tokens = vec![];
-
-    loop {
-        match (b.get(cursor), b.get(cursor + 1)) {
-            (Some(b' ' | b'\n' | b'\t' | b'\r'), _) => {
-                cursor += 1;
-            },
-            (Some(b'/'), Some(b'/')) => {
+            (Some(b'_'), Some(b'x')) => {
                 cursor += 2;
-
-                while let Some(b) = b.get(cursor) && *b != b'\n' {
-                    cursor += 1;
-                }
+                let n = lex_dec_32(b, &mut cursor)?;
+                tokens.push(Token::SSA(n));
             },
-            (Some(b'.') | None, _) => {
-                return Ok((tokens, cursor));
+            (Some(b'_'), Some(b'g')) => {
+                cursor += 2;
+                let n = lex_hex_128(b, &mut cursor)?;
+                tokens.push(Token::GlobalValue(n));
             },
-            _ => todo!(),
-        }
-    }
-}
-
-fn lex_decimal(b: &[u8], mut cursor: usize) -> Result<(BigInt, usize), ParseError> {
-    let mut nums = vec![0];
-    let mut is_neg = false;
-
-    match b.get(cursor) {
-        Some(b'0'..=b'9') => {},
-        Some(b'-') => {
-            is_neg = true;
-            cursor += 1;
-        },
-        _ => {
-            return Err(ParseError::FailedToParseHex { cursor });
-        },
-    }
-
-    loop {
-        match b.get(cursor) {
-            Some(b @ b'0'..=b'9') => {
-                nums = mul_ubi(&nums, &[10]);
-                nums = add_ubi(&nums, &[(*b - b'0') as u32]);
+            (Some(b'%'), Some(b'I')) => {
+                cursor += 2;
+                let n = lex_hex_128(b, &mut cursor)?;
+                tokens.push(Token::InternedValue(n));
+            },
+            (Some(b'#'), Some(b's')) => {
+                cursor += 2;
+                let n = lex_hex_32(b, &mut cursor)?;
+                tokens.push(Token::Scalar(n));
+            },
+            (Some(b'#'), Some(b'f')) => {
+                cursor += 2;
+                let n = lex_hex_128(b, &mut cursor)?;
+                tokens.push(Token::FuncPointer(n));
+            },
+            (Some(b'#'), Some(b'n')) => {
+                cursor += 2;
+                let n = lex_hex_large(b, &mut cursor)?;
+                tokens.push(Token::Integer(n));
+            },
+            (Some(b'@'), Some(b'L')) => {
+                cursor += 2;
+                let n = lex_hex_32(b, &mut cursor)?;
+                tokens.push(Token::LocalLabel(n));
+            },
+            (Some(b'@'), Some(b'G')) => {
+                cursor += 2;
+                let n = lex_hex_128(b, &mut cursor)?;
+                tokens.push(Token::GlobalLabel(n));
+            },
+            (Some(b'$'), _) => {
                 cursor += 1;
+                let command = lex_ident(b, &mut cursor)?;
+                tokens.push(Token::Command(command));
             },
-            _ => {
-                return Ok((
-                    BigInt { is_neg, nums },
-                    cursor,
-                ));
+            (Some(b'a'..=b'z'), _) => {
+                let keyword = lex_ident(b, &mut cursor)?;
+                let keyword = match keyword {
+                    b"jump" => Keyword::Jump,
+                    _ => todo!(),
+                };
+                tokens.push(Token::Keyword(keyword));
             },
-        }
-    }
-}
-
-fn lex_hex(b: &[u8], mut cursor: usize) -> Result<(BigInt, usize), ParseError> {
-    let mut nums = vec![0];
-    let mut is_neg = false;
-
-    match b.get(cursor) {
-        Some(b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F') => {},
-        Some(b'-') => {
-            is_neg = true;
-            cursor += 1;
-        },
-        _ => {
-            return Err(ParseError::FailedToParseHex { cursor });
-        },
-    }
-
-    loop {
-        match b.get(cursor) {
-            Some(b @ b'0'..=b'9') => {
-                nums = shl_ubi(&nums, 4);
-                nums = or_ubi(&nums, &[(*b - b'0') as u32]);
-                cursor += 1;
-            },
-            Some(b @ b'a'..=b'f') => {
-                nums = shl_ubi(&nums, 4);
-                nums = or_ubi(&nums, &[(*b - b'a' + 10) as u32]);
-                cursor += 1;
-            },
-            Some(b @ b'A'..=b'F') => {
-                nums = shl_ubi(&nums, 4);
-                nums = or_ubi(&nums, &[(*b - b'A' + 10) as u32]);
-                cursor += 1;
-            },
-            _ => {
-                return Ok((
-                    BigInt { is_neg, nums },
-                    cursor,
-                ));
-            },
-        }
-    }
-}
-
-fn lex_value(b: &[u8], mut cursor: usize) -> Result<(Value, usize), ParseError> {
-    match b.get(cursor) {
-        Some(start @ (b'[' | b'{')) => {
-            let end = match *start { b'[' => b']', b'{' => b'}', _ => unreachable!() };
-            let mut expecting_value = true;
-            let mut values = vec![];
-            cursor += 1;
-
-            loop {
-                if expecting_value {
-                    match (b.get(cursor), b.get(cursor + 1)) {
-                        (Some(b' ' | b'\n' | b'\t' | b'\r'), _) => {
-                            cursor += 1;
-                        },
-                        (Some(b'/'), Some(b'/')) => {
-                            cursor += 2;
-
-                            while let Some(b) = b.get(cursor) && *b != b'\n' {
-                                cursor += 1;
-                            }
-                        },
-                        (Some(b), _) if *b == end => {
-                            cursor += 1;
-                            break;
-                        },
-                        (Some(_), _) => {
-                            let (value, new_cursor) = lex_value(b, cursor)?;
-                            values.push(value);
-                            cursor = new_cursor;
-                            expecting_value = false;
-                        },
-                        (None, _) => {
-                            return Err(ParseError::FailedToParseValue { cursor });
-                        },
-                    }
-                }
-
-                // expecting comma
-                else {
-                    match (b.get(cursor), b.get(cursor + 1)) {
-                        (Some(b' ' | b'\n' | b'\t' | b'\r'), _) => {
-                            cursor += 1;
-                        },
-                        (Some(b'/'), Some(b'/')) => {
-                            cursor += 2;
-
-                            while let Some(b) = b.get(cursor) && *b != b'\n' {
-                                cursor += 1;
-                            }
-                        },
-                        (Some(b','), _) => {
-                            cursor += 1;
-                            expecting_value = true;
-                        },
-                        (Some(b), _) if *b == end => {
-                            cursor += 1;
-                            break;
-                        },
-                        (Some(_) | None, _) => {
-                            return Err(ParseError::FailedToParseValue { cursor });
-                        },
-                    }
-                }
-            }
-
-            if *start == b'[' {
-                Ok((Value::List(values), cursor))
-            } else {
-                Ok((Value::Compound(values), cursor))
-            }
-        },
-        Some(_) => {
-            let int_start_cursor = cursor;
-            let (value, new_cursor) = lex_hex(b, cursor)?;
-            cursor = new_cursor;
-
-            match (b.get(cursor), b.get(cursor + 1)) {
-                (Some(b'#'), Some(b'f')) => match u128::try_from(&value) {
-                    Ok(s) => Ok((Value::FuncPointer(SpanHash(s)), cursor + 2)),
-                    Err(_) => Err(ParseError::IntRangeError { cursor: int_start_cursor }),
-                },
-                (Some(b'#'), Some(b'n')) => Ok((Value::Int(value), cursor + 2)),
-                (Some(b'#'), Some(b's')) => match u32::try_from(&value) {
-                    Ok(n) => Ok((Value::Scalar(n), cursor + 2)),
-                    Err(_) => Err(ParseError::IntRangeError {
-                        cursor: int_start_cursor,
-                    }),
-                },
-                _ => Err(ParseError::FailedToParseValue { cursor }),
-            }
-        },
-        None => Err(ParseError::FailedToParseValue { cursor }),
-    }
-}
-
-fn lex_ident(b: &[u8], mut cursor: usize) -> Result<(Vec<u8>, usize), ParseError> {
-    let mut buffer = vec![];
-
-    match b.get(cursor) {
-        Some(b @ (b'a'..=b'z' | b'A'..=b'Z' | b'_')) => {
-            buffer.push(*b);
-            cursor += 1;
-        },
-        _ => {
-            return Err(ParseError::FailedToParseIdent { cursor });
-        },
-    }
-
-    loop {
-        match b.get(cursor) {
-            Some(b @ (b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_')) => {
-                buffer.push(*b);
-                cursor += 1;
-            },
-            _ => {
-                return Ok((buffer, cursor));
-            },
-        }
-    }
-}
-
-fn lex_idents_in_group(b: &[u8], mut cursor: usize) -> Result<(Vec<Vec<u8>>, usize), ParseError> {
-    let (start, end) = match b.get(cursor) {
-        Some(b'(') => (b'(', b')'),
-        Some(b'[') => (b'[', b']'),
-        Some(b'{') => (b'{', b'}'),
-        _ => {
-            return Err(ParseError::FailedToParseIdents { cursor });
-        },
-    };
-
-    cursor += 1;
-    let mut idents = vec![];
-    let mut expecting_ident = true;
-
-    loop {
-        if expecting_ident {
-            match (b.get(cursor), b.get(cursor + 1)) {
-                (Some(b' ' | b'\n' | b'\t' | b'\r'), _) => {
-                    cursor += 1;
-                },
-                (Some(b'/'), Some(b'/')) => {
-                    cursor += 2;
-
-                    while let Some(b) = b.get(cursor) && *b != b'\n' {
-                        cursor += 1;
-                    }
-                },
-                (Some(b), _) if *b == end => {
-                    cursor += 1;
-                    break;
-                },
-                (Some(_), _) => {
-                    let (ident, new_cursor) = lex_ident(b, cursor)?;
-                    cursor = new_cursor;
-                    idents.push(ident);
-                    expecting_ident = false;
-                },
-                (None, _) => {
-                    return Err(ParseError::FailedToParseIdents { cursor });
-                },
-            }
-        }
-
-        else {
-            match (b.get(cursor), b.get(cursor + 1)) {
-                (Some(b' ' | b'\n' | b'\t' | b'\r'), _) => {
-                    cursor += 1;
-                },
-                (Some(b'/'), Some(b'/')) => {
-                    cursor += 2;
-
-                    while let Some(b) = b.get(cursor) && *b != b'\n' {
-                        cursor += 1;
-                    }
-                },
-                (Some(b), _) if *b == end => {
-                    cursor += 1;
-                    break;
-                },
-                (Some(b','), _) => {
-                    cursor += 1;
-                    expecting_ident = true;
-                },
-                (Some(_) | None, _) => {
-                    return Err(ParseError::FailedToParseIdents { cursor });
-                },
-            }
+            (None, _) => break,
+            (Some(b), _) => todo!(),
         }
     }
 
-    Ok((idents, cursor))
+    tokens
 }
+

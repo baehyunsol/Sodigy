@@ -2,23 +2,12 @@ use crate::ObjectFile;
 
 mod error;
 mod lex;
-mod token;
 
-#[cfg(test)]
-mod tests;
+pub use error::Error;
+use lex::lex;
 
-pub use error::ParseError;
-use token::{Keyword, Token};
-
-pub fn parse(b: &[u8]) -> Result<ObjectFile, ParseError> {
-    let [data, code, entries] = lex::lex(b)?;
+pub fn parse(bytes: &[u8]) -> Result<ObjectFile, Error> {
+    let tokens = lex(bytes)?;
     todo!()
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum Section {
-    Data,
-    Code,
-    Label,
 }
 

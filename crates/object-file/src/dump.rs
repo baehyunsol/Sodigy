@@ -29,12 +29,12 @@ impl Display for ObjectFile {
 
         match &self.entry {
             Entry::Main(e) => {
-                labels.push(String::from("main:"));
+                labels.push(String::from(".main:"));
                 labels.push(format!("    @G{}", e.hex(20)));
             },
             Entry::Asserts(asserts) => {
                 if !asserts.is_empty() {
-                    labels.push(String::from("asserts:"));
+                    labels.push(String::from(".asserts:"));
 
                     for assert in asserts.iter() {
                         labels.push(format!("    @G{}", assert.label.hex(20)));
@@ -50,7 +50,6 @@ impl Display for ObjectFile {
 .code:
 {}
 
-.label:
 {}
 "#,
             data.join("\n"),
@@ -84,7 +83,9 @@ impl Code {
         lines.push(format!("// {kind}"));
 
         lines.push(format!("#[effect({})]", self.effect.single_word()));
-        lines.push(format!("#[name({})]", self.name));
+
+        // an assertion name doesn't have to be an identifier, so we have to wrap it
+        lines.push(format!("#[name({:?})]", self.name));
 
         lines.push(format!(
             "{}{}:",
@@ -256,7 +257,7 @@ impl Terminator {
             ),
             Terminator::JumpIf { value, t, f } => format!("if {value} {{ jump {t}; }} else {{ jump {f}; }}"),
             Terminator::TryInitGlobal { global, label } => format!(
-                "if !is_init(_g{}) {{ call {global}(); }} jump {label};",
+                "if !is_init(_g{}) {{ {global}(); }} jump {label};",
                 global.hex(20),
             ),
             Terminator::Return(ssa) => format!("return {ssa};"),

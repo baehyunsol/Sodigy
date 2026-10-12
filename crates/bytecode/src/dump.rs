@@ -22,7 +22,7 @@ impl Bytecode {
             Bytecode::Phi { pair: (x, y), dst } => format!("{dst} = $Phi({x}, {y});"),
             Bytecode::Jump(label) => format!("jump {label};"),
             Bytecode::Call { func, args, dst, debug_info, effect: _ } => format!(
-                "{}call {func}({});{}",
+                "{}{func}({});{}",
                 if let Some(dst) = dst { format!("{dst} = ") } else { String::from("return ") },
                 args.iter().map(
                     |i| format!("{i}")
@@ -30,7 +30,7 @@ impl Bytecode {
                 dump_debug_info(debug_info, debug_info_flag),
             ),
             Bytecode::CallDynamic { func, args, dst, debug_info, effect: _ } => format!(
-                "{}dyn_call {func}({});{}",
+                "{}{func}({});{}",
                 if let Some(dst) = dst { format!("{dst} = ") } else { String::from("return ") },
                 args.iter().map(
                     |i| format!("{i}")
@@ -42,7 +42,7 @@ impl Bytecode {
                 dump_debug_info(debug_info, debug_info_flag),
             ),
             Bytecode::TryInitGlobal { global, label } => format!(
-                "if !is_init(_g{}) {{ call {global}(); }} jump {label};",
+                "if !is_init(_g{}) {{ {global}(); }} jump {label};",
                 global.hex(20),
             ),
             Bytecode::LoadGlobal { src, dst } => format!(
@@ -55,7 +55,7 @@ impl Bytecode {
             ),
             Bytecode::Label(label) => format!("label {label}:"),
             Bytecode::Return(ssa) => format!("return {ssa};"),
-            Bytecode::Update { src, size: _, index, value, dst } => format!("{dst} = {src} `{index} {value};"),
+            Bytecode::Update { src, size: _, index, value, dst } => format!("{dst} = {src} with {{ {index}: {value} }};"),
             Bytecode::Intrinsic { intrinsic, args, dst, debug_info } => format!(
                 "{dst} = ${intrinsic:?}({});{}",
                 args.iter().map(
@@ -108,8 +108,8 @@ impl Display for InternedValue {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         match self {
             InternedValue::Interned(h) => write!(fmt, "%I{}", h.hex(20)),
-            InternedValue::Scalar(n) => write!(fmt, "{n:x}#s"),
-            InternedValue::FuncPointer(def_span) => write!(fmt, "{}#f", def_span.hex(20)),
+            InternedValue::Scalar(n) => write!(fmt, "#s{n:x}"),
+            InternedValue::FuncPointer(def_span) => write!(fmt, "#f{}", def_span.hex(20)),
         }
     }
 }
@@ -129,8 +129,12 @@ impl Display for GlobalLabel {
 impl Display for Value {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         match self {
-            Value::Scalar(n) => write!(fmt, "{n:x}#s"),
-            Value::Int(n) => write!(fmt, "{}#n", bi_to_hex_string(n.is_neg, &n.nums)),
+            Value::Scalar(n) => write!(fmt, "#s{n:x}"),
+            Value::Int(n) => if n.is_neg {
+                write!(fmt, "-#n{}", bi_to_hex_string(false, &n.nums))
+            } else {
+                write!(fmt, "#n{}", bi_to_hex_string(false, &n.nums))
+            },
             Value::List(es) => write!(
                 fmt,
                 "[{}]",
@@ -141,7 +145,7 @@ impl Display for Value {
                 "{{{}}}",
                 es.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", "),
             ),
-            Value::FuncPointer(def_span) => write!(fmt, "{}#f", def_span.hex(20)),
+            Value::FuncPointer(def_span) => write!(fmt, "#f{}", def_span.hex(20)),
         }
     }
 }

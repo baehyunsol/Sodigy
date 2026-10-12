@@ -1,37 +1,6 @@
-use super::Section;
+pub enum Error {}
 
-#[derive(Debug)]
-pub enum ParseError {
-    UnexpectedByte {
-        expected: Option<u8>,
-        got: u8,
-        cursor: usize,
-    },
-    UnexpectedEnd,
-    FailedToParseHex {
-        cursor: usize,
-    },
-    FailedToParseValue {
-        cursor: usize,
-    },
-    FailedToParseIdent {
-        cursor: usize,
-    },
-    FailedToParseIdents {
-        cursor: usize,
-    },
-    IntRangeError {
-        cursor: usize,
-    },
-    MissingSection(Section),
-    InvalidSection {
-        cursor: usize,
-    },
-    DuplicateSection(Section),
-    InvalidLabelPrefix {
-        cursor: usize,
-    },
-    InvalidMemory {
-        cursor: usize,
-    },
-}
+// TODO: I want to use span framework for the error messages.
+//       But in order to create a span, I need `sodigy_file::File`.
+//       And in order to create that, I need `path` and `input_module_path`.
+
