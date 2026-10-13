@@ -25,7 +25,7 @@ pub use assert::{Assert, AssertionFilter};
 pub use basic_block::{BasicBlock, Terminator, to_basic_blocks};
 pub use dump::Highlight;
 pub use link::link;
-pub use parse::{ParseError, parse};
+pub use parse::parse;
 pub use profile::Profile;
 pub use ref_count::insert_ref_count;
 pub use session::Session;

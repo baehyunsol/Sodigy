@@ -1,4 +1,4 @@
-use crate::{Error, ErrorLevel};
+use crate::{Error, ErrorLevel, Warning};
 use sodigy_span::{
     Color,
     ColorOption,
@@ -41,7 +41,7 @@ impl Default for DumpErrorOption {
 #[must_use]
 pub fn dump_errors(
     mut errors: Vec<Error>,
-    mut warnings: Vec<Error>,
+    mut warnings: Vec<Warning>,
     intermediate_dir: &str,
     option: DumpErrorOption,
     elapsed_ms: Option<u64>,  // may or may not be available
