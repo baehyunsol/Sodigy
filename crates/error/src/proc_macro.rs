@@ -1,5 +1,5 @@
 # [derive(Clone, Debug, Eq, Hash, PartialEq)] pub enum ErrorKind {
-    InvalidNumberLiteral, InvalidStringLiteralPrefix(Vec<u8>),
+    InvalidNumberLiteral(Base), InvalidStringLiteralPrefix(Vec<u8>),
     InvalidStringFormatter, EmptyIdent, InvalidCharacterInIdent(char),
     WrongNumberOfQuotesInRawStringLiteral, UnterminatedStringLiteral,
     NotAllowedCharInFormattedString(u8), UnmatchedBraceInFormattedString,
@@ -83,7 +83,9 @@
     { poly_type: String, impl_type: String, param_index: ParamIndex },
     MultiplePolyCandidates(usize), CannotFindEntryPoint, MultipleEntryPoint,
     EntryPointWithGeneric, EntryPointWithParam, DependencyNotInstalled
-    { dependency: String }, UnusedNames
+    { dependency: String }, IntegerNotInRange
+    { min: Option<String>, max: Option<String>, got: String },
+    InvalidSectionName(String), UnusedNames
     { names: Vec<InternedString>, kind: NameKind }, UseUnusedName
     { name: InternedString, kind: NameKind }, UnreachableMatchArm,
     UnreachableOrPattern, NoImpureCallInImpureContext { context: FuncEffect },
@@ -95,7 +97,7 @@
     {
         match self
         {
-            ErrorKind :: InvalidNumberLiteral => 0u16, ErrorKind ::
+            ErrorKind :: InvalidNumberLiteral(_,) => 0u16, ErrorKind ::
             InvalidStringLiteralPrefix(_,) => 5u16, ErrorKind ::
             InvalidStringFormatter => 6u16, ErrorKind :: EmptyIdent => 10u16,
             ErrorKind :: InvalidCharacterInIdent(_,) => 15u16, ErrorKind ::
@@ -205,14 +207,15 @@
             CannotFindEntryPoint => 510u16, ErrorKind :: MultipleEntryPoint =>
             515u16, ErrorKind :: EntryPointWithGeneric => 520u16, ErrorKind ::
             EntryPointWithParam => 525u16, ErrorKind :: DependencyNotInstalled
-            { .. } => 550u16, ErrorKind :: UnusedNames { .. } => 5000u16,
-            ErrorKind :: UseUnusedName { .. } => 5001u16, ErrorKind ::
-            UnreachableMatchArm => 5005u16, ErrorKind :: UnreachableOrPattern
-            => 5006u16, ErrorKind :: NoImpureCallInImpureContext { .. } =>
-            5010u16, ErrorKind :: FuncWithoutTypeAnnot => 8000u16, ErrorKind
-            :: LetWithoutTypeAnnot => 8005u16, ErrorKind ::
-            StructWithoutTypeAnnot => 8010u16, ErrorKind ::
-            EnumVariantWithoutTypeAnnot => 8011u16, ErrorKind ::
+            { .. } => 550u16, ErrorKind :: IntegerNotInRange { .. } =>
+            4500u16, ErrorKind :: InvalidSectionName(_,) => 4505u16, ErrorKind
+            :: UnusedNames { .. } => 5000u16, ErrorKind :: UseUnusedName
+            { .. } => 5001u16, ErrorKind :: UnreachableMatchArm => 5005u16,
+            ErrorKind :: UnreachableOrPattern => 5006u16, ErrorKind ::
+            NoImpureCallInImpureContext { .. } => 5010u16, ErrorKind ::
+            FuncWithoutTypeAnnot => 8000u16, ErrorKind :: LetWithoutTypeAnnot
+            => 8005u16, ErrorKind :: StructWithoutTypeAnnot => 8010u16,
+            ErrorKind :: EnumVariantWithoutTypeAnnot => 8011u16, ErrorKind ::
             SelfParamNotNamedSelf => 8015u16, ErrorKind :: Todo { .. } =>
             9998u16, ErrorKind :: InternalCompilerError { .. } => 9999u16,
         }
@@ -222,7 +225,7 @@
     {
         match k
         {
-            ErrorKind :: InvalidNumberLiteral => ErrorLevel :: Error,
+            ErrorKind :: InvalidNumberLiteral(_,) => ErrorLevel :: Error,
             ErrorKind :: InvalidStringLiteralPrefix(_,) => ErrorLevel ::
             Error, ErrorKind :: InvalidStringFormatter => ErrorLevel :: Error,
             ErrorKind :: EmptyIdent => ErrorLevel :: Error, ErrorKind ::
@@ -357,6 +360,8 @@
             :: Error, ErrorKind :: EntryPointWithGeneric => ErrorLevel ::
             Error, ErrorKind :: EntryPointWithParam => ErrorLevel :: Error,
             ErrorKind :: DependencyNotInstalled { .. } => ErrorLevel :: Error,
+            ErrorKind :: IntegerNotInRange { .. } => ErrorLevel :: Error,
+            ErrorKind :: InvalidSectionName(_,) => ErrorLevel :: Error,
             ErrorKind :: UnusedNames { .. } => ErrorLevel :: Warning,
             ErrorKind :: UseUnusedName { .. } => ErrorLevel :: Warning,
             ErrorKind :: UnreachableMatchArm => ErrorLevel :: Warning,
@@ -376,9 +381,9 @@
     {
         match self
         {
-            ErrorKind :: InvalidNumberLiteral =>
-            { buffer.push(0u8); buffer.push(0u8); }, ErrorKind ::
-            InvalidStringLiteralPrefix(t0,) =>
+            ErrorKind :: InvalidNumberLiteral(t0,) =>
+            { buffer.push(0u8); buffer.push(0u8); t0.encode_impl(buffer); },
+            ErrorKind :: InvalidStringLiteralPrefix(t0,) =>
             { buffer.push(0u8); buffer.push(5u8); t0.encode_impl(buffer); },
             ErrorKind :: InvalidStringFormatter =>
             { buffer.push(0u8); buffer.push(6u8); }, ErrorKind :: EmptyIdent
@@ -728,6 +733,14 @@
             {
                 buffer.push(2u8); buffer.push(38u8);
                 r#dependency.encode_impl(buffer);
+            }, ErrorKind :: IntegerNotInRange { r#min, r#max, r#got, } =>
+            {
+                buffer.push(17u8); buffer.push(148u8);
+                r#min.encode_impl(buffer); r#max.encode_impl(buffer);
+                r#got.encode_impl(buffer);
+            }, ErrorKind :: InvalidSectionName(t0,) =>
+            {
+                buffer.push(17u8); buffer.push(153u8); t0.encode_impl(buffer);
             }, ErrorKind :: UnusedNames { r#names, r#kind, } =>
             {
                 buffer.push(19u8); buffer.push(136u8);
@@ -772,7 +785,11 @@
             { return Err(DecodeError :: UnexpectedEof); }
         }; cursor += 2usize; match variant
         {
-            0u16 => Ok((ErrorKind :: InvalidNumberLiteral, cursor)), 5u16 =>
+            0u16 =>
+            {
+                let (t0, cursor) = Base :: decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: InvalidNumberLiteral(t0,), cursor))
+            }, 5u16 =>
             {
                 let (t0, cursor) = Vec :: < u8 > ::
                 decode_impl(buffer, cursor) ? ;
@@ -1210,6 +1227,18 @@
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: DependencyNotInstalled { r#dependency, },
                 cursor))
+            }, 4500u16 =>
+            {
+                let (r#min, cursor) = Option :: < String >::
+                decode_impl(buffer, cursor) ? ; let (r#max, cursor) = Option
+                :: < String >:: decode_impl(buffer, cursor) ? ; let
+                (r#got, cursor) = String :: decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: IntegerNotInRange { r#min, r#max, r#got, },
+                cursor))
+            }, 4505u16 =>
+            {
+                let (t0, cursor) = String :: decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: InvalidSectionName(t0,), cursor))
             }, 5000u16 =>
             {
                 let (r#names, cursor) = Vec :: < InternedString >::

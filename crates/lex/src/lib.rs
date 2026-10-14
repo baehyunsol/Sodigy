@@ -191,7 +191,8 @@ impl Session {
                 },
                 (Some(b'0'..=b'9'), Some(y @ (b'a'..=b'z' | b'A'..=b'Z')), _) => {
                     return Err(Error {
-                        kind: ErrorKind::InvalidNumberLiteral,
+                        // It's not sure what base the user means... but it's probably a hexadcimal!
+                        kind: ErrorKind::InvalidNumberLiteral(Base::Hexadecimal),
                         spans: Span::range(self.file, self.cursor as u32 + 1, 1).simple_error(),
                         note: Some(format!("`{}` is not a valid prefix. Valid ones are `x`, `X`, `o`, `O`, `b` and `B`.", *y as char)),
                     });
@@ -206,7 +207,7 @@ impl Session {
                 },
                 (Some(b'0'), Some(b'0'..=b'9'), _) => {
                     return Err(Error {
-                        kind: ErrorKind::InvalidNumberLiteral,
+                        kind: ErrorKind::InvalidNumberLiteral(Base::Decimal),
                         spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                         note: Some(String::from("Leading zeros in decimal literals are not permitted.")),
                     });
@@ -1559,7 +1560,7 @@ impl Session {
                 (Some(x @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z')), _, _) => {
                     if !base.is_valid_digit(*x) {
                         return Err(Error {
-                            kind: ErrorKind::InvalidNumberLiteral,
+                            kind: ErrorKind::InvalidNumberLiteral(base),
                             spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                             note: Some(base.invalid_digit_error_message(*x)),
                         });
@@ -1611,7 +1612,7 @@ impl Session {
                     },
                     Base::Hexadecimal | Base::Octal | Base::Binary => {
                         return Err(Error {
-                            kind: ErrorKind::InvalidNumberLiteral,
+                            kind: ErrorKind::InvalidNumberLiteral(base),
                             spans: Span::range(self.file, self.cursor as u32, 1).simple_error(),
                             note: None,
                         });
@@ -1619,7 +1620,7 @@ impl Session {
                 },
                 _ if self.buffer1.is_empty() && self.buffer2.is_empty() => {
                     return Err(Error {
-                        kind: ErrorKind::InvalidNumberLiteral,
+                        kind: ErrorKind::InvalidNumberLiteral(base),
                         spans: Span::range(self.file, (self.cursor.max(1) - 1) as u32, 1).simple_error(),
                         note: Some(String::from("A number literal ended unexpectedly.")),
                     });

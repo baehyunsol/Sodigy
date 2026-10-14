@@ -8,6 +8,7 @@ sodigy-endec = { version = "0.1.0", path = "../endec" }
 sodigy-error-gen = { version = "0.1.0", path = "../error-gen" }
 sodigy-file = { version = "0.1.0", path = "../file" }
 sodigy-name-analysis = { version = "0.1.0", path = "../name-analysis" }
+sodigy-number = { version = "0.1.0", path = "../number" }
 sodigy-span = { version = "0.1.0", path = "../span" }
 sodigy-string = { version = "0.1.0", path = "../string" }
 sodigy-token = { version = "0.1.0", path = "../token" }

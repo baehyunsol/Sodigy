@@ -3,7 +3,6 @@ use sodigy_bytecode::{
     ExprHash,
     GlobalLabel,
     LocalLabel,
-    Memory,
     SSA,
     Value,
 };

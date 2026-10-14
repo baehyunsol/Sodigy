@@ -1,7 +1,6 @@
 use sodigy_endec::DecodeError;
 use sodigy_fs_api::FileError;
 use sodigy_interpreter::Error as RuntimeError;
-use sodigy_object_file::ParseError as ObjectFileParseError;
 use sodigy_stages::Stage;
 
 /// It decides the exit code of the compiler process.
@@ -20,7 +19,6 @@ pub enum Error {
     // Then, you use this variant.
     CliError,
 
-    ObjectFileParseError(ObjectFileParseError),
     FileError(FileError),
     DecodeError(DecodeError),
     MpscError,
@@ -46,12 +44,6 @@ impl Error {
     }
 }
 
-impl From<ObjectFileParseError> for Error {
-    fn from(e: ObjectFileParseError) -> Error {
-        Error::ObjectFileParseError(e)
-    }
-}
-
 impl From<FileError> for Error {
     fn from(e: FileError) -> Error {
         Error::FileError(e)
@@ -69,3 +61,4 @@ impl<T> From<std::sync::mpsc::SendError<T>> for Error {
         Error::MpscError
     }
 }
+

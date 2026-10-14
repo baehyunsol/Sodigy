@@ -6,7 +6,13 @@ mod lex;
 mod token;
 
 use lex::lex;
-use token::{Keyword, Token};
+use token::{
+    Command,
+    Keyword,
+    SectionName,
+    Token,
+    TokenKind,
+};
 
 pub fn parse(bytes: &[u8], file: File) -> Result<ObjectFile, Error> {
     let tokens = lex(bytes, file)?;

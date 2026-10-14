@@ -3,6 +3,7 @@ use sodigy_endec::{DecodeError, Endec};
 use sodigy_error_gen::error_kinds;
 use sodigy_file::{GetFilePathError, ModulePath};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind};
+use sodigy_number::Base;
 use sodigy_string::InternedString;
 use sodigy_token::InfixOp;
 
@@ -24,7 +25,7 @@ mod message;
 // `ErrorLevel` implements 1 method: `fn from_error_kind(k: &ErrorKind) -> Self;`.
 error_kinds!(
     // error variant,                                              index,    Error | Warning
-    (InvalidNumberLiteral,                                             0,    Error),
+    (InvalidNumberLiteral(Base),                                       0,    Error),
     (InvalidStringLiteralPrefix(Vec<u8>),                              5,    Error),
     (InvalidStringFormatter,                                           6,    Error),
     (EmptyIdent,                                                      10,    Error),
@@ -205,6 +206,10 @@ error_kinds!(
     (EntryPointWithParam,                                            525,    Error),
 
     (DependencyNotInstalled { dependency: String},                   550,    Error),
+
+    // Object file parsing errors from here
+    (IntegerNotInRange { min: Option<String>, max: Option<String>, got: String },  4500,  Error),
+    (InvalidSectionName(String),                                    4505,  Error),
 
     // Warnings from here
     (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),

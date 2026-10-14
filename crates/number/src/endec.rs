@@ -1,4 +1,4 @@
-use crate::{BigInt, InternedNumber, Ratio};
+use crate::{Base, BigInt, InternedNumber, Ratio};
 use sodigy_endec::{DecodeError, Endec};
 
 impl Endec for InternedNumber {
@@ -37,3 +37,34 @@ impl Endec for Ratio {
         Ok((Ratio { numer, denom }, cursor))
     }
 }
+
+impl Endec for Base {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            Base::Hexadecimal => {
+                buffer.push(0);
+            },
+            Base::Decimal => {
+                buffer.push(1);
+            },
+            Base::Octal => {
+                buffer.push(2);
+            },
+            Base::Binary => {
+                buffer.push(3);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => Ok((Base::Hexadecimal, cursor + 1)),
+            Some(1) => Ok((Base::Decimal, cursor + 1)),
+            Some(2) => Ok((Base::Octal, cursor + 1)),
+            Some(3) => Ok((Base::Binary, cursor + 1)),
+            Some(n @ 4..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+

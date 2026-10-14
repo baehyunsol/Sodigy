@@ -99,9 +99,6 @@ pub fn main_() {
                     Error::CliError => {
                         // The errors are already dumped!
                     },
-                    Error::ObjectFileParseError(e) => {
-                        eprintln!("ObjectFileParseError: {e:?}");
-                    },
                     Error::FileError(e) => {
                         eprintln!("FileError: {e:?}");
                     },
@@ -221,13 +218,17 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             };
 
             match bytecode {
-                Some(bytecode) => {
-                    // TODO: Currently, it only works with `sodigy build --emit=bytecode`.
-                    //       I want it to also work with `sodigy build --emit=bytecode-exe`.
-                    let bytecode = read_bytes(bytecode)?;
-                    let object_file = parse_object_file(&bytecode)?;
-                    todo!()
-                },
+                Some(bytecode) => compile_bytecode(
+                    bytecode.to_string(),
+                    output_path,
+                    emit,
+                    backend,
+                    ir_dir,
+                    incremental_compilation,
+                    *check_allocator,
+                    *debug_bytecode,
+                    run,
+                ),
                 None => init_workers_and_compile(
                     src_dir,
                     output_path,
@@ -269,13 +270,17 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
             let quiet = false;
 
             match bytecode {
-                Some(bytecode) => {
-                    // TODO: Currently, it only works with `sodigy build --emit=bytecode`.
-                    //       I want it to also work with `sodigy build --emit=bytecode-exe`.
-                    let bytecode = read_bytes(bytecode)?;
-                    let object_file = parse_object_file(&bytecode)?;
-                    todo!()
-                },
+                Some(bytecode) => compile_bytecode(
+                    bytecode.to_string(),
+                    StoreIrAt::IntermediateDir,  // output_path
+                    None,  // emit
+                    None,  // backend
+                    ir_dir,
+                    incremental_compilation,
+                    false,  // check_allocator
+                    false,  // debug_bytecode
+                    false,  // run
+                ),
                 None => init_workers_and_compile(
                     src_dir,
                     StoreIrAt::IntermediateDir,  // output_path
@@ -465,6 +470,24 @@ pub fn init_workers_and_compile(
     } else {
         Ok(())
     }
+}
+
+// TODO: parallel workers?
+// TODO: currently, it can only parse `--emit=bytecode`, but I want it to
+//       parse `--emit=bytecode-exe`
+fn compile_bytecode(
+    bytecode_path: String,
+    output_path: String,
+    emit: Option<Emit>,
+    backend: Backend,
+    ir_dir: String,
+    incremental_compilation: bool,
+    check_allocator: bool,
+    debug_bytecode: bool,
+    run: bool,
+    quiet: bool,
+) -> Result<(), Error> {
+    todo!()
 }
 
 // How it handles compile errors/warnings:
