@@ -7,6 +7,13 @@ pub enum Color {
     None,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ColorMode {
+    Always,
+    Auto,
+    Never,
+}
+
 impl Color {
     pub fn render_fg(&self, s: &str) -> String {
         match self {
@@ -50,3 +57,4 @@ pub fn apply_colors(line: &[u8], colors: &[Color]) -> String {
 
     result.concat()
 }
+

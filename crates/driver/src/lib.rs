@@ -22,7 +22,7 @@ use sodigy_fs_api::{
 };
 use sodigy_object_file::{ObjectFile, Profile, parse as parse_object_file};
 use sodigy_optimize::OptimizeLevel;
-use sodigy_span::{Color, Span};
+use sodigy_span::{Color, ColorMode, Span};
 use sodigy_stages::{STAGES, Stage};
 use sodigy_timings::TimingsEntry;
 use sodigy_utils::get_closest_string;
@@ -41,7 +41,7 @@ mod worker;
 #[cfg(test)]
 mod tests;
 
-pub use cli::{CliCommand, ColorWhen};
+pub use cli::CliCommand;
 pub use command::{Command, ValidateTokenSpans};
 pub use error::Error;
 pub use ir_store::{StoreIrAt, StoreIrOption};
@@ -224,6 +224,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                     emit,
                     backend,
                     ir_dir,
+                    *color,
                     incremental_compilation,
                     *check_allocator,
                     *debug_bytecode,
@@ -277,6 +278,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                     None,  // emit
                     None,  // backend
                     ir_dir,
+                    *color,
                     incremental_compilation,
                     false,  // check_allocator
                     false,  // debug_bytecode
@@ -369,7 +371,7 @@ pub fn init_workers_and_compile(
     dump_timings_flag: bool,
     graceful_shutdown: u32,  // in milliseconds
     jobs: usize,
-    color: ColorWhen,
+    color: ColorMode,
     incremental_compilation: bool,
     validate_token_spans: ValidateTokenSpans,
     verify_built_ins: bool,
@@ -405,17 +407,7 @@ pub fn init_workers_and_compile(
     );
 
     let elapsed_ms = Instant::now().duration_since(started_at).as_millis();
-    let dump_error_option = match color {
-        // TODO: `ColorWhen::Auto` is WIP
-        ColorWhen::Auto | ColorWhen::Always => DumpErrorOption::default(),
-        ColorWhen::Never => DumpErrorOption {
-            error_color: Color::None,
-            warning_color: Color::None,
-            auxiliary_color: Color::None,
-            info_color: Color::None,
-            ..DumpErrorOption::default()
-        },
-    };
+    let dump_error_option = DumpErrorOption::from(color);
 
     apply_custom_error_levels(
         custom_error_levels,
@@ -481,6 +473,7 @@ fn compile_bytecode(
     emit: Option<Emit>,
     backend: Option<Backend>,
     ir_dir: String,
+    color: ColorMode,
     incremental_compilation: bool,
     check_allocator: bool,
     debug_bytecode: bool,
@@ -500,7 +493,7 @@ fn compile_bytecode(
                         vec![e],  // errors
                         vec![],   // warnings
                         &ir_dir,
-                        todo!(),  // `compile_bytecode` has to take `color` as an input
+                        DumpErrorOption::from(color),
                         None,     // elapsed_ms
                         false,    // show_summary
                     );

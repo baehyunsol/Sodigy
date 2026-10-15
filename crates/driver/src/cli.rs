@@ -9,6 +9,7 @@ use sodigy_code_gen::Emit;
 use sodigy_error::CustomErrorLevel;
 use sodigy_object_file::{AssertionFilter, Profile};
 use sodigy_optimize::OptimizeLevel;
+use sodigy_span::ColorMode;
 use std::collections::HashMap;
 
 // If `--bytecode` is set, it reads a bytecode file (from `sodigy build --emit=bytecode`) instead of
@@ -27,7 +28,7 @@ pub enum CliCommand {
         check_allocator: bool,
         debug_bytecode: bool,
         jobs: usize,
-        color: ColorWhen,
+        color: ColorMode,
         dump_post_mir_log: bool,
         dump_timings: bool,
     },
@@ -41,7 +42,7 @@ pub enum CliCommand {
         check_allocator: bool,
         debug_bytecode: bool,
         jobs: usize,
-        color: ColorWhen,
+        color: ColorMode,
         dump_post_mir_log: bool,
         dump_timings: bool,
     },
@@ -57,7 +58,7 @@ pub enum CliCommand {
         check_allocator: bool,
         debug_bytecode: bool,
         jobs: usize,
-        color: ColorWhen,
+        color: ColorMode,
         dump_post_mir_log: bool,
         dump_timings: bool,
     },
@@ -68,7 +69,7 @@ pub enum CliCommand {
         graceful_shutdown: u32,  // inmillis
         validate_token_spans: ValidateTokenSpans,
         jobs: usize,
-        color: ColorWhen,
+        color: ColorMode,
         dump_post_mir_log: bool,
         dump_timings: bool,
     },
@@ -107,13 +108,6 @@ impl CliCommand {
             String::from("test"),
         ]
     }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum ColorWhen {
-    Auto,
-    Always,
-    Never,
 }
 
 pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
@@ -159,10 +153,10 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             };
             let bytecode = parsed_args.arg_flags.get("--bytecode").map(|b| b.to_string());
             let color = match parsed_args.arg_flags.get("--color").map(|f| f.as_str()) {
-                Some("auto") => ColorWhen::Auto,
-                Some("always") => ColorWhen::Always,
-                Some("never") => ColorWhen::Never,
-                None => ColorWhen::Auto,  // default
+                Some("auto") => ColorMode::Auto,
+                Some("always") => ColorMode::Always,
+                Some("never") => ColorMode::Never,
+                None => ColorMode::Auto,  // default
                 _ => unreachable!(),
             };
             let jobs = parsed_args.arg_flags.get("--jobs").map(
@@ -269,10 +263,10 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
 
             let bytecode = parsed_args.arg_flags.get("--bytecode").map(|b| b.to_string());
             let color = match parsed_args.arg_flags.get("--color").map(|f| f.as_str()) {
-                Some("auto") => ColorWhen::Auto,
-                Some("always") => ColorWhen::Always,
-                Some("never") => ColorWhen::Never,
-                None => ColorWhen::Auto,  // default
+                Some("auto") => ColorMode::Auto,
+                Some("always") => ColorMode::Always,
+                Some("never") => ColorMode::Never,
+                None => ColorMode::Auto,  // default
                 _ => unreachable!(),
             };
             let jobs = parsed_args.arg_flags.get("--jobs").map(
@@ -416,10 +410,10 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 _ => unreachable!(),
             };
             let color = match parsed_args.arg_flags.get("--color").map(|f| f.as_str()) {
-                Some("auto") => ColorWhen::Auto,
-                Some("always") => ColorWhen::Always,
-                Some("never") => ColorWhen::Never,
-                None => ColorWhen::Auto,  // default
+                Some("auto") => ColorMode::Auto,
+                Some("always") => ColorMode::Always,
+                Some("never") => ColorMode::Never,
+                None => ColorMode::Auto,  // default
                 _ => unreachable!(),
             };
             let jobs = parsed_args.arg_flags.get("--jobs").map(
@@ -506,10 +500,10 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             };
             let filter = parsed_args.arg_flags.get("--filter").map(|f| todo!());
             let color = match parsed_args.arg_flags.get("--color").map(|f| f.as_str()) {
-                Some("auto") => ColorWhen::Auto,
-                Some("always") => ColorWhen::Always,
-                Some("never") => ColorWhen::Never,
-                None => ColorWhen::Auto,  // default
+                Some("auto") => ColorMode::Auto,
+                Some("always") => ColorMode::Always,
+                Some("never") => ColorMode::Never,
+                None => ColorMode::Auto,  // default
                 _ => unreachable!(),
             };
             let jobs = parsed_args.arg_flags.get("--jobs").map(

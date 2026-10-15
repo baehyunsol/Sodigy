@@ -14,6 +14,7 @@ mod tests;
 pub use derive::SpanDeriveKind;
 pub use render::{
     Color,
+    ColorMode,
     ColorOption,
     MonomorphizationInfo,
     RenderSpanOption,

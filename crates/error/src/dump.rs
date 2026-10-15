@@ -1,6 +1,7 @@
 use crate::{Error, ErrorLevel, Warning};
 use sodigy_span::{
     Color,
+    ColorMode,
     ColorOption,
     RenderSpanOption,
     RenderSpanSession,
@@ -34,6 +35,22 @@ impl Default for DumpErrorOption {
             span_max_height: 10,
             span_context: 3,
             max_dump: Some(100),
+        }
+    }
+}
+
+impl From<ColorMode> for DumpErrorOption {
+    fn from(c: ColorMode) -> DumpErrorOption {
+        match c {
+            // TODO: impl ColorMode::Auto
+            ColorMode::Always | ColorMode::Auto => DumpErrorOption::default(),
+            ColorMode::Never => DumpErrorOption {
+                error_color: Color::None,
+                warning_color: Color::None,
+                auxiliary_color: Color::None,
+                info_color: Color::None,
+                ..DumpErrorOption::default()
+            },
         }
     }
 }

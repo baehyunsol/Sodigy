@@ -7,7 +7,7 @@ mod color;
 mod monomorphization;
 mod session;
 
-pub use color::{Color, apply_colors};
+pub use color::{Color, ColorMode, apply_colors};
 pub use monomorphization::MonomorphizationInfo;
 pub use session::Session as RenderSpanSession;
 
@@ -711,3 +711,4 @@ fn cut_long_underlines(lines: Vec<(String, RenderedLineKind)>) -> Vec<(String, R
         }
     }
 }
+
