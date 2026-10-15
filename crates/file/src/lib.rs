@@ -31,24 +31,13 @@ use file_map::{
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct File(pub u32);
 
-impl fmt::Debug for File {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let is_std = self.0 >= 0x8000_0000;
-
-        if is_std {
-            let s = STD_FILES[*STD_FILE_INDEXES.get(&self.0).unwrap()].file_path_str.to_string();
-            write!(formatter, "File({s:?})")
-        }
-
-        else {
-            write!(formatter, "File({})", self.0)
-        }
-    }
-}
-
 impl File {
     pub fn std(id: u32) -> Self {
         File(0x8000_0000 | id)
+    }
+
+    pub fn object_file() -> Self {
+        todo!()
     }
 
     pub fn register(
@@ -190,6 +179,21 @@ impl File {
         } else {
             let content_hash = self.get_content_hash(intermediate_dir)?;
             Ok(unintern_string(InternedString(content_hash), intermediate_dir)?)
+        }
+    }
+}
+
+impl fmt::Debug for File {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let is_std = self.0 >= 0x8000_0000;
+
+        if is_std {
+            let s = STD_FILES[*STD_FILE_INDEXES.get(&self.0).unwrap()].file_path_str.to_string();
+            write!(formatter, "File({s:?})")
+        }
+
+        else {
+            write!(formatter, "File({})", self.0)
         }
     }
 }

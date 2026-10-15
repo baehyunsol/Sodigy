@@ -7,7 +7,7 @@ use sodigy_error::{
     ErrorLevel,
     Warning as SodigyWarning,
 };
-use sodigy_file::{FileOrStd, ModulePath};
+use sodigy_file::{File, FileOrStd, ModulePath};
 use sodigy_fs_api::{
     FileError,
     FileErrorKind,
@@ -20,7 +20,7 @@ use sodigy_fs_api::{
     remove_dir_all,
     write_string,
 };
-use sodigy_object_file::{Profile, parse as parse_object_file};
+use sodigy_object_file::{ObjectFile, Profile, parse as parse_object_file};
 use sodigy_optimize::OptimizeLevel;
 use sodigy_span::{Color, Span};
 use sodigy_stages::{STAGES, Stage};
@@ -228,6 +228,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                     *check_allocator,
                     *debug_bytecode,
                     run,
+                    quiet,
                 ),
                 None => init_workers_and_compile(
                     src_dir,
@@ -280,6 +281,7 @@ pub fn run_cli_command(command: CliCommand) -> Result<(), Error> {
                     false,  // check_allocator
                     false,  // debug_bytecode
                     false,  // run
+                    quiet,
                 ),
                 None => init_workers_and_compile(
                     src_dir,
@@ -473,13 +475,11 @@ pub fn init_workers_and_compile(
 }
 
 // TODO: parallel workers?
-// TODO: currently, it can only parse `--emit=bytecode`, but I want it to
-//       parse `--emit=bytecode-exe`
 fn compile_bytecode(
     bytecode_path: String,
-    output_path: String,
+    output_path: StoreIrAt,
     emit: Option<Emit>,
-    backend: Backend,
+    backend: Option<Backend>,
     ir_dir: String,
     incremental_compilation: bool,
     check_allocator: bool,
@@ -487,6 +487,31 @@ fn compile_bytecode(
     run: bool,
     quiet: bool,
 ) -> Result<(), Error> {
+    let bytes = read_bytes(&bytecode_path)?;
+    let object_file: ObjectFile = if bytes.len() > 8 && bytes.starts_with(b"\0\0SDGOBJ") {
+        ObjectFile::decode(&bytes)?
+    } else {
+        let file = File::object_file();
+        match parse_object_file(&bytes, file) {
+            Ok(obj) => obj,
+            Err(e) => {
+                if !quiet {
+                    let e = sodigy_error::dump_errors(
+                        vec![e],  // errors
+                        vec![],   // warnings
+                        &ir_dir,
+                        todo!(),  // `compile_bytecode` has to take `color` as an input
+                        None,     // elapsed_ms
+                        false,    // show_summary
+                    );
+                    eprintln!("{e}");
+                }
+
+                return Err(Error::CompileError);
+            },
+        }
+    };
+
     todo!()
 }
 
