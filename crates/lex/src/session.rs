@@ -35,3 +35,4 @@ impl Session {
         Span::range(self.file, 0, self.input_bytes.len() as u32)
     }
 }
+

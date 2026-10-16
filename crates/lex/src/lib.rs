@@ -2007,3 +2007,4 @@ fn parse_formatter(file: File, bytes: &[u8], index: usize) -> Result<Option<(For
         _ => Ok(None),
     }
 }
+

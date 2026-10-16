@@ -1,6 +1,7 @@
 use sodigy_error::Error;
 use sodigy_number::BigInt;
 use sodigy_span::Span;
+use sodigy_token::Delim;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Keyword {
@@ -10,6 +11,9 @@ pub enum Keyword {
     Return,
     Label,
     With,
+    Effect,
+    Name,
+    Fn,
 }
 
 #[derive(Clone, Debug)]
@@ -20,6 +24,10 @@ pub struct Token {
 
 #[derive(Clone, Debug)]
 pub enum TokenKind {
+    Group {
+        delim: Delim,
+        tokens: Vec<Token>,
+    },
     Section(SectionName),
     GlobalValue(u128),
     InternedValue(u128),
