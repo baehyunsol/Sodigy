@@ -485,7 +485,7 @@ fn compile_bytecode(
         ObjectFile::decode(&bytes)?
     } else {
         let file = File::register(&bytecode_path, "object-file", &ir_dir, true)?;
-        match parse_object_file(&bytes, file) {
+        match parse_object_file(&bytes, file, &ir_dir) {
             Ok(obj) => obj,
             Err(e) => {
                 if !quiet {

@@ -14,8 +14,8 @@ use token::{
     TokenKind,
 };
 
-pub fn parse(bytes: &[u8], file: File) -> Result<ObjectFile, Error> {
-    let tokens = lex(bytes, file)?;
+pub fn parse(bytes: &[u8], file: File, intermediate_dir: &str) -> Result<ObjectFile, Error> {
+    let tokens = lex(bytes, file, intermediate_dir)?;
     todo!()
 }
 

@@ -3,10 +3,11 @@ use sodigy_error::{Error, ErrorKind};
 use sodigy_number::{Base, BigInt, bi_to_string};
 use sodigy_file::File;
 use sodigy_span::{RenderableSpan, Span};
+use sodigy_string::intern_string;
 use sodigy_token::Delim;
 
 // TODO: string interning?
-pub fn lex(b: &[u8], file: File) -> Result<Vec<Token>, Error> {
+pub fn lex(b: &[u8], file: File, intermediate_dir: &str) -> Result<Vec<Token>, Error> {
     let mut cursor = 0;
     let mut tokens = vec![];
 
@@ -22,7 +23,50 @@ pub fn lex(b: &[u8], file: File) -> Result<Vec<Token>, Error> {
                     cursor += 1;
                 }
             },
-            (Some(b'"'), _) => todo!(),
+            (Some(b'"'), _) => {
+                let old_cursor = cursor;
+                let mut buffer = vec![];
+                let mut escaped = false;
+                cursor += 1;
+
+                loop {
+                    if escaped {
+                        match b.get(cursor) {
+                            Some(b'\\') => {
+                                escaped = false;
+                            },
+                            _ => {},
+                        }
+                    } else {
+                        match b.get(cursor) {
+                            Some(b'\\') => {
+                                escaped = true;
+                            },
+                            Some(b'"') => {
+                                cursor += 1;
+                                break;
+                            },
+                            Some(b) => {
+                                buffer.push(*b);
+                            },
+                            None => {
+                                return Err(Error {
+                                    kind: ErrorKind::UnterminatedStringLiteral,
+                                    spans: Span::range(file, old_cursor as u32, 1).simple_error(),
+                                    note: None,
+                                });
+                            },
+                        }
+                    }
+
+                    cursor += 1;
+                }
+
+                tokens.push(Token {
+                    kind: TokenKind::String(intern_string(&buffer, intermediate_dir).unwrap()),
+                    span: Span::range(file, old_cursor as u32, (cursor - old_cursor) as u32),
+                });
+            },
             (Some(d @ (b'(' | b'[' | b'{')), _) => {
                 let delim = match *d {
                     b'(' => Delim::Parenthesis,
@@ -31,7 +75,7 @@ pub fn lex(b: &[u8], file: File) -> Result<Vec<Token>, Error> {
                     _ => unreachable!(),
                 };
                 let group_end = find_matching_group(b, cursor, file)?;
-                let group_tokens = match lex(&b[(cursor + 1)..group_end], file) {
+                let group_tokens = match lex(&b[(cursor + 1)..group_end], file, intermediate_dir) {
                     Ok(mut tokens) => {
                         for token in tokens.iter_mut() {
                             token.span.offset(cursor as u32 + 1);
@@ -55,7 +99,7 @@ pub fn lex(b: &[u8], file: File) -> Result<Vec<Token>, Error> {
             },
             (Some(b'#'), Some(b'[')) => {
                 let group_end = find_matching_group(b, cursor + 1, file)?;
-                let group_tokens = match lex(&b[(cursor + 2)..group_end], file) {
+                let group_tokens = match lex(&b[(cursor + 2)..group_end], file, intermediate_dir) {
                     Ok(mut tokens) => {
                         for token in tokens.iter_mut() {
                             token.span.offset(cursor as u32 + 2);
@@ -106,9 +150,9 @@ pub fn lex(b: &[u8], file: File) -> Result<Vec<Token>, Error> {
                     span: Span::range(file, old_cursor as u32, (cursor - old_cursor) as u32),
                 });
             },
-            (Some(b'_'), Some(b'x')) => {
+            (Some(b'_'), Some(b'0'..=b'9')) => {
                 let old_cursor = cursor;
-                cursor += 2;
+                cursor += 1;
                 let n = lex_dec_32(b, &mut cursor, file)?;
                 tokens.push(Token {
                     kind: TokenKind::SSA(n),
@@ -192,10 +236,13 @@ pub fn lex(b: &[u8], file: File) -> Result<Vec<Token>, Error> {
                 let old_cursor = cursor;
                 let keyword = lex_ident(b, &mut cursor, file)?;
                 let token_kind = match &b[old_cursor..cursor] {
+                    b"code" => TokenKind::Keyword(Keyword::Code),
                     b"effect" => TokenKind::Keyword(Keyword::Effect),
                     b"fn" => TokenKind::Keyword(Keyword::Fn),
                     b"jump" => TokenKind::Keyword(Keyword::Jump),
+                    b"label" => TokenKind::Keyword(Keyword::Label),
                     b"name" => TokenKind::Keyword(Keyword::Name),
+                    b"return" => TokenKind::Keyword(Keyword::Return),
                     _ => {
                         return Err(Error {
                             kind: ErrorKind::Todo { id: 721169 },
@@ -406,7 +453,44 @@ fn lex_hex_large(b: &[u8], cursor: &mut usize, file: File) -> Result<BigInt, Err
 }
 
 fn lex_dec_32(b: &[u8], cursor: &mut usize, file: File) -> Result<u32, Error> {
-    todo!()
+    let old_cursor = *cursor;
+    let mut buffer: u64 = match b.get(*cursor) {
+        Some(b @ b'0'..=b'9') => (*b - b'0') as u64,
+        Some(_) | None => {
+            return Err(Error {
+                kind: ErrorKind::InvalidNumberLiteral(Base::Decimal),
+                spans: Span::range(file, *cursor as u32, 1).simple_error(),
+                note: None,
+            });
+        },
+    };
+    *cursor += 1;
+
+    loop {
+        match b.get(*cursor) {
+            Some(b @ b'0'..=b'9') => {
+                buffer *= 10;
+                buffer |= (*b - b'0') as u64;
+            },
+            _ => {
+                return Ok(buffer as u32);
+            },
+        }
+
+        if buffer > u32::MAX as u64 {
+            return Err(Error {
+                kind: ErrorKind::IntegerNotInRange {
+                    min: Some(String::from("0")),
+                    max: Some(u32::MAX.to_string()),
+                    got: buffer.to_string(),
+                },
+                spans: Span::range(file, old_cursor as u32, (*cursor - old_cursor) as u32).simple_error(),
+                note: None,
+            });
+        }
+
+        *cursor += 1;
+    }
 }
 
 // `b[cursor]` must be an opening delim

@@ -1,6 +1,7 @@
 use sodigy_error::Error;
 use sodigy_number::BigInt;
 use sodigy_span::Span;
+use sodigy_string::InternedString;
 use sodigy_token::Delim;
 
 #[derive(Clone, Copy, Debug)]
@@ -14,6 +15,7 @@ pub enum Keyword {
     Effect,
     Name,
     Fn,
+    Code,
 }
 
 #[derive(Clone, Debug)]
@@ -28,6 +30,7 @@ pub enum TokenKind {
         delim: Delim,
         tokens: Vec<Token>,
     },
+    String(InternedString),
     Section(SectionName),
     GlobalValue(u128),
     InternedValue(u128),
@@ -54,6 +57,7 @@ pub enum SectionName {
 pub enum Command {
     NegInt,
     AddInt,
+    BitOrScalar,
 }
 
 impl Command {
@@ -61,6 +65,8 @@ impl Command {
         match ident {
             b"NegInt" => Ok(Command::NegInt),
             b"AddInt" => Ok(Command::AddInt),
+            b"BitOrScalar" => Ok(Command::BitOrScalar),
+            // _ => panic!("{:?}", String::from_utf8_lossy(ident)),
             _ => todo!(),
         }
     }
