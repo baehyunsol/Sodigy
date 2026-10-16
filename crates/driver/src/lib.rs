@@ -484,7 +484,7 @@ fn compile_bytecode(
     let object_file: ObjectFile = if bytes.len() > 8 && bytes.starts_with(b"\0\0SDGOBJ") {
         ObjectFile::decode(&bytes)?
     } else {
-        let file = File::object_file();
+        let file = File::register(&bytecode_path, "object-file", &ir_dir, true)?;
         match parse_object_file(&bytes, file) {
             Ok(obj) => obj,
             Err(e) => {

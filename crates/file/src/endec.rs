@@ -25,3 +25,4 @@ impl Endec for ModulePath {
         Ok((ModulePath { path, is_std }, cursor))
     }
 }
+

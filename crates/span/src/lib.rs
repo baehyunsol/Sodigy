@@ -38,13 +38,14 @@ pub struct SpanId(pub u128);
 impl SpanId {
     pub fn is_std(&self) -> bool {
         let file = ((self.0 >> 64) & 0xffff_ffff) as u32;
-        file >= 0x8000_0000
+        let r#type = file >> 28;
+        r#type == 1
     }
 }
 
 impl fmt::Debug for SpanId {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let file = File(((self.0 >> 64) & 0xffff_ffff) as u32);
+        let file = File::from_id(((self.0 >> 64) & 0xffff_ffff) as u32);
         let offset = (self.0 >> 32) & 0xffff_ffff;
         let length = self.0 & 0xffff_ffff;
 
@@ -88,14 +89,14 @@ pub enum Span {
 impl Span {
     pub fn range(file: File, offset: u32, length: u32) -> Self {
         Span::Range(SpanId(
-            ((file.0 as u128) << 64) |
+            ((file.id() as u128) << 64) |
             ((offset as u128) << 32) |
             length as u128
         ))
     }
 
     pub fn single(file: File, offset: u32) -> Self {
-        Span::Range(SpanId(((file.0 as u128) << 64) | ((offset as u128) << 32) | 1))
+        Span::Range(SpanId(((file.id() as u128) << 64) | ((offset as u128) << 32) | 1))
     }
 
     #[must_use = "method returns a new span and does not mutate the original span"]
@@ -178,7 +179,7 @@ impl Span {
 
     pub fn file(&self) -> Option<File> {
         match self {
-            Span::Range(SpanId(r)) => Some(File(((r >> 64) & 0xffff_ffff) as u32)),
+            Span::Range(SpanId(r)) => Some(File::from_id(((r >> 64) & 0xffff_ffff) as u32)),
             Span::Monomorphize { span, .. } |
             Span::Derived { span, .. } => span.file(),
             Span::None |

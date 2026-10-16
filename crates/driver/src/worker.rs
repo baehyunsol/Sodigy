@@ -216,6 +216,7 @@ impl Worker {
                             path,
                             &input_module_path.to_string(),
                             &intermediate_dir,
+                            false,  // object_file
                         )?,
                     ),
                     FileOrStd::Std(n) => (true, File::std(*n)),
@@ -241,7 +242,7 @@ impl Worker {
                         s
                     } else {
                         self.timings.stage_start(Stage::Load, None);
-                        let bytes = file.read_bytes(&intermediate_dir)?.ok_or(Error::MiscError)?;
+                        let bytes = file.read_bytes(&intermediate_dir)?;
                         self.timings.stage_end(false);
 
                         let lex_session = sodigy_lex::lex(
@@ -568,7 +569,7 @@ impl Worker {
                     let file = File::from_module_path(
                         &path.to_string(),
                         &intermediate_dir,
-                    )?.ok_or(Error::MiscError)?;
+                    )?;
                     let content_hash = file.get_content_hash(&intermediate_dir)?;
                     let hir_session_bytes = get_cached_ir(
                         &intermediate_dir,
@@ -647,7 +648,7 @@ impl Worker {
                     let file = File::from_module_path(
                         &path.to_string(),
                         &intermediate_dir,
-                    )?.ok_or(Error::MiscError)?;
+                    )?;
                     let content_hash = file.get_content_hash(&intermediate_dir)?;
                     let mir_session_bytes = get_cached_ir(
                         &intermediate_dir,
@@ -706,7 +707,7 @@ impl Worker {
                     let file = File::from_module_path(
                         &path.to_string(),
                         &intermediate_dir,
-                    )?.ok_or(Error::MiscError)?;
+                    )?;
                     let content_hash = file.get_content_hash(&intermediate_dir)?;
                     let mir_session_bytes = get_cached_ir(
                         &intermediate_dir,
@@ -776,7 +777,7 @@ impl Worker {
                     let file = File::from_module_path(
                         &path.to_string(),
                         &intermediate_dir,
-                    )?.ok_or(Error::MiscError)?;
+                    )?;
                     let content_hash = file.get_content_hash(&intermediate_dir)?;
                     let object_file_session_bytes = get_cached_ir(
                         &intermediate_dir,

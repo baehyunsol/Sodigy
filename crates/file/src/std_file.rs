@@ -66,7 +66,7 @@ pub static STD_FILES: LazyLock<Vec<StdFile>> = LazyLock::new(|| {
     ];
 
     for (path, contents) in data.iter() {
-        let h = (hash(contents) & 0x7fff_ffff) | 0x8000_0000;
+        let h = (hash(contents) & 0x0fff_ffff) | 0x1000_0000;
         let module_path = ModulePath::init_std(path);
         let module_path_str = module_path.to_string();
         let file_path = FileOrStd::Std(h as u32);
@@ -121,3 +121,4 @@ pub fn std_root() -> (ModulePath, FileOrStd) {
     let s = &STD_FILES[*STD_ROOT_INDEX.deref()];
     (s.module_path.clone(), s.file_path.clone())
 }
+

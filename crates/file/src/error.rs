@@ -8,3 +8,4 @@ pub struct GetFilePathError {
     pub candidates: Vec<String>,
     pub found_files: Vec<String>,
 }
+

@@ -25,7 +25,7 @@ impl Session {
     pub fn get_bytes(&mut self, span: &Span) -> Option<Vec<u8>> {
         match span.file() {
             Some(file) => match file.read_bytes(&self.intermediate_dir) {
-                Ok(Some(bytes)) => {
+                Ok(bytes) => {
                     if let Entry::Vacant(e) = self.line_breaks.entry(file) {
                         e.insert(bytes.iter().enumerate().filter(
                             |(_, b)| **b == b'\n'
@@ -47,7 +47,7 @@ impl Session {
             Some(file) => match self.file_paths.entry(file) {
                 Entry::Occupied(e) => Some(e.get().to_string()),
                 Entry::Vacant(e) => match file.get_path(&self.intermediate_dir) {
-                    Ok(Some((_, file_path))) => {
+                    Ok((_, file_path)) => {
                         e.insert(file_path.to_string());
                         Some(file_path.to_string())
                     },
@@ -65,7 +65,7 @@ impl Session {
                 let line_breaks = match self.line_breaks.entry(file) {
                     Entry::Occupied(e) => e.get().to_vec(),
                     Entry::Vacant(e) => match file.read_bytes(&self.intermediate_dir) {
-                        Ok(Some(bytes)) => {
+                        Ok(bytes) => {
                             let line_breaks = bytes.iter().enumerate().filter(
                                 |(_, b)| **b == b'\n'
                             ).map(
