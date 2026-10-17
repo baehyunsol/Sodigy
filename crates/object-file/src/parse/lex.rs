@@ -136,7 +136,7 @@ pub fn lex(b: &[u8], file: File, intermediate_dir: &str) -> Result<Vec<Token>, E
                     b"data" => TokenKind::Section(SectionName::Data),
                     b"code" => TokenKind::Section(SectionName::Code),
                     b"main" => TokenKind::Section(SectionName::Main),
-                    b"assert" => TokenKind::Section(SectionName::Assert),
+                    b"asserts" => TokenKind::Section(SectionName::Asserts),
                     b => {
                         return Err(Error {
                             kind: ErrorKind::InvalidSectionName(String::from_utf8_lossy(b).to_string()),
@@ -240,6 +240,10 @@ pub fn lex(b: &[u8], file: File, intermediate_dir: &str) -> Result<Vec<Token>, E
                     b"effect" => TokenKind::Keyword(Keyword::Effect),
                     b"else" => TokenKind::Keyword(Keyword::Else),
                     b"fn" => TokenKind::Keyword(Keyword::Fn),
+                    b"ndet" => TokenKind::Keyword(Keyword::Ndet),
+                    b"ndet_fn" => TokenKind::Keyword(Keyword::NdetFn),
+                    b"proc" => TokenKind::Keyword(Keyword::Proc),
+                    b"ndet_proc" => TokenKind::Keyword(Keyword::NdetProc),
                     b"if" => TokenKind::Keyword(Keyword::If),
                     b"jump" => TokenKind::Keyword(Keyword::Jump),
                     b"label" => TokenKind::Keyword(Keyword::Label),
