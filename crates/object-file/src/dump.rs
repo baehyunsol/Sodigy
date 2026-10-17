@@ -257,7 +257,7 @@ impl Terminator {
             ),
             Terminator::JumpIf { value, t, f } => format!("if {value} {{ jump {t}; }} else {{ jump {f}; }}"),
             Terminator::TryInitGlobal { global, label } => format!(
-                "if !is_init(_g{}) {{ {global}(); }} jump {label};",
+                "if !$IsInit(_g{}) {{ {global}(); }} jump {label};",
                 global.hex(20),
             ),
             Terminator::Return(ssa) => format!("return {ssa};"),

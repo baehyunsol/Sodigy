@@ -238,7 +238,9 @@ pub fn lex(b: &[u8], file: File, intermediate_dir: &str) -> Result<Vec<Token>, E
                 let token_kind = match &b[old_cursor..cursor] {
                     b"code" => TokenKind::Keyword(Keyword::Code),
                     b"effect" => TokenKind::Keyword(Keyword::Effect),
+                    b"else" => TokenKind::Keyword(Keyword::Else),
                     b"fn" => TokenKind::Keyword(Keyword::Fn),
+                    b"if" => TokenKind::Keyword(Keyword::If),
                     b"jump" => TokenKind::Keyword(Keyword::Jump),
                     b"label" => TokenKind::Keyword(Keyword::Label),
                     b"name" => TokenKind::Keyword(Keyword::Name),

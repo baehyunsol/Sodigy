@@ -42,7 +42,7 @@ impl Bytecode {
                 dump_debug_info(debug_info, debug_info_flag),
             ),
             Bytecode::TryInitGlobal { global, label } => format!(
-                "if !is_init(_g{}) {{ {global}(); }} jump {label};",
+                "if !$IsInit(_g{}) {{ {global}(); }} jump {label};",
                 global.hex(20),
             ),
             Bytecode::LoadGlobal { src, dst } => format!(
@@ -64,11 +64,11 @@ impl Bytecode {
                 dump_debug_info(debug_info, debug_info_flag),
             ),
             Bytecode::InitTuple { elements, dst, debug_info } => format!(
-                "{dst} = $InitTuple({elements});{}",
+                "{dst} = $InitTuple(#s{elements:x});{}",
                 dump_debug_info(debug_info, debug_info_flag),
             ),
             Bytecode::InitList { elements, dst, debug_info } => format!(
-                "{dst} = $InitList({elements});{}",
+                "{dst} = $InitList(#s{elements:x});{}",
                 dump_debug_info(debug_info, debug_info_flag),
             ),
             Bytecode::IncRefCount(memory) => format!("$IncRefCount({memory});"),
@@ -91,9 +91,9 @@ impl Display for Memory {
             Memory::SSA(i) => write!(fmt, "{i}"),
             Memory::Heap { ptr, offset } => match offset {
                 0 => write!(fmt, "*{ptr}"),
-                i => write!(fmt, "*({ptr} + {i})"),
+                i => write!(fmt, "*({ptr} + #s{i:x})"),
             },
-            Memory::List { ptr, offset } => write!(fmt, "{ptr}[{offset}]"),
+            Memory::List { ptr, offset } => write!(fmt, "{ptr}[#s{offset:x}]"),
         }
     }
 }

@@ -55,9 +55,27 @@ pub enum SectionName {
 
 #[derive(Clone, Copy, Debug)]
 pub enum Command {
+    // intrinsics from here
     NegInt,
     AddInt,
+    SubInt,
+    MulInt,
+    DivInt,
+    RemInt,
+    LtInt,
+    EqInt,
+    GtInt,
+    LtScalar,
+    EqScalar,
+    GtScalar,
     BitOrScalar,
+    Nop1,
+    // intrinsics till here
+
+    InitList,
+    InitTuple,
+    IsInit,
+    Phi,
 }
 
 impl Command {
@@ -65,8 +83,24 @@ impl Command {
         match ident {
             b"NegInt" => Ok(Command::NegInt),
             b"AddInt" => Ok(Command::AddInt),
+            b"SubInt" => Ok(Command::SubInt),
+            b"MulInt" => Ok(Command::MulInt),
+            b"DivInt" => Ok(Command::DivInt),
+            b"RemInt" => Ok(Command::RemInt),
+            b"LtInt" => Ok(Command::LtInt),
+            b"EqInt" => Ok(Command::EqInt),
+            b"GtInt" => Ok(Command::GtInt),
+            b"LtScalar" => Ok(Command::LtScalar),
+            b"EqScalar" => Ok(Command::EqScalar),
+            b"GtScalar" => Ok(Command::GtScalar),
             b"BitOrScalar" => Ok(Command::BitOrScalar),
-            // _ => panic!("{:?}", String::from_utf8_lossy(ident)),
+            b"Nop1" => Ok(Command::Nop1),
+
+            b"InitList" => Ok(Command::InitList),
+            b"InitTuple" => Ok(Command::InitTuple),
+            b"IsInit" => Ok(Command::IsInit),
+            b"Phi" => Ok(Command::Phi),
+            _ => panic!("{:?}", String::from_utf8_lossy(ident)),
             _ => todo!(),
         }
     }
