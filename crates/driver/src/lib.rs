@@ -481,6 +481,8 @@ fn compile_bytecode(
     quiet: bool,
 ) -> Result<(), Error> {
     let bytes = read_bytes(&bytecode_path)?;
+    init_ir_dir(&ir_dir, incremental_compilation)?;
+
     let object_file: ObjectFile = if bytes.len() > 8 && bytes.starts_with(b"\0\0SDGOBJ") {
         ObjectFile::decode(&bytes)?
     } else {
