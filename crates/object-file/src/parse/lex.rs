@@ -200,7 +200,7 @@ pub fn lex(b: &[u8], file: File, intermediate_dir: &str) -> Result<Vec<Token>, E
                 cursor += 2;
                 let n = lex_hex_large(b, &mut cursor, file)?;
                 tokens.push(Token {
-                    kind: TokenKind::Integer(n),
+                    kind: TokenKind::Int(n),
                     span: Span::range(file, old_cursor as u32, (cursor - old_cursor) as u32),
                 });
             },

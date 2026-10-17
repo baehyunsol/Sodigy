@@ -85,7 +85,9 @@
     EntryPointWithGeneric, EntryPointWithParam, DependencyNotInstalled
     { dependency: String }, IntegerNotInRange
     { min: Option<String>, max: Option<String>, got: String },
-    InvalidSectionName(String), UnusedNames
+    InvalidSectionName(String), ObjectFileUnexpectedToken
+    { expected: String, got: String }, ObjectFileUnexpectedEog
+    { expected: Option<String> }, UnusedNames
     { names: Vec<InternedString>, kind: NameKind }, UseUnusedName
     { name: InternedString, kind: NameKind }, UnreachableMatchArm,
     UnreachableOrPattern, NoImpureCallInImpureContext { context: FuncEffect },
@@ -209,9 +211,11 @@
             EntryPointWithParam => 525u16, ErrorKind :: DependencyNotInstalled
             { .. } => 550u16, ErrorKind :: IntegerNotInRange { .. } =>
             4500u16, ErrorKind :: InvalidSectionName(_,) => 4505u16, ErrorKind
-            :: UnusedNames { .. } => 5000u16, ErrorKind :: UseUnusedName
-            { .. } => 5001u16, ErrorKind :: UnreachableMatchArm => 5005u16,
-            ErrorKind :: UnreachableOrPattern => 5006u16, ErrorKind ::
+            :: ObjectFileUnexpectedToken { .. } => 4510u16, ErrorKind ::
+            ObjectFileUnexpectedEog { .. } => 4515u16, ErrorKind ::
+            UnusedNames { .. } => 5000u16, ErrorKind :: UseUnusedName { .. }
+            => 5001u16, ErrorKind :: UnreachableMatchArm => 5005u16, ErrorKind
+            :: UnreachableOrPattern => 5006u16, ErrorKind ::
             NoImpureCallInImpureContext { .. } => 5010u16, ErrorKind ::
             FuncWithoutTypeAnnot => 8000u16, ErrorKind :: LetWithoutTypeAnnot
             => 8005u16, ErrorKind :: StructWithoutTypeAnnot => 8010u16,
@@ -362,18 +366,20 @@
             ErrorKind :: DependencyNotInstalled { .. } => ErrorLevel :: Error,
             ErrorKind :: IntegerNotInRange { .. } => ErrorLevel :: Error,
             ErrorKind :: InvalidSectionName(_,) => ErrorLevel :: Error,
-            ErrorKind :: UnusedNames { .. } => ErrorLevel :: Warning,
-            ErrorKind :: UseUnusedName { .. } => ErrorLevel :: Warning,
-            ErrorKind :: UnreachableMatchArm => ErrorLevel :: Warning,
-            ErrorKind :: UnreachableOrPattern => ErrorLevel :: Warning,
-            ErrorKind :: NoImpureCallInImpureContext { .. } => ErrorLevel ::
-            Warning, ErrorKind :: FuncWithoutTypeAnnot => ErrorLevel :: Lint,
-            ErrorKind :: LetWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind
-            :: StructWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
-            EnumVariantWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
-            SelfParamNotNamedSelf => ErrorLevel :: Lint, ErrorKind :: Todo
-            { .. } => ErrorLevel :: Error, ErrorKind :: InternalCompilerError
-            { .. } => ErrorLevel :: Error,
+            ErrorKind :: ObjectFileUnexpectedToken { .. } => ErrorLevel ::
+            Error, ErrorKind :: ObjectFileUnexpectedEog { .. } => ErrorLevel
+            :: Error, ErrorKind :: UnusedNames { .. } => ErrorLevel ::
+            Warning, ErrorKind :: UseUnusedName { .. } => ErrorLevel ::
+            Warning, ErrorKind :: UnreachableMatchArm => ErrorLevel ::
+            Warning, ErrorKind :: UnreachableOrPattern => ErrorLevel ::
+            Warning, ErrorKind :: NoImpureCallInImpureContext { .. } =>
+            ErrorLevel :: Warning, ErrorKind :: FuncWithoutTypeAnnot =>
+            ErrorLevel :: Lint, ErrorKind :: LetWithoutTypeAnnot => ErrorLevel
+            :: Lint, ErrorKind :: StructWithoutTypeAnnot => ErrorLevel ::
+            Lint, ErrorKind :: EnumVariantWithoutTypeAnnot => ErrorLevel ::
+            Lint, ErrorKind :: SelfParamNotNamedSelf => ErrorLevel :: Lint,
+            ErrorKind :: Todo { .. } => ErrorLevel :: Error, ErrorKind ::
+            InternalCompilerError { .. } => ErrorLevel :: Error,
         }
     }
 } impl Endec for ErrorKind {
@@ -741,6 +747,15 @@
             }, ErrorKind :: InvalidSectionName(t0,) =>
             {
                 buffer.push(17u8); buffer.push(153u8); t0.encode_impl(buffer);
+            }, ErrorKind :: ObjectFileUnexpectedToken { r#expected, r#got, }
+            =>
+            {
+                buffer.push(17u8); buffer.push(158u8);
+                r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
+            }, ErrorKind :: ObjectFileUnexpectedEog { r#expected, } =>
+            {
+                buffer.push(17u8); buffer.push(163u8);
+                r#expected.encode_impl(buffer);
             }, ErrorKind :: UnusedNames { r#names, r#kind, } =>
             {
                 buffer.push(19u8); buffer.push(136u8);
@@ -1239,6 +1254,19 @@
             {
                 let (t0, cursor) = String :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: InvalidSectionName(t0,), cursor))
+            }, 4510u16 =>
+            {
+                let (r#expected, cursor) = String ::
+                decode_impl(buffer, cursor) ? ; let (r#got, cursor) = String
+                :: decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: ObjectFileUnexpectedToken
+                { r#expected, r#got, }, cursor))
+            }, 4515u16 =>
+            {
+                let (r#expected, cursor) = Option :: < String > ::
+                decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: ObjectFileUnexpectedEog { r#expected, },
+                cursor))
             }, 5000u16 =>
             {
                 let (r#names, cursor) = Vec :: < InternedString >::

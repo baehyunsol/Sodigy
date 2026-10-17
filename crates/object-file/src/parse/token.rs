@@ -40,7 +40,7 @@ pub enum TokenKind {
     InternedValue(u128),
     Scalar(u32),
     FuncPointer(u128),
-    Integer(BigInt),
+    Int(BigInt),
     Keyword(Keyword),
     GlobalLabel(u128),
     LocalLabel(u32),
@@ -49,7 +49,17 @@ pub enum TokenKind {
     Punct(u8),
 }
 
-#[derive(Clone, Copy, Debug)]
+impl TokenKind {
+    pub fn render(&self) -> String {
+        match self {
+            TokenKind::Section(s) => format!(".{s:?}").to_ascii_lowercase(),
+            TokenKind::Punct(p) => format!("{}", *p as char),
+            _ => panic!("TODO: {self:?}"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SectionName {
     Data,
     Code,

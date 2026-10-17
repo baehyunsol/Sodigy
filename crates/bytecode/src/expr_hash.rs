@@ -7,6 +7,10 @@ use sodigy_utils::{dump_hex, hash};
 pub struct ExprHash(pub(crate) u128);
 
 impl ExprHash {
+    pub fn from_raw(id: u128) -> ExprHash {
+        ExprHash(id)
+    }
+
     pub fn from_const(c: &Value) -> ExprHash {
         let mut encoded = vec![0];
         c.encode_impl(&mut encoded);
@@ -50,3 +54,4 @@ impl ExprHash {
         dump_hex(self.0, l)
     }
 }
+
