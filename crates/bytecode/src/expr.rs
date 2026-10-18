@@ -180,20 +180,22 @@ pub fn lower_expr(
                 bytecodes.push(Bytecode::Return(return_ssa));
             }
         },
-        // Let's say we lower `` foo `x.y.z bar ``.
+        // Let's say we lower `foo with { x.y.z = bar, a = 300 }`.
         // The result would be
         // ```
         // _t1 = foo;
+        //
         // _t2 = bar;
         // _t3 = _t1.x;
         // _t4 = _t3.y;
         // _t5 = Bytecode::Update { src: _t4, index: z, value: _t2 };
         // _t6 = Bytecode::Update { src: _t3, index: y, value: _t5 };
-        //
-        // // this is the result
         // _t7 = Bytecode::Update { src: _t1, index: x, value: _t6 };
+        //
+        // _t8 = 300;
+        // _t9 = Bytecode::Update { src: _t7, index: a, value: _t8 };
         // ```
-        Expr::FieldUpdate { fields, lhs, rhs } => {
+        Expr::FieldUpdate { lhs, updates, .. } => {
             let lhs_ssa = session.get_ssa();
             lower_expr(
                 lhs,
@@ -202,40 +204,50 @@ pub fn lower_expr(
                 Memory::SSA(lhs_ssa),
                 false,
             );
+            let mut prev_updated_lhs_ssa = lhs_ssa;
 
-            let rhs_ssa = session.get_ssa();
-            lower_expr(
-                rhs,
-                session,
-                bytecodes,
-                Memory::SSA(rhs_ssa),
-                false,
-            );
+            for (i, update) in updates.iter().enumerate() {
+                let mut curr_ssa_reg = prev_updated_lhs_ssa;
+                let mut sources = vec![prev_updated_lhs_ssa];
+                let rhs_ssa = session.get_ssa();
+                lower_expr(
+                    &update.value,
+                    session,
+                    bytecodes,
+                    Memory::SSA(rhs_ssa),
+                    false,
+                );
 
-            let mut curr_ssa_reg = lhs_ssa;
-            let mut sources = vec![lhs_ssa];
+                for (j, field) in update.field.iter().enumerate() {
+                    if j == update.field.len() - 1 {
+                        break;
+                    }
 
-            for (i, field) in fields.iter().enumerate() {
-                if i == fields.len() - 1 {
-                    break;
+                    let ssa_reg = session.get_ssa();
+                    lower_field_read(curr_ssa_reg, field, ssa_reg, bytecodes);
+                    sources.push(ssa_reg);
+                    curr_ssa_reg = ssa_reg;
                 }
 
-                let ssa_reg = session.get_ssa();
-                lower_field_read(curr_ssa_reg, field, ssa_reg, bytecodes);
-                sources.push(ssa_reg);
-                curr_ssa_reg = ssa_reg;
-            }
+                let curr_dst = if i == updates.len() - 1 {
+                    dst
+                } else {
+                    let dst_ssa = session.get_ssa();
+                    prev_updated_lhs_ssa = dst_ssa;
+                    Memory::SSA(dst_ssa)
+                };
 
-            for ((i, field), src) in fields.iter().enumerate().zip(sources).rev() {
-                let ssa_reg = session.get_ssa();
-                lower_field_update(
-                    src,
-                    field,
-                    if i == fields.len() - 1 { rhs_ssa } else { curr_ssa_reg },
-                    if i == 0 { dst } else { Memory::SSA(ssa_reg) },
-                    bytecodes,
-                );
-                curr_ssa_reg = ssa_reg;
+                for ((j, field), src) in update.field.iter().enumerate().zip(sources).rev() {
+                    let ssa_reg = session.get_ssa();
+                    lower_field_update(
+                        src,
+                        field,
+                        if j == update.field.len() - 1 { rhs_ssa } else { curr_ssa_reg },
+                        if j == 0 { curr_dst } else { Memory::SSA(ssa_reg) },
+                        bytecodes,
+                    );
+                    curr_ssa_reg = ssa_reg;
+                }
             }
 
             if is_tail_call {

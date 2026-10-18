@@ -28,7 +28,7 @@ pub use block::Block;
 pub use r#do::Do;
 pub use dump::{dump_expr, dump_field_to_string, render_type, span_to_string, span_to_string_or_verbose};
 pub use r#enum::{Enum, EnumVariant, EnumVariantFields};
-pub use expr::{Callable, Expr, ShortCircuitKind, false_value, true_value};
+pub use expr::{Callable, Expr, FieldUpdate, ShortCircuitKind, false_value, true_value};
 pub use func::Func;
 pub use global_context::GlobalContext;
 pub use r#if::If;

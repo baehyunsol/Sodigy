@@ -39,9 +39,10 @@ pub enum Expr {
         dotfish: Vec<Option<Dotfish>>,
     },
     FieldUpdate {
-        fields: Vec<Field>,
         lhs: Box<Expr>,
-        rhs: Box<Expr>,
+        updates: Vec<FieldUpdate>,
+        keyword_span: Span,
+        rhs_span: Span,
     },
     Call {
         func: Callable,
@@ -97,6 +98,13 @@ pub enum Callable {
 pub enum ShortCircuitKind {
     And,
     Or,
+}
+
+#[derive(Clone, Debug)]
+pub struct FieldUpdate {
+    pub field: Vec<Field>,
+    pub assign_span: Span,
+    pub value: Expr,
 }
 
 impl Expr {
@@ -862,16 +870,42 @@ impl Expr {
                 },
                 Err(()) => Err(()),
             },
-            hir::Expr::FieldUpdate { fields, lhs, rhs } => match (
-                Expr::from_hir(lhs, session),
-                Expr::from_hir(rhs, session),
-            ) {
-                (Ok(lhs), Ok(rhs)) => Ok(Expr::FieldUpdate {
-                    fields: fields.clone(),
-                    lhs: Box::new(lhs),
-                    rhs: Box::new(rhs),
-                }),
-                _ => Err(()),
+            hir::Expr::FieldUpdate { lhs, updates: hir_updates, keyword_span, rhs_span } => {
+                let mut has_error = false;
+                let lhs = match Expr::from_hir(lhs, session) {
+                    Ok(lhs) => Some(lhs),
+                    Err(()) => {
+                        has_error = true;
+                        None
+                    },
+                };
+                let mut updates = Vec::with_capacity(hir_updates.len());
+
+                for hir_update in hir_updates.iter() {
+                    match Expr::from_hir(&hir_update.value, session) {
+                        Ok(value) => {
+                            updates.push(FieldUpdate {
+                                field: hir_update.field.clone(),
+                                assign_span: hir_update.assign_span.clone(),
+                                value,
+                            });
+                        },
+                        Err(()) => {
+                            has_error = true;
+                        },
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                } else {
+                    Ok(Expr::FieldUpdate {
+                        lhs: Box::new(lhs.unwrap()),
+                        updates,
+                        keyword_span: keyword_span.clone(),
+                        rhs_span: rhs_span.clone(),
+                    })
+                }
             },
             hir::Expr::PrefixOp { op, op_span, rhs } => {
                 let func = Callable::Static {
@@ -1076,8 +1110,8 @@ impl Expr {
             Expr::If(r#if) => r#if.if_span.clone(),
             Expr::Match(r#match) => r#match.keyword_span.clone(),
             Expr::Block(block) => block.group_span.clone(),
-            Expr::Field { fields, .. } |
-            Expr::FieldUpdate { fields, .. } => merge_field_spans(fields),
+            Expr::Field { fields, .. } => merge_field_spans(fields),
+            Expr::FieldUpdate { keyword_span, .. } => keyword_span.clone(),
             Expr::Call { func, .. } => func.error_span_narrow(),
             Expr::Macro { macro_span, .. } => macro_span.clone(),
         }
@@ -1095,9 +1129,9 @@ impl Expr {
             Expr::Block(block) => block.group_span.clone(),
             // TODO: dotfish
             Expr::Field { lhs, fields, dotfish } => lhs.error_span_wide().merge(&merge_field_spans(fields)),
-            Expr::FieldUpdate { lhs, fields, rhs } => lhs.error_span_wide()
-                .merge(&merge_field_spans(fields))
-                .merge(&rhs.error_span_wide()),
+            Expr::FieldUpdate { lhs, keyword_span, rhs_span, .. } => lhs.error_span_wide()
+                .merge(keyword_span)
+                .merge(rhs_span),
             Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(arg_group_span),
             Expr::Macro { macro_span, group_span, .. } => macro_span.merge(group_span),
         }

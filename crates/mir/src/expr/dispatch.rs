@@ -76,9 +76,12 @@ impl Expr {
                     todo!()
                 }
             },
-            Expr::FieldUpdate { lhs, rhs, .. } => {
+            Expr::FieldUpdate { lhs, updates, .. } => {
                 lhs.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
-                rhs.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
+
+                for update in updates.iter_mut() {
+                    update.value.dispatch(dispatch_map, associated_funcs, func_shapes, generic_args, solved_dotfish);
+                }
             },
             Expr::Call { func, args, arg_group_span, types, given_keyword_args } => {
                 let dispatch = match func {
@@ -177,3 +180,4 @@ impl Expr {
         }
     }
 }
+

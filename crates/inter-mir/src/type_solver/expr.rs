@@ -334,42 +334,49 @@ impl Session {
                 (None, _) => (None, true),
             },
             // 1. Make sure that `lhs` has the fields.
-            // 2. Make sure that the field's type and `rhs`' type are the same.
+            // 2. For `update` in `updates`, make sure that the field's type and the value's type
+            //    are the same.
             // 3. Return the type of `lhs`.
-            Expr::FieldUpdate { fields, lhs, rhs } => match self.solve_expr(lhs, impure_calls) {
-                (Some(lhs_type), mut has_error) => match self.get_type_of_field(&lhs_type, fields) {
-                    (None, Ok(field_type)) => match self.solve_expr(rhs, impure_calls) {
-                        (Some(rhs_type), e) => {
-                            has_error |= e;
+            Expr::FieldUpdate { lhs, updates, .. } => match self.solve_expr(lhs, impure_calls) {
+                (Some(lhs_type), mut has_error) => {
+                    for update in updates.iter() {
+                        match self.get_type_of_field(&lhs_type, &update.field) {
+                            (None, Ok(field_type)) => match self.solve_expr(&update.value, impure_calls) {
+                                (Some(value_type), e) => {
+                                    has_error |= e;
 
-                            if let Err(()) = self.solve_supertype(
-                                &field_type,
-                                &rhs_type,
-                                false,
-                                Some(&merge_field_spans(fields)),
-                                Some(&rhs.error_span_wide()),
-                                ErrorContext::FieldUpdate,
-                                false,
-                            ) {
+                                    if let Err(()) = self.solve_supertype(
+                                        &field_type,
+                                        &value_type,
+                                        false,
+                                        Some(&merge_field_spans(&update.field)),
+                                        Some(&update.value.error_span_wide()),
+                                        ErrorContext::FieldUpdate,
+                                        false,
+                                    ) {
+                                        has_error = true;
+                                    }
+                                },
+                                (None, _) => {
+                                    has_error = true;
+                                },
+                            },
+                            (Some(associated_func), _) => {
+                                self.type_errors.push(TypeError::CannotUpdateAssociatedFunc {
+                                    r#type: lhs_type.clone(),
+                                    name: associated_func.field_name,
+                                    name_span: associated_func.call_span.clone(),
+                                });
                                 has_error = true;
-                            }
+                            },
+                            (_, Err(e)) => {
+                                self.type_errors.push(e);
+                                has_error = true;
+                            },
+                        }
+                    }
 
-                            (Some(lhs_type), has_error)
-                        },
-                        (None, _) => (Some(lhs_type), true),
-                    },
-                    (Some(associated_func), _) => {
-                        self.type_errors.push(TypeError::CannotUpdateAssociatedFunc {
-                            r#type: lhs_type.clone(),
-                            name: associated_func.field_name,
-                            name_span: associated_func.call_span.clone(),
-                        });
-                        (Some(lhs_type), true)
-                    },
-                    (_, Err(e)) => {
-                        self.type_errors.push(e);
-                        (Some(lhs_type), true)
-                    },
+                    (Some(lhs_type), has_error)
                 },
                 (None, _) => (None, true),
             },
@@ -1262,3 +1269,4 @@ impl Session {
         }
     }
 }
+

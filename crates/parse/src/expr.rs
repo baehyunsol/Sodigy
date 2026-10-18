@@ -887,7 +887,20 @@ impl<'t, 's> Tokens<'t, 's> {
         consume_all_tokens: bool,
         exactly_1_update: bool,
     ) -> Result<Vec<FieldUpdate>, Vec<Error>> {
-        todo!()
+        let mut result = vec![];
+
+        loop {
+            let mut ident = self.pop_name_and_span(false)?;
+
+            // TODO: parse dots and idents
+            match self.peek2() {
+                _ => todo!(),
+            }
+
+            todo!()
+        }
+
+        Ok(result)
     }
 }
 

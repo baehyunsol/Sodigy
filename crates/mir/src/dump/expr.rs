@@ -197,28 +197,33 @@ pub fn dump_expr<S: SodigySession>(
 
             dump_field(fields, dotfish, lines, session);
         },
-        Expr::FieldUpdate { lhs, fields, rhs } => {
+        Expr::FieldUpdate { lhs, updates, .. } => {
             dump_expr(lhs, lines, types, session, max_len, single_line);
-            lines.push(" `");
+            lines.push(" with {");
 
-            for (i, field) in fields.iter().enumerate() {
-                match field {
-                    Field::Name { name, .. } => {
-                        if i != 0 {
-                            lines.push(".");
-                        }
-
-                        lines.push(&name.unintern_or_default(session.intermediate_dir()));
-                    },
-                    Field::Index(n) => {
-                        lines.push(&format!("[{n}]"));
-                    },
-                    _ => todo!(),
+            for (i, update) in updates.iter().enumerate() {
+                if i != 0 {
+                    lines.push(", ");
                 }
+
+                for (j, field) in update.field.iter().enumerate() {
+                    if j != 0 {
+                        lines.push(".");
+                    }
+
+                    match field {
+                        Field::Name { name, .. } => {
+                            lines.push(&name.unintern_or_default(&session.intermediate_dir()));
+                        },
+                        _ => todo!(),
+                    }
+                }
+
+                lines.push(" = ");
+                dump_expr(&update.value, lines, types, session, max_len, single_line);
             }
 
-            lines.push(" ");
-            dump_expr(rhs, lines, types, session, max_len, single_line);
+            lines.push("}");
         },
         Expr::Call { func, args, .. } => {
             let mut is_tuple = false;
@@ -428,3 +433,4 @@ fn get_if_value_dump_type<S: SodigySession>(value: &Expr, types: &HashMap<Span, 
         },
     }
 }
+

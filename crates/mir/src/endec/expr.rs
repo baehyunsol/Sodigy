@@ -5,6 +5,7 @@ use crate::{
     Do,
     Dotfish,
     Expr,
+    FieldUpdate,
     If,
     Let,
     MacroKind,
@@ -51,11 +52,12 @@ impl Endec for Expr {
                 fields.encode_impl(buffer);
                 dotfish.encode_impl(buffer);
             },
-            Expr::FieldUpdate { fields, lhs, rhs } => {
+            Expr::FieldUpdate { lhs, updates, keyword_span, rhs_span } => {
                 buffer.push(6);
-                fields.encode_impl(buffer);
                 lhs.encode_impl(buffer);
-                rhs.encode_impl(buffer);
+                updates.encode_impl(buffer);
+                keyword_span.encode_impl(buffer);
+                rhs_span.encode_impl(buffer);
             },
             Expr::Call { func, args, arg_group_span, types, given_keyword_args } => {
                 buffer.push(7);
@@ -104,10 +106,11 @@ impl Endec for Expr {
                 Ok((Expr::Field { lhs, fields, dotfish }, cursor))
             },
             Some(6) => {
-                let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor + 1)?;
-                let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
-                let (rhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
-                Ok((Expr::FieldUpdate { fields, lhs, rhs }, cursor))
+                let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
+                let (updates, cursor) = Vec::<FieldUpdate>::decode_impl(buffer, cursor)?;
+                let (keyword_span, cursor) = Span::decode_impl(buffer, cursor)?;
+                let (rhs_span, cursor) = Span::decode_impl(buffer, cursor)?;
+                Ok((Expr::FieldUpdate { lhs, updates, keyword_span, rhs_span }, cursor))
             },
             Some(7) => {
                 let (func, cursor) = Callable::decode_impl(buffer, cursor + 1)?;
@@ -347,3 +350,19 @@ impl Endec for ShortCircuitKind {
         }
     }
 }
+
+impl Endec for FieldUpdate {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.field.encode_impl(buffer);
+        self.assign_span.encode_impl(buffer);
+        self.value.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (field, cursor) = Vec::<Field>::decode_impl(buffer, cursor)?;
+        let (assign_span, cursor) = Span::decode_impl(buffer, cursor)?;
+        let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
+        Ok((FieldUpdate { field, assign_span, value }, cursor))
+    }
+}
+

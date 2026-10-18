@@ -102,9 +102,12 @@ impl Session {
             Expr::Field { lhs, .. } => {
                 self.init_span_string_map_expr(lhs, result);
             },
-            Expr::FieldUpdate { lhs, rhs, .. } => {
+            Expr::FieldUpdate { lhs, updates, .. } => {
                 self.init_span_string_map_expr(lhs, result);
-                self.init_span_string_map_expr(rhs, result);
+
+                for update in updates.iter() {
+                    self.init_span_string_map_expr(&update.value, result);
+                }
             },
             Expr::If(r#if) => {
                 self.init_span_string_map_expr(&r#if.cond, result);

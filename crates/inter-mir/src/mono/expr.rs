@@ -99,17 +99,23 @@ impl Session {
                     self.monomorphize_dotfish(d, wildcard_spans, monomorphization);
                 }
             },
-            Expr::FieldUpdate { lhs, fields, rhs } => {
+            Expr::FieldUpdate { lhs, updates, keyword_span, rhs_span } => {
                 self.monomorphize_expr(lhs, wildcard_spans, monomorphization);
 
-                for field in fields.iter_mut() {
-                    if let Field::Name { name_span, dot_span, .. } = field {
-                        *name_span = name_span.monomorphize(monomorphization.id);
-                        *dot_span = dot_span.monomorphize(monomorphization.id);
+                for update in updates.iter_mut() {
+                    for field in update.field.iter_mut() {
+                        if let Field::Name { name_span, dot_span, .. } = field {
+                            *name_span = name_span.monomorphize(monomorphization.id);
+                            *dot_span = dot_span.monomorphize(monomorphization.id);
+                        }
                     }
+
+                    update.assign_span = update.assign_span.monomorphize(monomorphization.id);
+                    self.monomorphize_expr(&mut update.value, wildcard_spans, monomorphization);
                 }
 
-                self.monomorphize_expr(rhs, wildcard_spans, monomorphization);
+                *keyword_span = keyword_span.monomorphize(monomorphization.id);
+                *rhs_span = rhs_span.monomorphize(monomorphization.id);
             },
             Expr::Call { func, args, arg_group_span, types, .. } => {
                 match func {

@@ -79,13 +79,22 @@ fn lower_expr(expr: &mut Expr, session: &mut Session) -> Result<(), ()> {
             lower_fields(lhs, fields, session);
             lower_expr(lhs, session)
         },
-        Expr::FieldUpdate { lhs, rhs, fields } => {
-            lower_fields(lhs, fields, session);
+        Expr::FieldUpdate { lhs, updates, .. } => {
+            let mut has_error = false;
 
-            let lhs_err = lower_expr(lhs, session).is_err();
-            let rhs_err = lower_expr(rhs, session).is_err();
+            for update in updates.iter_mut() {
+                lower_fields(lhs, &mut update.field, session);
 
-            if lhs_err || rhs_err {
+                if let Err(()) = lower_expr(&mut update.value, session) {
+                    has_error = true;
+                }
+            }
+
+            if let Err(()) = lower_expr(lhs, session) {
+                has_error = true;
+            }
+
+            if has_error {
                 Err(())
             }
 

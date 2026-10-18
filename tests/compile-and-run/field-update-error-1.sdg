@@ -1,4 +1,4 @@
-//% compile-error = 3
+//% compile-error == 3
 
 struct Foo = { x: Bar, y: Int, z: Baz };
 struct Bar = { x: Int, y: Number, z: () };
