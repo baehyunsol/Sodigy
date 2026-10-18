@@ -218,8 +218,10 @@ impl Expr {
                         errors.push(e);
                     }
 
+                    // If it doesn't break, it'll show the same error multiple times...
                     if let Err(e) = update.value.check(intermediate_dir) {
                         errors.extend(e);
+                        break;
                     }
                 }
 

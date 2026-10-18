@@ -144,7 +144,7 @@ pub struct FieldUpdate {
 
 impl FieldUpdate {
     pub fn span(&self) -> Span {
-        todo!()
+        merge_field_spans(&self.field).merge(&self.assign_span).merge(&self.value.error_span_wide())
     }
 }
 
@@ -890,17 +890,76 @@ impl<'t, 's> Tokens<'t, 's> {
         let mut result = vec![];
 
         loop {
-            let mut ident = self.pop_name_and_span(false)?;
+            let mut field = vec![];
+            let (name, name_span) = self.pop_name_and_span(/* allow_wildcard: */ false)?;
+            field.push(Field::Name {
+                name,
+                name_span,
+                dot_span: Span::None,
+                is_from_alias: false,
+            });
 
-            // TODO: parse dots and idents
-            match self.peek2() {
-                _ => todo!(),
+            loop {
+                if let Some(Token { kind: TokenKind::Punct(Punct::Dot), span: dot_span }) = self.peek() {
+                    let dot_span = dot_span.clone();
+                    self.cursor += 1;
+                    let (name, name_span) = self.pop_name_and_span(false)?;
+                    field.push(Field::Name {
+                        name,
+                        name_span,
+                        dot_span,
+                        is_from_alias: false,
+                    });
+                } else {
+                    break;
+                }
             }
 
-            todo!()
+            let assign_span = self.match_and_pop(TokenKind::Punct(Punct::Assign))?.span.clone();
+            let (_, r_bp) = field_update_binding_power();
+            let value = self.pratt_parse(r_bp, true)?;
+            result.push(FieldUpdate {
+                field,
+                assign_span,
+                value,
+            });
+
+            match self.peek() {
+                Some(Token { kind: TokenKind::Punct(Punct::Comma), span }) => {
+                    let comma_span = span.clone();
+                    self.cursor += 1;
+
+                    if self.peek().is_none() {
+                        break;
+                    }
+
+                    if exactly_1_update {
+                        return Err(vec![Error {
+                            kind: ErrorKind::UnexpectedToken {
+                                expected: ErrorToken::Nothing,
+                                got: ErrorToken::Punct(Punct::Comma),
+                            },
+                            spans: comma_span.simple_error(),
+                            note: None,
+                        }]);
+                    }
+                },
+                _ => break,
+            }
         }
 
-        Ok(result)
+        if let Some(t) = self.peek() && consume_all_tokens {
+            Err(vec![Error {
+                kind: ErrorKind::UnexpectedToken {
+                    expected: ErrorToken::Nothing,
+                    got: (&t.kind).into(),
+                },
+                spans: t.span.simple_error(),
+                note: None,
+            }])
+        } else {
+            Ok(result)
+        }
     }
 }
 
@@ -990,3 +1049,4 @@ const UPDATE: u32 = 7;  // p `age 32
 const LOGIC_AND: u32 = 5;  // a && b
 const LOGIC_OR: u32 = 3;  // a || b
 const PIPELINE: u32 = 1;  // x |> $ + 1
+
