@@ -1,5 +1,5 @@
 use super::check_func_args;
-use crate::{Expr, ExprOrString, Lambda};
+use crate::{Expr, ExprOrString, Field, Lambda};
 use sodigy_error::{Error, ErrorKind, NameCollisionKind};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
@@ -186,8 +186,7 @@ impl Expr {
                     Err(errors)
                 }
             },
-            Expr::InfixOp { lhs, rhs, .. } |
-            Expr::FieldUpdate { lhs, rhs, .. } => {
+            Expr::InfixOp { lhs, rhs, .. } => {
                 let mut errors = vec![];
 
                 if let Err(e) = lhs.check(intermediate_dir) {
@@ -196,6 +195,32 @@ impl Expr {
 
                 if let Err(e) = rhs.check(intermediate_dir) {
                     errors.extend(e);
+                }
+ 
+                if errors.is_empty() {
+                    Ok(())
+                }
+
+                else {
+                    Err(errors)
+                }
+            },
+            Expr::FieldUpdate { lhs, updates, .. } => {
+                let mut errors = vec![];
+                let mut name_collision_checker = FieldUpdateNameCollisionChecker::new();
+
+                if let Err(e) = lhs.check(intermediate_dir) {
+                    errors.extend(e);
+                }
+
+                for update in updates.iter() {
+                    if let Err(e) = name_collision_checker.check(&update.field) {
+                        errors.push(e);
+                    }
+
+                    if let Err(e) = update.value.check(intermediate_dir) {
+                        errors.extend(e);
+                    }
                 }
 
                 if errors.is_empty() {
@@ -236,3 +261,71 @@ impl Expr {
         }
     }
 }
+
+struct FieldUpdateNameCollisionChecker {
+    data: HashMap<InternedString, (Span, Option<FieldUpdateNameCollisionChecker>)>,
+}
+
+impl FieldUpdateNameCollisionChecker {
+    pub fn new() -> FieldUpdateNameCollisionChecker {
+        FieldUpdateNameCollisionChecker { data: HashMap::new() }
+    }
+
+    pub fn check(&mut self, field: &[Field]) -> Result<(), Error> {
+        match field.get(0) {
+            None => Ok(()),
+            Some(Field::Name { name, name_span, .. }) => match (self.data.entry(*name), field.get(1)) {
+                (Entry::Vacant(mut e), None) => {
+                    e.insert((name_span.clone(), None));
+                    Ok(())
+                },
+                (Entry::Vacant(mut e), Some(_)) => {
+                    let mut child = FieldUpdateNameCollisionChecker::new();
+                    child.check(&field[1..]).unwrap();
+                    e.insert((name_span.clone(), Some(child)));
+                    Ok(())
+                },
+                (Entry::Occupied(e), None) => {
+                    let (prev_span, _) = e.get();
+                    Err(Error {
+                        kind: ErrorKind::UpdateFieldMultipleTimes(*name),
+                        spans: vec![
+                            RenderableSpan {
+                                span: prev_span.clone(),
+                                auxiliary: true,
+                                note: Some(String::from("You've already updated the field here.")),
+                            },
+                            RenderableSpan {
+                                span: name_span.clone(),
+                                auxiliary: false,
+                                note: Some(String::from("You're updating the field again here.")),
+                            },
+                        ],
+                        note: None,
+                    })
+                },
+                (Entry::Occupied(mut e), Some(_)) => match e.get_mut() {
+                    (_, Some(child)) => child.check(&field[1..]),
+                    (prev_span, None) => Err(Error {
+                        kind: ErrorKind::UpdateFieldMultipleTimes(*name),
+                        spans: vec![
+                            RenderableSpan {
+                                span: prev_span.clone(),
+                                auxiliary: true,
+                                note: Some(String::from("You've already updated the field here.")),
+                            },
+                            RenderableSpan {
+                                span: name_span.clone(),
+                                auxiliary: false,
+                                note: Some(String::from("You're updating the field again here.")),
+                            },
+                        ],
+                        note: None,
+                    }),
+                },
+            },
+            _ => unreachable!(),
+        }
+    }
+}
+

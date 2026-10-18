@@ -231,6 +231,8 @@ struct Person = {
     name: String,
     age: Int,
 };
+
+fn set_age(p: Person, age: Int) = p with { age = age };
 ```
 
 ## Enums
@@ -600,3 +602,4 @@ Also note that `exit` is an impure function. My intention is that 1) you `panic`
 - `file!() -> String`
 - `module_path!() -> String`
 - `line!() -> Int`, `column!() -> Int`
+

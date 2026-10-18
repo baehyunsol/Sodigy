@@ -16,4 +16,6 @@ pub enum Keyword {
     Struct,
     Type,
     Use,
+    With,
 }
+

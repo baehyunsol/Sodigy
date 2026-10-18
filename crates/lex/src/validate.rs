@@ -146,16 +146,6 @@ fn validate_spans_worker(
                     }
                 }
             },
-            TokenKind::FieldUpdate { field, backtick_span, field_span } => {
-                let (offset, length) = backtick_span.get_offset_and_length().unwrap();
-                assert_eq!(&file_content[(offset as usize)..((offset + length) as usize)], b"`");
-
-                let (offset, length) = field_span.get_offset_and_length().unwrap();
-                assert_eq!(
-                    unintern_string(*field, intermediate_dir).unwrap().unwrap(),
-                    &file_content[(offset as usize)..((offset + length) as usize)],
-                );
-            },
             TokenKind::DocComment { top_level, .. } => {
                 if *top_level {
                     assert_eq!(&span_code[0..3], b"//!");

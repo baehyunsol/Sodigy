@@ -52,6 +52,9 @@ impl Endec for Keyword {
             Keyword::Use => {
                 buffer.push(15);
             },
+            Keyword::With => {
+                buffer.push(16);
+            },
         }
     }
 
@@ -73,7 +76,8 @@ impl Endec for Keyword {
             Some(13) => Ok((Keyword::Struct, cursor + 1)),
             Some(14) => Ok((Keyword::Type, cursor + 1)),
             Some(15) => Ok((Keyword::Use, cursor + 1)),
-            Some(n @ 16..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(16) => Ok((Keyword::With, cursor + 1)),
+            Some(n @ 17..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

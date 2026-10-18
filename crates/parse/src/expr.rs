@@ -70,9 +70,13 @@ pub enum Expr {
         dotfish: Option<Dotfish>,
     },
     FieldUpdate {
-        fields: Vec<Field>,
         lhs: Box<Expr>,
-        rhs: Box<Expr>,
+        updates: Vec<FieldUpdate>,
+        keyword_span: Span,
+
+        // If the rhs is `{ .. }`, it's the group_span.
+        // If the rhs is `id = expr`, it's the merged span.
+        rhs_span: Span,
     },
     Lambda(Lambda),
     PrefixOp {
@@ -131,6 +135,19 @@ impl ConversionKind {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct FieldUpdate {
+    pub field: Vec<Field>,
+    pub assign_span: Span,
+    pub value: Expr,
+}
+
+impl FieldUpdate {
+    pub fn span(&self) -> Span {
+        todo!()
+    }
+}
+
 impl Expr {
     pub fn error_span_narrow(&self) -> Span {
         match self {
@@ -139,6 +156,7 @@ impl Expr {
             Expr::FormattedString { span, .. } |
             Expr::Tuple { group_span: span, .. } |
             Expr::List { group_span: span, .. } |
+            Expr::FieldUpdate { keyword_span: span, .. } |
             Expr::PrefixOp { op_span: span, .. } |
             Expr::InfixOp { op_span: span, .. } |
             Expr::PostfixOp { op_span: span, .. } |
@@ -150,7 +168,6 @@ impl Expr {
             Expr::Call { func, .. } => func.error_span_narrow(),
             Expr::StructInit { constructor, .. } => constructor.error_span_narrow(),
             Expr::Field { field, .. } => merge_field_spans(slice::from_ref(field)),
-            Expr::FieldUpdate { fields, .. } => merge_field_spans(fields),
             Expr::Lambda(Lambda { arrow_span, .. }) => arrow_span.clone(),
             Expr::Pipeline { pipe_spans, .. } => pipe_spans[0].clone(),
             Expr::Macro { macro_span, .. } => macro_span.clone(),
@@ -173,9 +190,9 @@ impl Expr {
 
             // TODO: render dotfish operator
             Expr::Field { lhs, field, .. } => lhs.error_span_wide().merge(&merge_field_spans(slice::from_ref(field))),
-            Expr::FieldUpdate { lhs, fields, rhs } => lhs.error_span_wide()
-                .merge(&merge_field_spans(fields))
-                .merge(&rhs.error_span_wide()),
+            Expr::FieldUpdate { lhs, keyword_span, rhs_span, .. } => lhs.error_span_wide()
+                .merge(keyword_span)
+                .merge(rhs_span),
             Expr::Lambda(Lambda { param_group_span, arrow_span, value, .. }) => param_group_span
                 .merge(arrow_span)
                 .merge(&value.error_span_wide()),
@@ -726,44 +743,52 @@ impl<'t, 's> Tokens<'t, 's> {
                         },
                     }
                 },
-                Some(Token {
-                    kind: TokenKind::FieldUpdate { field, backtick_span, field_span },
-                    ..
-                }) => {
+                Some(Token { kind: TokenKind::Keyword(Keyword::With), span: keyword_span }) => {
                     let (l_bp, r_bp) = field_update_binding_power();
 
                     if l_bp < min_bp {
                         break;
                     }
 
-                    let mut fields = vec![Field::Name {
-                        name: *field,
-                        name_span: field_span.clone(),
-                        dot_span: backtick_span.clone(),
-                        is_from_alias: false,
-                    }];
+                    let keyword_span = keyword_span.clone();
                     self.cursor += 1;
 
-                    while let (
-                        Some(Token { kind: TokenKind::Punct(Punct::Dot), span: dot_span }),
-                        Some(Token { kind: TokenKind::Ident(id), span: field_span }),
-                    ) = self.peek2() {
-                        fields.push(Field::Name {
-                            name: *id,
-                            name_span: field_span.clone(),
-                            dot_span: dot_span.clone(),
-                            is_from_alias: false,
-                        });
-                        self.cursor += 2;
-                    }
+                    match self.peek() {
+                        Some(Token { kind: TokenKind::Group { delim: Delim::Brace, tokens }, span: group_span }) => {
+                            let mut tokens = Tokens::new(tokens, group_span.end(), false, self.intermediate_dir);
+                            let updates = tokens.parse_field_updates(
+                                /* consume_all_tokens: */ true,
+                                /* exactly_1_update: */ false,
+                            )?;
+                            let rhs_span = group_span.clone();
+                            self.cursor += 1;
 
-                    let rhs = self.pratt_parse(r_bp, try_struct_init)?;
-                    lhs = Expr::FieldUpdate {
-                        fields,
-                        lhs: Box::new(lhs),
-                        rhs: Box::new(rhs),
-                    };
-                    continue;
+                            lhs = Expr::FieldUpdate {
+                                lhs: Box::new(lhs),
+                                updates,
+                                keyword_span,
+                                rhs_span,
+                            };
+                            continue;
+                        },
+                        Some(Token { kind: TokenKind::Ident(_), .. }) => {
+                            let updates = self.parse_field_updates(
+                                /* consume_all_tokens: */ false,
+                                /* exactly_1_update: */ true,
+                            )?;
+                            let rhs_span = updates[0].span();
+
+                            lhs = Expr::FieldUpdate {
+                                lhs: Box::new(lhs),
+                                updates,
+                                keyword_span: keyword_span.clone(),
+                                rhs_span,
+                            };
+                            continue;
+                        },
+                        Some(t) => todo!(),
+                        None => todo!(),
+                    }
                 },
                 Some(Token { kind: TokenKind::Keyword(Keyword::As), span }) => {
                     let (l_bp, _) = as_binding_power();
@@ -855,6 +880,14 @@ impl<'t, 's> Tokens<'t, 's> {
         }
 
         Ok(exprs)
+    }
+
+    fn parse_field_updates(
+        &mut self,
+        consume_all_tokens: bool,
+        exactly_1_update: bool,
+    ) -> Result<Vec<FieldUpdate>, Vec<Error>> {
+        todo!()
     }
 }
 

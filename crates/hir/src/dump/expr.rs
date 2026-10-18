@@ -248,16 +248,33 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session, max_
                 }
             }
         },
-        Expr::FieldUpdate { lhs, fields, rhs } => {
+        Expr::FieldUpdate { lhs, updates, .. } => {
             dump_expr(lhs, lines, session, max_len);
+            lines.push(" with {");
 
-            for field in fields.iter() {
-                lines.push(" `");
-                lines.push(&field.unwrap_name().unintern_or_default(&session.intermediate_dir));
+            for (i, update) in updates.iter().enumerate() {
+                if i != 0 {
+                    lines.push(", ");
+                }
+
+                for (j, field) in update.field.iter().enumerate() {
+                    if j != 0 {
+                        lines.push(".");
+                    }
+
+                    match field {
+                        Field::Name { name, .. } => {
+                            lines.push(&name.unintern_or_default(&session.intermediate_dir));
+                        },
+                        _ => todo!(),
+                    }
+                }
+
+                lines.push(" = ");
+                dump_expr(&update.value, lines, session, max_len);
             }
 
-            lines.push(" ");
-            dump_expr(rhs, lines, session, max_len);
+            lines.push("}");
         },
         Expr::PrefixOp { op, rhs, .. } => {
             lines.push(op.render_error());
@@ -363,3 +380,4 @@ fn get_if_value_dump_type(value: &Expr, session: &Session) -> IfValueDumpType {
         },
     }
 }
+

@@ -49,7 +49,6 @@ impl From<&TokenKind> for ErrorToken {
             TokenKind::Char(_) |
             TokenKind::Byte(_) |
             TokenKind::FormattedString { .. } => ErrorToken::Expr,
-            TokenKind::FieldUpdate { .. } => ErrorToken::FieldUpdate,
             TokenKind::DocComment { .. } => ErrorToken::DocComment,
             TokenKind::Punct(p) => ErrorToken::Punct(*p),
             TokenKind::GroupDelim { .. } => unreachable!(),
@@ -58,3 +57,4 @@ impl From<&TokenKind> for ErrorToken {
         }
     }
 }
+

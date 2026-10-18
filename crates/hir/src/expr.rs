@@ -66,9 +66,10 @@ pub enum Expr {
         dotfish: Vec<Option<Dotfish>>,
     },
     FieldUpdate {
-        fields: Vec<Field>,
         lhs: Box<Expr>,
-        rhs: Box<Expr>,
+        updates: Vec<FieldUpdate>,
+        keyword_span: Span,
+        rhs_span: Span,
     },
     PrefixOp {
         op: PrefixOp,
@@ -101,6 +102,13 @@ pub enum Expr {
         macro_span: Span,
         group_span: Span,
     },
+}
+
+#[derive(Clone, Debug)]
+pub struct FieldUpdate {
+    pub field: Vec<Field>,
+    pub assign_span: Span,
+    pub value: Expr,
 }
 
 impl Expr {
@@ -282,16 +290,42 @@ impl Expr {
                     Err(()) => Err(()),
                 }
             },
-            ast::Expr::FieldUpdate { fields, lhs, rhs } => match (
-                Expr::from_ast(lhs, session),
-                Expr::from_ast(rhs, session),
-            ) {
-                (Ok(lhs), Ok(rhs)) => Ok(Expr::FieldUpdate {
-                    fields: fields.clone(),
-                    lhs: Box::new(lhs),
-                    rhs: Box::new(rhs),
-                }),
-                _ => Err(()),
+            ast::Expr::FieldUpdate { lhs, updates: ast_updates, keyword_span, rhs_span } => {
+                let mut has_error = false;
+                let lhs: Option<Expr> = match Expr::from_ast(lhs, session) {
+                    Ok(e) => Some(e),
+                    Err(()) => {
+                        has_error = true;
+                        None
+                    },
+                };
+                let mut updates = Vec::with_capacity(ast_updates.len());
+
+                for ast_update in ast_updates.iter() {
+                    match Expr::from_ast(&ast_update.value, session) {
+                        Ok(value) => {
+                            updates.push(FieldUpdate {
+                                field: ast_update.field.clone(),
+                                assign_span: ast_update.assign_span.clone(),
+                                value,
+                            });
+                        },
+                        Err(()) => {
+                            has_error = true;
+                        },
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                } else {
+                    Ok(Expr::FieldUpdate {
+                        lhs: Box::new(lhs.unwrap()),
+                        updates,
+                        keyword_span: keyword_span.clone(),
+                        rhs_span: rhs_span.clone(),
+                    })
+                }
             },
             ast::Expr::Lambda(ast::Lambda {
                 ndet_keyword_span,
@@ -502,8 +536,8 @@ impl Expr {
             Expr::Tuple { group_span, .. } |
             Expr::List { group_span, .. } => group_span.clone(),
             Expr::StructInit { constructor, .. } => constructor.error_span_narrow(),
-            Expr::Field { fields, .. } |
-            Expr::FieldUpdate { fields, .. } => merge_field_spans(fields),
+            Expr::Field { fields, .. } => merge_field_spans(fields),
+            Expr::FieldUpdate { keyword_span, .. } => keyword_span.clone(),
             Expr::PrefixOp { op_span, .. } |
             Expr::InfixOp { op_span, .. } |
             Expr::PostfixOp { op_span, .. } |
@@ -531,9 +565,10 @@ impl Expr {
 
             // TODO: dump dotfish
             Expr::Field { lhs, fields, dotfish } => lhs.error_span_wide().merge(&merge_field_spans(fields)),
-            Expr::FieldUpdate { lhs, fields, rhs } => lhs.error_span_wide()
-                .merge(&merge_field_spans(fields))
-                .merge(&rhs.error_span_wide()),
+
+            Expr::FieldUpdate { lhs, keyword_span, rhs_span, .. } => lhs.error_span_wide()
+                .merge(keyword_span)
+                .merge(&rhs_span),
             Expr::PrefixOp { op_span, rhs, .. } => op_span.merge(&rhs.error_span_wide()),
             Expr::InfixOp { lhs, op_span, rhs, .. } => lhs.error_span_wide().merge(op_span).merge(&rhs.error_span_wide()),
             Expr::PostfixOp { op_span, lhs, .. } => lhs.error_span_wide().merge(op_span),

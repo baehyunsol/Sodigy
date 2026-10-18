@@ -1,0 +1,15 @@
+//% compile-error = 3
+
+struct Foo = { x: Bar, y: Int, z: Baz };
+struct Bar = { x: Int, y: Number, z: () };
+struct Baz = { x: (), y: [Number], z: Int };
+
+fn foo_error_1(f: Foo) = f with { y = 3, y = 4 };
+fn foo_error_2(f: Foo) = f with { x = bar(), x.x = 3 };
+fn foo_error_3(f: Foo) = f with { x.x = 3, x = bar() };
+
+fn foo_okay_1(f: Foo) = f with { x.x = 3, y = 4 };
+fn foo_okay_2(f: Foo) = f with { x.x = 3, x.y = 3.0 };
+
+fn bar() -> Bar = std.panic();
+

@@ -234,9 +234,29 @@ impl Session {
                 }
             },
             Expr::Field { lhs, .. } => self.resolve_expr(lhs),
+            Expr::FieldUpdate { lhs, updates, .. } => {
+                let mut has_error = false;
+
+                if let Err(()) = self.resolve_expr(lhs) {
+                    has_error = true;
+                }
+
+                for update in updates.iter_mut() {
+                    if let Err(()) = self.resolve_expr(&mut update.value) {
+                        has_error = true;
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(())
+                }
+            },
             Expr::PrefixOp { rhs: hs, .. } |
             Expr::PostfixOp { lhs: hs, .. } => self.resolve_expr(hs),
-            Expr::FieldUpdate { lhs, rhs, .. } |
             Expr::InfixOp { lhs, rhs, .. } => match (
                 self.resolve_expr(lhs),
                 self.resolve_expr(rhs),
@@ -471,7 +491,27 @@ impl Session {
             Expr::Field { lhs: hs, .. } |
             Expr::PrefixOp { rhs: hs, .. } |
             Expr::PostfixOp { lhs: hs, .. } => self.check_expr_path(hs),
-            Expr::FieldUpdate { lhs, rhs, .. } |
+            Expr::FieldUpdate { lhs, updates, .. } => {
+                let mut has_error = false;
+
+                if let Err(()) = self.check_expr_path(lhs) {
+                    has_error = true;
+                }
+
+                for update in updates.iter() {
+                    if let Err(()) = self.check_expr_path(&update.value) {
+                        has_error = true;
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(())
+                }
+            },
             Expr::InfixOp { lhs, rhs, .. } => match (
                 self.check_expr_path(lhs),
                 self.check_expr_path(rhs),
@@ -557,3 +597,4 @@ impl From<EnumFieldKind> for TypeStructExpr {
         }
     }
 }
+

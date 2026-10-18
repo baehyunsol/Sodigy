@@ -61,7 +61,6 @@ pub(crate) enum LexState {
         // `r#`-prefixed identifier
         raw: bool,
     },
-    FieldUpdate,
     Integer(Base),
     Fraction,
     Exp,
@@ -150,14 +149,6 @@ impl Session {
                     self.buffer1.clear();
                     self.token_start = self.cursor;
                     self.state = LexState::Ident { raw: false };
-                },
-                (Some(b'`'), Some(y @ (b'a'..=b'z' | b'A'..=b'Z' | b'_')), _) => {
-                    self.buffer1.clear();
-                    self.buffer1.push(*y);
-
-                    self.token_start = self.cursor;
-                    self.state = LexState::FieldUpdate;
-                    self.cursor += 2;
                 },
                 // It's `Number + Punct("..")`, and we have to prevent the lexer reading it `DottedNumber + Punct(".")`.
                 (Some(x @ b'0'..=b'9'), Some(b'.'), Some(b'.')) => {
@@ -1463,6 +1454,7 @@ impl Session {
                         (b"struct", false) => TokenKind::Keyword(Keyword::Struct),
                         (b"type", false) => TokenKind::Keyword(Keyword::Type),
                         (b"use", false) => TokenKind::Keyword(Keyword::Use),
+                        (b"with", false) => TokenKind::Keyword(Keyword::With),
                         (b"", _) => {
                             // Nothing following an `r#`.
                             return Err(Error {
@@ -1508,33 +1500,6 @@ impl Session {
 
                     self.tokens.push(Token {
                         kind: token_kind,
-                        span: Span::range(
-                            self.file,
-                            self.token_start as u32,
-                            (self.cursor - self.token_start) as u32,
-                        ),
-                    });
-                    self.state = LexState::Init;
-                },
-            },
-            LexState::FieldUpdate => match self.input_bytes.get(self.cursor) {
-                Some(x @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z' | b'_')) => {
-                    self.buffer1.push(*x);
-                    self.cursor += 1;
-                },
-                _ => {
-                    let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
-
-                    self.tokens.push(Token {
-                        kind: TokenKind::FieldUpdate {
-                            field: interned,
-                            backtick_span: Span::single(self.file, self.token_start as u32),
-                            field_span: Span::range(
-                                self.file,
-                                self.token_start as u32 + 1,
-                                (self.cursor - self.token_start - 1) as u32,
-                            ),
-                        },
                         span: Span::range(
                             self.file,
                             self.token_start as u32,

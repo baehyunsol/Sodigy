@@ -68,7 +68,8 @@
     { info: Option<TypeVarInfo>, r#type: String, is_return: bool },
     CannotInferGenericType { id: Option<String> }, PartiallyInferedGenericType
     { id: Option<String>, r#type: String }, UnknownField
-    { r#type: String, field: InternedString }, CannotUpdateAssociatedFunc
+    { r#type: String, field: InternedString },
+    UpdateFieldMultipleTimes(InternedString), CannotUpdateAssociatedFunc
     { r#type: String, name: InternedString }, CannotApplyInfixOp
     { op: InfixOp, arg_types: Vec<String> }, CannotSpecializePolyGeneric
     { num_candidates: usize }, ImpureCallInPureContext
@@ -192,6 +193,7 @@
             ErrorKind :: CannotInferGenericType { .. } => 430u16, ErrorKind ::
             PartiallyInferedGenericType { .. } => 435u16, ErrorKind ::
             UnknownField { .. } => 436u16, ErrorKind ::
+            UpdateFieldMultipleTimes(_,) => 438u16, ErrorKind ::
             CannotUpdateAssociatedFunc { .. } => 439u16, ErrorKind ::
             CannotApplyInfixOp { .. } => 440u16, ErrorKind ::
             CannotSpecializePolyGeneric { .. } => 445u16, ErrorKind ::
@@ -343,6 +345,7 @@
             CannotInferGenericType { .. } => ErrorLevel :: Error, ErrorKind ::
             PartiallyInferedGenericType { .. } => ErrorLevel :: Error,
             ErrorKind :: UnknownField { .. } => ErrorLevel :: Error, ErrorKind
+            :: UpdateFieldMultipleTimes(_,) => ErrorLevel :: Error, ErrorKind
             :: CannotUpdateAssociatedFunc { .. } => ErrorLevel :: Error,
             ErrorKind :: CannotApplyInfixOp { .. } => ErrorLevel :: Error,
             ErrorKind :: CannotSpecializePolyGeneric { .. } => ErrorLevel ::
@@ -670,7 +673,9 @@
             {
                 buffer.push(1u8); buffer.push(180u8);
                 r#type.encode_impl(buffer); r#field.encode_impl(buffer);
-            }, ErrorKind :: CannotUpdateAssociatedFunc { r#type, r#name, } =>
+            }, ErrorKind :: UpdateFieldMultipleTimes(t0,) =>
+            { buffer.push(1u8); buffer.push(182u8); t0.encode_impl(buffer); },
+            ErrorKind :: CannotUpdateAssociatedFunc { r#type, r#name, } =>
             {
                 buffer.push(1u8); buffer.push(183u8);
                 r#type.encode_impl(buffer); r#name.encode_impl(buffer);
@@ -1157,6 +1162,11 @@
                 ; let (r#field, cursor) = InternedString ::
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: UnknownField { r#type, r#field, }, cursor))
+            }, 438u16 =>
+            {
+                let (t0, cursor) = InternedString ::
+                decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: UpdateFieldMultipleTimes(t0,), cursor))
             }, 439u16 =>
             {
                 let (r#type, cursor) = String :: decode_impl(buffer, cursor) ?

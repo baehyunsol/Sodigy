@@ -87,13 +87,6 @@ pub enum TokenKind {
         // For example, `f""`'s `elements` is `vec![]`.
         elements: Vec<TokensOrString>,
     },
-    FieldUpdate {
-        field: InternedString,
-
-        // Token's span is the merged span of these
-        backtick_span: Span,
-        field_span: Span,
-    },
     DocComment {
         // `//!`
         top_level: bool,
@@ -137,8 +130,6 @@ impl TokenKind {
             (TokenKind::Byte(_), _) => false,
             (TokenKind::FormattedString { .. }, TokenKind::FormattedString { .. }) => true,
             (TokenKind::FormattedString { .. }, _) => false,
-            (TokenKind::FieldUpdate { .. }, TokenKind::FieldUpdate { .. }) => true,
-            (TokenKind::FieldUpdate { .. }, _) => false,
             (TokenKind::DocComment { top_level: a, .. }, TokenKind::DocComment { top_level: b, .. }) => a == b,
             (TokenKind::DocComment { .. }, _) => false,
             (TokenKind::Punct(a), TokenKind::Punct(b)) => a == b,
@@ -154,12 +145,11 @@ impl TokenKind {
     // A token that can be a beginning of a pattern.
     pub fn pattern_begin(&self) -> bool {
         match self {
-            TokenKind::Keyword(k) => match k {
-                _ => todo!(),
-            },
+            TokenKind::Keyword(_) => false,
             TokenKind::Punct(p) => match p {
                 Punct::Sub |
-                Punct::Dollar |
+                Punct::Dollar |  // FIXME: what pattern starts with Punct::Dollar?? I think it's
+                                 // deprecated, right?
                 Punct::DotDot |
                 Punct::DotDotEq => true,
                 _ => false,
@@ -176,7 +166,6 @@ impl TokenKind {
             TokenKind::Byte(_) |
             TokenKind::Wildcard => true,
             TokenKind::FormattedString { .. } |
-            TokenKind::FieldUpdate { .. } |
             TokenKind::DocComment { .. } |
             TokenKind::GroupDelim { .. } => false,
         }
@@ -191,7 +180,6 @@ impl TokenKind {
             TokenKind::Byte(_) |
             TokenKind::FormattedString { .. } => true,
 
-            TokenKind::FieldUpdate { .. } |
             TokenKind::DocComment { .. } |
             TokenKind::GroupDelim { delim: None, .. } |
             TokenKind::Wildcard => false,
@@ -210,7 +198,8 @@ impl TokenKind {
                 Keyword::Pub |
                 Keyword::Struct |
                 Keyword::Type |
-                Keyword::Use => false,
+                Keyword::Use |
+                Keyword::With => false,
 
                 // `proc \(x) => { .. }` is an expression
                 Keyword::If |
@@ -246,3 +235,4 @@ pub enum Formatter {
     LowerHex,
     UpperHex,
 }
+

@@ -177,16 +177,17 @@ error_kinds!(
     (PartiallyInferedGenericType { id: Option<String>, r#type: String }, 435,    Error),
 
     // TODO: suggest similar names
-    (UnknownField { r#type: String, field: InternedString },               436,    Error),
+    (UnknownField { r#type: String, field: InternedString },               436,  Error),
 
+    (UpdateFieldMultipleTimes(InternedString),                             438,  Error),
     (CannotUpdateAssociatedFunc { r#type: String, name: InternedString },  439,  Error),
     (CannotApplyInfixOp { op: InfixOp, arg_types: Vec<String> },           440,  Error),
     (CannotSpecializePolyGeneric { num_candidates: usize },                445,  Error),
     (ImpureCallInPureContext { context: FuncEffect },                      450,  Error),
 
     // TODO: tell what's missing
-    (NonExhaustiveArms,                                                  455,    Error),
-    (RefutableLetPattern,                                                456,    Error),
+    (NonExhaustiveArms,                                                    455,  Error),
+    (RefutableLetPattern,                                                  456,  Error),
 
     (MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },    460,    Error),
     (ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },      465,    Error),

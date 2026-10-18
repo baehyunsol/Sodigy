@@ -89,7 +89,7 @@ pub use closure::CapturedNames;
 pub use r#do::Do;
 pub use r#enum::{Enum, EnumRepr, EnumShape, EnumVariant, EnumVariantFields};
 pub use eval::eval_const;
-pub use expr::{Expr, ExprOrString};
+pub use expr::{Expr, ExprOrString, FieldUpdate};
 pub use func::{CallArg, Func, FuncOrigin, FuncParam, FuncShape};
 pub use r#if::If;
 pub use item_shape::{ItemShape, ItemShapeMut};
