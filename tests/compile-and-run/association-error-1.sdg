@@ -12,3 +12,4 @@ let n = Complex { real: 3.0, imag: 4.0 };
 
 // oops, I wrote `.norm` twice!
 assert n.norm.norm() == 5.0;
+

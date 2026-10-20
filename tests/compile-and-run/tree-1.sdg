@@ -37,7 +37,7 @@ fn get<K, V>(head: Node<K, V>, key: K) -> Option<V> = {
 fn insert<K, V>(head: Node<K, V>, key: K, value: V) -> (Node<K, V>, Option<V>) = {
     if head.key == key {
         (
-            head `value value,
+            head with value = value,
             Some(head.value),
         )
     }
@@ -52,8 +52,8 @@ fn insert<K, V>(head: Node<K, V>, key: K, value: V) -> (Node<K, V>, Option<V>) =
 
             else {
                 (
-                    // TODO: I want a Rust-like syntax where I can shorten `hash: hash` to `hash`.
-                    head `left_child Node {
+                    head with left_child = Node {
+                        // TODO: I want a Rust-like syntax where I can shorten `hash: hash` to `hash`.
                         hash: hash,
                         key: key,
                         value: value,
@@ -72,7 +72,7 @@ fn insert<K, V>(head: Node<K, V>, key: K, value: V) -> (Node<K, V>, Option<V>) =
 
             else {
                 (
-                    head `right_child Node {
+                    head with right_child = Node {
                         hash: hash,
                         key: key,
                         value: value,

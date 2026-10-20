@@ -28,7 +28,7 @@ let p1 = Person {
     },
 };
 
-let p2 = p1 `foo.bar.f3 100;
+let p2 = p1 with foo.bar.f3 = 100;
 
 assert p1.foo.bar.f3 == 3;
 assert p2.foo.bar.f3 == 100;

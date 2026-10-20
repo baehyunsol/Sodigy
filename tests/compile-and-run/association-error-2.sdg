@@ -8,3 +8,4 @@ struct Complex = {
 let n = Complex { real: 3.0, imag: 4.0 };
 
 assert n.real() == 3.0;
+

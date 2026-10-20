@@ -87,7 +87,7 @@ fn insert_inner<K, V>(
         Entry.Collision($pairs) => std.panic("TODO"),
     };
 
-    (node `entries node.entries.update(index, new_entry), already)
+    (node with entries = $.update(index, new_entry), already)
 };
 
 // TODO: when this module is moved to std, there must be a module std.hamt.test
@@ -109,3 +109,4 @@ fn simple_hamt() = {
 };
 
 assert simple_hamt();
+

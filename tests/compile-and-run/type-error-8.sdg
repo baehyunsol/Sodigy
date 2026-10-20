@@ -6,7 +6,8 @@ pub struct Person = {
     is_rustacean: Bool,
 };
 
-fn get_what(p: Person) -> Person = p `age "";  // err 1
+fn get_what(p: Person) -> Person = p with age = "";  // err 1
 
 let me = Person { name: "Bae", age: 27, is_rustacean: True };
 let my_age: String = me.age;  // err 2
+
