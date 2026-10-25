@@ -483,7 +483,29 @@ fn lower_bytecode(
         },
         Bytecode::Label(_) => unreachable!(),
         Bytecode::Return(_) => unreachable!(),
-        Bytecode::Update { .. } => todo!(),
+        Bytecode::Update { src, size, index, value, dst } => {
+            lines.push(format!("{indent_s}let old_tuple = {};", to_rvalue(&Memory::SSA(*src), session)));
+            lines.push(format!("{indent_s}let new_tuple = {};", alloc(*size).0));
+
+            for i in 0..*size {
+                if i == *index {
+                    continue;
+                }
+
+                lines.push(format!(
+                    "{indent_s}*heap.data.get_unchecked_mut(new_tuple{}) = *heap.data.get_unchecked(old_tuple as usize{});",
+                    if i == 0 { String::new() } else { format!(" + {i}") },
+                    if i == 0 { String::new() } else { format!(" + {i}") },
+                ));
+            }
+
+            lines.push(format!(
+                "{indent_s}*heap.data.get_unchecked_mut(new_tuple{}) = {};",
+                if *index == 0 { String::new() } else { format!(" + {index}") },
+                to_rvalue(&Memory::SSA(*value), session),
+            ));
+            lines.push(format!("{indent_s}{} = new_tuple as u32;", to_lvalue(dst, session)));
+        },
         Bytecode::Intrinsic { intrinsic, args, dst, .. } => match intrinsic {
             Intrinsic::NegInt => {
                 let func = match intrinsic {

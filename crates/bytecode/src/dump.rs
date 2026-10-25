@@ -55,7 +55,7 @@ impl Bytecode {
             ),
             Bytecode::Label(label) => format!("label {label}:"),
             Bytecode::Return(ssa) => format!("return {ssa};"),
-            Bytecode::Update { src, size: _, index, value, dst } => format!("{dst} = {src} with {{ {index}: {value} }};"),
+            Bytecode::Update { src, size, index, value, dst } => format!("{dst} = $Update({src}, #s{size:x}, #s{index:x}, {value});"),
             Bytecode::Intrinsic { intrinsic, args, dst, debug_info } => format!(
                 "{dst} = ${intrinsic:?}({});{}",
                 args.iter().map(

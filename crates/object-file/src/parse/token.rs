@@ -11,7 +11,6 @@ pub enum Keyword {
     Jump,
     Return,
     Label,
-    With,
     Effect,
     Name,
     Fn,
@@ -114,6 +113,7 @@ pub enum Command {
 
     InitList,
     InitTuple,
+    Update,
     IsInit,
     Phi,
     LoadGlobal,
@@ -166,6 +166,7 @@ impl Command {
             b"Nop1" => Ok(Command::Nop1),
             b"InitList" => Ok(Command::InitList),
             b"InitTuple" => Ok(Command::InitTuple),
+            b"Update" => Ok(Command::Update),
             b"IsInit" => Ok(Command::IsInit),
             b"Phi" => Ok(Command::Phi),
             b"LoadGlobal" => Ok(Command::LoadGlobal),
