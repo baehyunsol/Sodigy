@@ -1,5 +1,14 @@
-use crate::{Code, ObjectFile};
-use sodigy_bytecode::{ExprHash, GlobalLabel, Value};
+use crate::{BasicBlock, Code, ObjectFile};
+use sodigy_bytecode::{
+    Bytecode,
+    ExprHash,
+    GlobalLabel,
+    InternedValue,
+    LocalLabel,
+    Memory,
+    SSA,
+    Value,
+};
 use sodigy_error::{Error, ErrorKind, FuncEffect};
 use sodigy_file::File;
 use sodigy_number::{BigInt, neg_bi};
@@ -61,6 +70,22 @@ fn parse_data_section(tokens: &[Token], cursor: &mut usize) -> Result<HashMap<Ex
 }
 
 fn parse_code_section(tokens: &[Token], cursor: &mut usize, intermediate_dir: &str) -> Result<HashMap<GlobalLabel, Code>, Error> {
+    let mut result = HashMap::new();
+
+    loop {
+        match tokens.get(*cursor) {
+            // TODO: if it's beginning of another section, break
+            _ => {
+                let code = parse_code(tokens, cursor, intermediate_dir)?;
+                result.insert(code.label, code);
+            },
+        }
+    }
+
+    Ok(result)
+}
+
+fn parse_code(tokens: &[Token], cursor: &mut usize, intermediate_dir: &str) -> Result<Code, Error> {
     let mut effect: Option<FuncEffect> = None;
     let mut name: Option<String> = None;
 
@@ -111,7 +136,32 @@ fn parse_code_section(tokens: &[Token], cursor: &mut usize, intermediate_dir: &s
         s => panic!("{s:?}"),
     };
 
-    eprintln!("{:?}", tokens.get(*cursor));
+    let params: Option<usize> = match (tokens.get(*cursor), tokens.get(*cursor + 1)) {
+        (Some(Token { kind: TokenKind::Punct(b':'), .. }), _) => {
+            *cursor += 1;
+            None
+        },
+        (
+            Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. }),
+            Some(Token { kind: TokenKind::Punct(b':'), .. }),
+        ) => {
+            let params = parse_ssa_list(tokens)?;
+            Some(params.len())
+        },
+        s => panic!("{s:?}"),
+    };
+
+    let mut basic_blocks: HashMap<LocalLabel, BasicBlock> = HashMap::new();
+
+    loop {
+        match tokens.get(*cursor) {
+            _ => {
+                let basic_block = parse_basic_block(tokens, cursor)?;
+                basic_blocks.insert(basic_block.label, basic_block);
+            },
+        }
+    }
+
     todo!()
 }
 
@@ -166,6 +216,122 @@ fn parse_value(tokens: &[Token], cursor: &mut usize) -> Result<Value, Error> {
         },
         t => panic!("TODO: {t:?}"),
     }
+}
+
+fn parse_basic_block(tokens: &[Token], cursor: &mut usize) -> Result<BasicBlock, Error> {
+    let label = match (tokens.get(*cursor), tokens.get(*cursor + 1), tokens.get(*cursor + 2)) {
+        (
+            Some(Token { kind: TokenKind::Keyword(Keyword::Label), .. }),
+            Some(Token { kind: TokenKind::LocalLabel(label), .. }),
+            Some(Token { kind: TokenKind::Punct(b':'), .. }),
+        ) => {
+            *cursor += 3;
+            LocalLabel::new(*label)
+        },
+        s => panic!("{s:?}"),
+    };
+    let mut code = vec![];
+    let mut terminator = None;
+
+    loop {
+        match tokens.get(*cursor) {
+            Some(Token { kind: TokenKind::SSA(_) | TokenKind::Punct(b'*'), .. }) => {
+                let dst = match (
+                    tokens.get(*cursor),
+                    tokens.get(*cursor + 1),
+                    tokens.get(*cursor + 2),
+                ) {
+                    (
+                        Some(Token { kind: TokenKind::SSA(ssa), .. }),
+                        Some(Token { kind: TokenKind::Punct(b'='), .. }),
+                        _,
+                    ) => {
+                        *cursor += 2;
+                        Memory::SSA(SSA::from_u32(*ssa))
+                    },
+                    (
+                        Some(Token { kind: TokenKind::Punct(b'*'), .. }),
+                        Some(Token { kind: TokenKind::SSA(ssa), .. }),
+                        Some(Token { kind: TokenKind::Punct(b'='), .. }),
+                    ) => {
+                        *cursor += 3;
+                        Memory::Heap { ptr: SSA::from_u32(*ssa), offset: 0 }
+                    },
+                    (
+                        Some(Token { kind: TokenKind::SSA(ssa), .. }),
+                        Some(Token { kind: TokenKind::Group { delim: Delim::Bracket, tokens }, .. }),
+                        Some(Token { kind: TokenKind::Punct(b'='), .. }),
+                    ) => todo!(),
+                    s => panic!("{s:?}"),
+                };
+                let c = match (tokens.get(*cursor), tokens.get(*cursor + 1)) {
+                    (Some(Token { kind: TokenKind::InternedValue(v), .. }), _) => {
+                        *cursor += 1;
+                        Bytecode::Const {
+                            value: InternedValue::Interned(ExprHash::from_raw(*v)),
+                            dst,
+                            debug_info: None,
+                        }
+                    },
+                    (
+                        Some(Token { kind: TokenKind::Command(command), .. }),
+                        Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. }),
+                    ) => {
+                        let params = parse_ssa_list(tokens)?;
+                        eprintln!("{command:?}");
+                        eprintln!("{tokens:?}");
+                        todo!()
+                    },
+                    (Some(Token { kind: TokenKind::Command(command), .. }), _) => {
+                        *cursor += 1;
+                        todo!()
+                    },
+                    s => panic!("{s:?}"),
+                };
+                pop_punct(b';', tokens, cursor)?;
+
+                code.push(c);
+            },
+            Some(Token { kind: TokenKind::Keyword(Keyword::Return), .. }) => todo!(),
+            Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => todo!(),
+            Some(Token { kind: TokenKind::Command(command), .. }) => match *command {
+                Command::Breakpoint => todo!(),
+                s => panic!("{s:?}"),
+            },
+            s => panic!("{s:?}"),
+        }
+    }
+
+    Ok(BasicBlock {
+        label,
+        code,
+        terminator: terminator.unwrap(),
+        terminator_debug_info: None,
+    })
+}
+
+// It has to consume all the tokens.
+fn parse_ssa_list(tokens: &[Token]) -> Result<Vec<SSA>, Error> {
+    let mut cursor = 0;
+    let mut result = vec![];
+
+    loop {
+        match tokens.get(cursor) {
+            Some(Token { kind: TokenKind::SSA(ssa), .. }) => {
+                cursor += 1;
+                result.push(SSA::from_u32(*ssa));
+            },
+            s => panic!("{s:?}"),
+        }
+
+        match (tokens.get(cursor), tokens.get(cursor + 1)) {
+            (Some(Token { kind: TokenKind::Punct(b','), .. }), None) | (None, _) => break,
+            (Some(Token { kind: TokenKind::Punct(b','), .. }), _) => { cursor += 1; },
+            (s, _) => panic!("{s:?}"),
+        }
+    }
+
+    Ok(result)
 }
 
 fn pop_punct(punct: u8, tokens: &[Token], cursor: &mut usize) -> Result<(), Error> {
