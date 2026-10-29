@@ -12,6 +12,7 @@ use sodigy_bytecode::{
 use sodigy_error::{Error, ErrorKind, FuncEffect};
 use sodigy_file::File;
 use sodigy_number::{BigInt, neg_bi};
+use sodigy_span::SpanHash;
 use sodigy_token::Delim;
 use std::collections::HashMap;
 
@@ -274,17 +275,54 @@ fn parse_basic_block(tokens: &[Token], cursor: &mut usize) -> Result<BasicBlock,
                         }
                     },
                     (
-                        Some(Token { kind: TokenKind::Command(command), .. }),
+                        Some(Token { kind: TokenKind::Command(command), span: command_span }),
                         Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. }),
                     ) => {
-                        let params = parse_ssa_list(tokens)?;
-                        eprintln!("{command:?}");
-                        eprintln!("{tokens:?}");
-                        todo!()
+                        *cursor += 2;
+                        let intrinsic = match command.try_into_intrinsic() {
+                            Some(i) => i,
+                            None => {
+                                return Err(Error {
+                                    kind: ErrorKind::InvalidIntrinsic(format!("{command:?}")),
+                                    spans: command_span.simple_error(),
+                                    note: None,
+                                });
+                            },
+                        };
+                        let args = parse_ssa_list(tokens)?;
+
+                        Bytecode::Intrinsic {
+                            intrinsic,
+                            args,
+                            dst,
+                            debug_info: None,
+                        }
                     },
                     (Some(Token { kind: TokenKind::Command(command), .. }), _) => {
                         *cursor += 1;
                         todo!()
+                    },
+                    (
+                        Some(Token { kind: TokenKind::GlobalLabel(label), .. }),
+                        Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. }),
+                    ) => {
+                        *cursor += 2;
+                        let args = parse_ssa_list(tokens)?;
+
+                        Bytecode::Call {
+                            func: GlobalLabel::new(SpanHash(*label)),
+                            args,
+                            dst: Some(dst),
+                            debug_info: None,
+                            effect: todo!(),  // how do we know this...
+                        }
+                    },
+                    (Some(t @ Token { span, .. }), _) => {
+                        return Err(Error {
+                            kind: ErrorKind::Todo { id: 306994 },
+                            spans: span.simple_error(),
+                            note: Some(format!("{t:?}")),
+                        });
                     },
                     s => panic!("{s:?}"),
                 };

@@ -1,4 +1,5 @@
 use sodigy_error::Error;
+use sodigy_mir::Intrinsic;
 use sodigy_number::BigInt;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -52,6 +53,7 @@ impl TokenKind {
     pub fn render(&self) -> String {
         match self {
             TokenKind::Section(s) => format!(".{s:?}").to_ascii_lowercase(),
+            TokenKind::Command(c) => format!("${c:?}"),
             TokenKind::Punct(p) => format!("{}", *p as char),
             _ => panic!("TODO: {self:?}"),
         }
@@ -174,6 +176,52 @@ impl Command {
             b"Breakpoint" => Ok(Command::Breakpoint),
             _ => panic!("{:?}", String::from_utf8_lossy(ident)),
             _ => todo!(),
+        }
+    }
+
+    pub fn try_into_intrinsic(&self) -> Option<Intrinsic> {
+        match self {
+            Command::NegInt => Some(Intrinsic::NegInt),
+            Command::AddInt => Some(Intrinsic::AddInt),
+            Command::SubInt => Some(Intrinsic::SubInt),
+            Command::MulInt => Some(Intrinsic::MulInt),
+            Command::DivInt => Some(Intrinsic::DivInt),
+            Command::RemInt => Some(Intrinsic::RemInt),
+            Command::LtInt => Some(Intrinsic::LtInt),
+            Command::EqInt => Some(Intrinsic::EqInt),
+            Command::GtInt => Some(Intrinsic::GtInt),
+            Command::BitAndInt => Some(Intrinsic::BitAndInt),
+            Command::BitOrInt => Some(Intrinsic::BitOrInt),
+            Command::ShrInt => Some(Intrinsic::ShrInt),
+            Command::ShlInt => Some(Intrinsic::ShlInt),
+            Command::Ilog2Int => Some(Intrinsic::Ilog2Int),
+            Command::AddScalar => Some(Intrinsic::AddScalar),
+            Command::SubScalar => Some(Intrinsic::SubScalar),
+            Command::MulScalar => Some(Intrinsic::MulScalar),
+            Command::DivScalar => Some(Intrinsic::DivScalar),
+            Command::RemScalar => Some(Intrinsic::RemScalar),
+            Command::LtScalar => Some(Intrinsic::LtScalar),
+            Command::EqScalar => Some(Intrinsic::EqScalar),
+            Command::GtScalar => Some(Intrinsic::GtScalar),
+            Command::BitAndScalar => Some(Intrinsic::BitAndScalar),
+            Command::BitOrScalar => Some(Intrinsic::BitOrScalar),
+            Command::ScalarToInt => Some(Intrinsic::ScalarToInt),
+            Command::IntToScalar => Some(Intrinsic::IntToScalar),
+            Command::IndexList => Some(Intrinsic::IndexList),
+            Command::LenList => Some(Intrinsic::LenList),
+            Command::SliceList => Some(Intrinsic::SliceList),
+            Command::SliceRightList => Some(Intrinsic::SliceRightList),
+            Command::AppendList => Some(Intrinsic::AppendList),
+            Command::PrependList => Some(Intrinsic::PrependList),
+            Command::Exit => Some(Intrinsic::Exit),
+            Command::Print => Some(Intrinsic::Print),
+            Command::EPrint => Some(Intrinsic::EPrint),
+            Command::Debug => Some(Intrinsic::Debug),
+            Command::RandomInt => Some(Intrinsic::RandomInt),
+            Command::Sleep => Some(Intrinsic::Sleep),
+            Command::Nop0 => Some(Intrinsic::Nop0),
+            Command::Nop1 => Some(Intrinsic::Nop1),
+            _ => None,
         }
     }
 }

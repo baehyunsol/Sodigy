@@ -213,6 +213,7 @@ error_kinds!(
     (InvalidSectionName(String),                                    4505,  Error),
     (ObjectFileUnexpectedToken { expected: String, got: String },   4510,  Error),
     (ObjectFileUnexpectedEog { expected: Option<String> },          4515,  Error),
+    (InvalidIntrinsic(String),                                      4520,  Error),
 
     // Warnings from here
     (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),

@@ -139,6 +139,7 @@ IntegerNotInRange/4500/Error
 InvalidSectionName/4505/Error
 ObjectFileUnexpectedToken/4510/Error
 ObjectFileUnexpectedEog/4515/Error
+InvalidIntrinsic/4520/Error
 UnusedNames/5000/Warning
 UseUnusedName/5001/Warning
 UnreachableMatchArm/5005/Warning
