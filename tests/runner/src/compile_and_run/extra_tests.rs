@@ -1,8 +1,9 @@
 use super::{CnrContext, CompileAndRun};
+use crate::diff_strings;
 use sodigy_code_gen::Emit;
 use sodigy_driver::Backend;
 use sodigy_subprocess::{self as subprocess, Output, SubprocessError};
-use sodigy_fs_api::read_bytes;
+use sodigy_fs_api::{into_abs_path, join, read_bytes};
 
 // `sodigy build` can take 3 different kinds of input.
 #[derive(Clone, Copy, Debug)]
@@ -26,6 +27,10 @@ impl Build {
         match self.output {
             // I don't trust the rust compiler.
             Emit::Exe => false,
+
+            // I wish it's deterministic, but some hash maps are not deterministic
+            // due to performance reasons.
+            Emit::ExecutableBytecode => false,
             _ => true,
         }
     }
@@ -93,13 +98,31 @@ impl Build {
         ).map(|_| ())
     }
 
-    pub fn run(&self) -> Result<Output, SubprocessError> {
+    pub fn run(
+        &self,
+        sodigy_path: &str,
+        project_dir: &str,
+    ) -> Result<Output, SubprocessError> {
         let output = self.output_path();
 
         match self.output {
-            Emit::ReadableBytecode | Emit::ExecutableBytecode => todo!(),  // use `sodigy interpret` to run
+            Emit::ReadableBytecode | Emit::ExecutableBytecode => subprocess::run(
+                sodigy_path,
+                &["interpret", &output],
+                project_dir,
+                30.0,
+                false,
+                true,
+            ),
             Emit::Rust => todo!(),  // use `rustc` to run
-            Emit::Exe => todo!(),  // just run
+            Emit::Exe => subprocess::run(
+                &into_abs_path(&join(project_dir, &output).unwrap()).unwrap(),
+                &[],
+                project_dir,
+                30.0,
+                false,
+                true,
+            ),
             Emit::Nothing => unreachable!(),
         }
     }
@@ -138,15 +161,15 @@ struct Run {
 }
 
 impl Run {
-    pub fn all() -> Vec<Run> {
-        todo!()
-    }
-
     pub fn command(&self) -> String {
         todo!()
     }
 
     pub fn run(&self) -> Result<Output, SubprocessError> {
+        todo!()
+    }
+
+    pub fn all() -> Vec<Run> {
         todo!()
     }
 }
@@ -189,17 +212,21 @@ impl CnrContext {
                 }
             }
 
-            let prev_result = read_bytes(&build.output_path()).unwrap();
+            let prev_result = read_bytes(&join(&self.project_dir, &build.output_path()).unwrap()).unwrap();
 
             if let Err(e) = build.build(&self.sodigy_path, &self.project_dir, self.std_assertions) {
                 result.error = Some(format!("error at extra_tests\nloop: 2\niter: {i}\ncommand: {}\nerror: {e:?}", build.command(self.std_assertions)));
                 return;
             }
 
-            let curr_result = read_bytes(&build.output_path()).unwrap();
+            let curr_result = read_bytes(&join(&self.project_dir, &build.output_path()).unwrap()).unwrap();
 
             if prev_result != curr_result {
-                result.error = Some(format!("error at extra_tests\nloop: 2\niter: {i}\ncommand: {}\ndiff: (TODO)", build.command(self.std_assertions)));
+                result.error = Some(format!(
+                    "error at extra_tests\nloop: 2\niter: {i}\ncommand: {}\ndiff:\n{}",
+                    build.command(self.std_assertions),
+                    diff_strings(&String::from_utf8_lossy(&prev_result), &String::from_utf8_lossy(&curr_result)),
+                ));
                 return;
             }
         }
@@ -210,7 +237,7 @@ impl CnrContext {
         // loop 3. Run the built outputs. Outputs with the same profiles
         //         must have the same behavior (stdout, stderr, exit-code).
         for (i, build) in Build::all().into_iter().enumerate() {
-            let output = match build.run() {
+            let output = match build.run(&self.sodigy_path, &self.project_dir) {
                 Ok(o) => o,
                 Err(e) => {
                     result.error = Some(format!("error at extra_tests\nloop: 3\niter: {i}\ncommand: {}\nerror: {e:?}", build.command(self.std_assertions)));

@@ -6,4 +6,6 @@ pub enum DecodeError {
     InvalidLargeEnumVariant(u32),
     InvalidUtf8,
     InvalidUnicodePoint(u32),
+    InvalidObjectFileMagicBytes,
 }
+

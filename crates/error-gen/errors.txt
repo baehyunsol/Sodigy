@@ -141,6 +141,7 @@ ObjectFileUnexpectedToken/4510/Error
 ObjectFileUnexpectedEog/4515/Error
 InvalidIntrinsic/4520/Error
 ObjectFileWrongNumberOfArgs/4525/Error
+RepeatedSSA/4530/Error
 UnusedNames/5000/Warning
 UseUnusedName/5001/Warning
 UnreachableMatchArm/5005/Warning

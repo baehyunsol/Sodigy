@@ -14,7 +14,7 @@ use sodigy_code_gen::Emit;
 use sodigy_endec::Endec;
 use sodigy_error::{Error as SodigyError, Warning as SodigyWarning};
 use sodigy_file::{File, FileOrStd, ModulePath, std_root};
-use sodigy_fs_api::{WriteMode, write_bytes};
+use sodigy_fs_api::{FileError, WriteMode, write_bytes};
 use sodigy_hir as hir;
 use sodigy_mir::{self as mir, GlobalContext as MirGlobalContext};
 use sodigy_object_file::Session as ObjectFileSession;
@@ -802,6 +802,12 @@ impl Worker {
                         (_, Emit::Nothing) => {},
                         (StoreIrAt::File(f), Emit::Exe | Emit::ReadableBytecode | Emit::Rust) => {
                             write_bytes(&f, &code, WriteMode::CreateOrTruncate)?;
+
+                            if emit == Emit::Exe && cfg!(unix) {
+                                use std::fs;
+                                use std::os::unix::fs::PermissionsExt;
+                                fs::set_permissions(&f, fs::Permissions::from_mode(0o755)).map_err(|e| FileError::from_std(e, &f))?;
+                            }
                         },
                         (StoreIrAt::File(f), Emit::ExecutableBytecode) => {
                             write_bytes(&f, &code.encode(), WriteMode::CreateOrTruncate)?;

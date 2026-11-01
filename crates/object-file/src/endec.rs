@@ -53,12 +53,19 @@ impl Endec for Assert {
 
 impl Endec for ObjectFile {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        buffer.extend(b"\0\0SDGOBJ");
         self.data.encode_impl(buffer);
         self.code.encode_impl(buffer);
         self.entry.encode_impl(buffer);
     }
 
-    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+    fn decode_impl(buffer: &[u8], mut cursor: usize) -> Result<(Self, usize), DecodeError> {
+        if buffer.starts_with(b"\0\0SDGOBJ") {
+            cursor += 8;
+        } else {
+            return Err(DecodeError::InvalidObjectFileMagicBytes);
+        }
+
         let (data, cursor) = HashMap::<ExprHash, Value>::decode_impl(buffer, cursor)?;
         let (code, cursor) = HashMap::<GlobalLabel, Code>::decode_impl(buffer, cursor)?;
         let (entry, cursor) = Entry::decode_impl(buffer, cursor)?;

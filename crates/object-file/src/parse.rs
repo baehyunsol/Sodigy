@@ -1,4 +1,12 @@
-use crate::{Assert, BasicBlock, Code, CodeKind, Entry, ObjectFile, Terminator};
+use crate::{
+    Assert,
+    BasicBlock,
+    Code,
+    CodeKind,
+    Entry,
+    ObjectFile,
+    Terminator,
+};
 use sodigy_bytecode::{
     Bytecode,
     ExprHash,
@@ -12,10 +20,10 @@ use sodigy_bytecode::{
 use sodigy_error::{Error, ErrorKind, FuncEffect};
 use sodigy_file::File;
 use sodigy_number::{BigInt, neg_bi};
-use sodigy_span::{Span, SpanHash};
+use sodigy_span::{RenderableSpan, Span, SpanHash};
 use sodigy_string::InternedString;
 use sodigy_token::Delim;
-use std::collections::HashMap;
+use std::collections::hash_map::{Entry as HashMapEntry, HashMap};
 
 mod lex;
 mod token;
@@ -141,7 +149,10 @@ fn parse_entry_section(
 
             Ok(Entry::Asserts(asserts))
         },
-        SectionName::Main => todo!(),
+        SectionName::Main => match tokens.get(*cursor) {
+            Some(Token { kind: TokenKind::GlobalLabel(label), .. }) => Ok(Entry::Main(GlobalLabel::new(SpanHash(*label)))),
+            s => panic!("{s:?}"),
+        },
         _ => unreachable!(),
     }
 }
@@ -228,13 +239,14 @@ fn parse_code(tokens: &[Token], cursor: &mut usize, intermediate_dir: &str) -> R
     };
 
     let mut basic_blocks: HashMap<LocalLabel, BasicBlock> = HashMap::new();
+    let mut ssa_spans: HashMap<SSA, &Span> = HashMap::new();
 
     loop {
         match tokens.get(*cursor) {
             Some(Token { kind: TokenKind::Group { delim: Delim::Decorator, .. }, .. }) |
             Some(Token { kind: TokenKind::Section(_), .. }) => break,
             _ => {
-                let basic_block = parse_basic_block(tokens, cursor)?;
+                let basic_block = parse_basic_block(tokens, cursor, &mut ssa_spans)?;
                 basic_blocks.insert(basic_block.label, basic_block);
             },
         }
@@ -304,7 +316,11 @@ fn parse_value(tokens: &[Token], cursor: &mut usize) -> Result<Value, Error> {
     }
 }
 
-fn parse_basic_block(tokens: &[Token], cursor: &mut usize) -> Result<BasicBlock, Error> {
+fn parse_basic_block<'t>(
+    tokens: &'t [Token],
+    cursor: &mut usize,
+    ssa_spans: &mut HashMap<SSA, &'t Span>,
+) -> Result<BasicBlock, Error> {
     let label = match (tokens.get(*cursor), tokens.get(*cursor + 1), tokens.get(*cursor + 2)) {
         (
             Some(Token { kind: TokenKind::Keyword(Keyword::Label), .. }),
@@ -328,12 +344,38 @@ fn parse_basic_block(tokens: &[Token], cursor: &mut usize) -> Result<BasicBlock,
                     tokens.get(*cursor + 2),
                 ) {
                     (
-                        Some(Token { kind: TokenKind::SSA(ssa), .. }),
+                        Some(Token { kind: TokenKind::SSA(ssa), span: ssa_span }),
                         Some(Token { kind: TokenKind::Punct(b'='), .. }),
                         _,
                     ) => {
+                        let ssa = SSA::from_u32(*ssa);
                         *cursor += 2;
-                        Memory::SSA(SSA::from_u32(*ssa))
+
+                        match ssa_spans.entry(ssa) {
+                            HashMapEntry::Occupied(e) => {
+                                return Err(Error {
+                                    kind: ErrorKind::RepeatedSSA(ssa.to_u32()),
+                                    spans: vec![
+                                        RenderableSpan {
+                                            span: e.get().clone().clone(),
+                                            auxiliary: true,
+                                            note: Some(format!("{ssa} is already assigned here.")),
+                                        },
+                                        RenderableSpan {
+                                            span: ssa_span.clone(),
+                                            auxiliary: false,
+                                            note: Some(format!("You're trying to assign {ssa} again here.")),
+                                        },
+                                    ],
+                                    note: None,
+                                });
+                            },
+                            HashMapEntry::Vacant(e) => {
+                                e.insert(ssa_span);
+                            },
+                        }
+
+                        Memory::SSA(ssa)
                     },
                     (
                         Some(Token { kind: TokenKind::Punct(b'*'), .. }),

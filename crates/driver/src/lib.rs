@@ -18,9 +18,10 @@ use sodigy_fs_api::{
     join,
     read_bytes,
     remove_dir_all,
+    write_bytes,
     write_string,
 };
-use sodigy_object_file::{ObjectFile, Profile, parse as parse_object_file};
+use sodigy_object_file::{ObjectFile, Profile, is_binary_object_file, parse as parse_object_file};
 use sodigy_optimize::OptimizeLevel;
 use sodigy_span::{Color, ColorMode, Span};
 use sodigy_stages::{STAGES, Stage};
@@ -467,6 +468,7 @@ pub fn init_workers_and_compile(
 }
 
 // TODO: parallel workers?
+// TODO: log timings
 fn compile_bytecode(
     bytecode_path: String,
     output_path: StoreIrAt,
@@ -483,7 +485,8 @@ fn compile_bytecode(
     let bytes = read_bytes(&bytecode_path)?;
     init_ir_dir(&ir_dir, incremental_compilation)?;
 
-    let object_file: ObjectFile = if bytes.len() > 8 && bytes.starts_with(b"\0\0SDGOBJ") {
+    let object_file: ObjectFile = if is_binary_object_file(&bytes) {
+        let bytes: Vec<u8> = Endec::decode(&bytes)?;
         ObjectFile::decode(&bytes)?
     } else {
         let file = File::register(&bytecode_path, "object-file", &ir_dir, true)?;
@@ -507,7 +510,57 @@ fn compile_bytecode(
         }
     };
 
-    todo!()
+    if let Some(emit) = emit {
+        let (code, errors, warnings) = sodigy_code_gen::lower(vec![object_file], vec![], vec![], emit, &ir_dir);
+        let has_error = !errors.is_empty();
+
+        if !quiet {
+            let e = sodigy_error::dump_errors(errors, warnings, &ir_dir, DumpErrorOption::from(color), None, false);
+            eprintln!("{e}");
+        }
+
+        if has_error {
+            return Err(Error::CompileError);
+        }
+
+        match (output_path, emit) {
+            (_, Emit::Nothing) => {},
+            (StoreIrAt::File(f), Emit::Exe | Emit::ReadableBytecode | Emit::Rust) => {
+                write_bytes(&f, &code, WriteMode::CreateOrTruncate)?;
+
+                if emit == Emit::Exe && cfg!(unix) {
+                    use std::fs;
+                    use std::os::unix::fs::PermissionsExt;
+                    fs::set_permissions(&f, fs::Permissions::from_mode(0o755)).map_err(|e| FileError::from_std(e, &f))?;
+                }
+            },
+            (StoreIrAt::File(f), Emit::ExecutableBytecode) => {
+                write_bytes(&f, &code.encode(), WriteMode::CreateOrTruncate)?;
+            },
+            (StoreIrAt::IntermediateDir, _) => {
+                store_ir_if_has_to(
+                    &code,
+                    &StoreIrOption {
+                        stage: Stage::CodeGen,
+                        at: StoreIrAt::IntermediateDir,
+                    },
+                    Stage::CodeGen,
+                    None,
+                    &ir_dir,
+                )?;
+            },
+        }
+
+        if run {
+            todo!()
+        }
+
+        Ok(())
+    } else if run {
+        todo!()
+    } else {
+        Ok(())
+    }
 }
 
 // How it handles compile errors/warnings:

@@ -102,3 +102,4 @@ pub fn inspect_basic_blocks(global_label: GlobalLabel, basic_blocks: &HashMap<Lo
         has_recursion,
     }
 }
+

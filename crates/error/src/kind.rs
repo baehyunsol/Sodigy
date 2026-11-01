@@ -215,6 +215,7 @@ error_kinds!(
     (ObjectFileUnexpectedEog { expected: Option<String> },          4515,  Error),
     (InvalidIntrinsic(String),                                      4520,  Error),
     (ObjectFileWrongNumberOfArgs { expected: usize, got: usize },   4525,  Error),
+    (RepeatedSSA(u32),                                              4530,  Error),
 
     // Warnings from here
     (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),

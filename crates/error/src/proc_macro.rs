@@ -89,7 +89,8 @@
     InvalidSectionName(String), ObjectFileUnexpectedToken
     { expected: Option<String>, got: String }, ObjectFileUnexpectedEog
     { expected: Option<String> }, InvalidIntrinsic(String),
-    ObjectFileWrongNumberOfArgs { expected: usize, got: usize }, UnusedNames
+    ObjectFileWrongNumberOfArgs { expected: usize, got: usize },
+    RepeatedSSA(u32), UnusedNames
     { names: Vec<InternedString>, kind: NameKind }, UseUnusedName
     { name: InternedString, kind: NameKind }, UnreachableMatchArm,
     UnreachableOrPattern, NoImpureCallInImpureContext { context: FuncEffect },
@@ -218,9 +219,10 @@
             ObjectFileUnexpectedEog { .. } => 4515u16, ErrorKind ::
             InvalidIntrinsic(_,) => 4520u16, ErrorKind ::
             ObjectFileWrongNumberOfArgs { .. } => 4525u16, ErrorKind ::
-            UnusedNames { .. } => 5000u16, ErrorKind :: UseUnusedName { .. }
-            => 5001u16, ErrorKind :: UnreachableMatchArm => 5005u16, ErrorKind
-            :: UnreachableOrPattern => 5006u16, ErrorKind ::
+            RepeatedSSA(_,) => 4530u16, ErrorKind :: UnusedNames { .. } =>
+            5000u16, ErrorKind :: UseUnusedName { .. } => 5001u16, ErrorKind
+            :: UnreachableMatchArm => 5005u16, ErrorKind ::
+            UnreachableOrPattern => 5006u16, ErrorKind ::
             NoImpureCallInImpureContext { .. } => 5010u16, ErrorKind ::
             FuncWithoutTypeAnnot => 8000u16, ErrorKind :: LetWithoutTypeAnnot
             => 8005u16, ErrorKind :: StructWithoutTypeAnnot => 8010u16,
@@ -376,18 +378,19 @@
             Error, ErrorKind :: ObjectFileUnexpectedEog { .. } => ErrorLevel
             :: Error, ErrorKind :: InvalidIntrinsic(_,) => ErrorLevel ::
             Error, ErrorKind :: ObjectFileWrongNumberOfArgs { .. } =>
-            ErrorLevel :: Error, ErrorKind :: UnusedNames { .. } => ErrorLevel
-            :: Warning, ErrorKind :: UseUnusedName { .. } => ErrorLevel ::
-            Warning, ErrorKind :: UnreachableMatchArm => ErrorLevel ::
-            Warning, ErrorKind :: UnreachableOrPattern => ErrorLevel ::
-            Warning, ErrorKind :: NoImpureCallInImpureContext { .. } =>
-            ErrorLevel :: Warning, ErrorKind :: FuncWithoutTypeAnnot =>
-            ErrorLevel :: Lint, ErrorKind :: LetWithoutTypeAnnot => ErrorLevel
-            :: Lint, ErrorKind :: StructWithoutTypeAnnot => ErrorLevel ::
-            Lint, ErrorKind :: EnumVariantWithoutTypeAnnot => ErrorLevel ::
-            Lint, ErrorKind :: SelfParamNotNamedSelf => ErrorLevel :: Lint,
-            ErrorKind :: Todo { .. } => ErrorLevel :: Error, ErrorKind ::
-            InternalCompilerError { .. } => ErrorLevel :: Error,
+            ErrorLevel :: Error, ErrorKind :: RepeatedSSA(_,) => ErrorLevel ::
+            Error, ErrorKind :: UnusedNames { .. } => ErrorLevel :: Warning,
+            ErrorKind :: UseUnusedName { .. } => ErrorLevel :: Warning,
+            ErrorKind :: UnreachableMatchArm => ErrorLevel :: Warning,
+            ErrorKind :: UnreachableOrPattern => ErrorLevel :: Warning,
+            ErrorKind :: NoImpureCallInImpureContext { .. } => ErrorLevel ::
+            Warning, ErrorKind :: FuncWithoutTypeAnnot => ErrorLevel :: Lint,
+            ErrorKind :: LetWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind
+            :: StructWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
+            EnumVariantWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
+            SelfParamNotNamedSelf => ErrorLevel :: Lint, ErrorKind :: Todo
+            { .. } => ErrorLevel :: Error, ErrorKind :: InternalCompilerError
+            { .. } => ErrorLevel :: Error,
         }
     }
 } impl Endec for ErrorKind {
@@ -774,6 +777,9 @@
             {
                 buffer.push(17u8); buffer.push(173u8);
                 r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
+            }, ErrorKind :: RepeatedSSA(t0,) =>
+            {
+                buffer.push(17u8); buffer.push(178u8); t0.encode_impl(buffer);
             }, ErrorKind :: UnusedNames { r#names, r#kind, } =>
             {
                 buffer.push(19u8); buffer.push(136u8);
@@ -1301,6 +1307,10 @@
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: ObjectFileWrongNumberOfArgs
                 { r#expected, r#got, }, cursor))
+            }, 4530u16 =>
+            {
+                let (t0, cursor) = u32 :: decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: RepeatedSSA(t0,), cursor))
             }, 5000u16 =>
             {
                 let (r#names, cursor) = Vec :: < InternedString >::

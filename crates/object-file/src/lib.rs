@@ -6,6 +6,7 @@ use sodigy_bytecode::{
     SSA,
     Value,
 };
+use sodigy_endec::Endec;
 use sodigy_error::FuncEffect;
 use sodigy_span::Span;
 use std::collections::HashMap;
@@ -64,5 +65,20 @@ pub enum Entry {
 
     // The compiler will turn this into an error later.
     NoEntry,
+}
+
+// It tells whether a `Vec<u8>` is a human-readable object-file format,
+// or an endec-ed format.
+pub fn is_binary_object_file(bytes: &[u8]) -> bool {
+    // TODO: It depends on the implementation detail of the `Endec` trait
+    //       and I don't like that.
+    match usize::decode_impl(bytes, 0) {
+        // I don't think an object file can be this big.
+        // Also, if it's too big, rust's memory allocator will panic and
+        // we can't handle that.
+        Ok((0x3fff_ffff.., _)) => false,
+        Err(_) => false,
+        Ok((buffer_len, cursor)) => buffer_len > 8 && bytes[cursor..].starts_with(b"\0\0SDGOBJ"),
+    }
 }
 
