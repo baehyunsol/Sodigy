@@ -1,9 +1,6 @@
-use sodigy_code_gen::{Emit, Profile};
 use sodigy_driver::{
     Backend,
-    ColorWhen,
     Error,
-    OptimizeLevel,
     StoreIrAt,
     ValidateTokenSpans,
     init_project,
@@ -16,6 +13,9 @@ use sodigy_fs_api::{
     remove_dir_all,
     write_bytes,
 };
+use sodigy_object_file::Profile;
+use sodigy_optimize::OptimizeLevel;
+use sodigy_span::ColorMode;
 use std::collections::HashMap;
 
 // TODO: accept multiple modules
@@ -38,27 +38,22 @@ pub fn runner(data: &[u8], target: &str) {
         StoreIrAt::IntermediateDir,
         None,
         Some(Backend::Interpret),
-        Profile::Test,
+        Profile::Test { std_assertions: false, filters: None },
         join(&target_dir, "target/").unwrap(),
         OptimizeLevel::Mild,
         &HashMap::new(),
-
-        // If it's true, I can find bugs in ir dumps.
-        // If it's false, the fuzzer's evolution algorithm will become more efficient.
-        false,  // emit-irs
-
         false,  // dump-post-mir-log
         true,   // dump-timings
         0,  // graceful-shutdown
         8,  // jobs
-        ColorWhen::Never,
+        ColorMode::Never,
         true,  // incremental-compilation
         ValidateTokenSpans::Never,
         false,  // verify-built-ins
         false,  // check-allocator
         false,  // debug-bytecode
-        Some(Profile::Test),
-        true,  // quiet
+        true,   // run
+        true,   // quiet
     ) {
         Ok(_) => {},
         Err(Error::CompileError | Error::RuntimeError(_)) => {},  // it's okay

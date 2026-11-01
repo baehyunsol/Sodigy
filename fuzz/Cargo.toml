@@ -12,6 +12,9 @@ libfuzzer-sys = "0.4"
 sodigy-code-gen = { path = "../crates/code-gen" }
 sodigy-driver = { path = "../crates/driver" }
 sodigy-fs-api = { path = "../crates/fs-api" }
+sodigy-object-file = { path = "../crates/object-file" }
+sodigy-optimize = { path = "../crates/optimize" }
+sodigy-span = { path = "../crates/span" }
 
 [dependencies.sodigy]
 path = ".."
