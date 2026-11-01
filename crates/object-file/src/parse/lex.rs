@@ -6,7 +6,6 @@ use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::intern_string;
 use sodigy_token::Delim;
 
-// TODO: string interning?
 pub fn lex(b: &[u8], file: File, intermediate_dir: &str) -> Result<Vec<Token>, Error> {
     let mut cursor = 0;
     let mut tokens = vec![];
@@ -479,7 +478,7 @@ fn lex_dec_32(b: &[u8], cursor: &mut usize, file: File) -> Result<u32, Error> {
         match b.get(*cursor) {
             Some(b @ b'0'..=b'9') => {
                 buffer *= 10;
-                buffer |= (*b - b'0') as u64;
+                buffer += (*b - b'0') as u64;
             },
             _ => {
                 return Ok(buffer as u32);
