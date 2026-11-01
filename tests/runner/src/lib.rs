@@ -16,7 +16,7 @@ pub mod harness;
 pub mod meta;
 
 pub use compile_and_run::{CompileAndRun, hash_dir};
-pub use crate_test::{CrateTest, CrateTestResult};
+pub use crate_test::{CrateTest, CrateTestUnit};
 pub use fuzzer::{FuzzResult, FuzzTarget, Fuzzer};
 pub use harness::{TestHarness, TestSuite};
 pub use meta::{Meta, git};

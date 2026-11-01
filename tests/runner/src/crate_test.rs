@@ -6,49 +6,45 @@ use std::time::Instant;
 #[derive(Clone, Deserialize, Serialize)]
 pub struct CrateTest {
     pub name: String,
-    pub clippy: CrateTestResult,
-    pub doc: CrateTestResult,
-    pub debug: CrateTestResult,
-    pub release: CrateTestResult,
+    pub tests: Vec<CrateTestUnit>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
-pub struct CrateTestResult {
-    // If there's an error, it stores the stderr of the test.
-    pub error: Option<String>,
+pub struct CrateTestUnit {
+    pub command: String,
+    pub has_error: bool,
+    pub stdout: String,
+    pub stderr: String,
     pub elapsed_ms: u64,
 }
 
 impl CrateTest {
     pub fn has_error(&self) -> bool {
-        self.clippy.has_error() ||
-        self.doc.has_error() ||
-        self.debug.has_error() ||
-        self.release.has_error()
+        self.tests.iter().any(|t| t.has_error)
     }
 
     pub fn summary(&self) -> String {
-        fn passfail(b: bool) -> &'static str {
-            if b { "fail" } else { "pass" }
-        }
-
-        format!("
-clippy: {}
-doc: {}
-debug: {}
-release: {}
-",
-            passfail(self.clippy.has_error()),
-            passfail(self.doc.has_error()),
-            passfail(self.debug.has_error()),
-            passfail(self.release.has_error()),
-        ).trim().to_string()
+        self.tests.iter().map(
+            |t| format!(
+                "`cargo {}`: {}",
+                if t.command.len() < 32 {
+                    t.command.to_string()
+                } else {
+                    format!("{}...", t.command.get(0..29).unwrap())
+                },
+                if t.has_error { "fail" } else { "true" },
+            )
+        ).collect::<Vec<_>>().join("\n")
     }
 }
 
-impl CrateTestResult {
-    pub fn has_error(&self) -> bool {
-        self.error.is_some()
+impl CrateTestUnit {
+    pub fn dump_error(&self) -> Option<&String> {
+        if self.has_error {
+            Some(&self.stderr)
+        } else {
+            None
+        }
     }
 }
 
@@ -93,8 +89,8 @@ pub fn run_cases(
 }
 
 fn run_case(name: &str, path: &str, verbose: bool) -> CrateTest {
+    let mut tests = vec![];
     cargo_clean(path);
-
     let mut clippy_args = vec![String::from("clippy"), String::from("--")];
 
     for (name, level) in [
@@ -157,68 +153,73 @@ fn run_case(name: &str, path: &str, verbose: bool) -> CrateTest {
     }
 
     let started_at = Instant::now();
-    let clippy = Command::new("cargo")
-        .args(clippy_args)
+    let output = Command::new("cargo")
+        .args(clippy_args.clone())
         .current_dir(path)
         .output()
         .unwrap();
-    let clippy = crate_test_result(clippy, started_at);
-    cargo_clean(path);
+    let result = crate_test_unit(&clippy_args, output, started_at);
 
-    if verbose && let Some(error) = &clippy.error {
+    if verbose && let Some(error) = result.dump_error() {
         println!("--- clippy stderr ---");
         println!("{error}");
     }
 
+    tests.push(result);
+    cargo_clean(path);
+
     let started_at = Instant::now();
-    let doc = Command::new("cargo")
+    let output = Command::new("cargo")
         .arg("doc")
         .current_dir(path)
         .output()
         .unwrap();
-    let doc = crate_test_result(doc, started_at);
-    cargo_clean(path);
+    let result = crate_test_unit(&[String::from("doc")], output, started_at);
 
-    if verbose && let Some(error) = &doc.error {
+    if verbose && let Some(error) = result.dump_error() {
         println!("--- doc stderr ---");
         println!("{error}");
     }
 
+    tests.push(result);
+    cargo_clean(path);
+
     let started_at = Instant::now();
-    let debug = Command::new("cargo")
+    let output = Command::new("cargo")
         .arg("test")
         .current_dir(path)
         .output()
         .unwrap();
-    let debug = crate_test_result(debug, started_at);
-    cargo_clean(path);
+    let result = crate_test_unit(&[String::from("test")], output, started_at);
 
-    if verbose && let Some(error) = &debug.error {
+    if verbose && let Some(error) = result.dump_error() {
         println!("--- debug stderr ---");
         println!("{error}");
     }
 
+    tests.push(result);
+    cargo_clean(path);
+
     let started_at = Instant::now();
-    let release = Command::new("cargo")
+    let output = Command::new("cargo")
         .arg("test")
         .arg("--release")
         .current_dir(path)
         .output()
         .unwrap();
-    let release = crate_test_result(release, started_at);
-    cargo_clean(path);
+    let result = crate_test_unit(&[String::from("test"), String::from("--release")], output, started_at);
 
-    if verbose && let Some(error) = &release.error {
+    if verbose && let Some(error) = result.dump_error() {
         println!("--- release stderr ---");
         println!("{error}");
     }
 
+    tests.push(result);
+    cargo_clean(path);
+
     CrateTest {
         name: name.to_string(),
-        clippy,
-        doc,
-        debug,
-        release,
+        tests,
     }
 }
 
@@ -231,13 +232,16 @@ fn cargo_clean(path: &str) {
     assert!(output.status.success());
 }
 
-fn crate_test_result(output: Output, started_at: Instant) -> CrateTestResult {
+fn crate_test_unit(command: &[String], output: Output, started_at: Instant) -> CrateTestUnit {
     let elapsed_ms = Instant::now().duration_since(started_at).as_millis() as u64;
-    let error = if output.status.success() {
-        None
-    } else {
-        Some(String::from_utf8_lossy(&output.stderr).to_string())
-    };
+    let has_error = !output.status.success();
 
-    CrateTestResult { error, elapsed_ms }
+    CrateTestUnit {
+        command: command.join(" "),
+        has_error,
+        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+        stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        elapsed_ms,
+    }
 }
+
