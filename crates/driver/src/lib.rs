@@ -23,7 +23,7 @@ use sodigy_fs_api::{
 };
 use sodigy_object_file::{ObjectFile, Profile, is_binary_object_file, parse as parse_object_file};
 use sodigy_optimize::OptimizeLevel;
-use sodigy_span::{Color, ColorMode, Span};
+use sodigy_span::{ColorMode, Span};
 use sodigy_stages::{STAGES, Stage};
 use sodigy_timings::TimingsEntry;
 use sodigy_utils::get_closest_string;

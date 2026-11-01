@@ -180,7 +180,6 @@ impl Command {
             b"StoreGlobal" => Ok(Command::StoreGlobal),
             b"Breakpoint" => Ok(Command::Breakpoint),
             _ => panic!("{:?}", String::from_utf8_lossy(ident)),
-            _ => todo!(),
         }
     }
 

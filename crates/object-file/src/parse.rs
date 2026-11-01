@@ -357,7 +357,7 @@ fn parse_basic_block<'t>(
                                     kind: ErrorKind::RepeatedSSA(ssa.to_u32()),
                                     spans: vec![
                                         RenderableSpan {
-                                            span: e.get().clone().clone(),
+                                            span: (*e.get()).clone(),
                                             auxiliary: true,
                                             note: Some(format!("{ssa} is already assigned here.")),
                                         },

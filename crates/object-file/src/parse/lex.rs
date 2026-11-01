@@ -441,7 +441,7 @@ fn lex_hex_128(b: &[u8], cursor: &mut usize, file: File) -> Result<u128, Error> 
 }
 
 fn lex_hex_large(b: &[u8], cursor: &mut usize, file: File) -> Result<BigInt, Error> {
-    let mut hex_end = *cursor;
+    let hex_end = *cursor;
     let start = *cursor;
 
     loop {

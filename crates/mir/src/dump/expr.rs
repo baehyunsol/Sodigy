@@ -213,7 +213,7 @@ pub fn dump_expr<S: SodigySession>(
 
                     match field {
                         Field::Name { name, .. } => {
-                            lines.push(&name.unintern_or_default(&session.intermediate_dir()));
+                            lines.push(&name.unintern_or_default(session.intermediate_dir()));
                         },
                         _ => todo!(),
                     }

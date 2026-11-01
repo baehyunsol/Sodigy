@@ -63,7 +63,7 @@ pub fn run(
     let mut sleep_for = 1;
 
     let status: Result<ExitStatus, SubprocessError> = loop {
-        if Instant::now().duration_since(started_at.clone()).as_millis() > timeout {
+        if Instant::now().duration_since(started_at).as_millis() > timeout {
             child_process.kill()?;
             child_process.wait()?;
             break Err(SubprocessError::Timeout);

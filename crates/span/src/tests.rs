@@ -112,7 +112,7 @@ fn render_test_worker(
         WriteMode::CreateOrTruncate,
     )?;
 
-    let file = File::register("render-test-content", "render-test-content", intermediate_dir)?;
+    let file = File::register("render-test-content", "render-test-content", intermediate_dir, false)?;
     let mut spans = vec![];
 
     for i in 0..content.len() {

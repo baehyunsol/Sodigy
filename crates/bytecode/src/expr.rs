@@ -8,7 +8,7 @@ use crate::{
     SSA,
     Value,
 };
-use sodigy_hir::{EnumRepr, FuncShape};
+use sodigy_hir::EnumRepr;
 use sodigy_mir::{Block, Callable, Expr, If, Match, Type, type_of};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::Field;

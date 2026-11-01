@@ -1,6 +1,5 @@
 use crate::{
     Backend,
-    ColorWhen,
     Profile,
     StoreIrAt,
     ValidateTokenSpans,
@@ -9,6 +8,7 @@ use crate::{
 };
 use sodigy_optimize::OptimizeLevel;
 use sodigy_fs_api::{exists, remove_dir_all};
+use sodigy_span::ColorMode;
 use std::collections::HashMap;
 
 #[test]
@@ -31,7 +31,7 @@ fn verify_built_ins() {
         false,   // dump-timings
         0,  // graceful-shutdown
         8,  // jobs
-        ColorWhen::Never,
+        ColorMode::Never,
         true,  // incremental-compilation
         ValidateTokenSpans::Never,
         true,   // verify-built-ins

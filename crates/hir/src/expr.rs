@@ -568,7 +568,7 @@ impl Expr {
 
             Expr::FieldUpdate { lhs, keyword_span, rhs_span, .. } => lhs.error_span_wide()
                 .merge(keyword_span)
-                .merge(&rhs_span),
+                .merge(rhs_span),
             Expr::PrefixOp { op_span, rhs, .. } => op_span.merge(&rhs.error_span_wide()),
             Expr::InfixOp { lhs, op_span, rhs, .. } => lhs.error_span_wide().merge(op_span).merge(&rhs.error_span_wide()),
             Expr::PostfixOp { op_span, lhs, .. } => lhs.error_span_wide().merge(op_span),

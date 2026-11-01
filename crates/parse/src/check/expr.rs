@@ -277,11 +277,11 @@ impl FieldUpdateNameCollisionChecker {
         match field.get(0) {
             None => Ok(()),
             Some(Field::Name { name, name_span, .. }) => match (self.data.entry(*name), field.get(1)) {
-                (Entry::Vacant(mut e), None) => {
+                (Entry::Vacant(e), None) => {
                     e.insert((name_span.clone(), None));
                     Ok(())
                 },
-                (Entry::Vacant(mut e), Some(_)) => {
+                (Entry::Vacant(e), Some(_)) => {
                     let mut child = FieldUpdateNameCollisionChecker::new();
                     child.check(&field[1..]).unwrap();
                     e.insert((name_span.clone(), Some(child)));
