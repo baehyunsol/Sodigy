@@ -87,8 +87,9 @@
     { dependency: String }, IntegerNotInRange
     { min: Option<String>, max: Option<String>, got: String },
     InvalidSectionName(String), ObjectFileUnexpectedToken
-    { expected: String, got: String }, ObjectFileUnexpectedEog
-    { expected: Option<String> }, InvalidIntrinsic(String), UnusedNames
+    { expected: Option<String>, got: String }, ObjectFileUnexpectedEog
+    { expected: Option<String> }, InvalidIntrinsic(String),
+    ObjectFileWrongNumberOfArgs { expected: usize, got: usize }, UnusedNames
     { names: Vec<InternedString>, kind: NameKind }, UseUnusedName
     { name: InternedString, kind: NameKind }, UnreachableMatchArm,
     UnreachableOrPattern, NoImpureCallInImpureContext { context: FuncEffect },
@@ -215,10 +216,11 @@
             4500u16, ErrorKind :: InvalidSectionName(_,) => 4505u16, ErrorKind
             :: ObjectFileUnexpectedToken { .. } => 4510u16, ErrorKind ::
             ObjectFileUnexpectedEog { .. } => 4515u16, ErrorKind ::
-            InvalidIntrinsic(_,) => 4520u16, ErrorKind :: UnusedNames { .. }
-            => 5000u16, ErrorKind :: UseUnusedName { .. } => 5001u16,
-            ErrorKind :: UnreachableMatchArm => 5005u16, ErrorKind ::
-            UnreachableOrPattern => 5006u16, ErrorKind ::
+            InvalidIntrinsic(_,) => 4520u16, ErrorKind ::
+            ObjectFileWrongNumberOfArgs { .. } => 4525u16, ErrorKind ::
+            UnusedNames { .. } => 5000u16, ErrorKind :: UseUnusedName { .. }
+            => 5001u16, ErrorKind :: UnreachableMatchArm => 5005u16, ErrorKind
+            :: UnreachableOrPattern => 5006u16, ErrorKind ::
             NoImpureCallInImpureContext { .. } => 5010u16, ErrorKind ::
             FuncWithoutTypeAnnot => 8000u16, ErrorKind :: LetWithoutTypeAnnot
             => 8005u16, ErrorKind :: StructWithoutTypeAnnot => 8010u16,
@@ -373,18 +375,19 @@
             ErrorKind :: ObjectFileUnexpectedToken { .. } => ErrorLevel ::
             Error, ErrorKind :: ObjectFileUnexpectedEog { .. } => ErrorLevel
             :: Error, ErrorKind :: InvalidIntrinsic(_,) => ErrorLevel ::
-            Error, ErrorKind :: UnusedNames { .. } => ErrorLevel :: Warning,
-            ErrorKind :: UseUnusedName { .. } => ErrorLevel :: Warning,
-            ErrorKind :: UnreachableMatchArm => ErrorLevel :: Warning,
-            ErrorKind :: UnreachableOrPattern => ErrorLevel :: Warning,
-            ErrorKind :: NoImpureCallInImpureContext { .. } => ErrorLevel ::
-            Warning, ErrorKind :: FuncWithoutTypeAnnot => ErrorLevel :: Lint,
-            ErrorKind :: LetWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind
-            :: StructWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
-            EnumVariantWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
-            SelfParamNotNamedSelf => ErrorLevel :: Lint, ErrorKind :: Todo
-            { .. } => ErrorLevel :: Error, ErrorKind :: InternalCompilerError
-            { .. } => ErrorLevel :: Error,
+            Error, ErrorKind :: ObjectFileWrongNumberOfArgs { .. } =>
+            ErrorLevel :: Error, ErrorKind :: UnusedNames { .. } => ErrorLevel
+            :: Warning, ErrorKind :: UseUnusedName { .. } => ErrorLevel ::
+            Warning, ErrorKind :: UnreachableMatchArm => ErrorLevel ::
+            Warning, ErrorKind :: UnreachableOrPattern => ErrorLevel ::
+            Warning, ErrorKind :: NoImpureCallInImpureContext { .. } =>
+            ErrorLevel :: Warning, ErrorKind :: FuncWithoutTypeAnnot =>
+            ErrorLevel :: Lint, ErrorKind :: LetWithoutTypeAnnot => ErrorLevel
+            :: Lint, ErrorKind :: StructWithoutTypeAnnot => ErrorLevel ::
+            Lint, ErrorKind :: EnumVariantWithoutTypeAnnot => ErrorLevel ::
+            Lint, ErrorKind :: SelfParamNotNamedSelf => ErrorLevel :: Lint,
+            ErrorKind :: Todo { .. } => ErrorLevel :: Error, ErrorKind ::
+            InternalCompilerError { .. } => ErrorLevel :: Error,
         }
     }
 } impl Endec for ErrorKind {
@@ -766,6 +769,11 @@
             }, ErrorKind :: InvalidIntrinsic(t0,) =>
             {
                 buffer.push(17u8); buffer.push(168u8); t0.encode_impl(buffer);
+            }, ErrorKind :: ObjectFileWrongNumberOfArgs { r#expected, r#got, }
+            =>
+            {
+                buffer.push(17u8); buffer.push(173u8);
+                r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
             }, ErrorKind :: UnusedNames { r#names, r#kind, } =>
             {
                 buffer.push(19u8); buffer.push(136u8);
@@ -1271,7 +1279,7 @@
                 Ok((ErrorKind :: InvalidSectionName(t0,), cursor))
             }, 4510u16 =>
             {
-                let (r#expected, cursor) = String ::
+                let (r#expected, cursor) = Option :: < String >::
                 decode_impl(buffer, cursor) ? ; let (r#got, cursor) = String
                 :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: ObjectFileUnexpectedToken
@@ -1286,6 +1294,13 @@
             {
                 let (t0, cursor) = String :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: InvalidIntrinsic(t0,), cursor))
+            }, 4525u16 =>
+            {
+                let (r#expected, cursor) = usize ::
+                decode_impl(buffer, cursor) ? ; let (r#got, cursor) = usize ::
+                decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: ObjectFileWrongNumberOfArgs
+                { r#expected, r#got, }, cursor))
             }, 5000u16 =>
             {
                 let (r#names, cursor) = Vec :: < InternedString >::

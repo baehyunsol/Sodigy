@@ -211,9 +211,10 @@ error_kinds!(
     // Object file parsing errors from here
     (IntegerNotInRange { min: Option<String>, max: Option<String>, got: String },  4500,  Error),
     (InvalidSectionName(String),                                    4505,  Error),
-    (ObjectFileUnexpectedToken { expected: String, got: String },   4510,  Error),
+    (ObjectFileUnexpectedToken { expected: Option<String>, got: String },   4510,  Error),
     (ObjectFileUnexpectedEog { expected: Option<String> },          4515,  Error),
     (InvalidIntrinsic(String),                                      4520,  Error),
+    (ObjectFileWrongNumberOfArgs { expected: usize, got: usize },   4525,  Error),
 
     // Warnings from here
     (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),

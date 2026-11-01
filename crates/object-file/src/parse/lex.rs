@@ -236,10 +236,13 @@ pub fn lex(b: &[u8], file: File, intermediate_dir: &str) -> Result<Vec<Token>, E
                 let old_cursor = cursor;
                 let keyword = lex_ident(b, &mut cursor, file)?;
                 let token_kind = match &b[old_cursor..cursor] {
+                    b"assert" => TokenKind::Keyword(Keyword::Assert),
                     b"code" => TokenKind::Keyword(Keyword::Code),
                     b"effect" => TokenKind::Keyword(Keyword::Effect),
                     b"else" => TokenKind::Keyword(Keyword::Else),
                     b"fn" => TokenKind::Keyword(Keyword::Fn),
+                    b"kind" => TokenKind::Keyword(Keyword::Kind),
+                    b"let" => TokenKind::Keyword(Keyword::Let),
                     b"ndet" => TokenKind::Keyword(Keyword::Ndet),
                     b"ndet_fn" => TokenKind::Keyword(Keyword::NdetFn),
                     b"proc" => TokenKind::Keyword(Keyword::Proc),

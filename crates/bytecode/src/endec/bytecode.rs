@@ -35,13 +35,12 @@ impl Endec for Bytecode {
                 buffer.push(3);
                 dst.encode_impl(buffer);
             },
-            Bytecode::Call { func, args, dst, debug_info, effect } => {
+            Bytecode::Call { func, args, dst, debug_info } => {
                 buffer.push(4);
                 func.encode_impl(buffer);
                 args.encode_impl(buffer);
                 dst.encode_impl(buffer);
                 debug_info.encode_impl(buffer);
-                effect.encode_impl(buffer);
             },
             Bytecode::CallDynamic { func, args, dst, debug_info, effect } => {
                 buffer.push(5);
@@ -154,15 +153,14 @@ impl Endec for Bytecode {
                 let (args, cursor) = Vec::<SSA>::decode_impl(buffer, cursor)?;
                 let (dst, cursor) = Option::<Memory>::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
-                let (effect, cursor) = Box::<FuncEffect>::decode_impl(buffer, cursor)?;
-                Ok((Bytecode::Call { func, args, dst, debug_info, effect }, cursor))
+                Ok((Bytecode::Call { func, args, dst, debug_info }, cursor))
             },
             Some(5) => {
                 let (func, cursor) = SSA::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<SSA>::decode_impl(buffer, cursor)?;
                 let (dst, cursor) = Option::<Memory>::decode_impl(buffer, cursor)?;
                 let (debug_info, cursor) = Option::<Box<Span>>::decode_impl(buffer, cursor)?;
-                let (effect, cursor) = Box::<FuncEffect>::decode_impl(buffer, cursor)?;
+                let (effect, cursor) = Option::<Box<FuncEffect>>::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::CallDynamic { func, args, dst, debug_info, effect }, cursor))
             },
             Some(6) => {

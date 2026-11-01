@@ -45,7 +45,7 @@ impl Session {
                 Code {
                     label,
                     span: Some(func.name_span.clone()),
-                    kind: CodeKind::Func,
+                    kind: CodeKind::Fn,
                     name: String::from_utf8_lossy(&unintern_string(func.name, &bytecode_session.intermediate_dir).unwrap().unwrap()).to_string(),
                     params: Some(func.params),
                     effect: func.effect.clone(),
@@ -106,7 +106,7 @@ impl Session {
                     Code {
                         label,
                         span: Some(def_span.clone()),
-                        kind: CodeKind::Func,
+                        kind: CodeKind::Fn,
                         name: camel_to_snake(&format!("{intrinsic:?}")),
                         params: Some(intrinsic.num_params()),
                         effect: intrinsic.effect(),

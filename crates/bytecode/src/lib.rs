@@ -1,6 +1,7 @@
 use sodigy_error::FuncEffect;
 use sodigy_mir::{Intrinsic, Session as MirSession};
 use sodigy_span::Span;
+use std::collections::HashMap;
 
 mod assert;
 mod dump;
@@ -72,9 +73,6 @@ pub enum Bytecode {
         dst: Option<Memory>,
 
         debug_info: Option<Box<Span>>,
-
-        // This information is used by the optimizer.
-        effect: Box<FuncEffect>,
     },
 
     CallDynamic {
@@ -87,8 +85,8 @@ pub enum Bytecode {
 
         debug_info: Option<Box<Span>>,
 
-        // This information is used by the optimizer.
-        effect: Box<FuncEffect>,
+        // This information helps the optimizer.
+        effect: Option<Box<FuncEffect>>,
     },
 
     // Jumps if the `value` is non-zero.
@@ -350,7 +348,7 @@ impl Bytecode {
     }
 
     // Whether it's okay for the optimizer to remove this bytecode.
-    pub fn is_observable(&self) -> bool {
+    pub fn is_observable(&self, effects: &HashMap<GlobalLabel, FuncEffect>) -> bool {
         match self {
             Bytecode::Const { .. } |
             Bytecode::Move { .. } |
@@ -371,8 +369,13 @@ impl Bytecode {
             Bytecode::IncRefCount(_) |
             Bytecode::DecRefCount(_) |
             Bytecode::TryDrop(_, _) => false,
-            Bytecode::Call { effect, .. } |
-            Bytecode::CallDynamic { effect, .. } => matches!(&**effect, FuncEffect::Proc | FuncEffect::NdetProc),
+
+            // It has to be conservative. So, if there's no effect info, it assumes that the
+            // function is observable.
+            Bytecode::Call { func, .. } => matches!(effects.get(func), None | Some(FuncEffect::Proc | FuncEffect::NdetProc)),
+            Bytecode::CallDynamic { effect: Some(effect), .. } => matches!(&**effect, FuncEffect::Proc | FuncEffect::NdetProc),
+            Bytecode::CallDynamic { effect: None, .. } => true,
+
             Bytecode::Intrinsic { intrinsic, .. } => matches!(intrinsic.effect(), FuncEffect::Proc | FuncEffect::NdetProc),
             Bytecode::Breakpoint => true,
         }

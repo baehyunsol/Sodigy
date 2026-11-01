@@ -37,7 +37,7 @@ impl Display for ObjectFile {
                     labels.push(String::from(".asserts:"));
 
                     for assert in asserts.iter() {
-                        labels.push(format!("    @G{}", assert.label.hex(20)));
+                        labels.push(format!("    {:?}: @G{}", assert.name, assert.label.hex(20)));
                     }
                 }
             },
@@ -72,16 +72,15 @@ impl Code {
         let mut highlighted_line_no: Option<usize> = None;
 
         if let Some(span) = &self.span {
-            lines.push(format!("// span: {span:?}"));
+            lines.push(format!("// {span:?}"));
         }
 
         let kind = match self.kind {
-            CodeKind::Func => "func",
-            CodeKind::Let => "global-let",
-            CodeKind::Assert => "assertion",
+            CodeKind::Fn => "fn",
+            CodeKind::Let => "let",
+            CodeKind::Assert => "assert",
         };
-        lines.push(format!("// {kind}"));
-
+        lines.push(format!("#[kind({kind})]"));
         lines.push(format!("#[effect({})]", self.effect.single_word()));
 
         // an assertion name doesn't have to be an identifier, so we have to wrap it

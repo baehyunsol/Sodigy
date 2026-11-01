@@ -52,7 +52,7 @@ pub struct Code {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum CodeKind {
-    Func,
+    Fn,
     Let,
     Assert,
 }

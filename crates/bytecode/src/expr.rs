@@ -289,17 +289,11 @@ pub fn lower_expr(
                             },
                             None => {
                                 let func = GlobalLabel::new(def_span.hash());
-                                let effect = match session.global_context.func_shapes.unwrap().get(def_span) {
-                                    Some(FuncShape { effect, .. }) => Box::new(effect.clone()),
-                                    _ => unreachable!(),
-                                };
-
                                 bytecodes.push(Bytecode::Call {
                                     func,
                                     args: arg_ssa_regs,
                                     dst: if is_tail_call { None } else { Some(dst) },
                                     debug_info: if session.debug_info { Some(Box::new(span.clone())) } else { None },
-                                    effect,
                                 });
                             },
                         },
@@ -323,7 +317,7 @@ pub fn lower_expr(
                                 args: arg_ssa_regs,
                                 dst: if is_tail_call { None } else { Some(dst) },
                                 debug_info: if session.debug_info { Some(Box::new(f.error_span_wide())) } else { None },
-                                effect,
+                                effect: Some(effect),
                             });
                         },
                         _ => unreachable!(),

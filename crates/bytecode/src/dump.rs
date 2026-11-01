@@ -21,7 +21,7 @@ impl Bytecode {
             Bytecode::Move { dst, src } => format!("{dst} = {src};"),
             Bytecode::Phi { pair: (x, y), dst } => format!("{dst} = $Phi({x}, {y});"),
             Bytecode::Jump(label) => format!("jump {label};"),
-            Bytecode::Call { func, args, dst, debug_info, effect: _ } => format!(
+            Bytecode::Call { func, args, dst, debug_info } => format!(
                 "{}{func}({});{}",
                 if let Some(dst) = dst { format!("{dst} = ") } else { String::from("return ") },
                 args.iter().map(

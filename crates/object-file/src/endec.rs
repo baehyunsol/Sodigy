@@ -94,7 +94,7 @@ impl Endec for Code {
 impl Endec for CodeKind {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            CodeKind::Func => {
+            CodeKind::Fn => {
                 buffer.push(0);
             },
             CodeKind::Let => {
@@ -108,7 +108,7 @@ impl Endec for CodeKind {
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         match buffer.get(cursor) {
-            Some(0) => Ok((CodeKind::Func, cursor + 1)),
+            Some(0) => Ok((CodeKind::Fn, cursor + 1)),
             Some(1) => Ok((CodeKind::Let, cursor + 1)),
             Some(2) => Ok((CodeKind::Assert, cursor + 1)),
             Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),

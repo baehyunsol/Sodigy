@@ -5,7 +5,7 @@ use sodigy_span::Span;
 use sodigy_string::InternedString;
 use sodigy_token::Delim;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Keyword {
     If,
     Else,
@@ -15,6 +15,9 @@ pub enum Keyword {
     Effect,
     Name,
     Fn,
+    Kind,
+    Let,
+    Assert,
     Ndet,
     NdetFn,
     Proc,
@@ -52,6 +55,8 @@ pub enum TokenKind {
 impl TokenKind {
     pub fn render(&self) -> String {
         match self {
+            TokenKind::Group { delim, .. } => format!("{}...{}", delim.open(), delim.close()),
+            TokenKind::String(_) => String::from("\"...\""),
             TokenKind::Section(s) => format!(".{s:?}").to_ascii_lowercase(),
             TokenKind::Command(c) => format!("${c:?}"),
             TokenKind::Punct(p) => format!("{}", *p as char),
@@ -68,7 +73,7 @@ pub enum SectionName {
     Asserts,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Command {
     // intrinsics from here
     NegInt,

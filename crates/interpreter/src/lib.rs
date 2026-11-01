@@ -235,7 +235,7 @@ fn call(
                     update(dst, value, &mut stack, heap);
                 },
                 Bytecode::Jump(_) => unreachable!(),
-                Bytecode::Call { func, args, dst, debug_info: _, effect: _ } => {
+                Bytecode::Call { func, args, dst, debug_info: _ } => {
                     let new_stack = Stack::from_args(args, &stack);
 
                     match dst {

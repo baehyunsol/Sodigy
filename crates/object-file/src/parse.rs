@@ -1,4 +1,4 @@
-use crate::{BasicBlock, Code, ObjectFile};
+use crate::{Assert, BasicBlock, Code, CodeKind, Entry, ObjectFile, Terminator};
 use sodigy_bytecode::{
     Bytecode,
     ExprHash,
@@ -12,7 +12,8 @@ use sodigy_bytecode::{
 use sodigy_error::{Error, ErrorKind, FuncEffect};
 use sodigy_file::File;
 use sodigy_number::{BigInt, neg_bi};
-use sodigy_span::SpanHash;
+use sodigy_span::{Span, SpanHash};
+use sodigy_string::InternedString;
 use sodigy_token::Delim;
 use std::collections::HashMap;
 
@@ -37,7 +38,18 @@ pub fn parse(bytes: &[u8], file: File, intermediate_dir: &str) -> Result<ObjectF
 
     pop_section_name(SectionName::Code, &tokens, &mut cursor)?;
     let code = parse_code_section(&tokens, &mut cursor, intermediate_dir)?;
-    todo!()
+
+    let entry = match tokens.get(cursor) {
+        Some(Token { kind: TokenKind::Section(sect @ (SectionName::Asserts | SectionName::Main)), .. }) => {
+            cursor += 1;
+            pop_punct(b':', &tokens, &mut cursor)?;
+            parse_entry_section(&tokens, &mut cursor, *sect, intermediate_dir)?
+        },
+        Some(t) => todo!(),
+        None => todo!(),
+    };
+
+    Ok(ObjectFile { data, code, entry })
 }
 
 fn parse_data_section(tokens: &[Token], cursor: &mut usize) -> Result<HashMap<ExprHash, Value>, Error> {
@@ -56,7 +68,7 @@ fn parse_data_section(tokens: &[Token], cursor: &mut usize) -> Result<HashMap<Ex
             Some(b) => {
                 return Err(Error {
                     kind: ErrorKind::ObjectFileUnexpectedToken {
-                        expected: String::from("%Ixxxx"),
+                        expected: Some(String::from("%Ixxxx")),
                         got: b.kind.render(),
                     },
                     spans: b.span.simple_error(),
@@ -75,7 +87,7 @@ fn parse_code_section(tokens: &[Token], cursor: &mut usize, intermediate_dir: &s
 
     loop {
         match tokens.get(*cursor) {
-            // TODO: if it's beginning of another section, break
+            Some(Token { kind: TokenKind::Section(_), .. }) => break,
             _ => {
                 let code = parse_code(tokens, cursor, intermediate_dir)?;
                 result.insert(code.label, code);
@@ -86,9 +98,58 @@ fn parse_code_section(tokens: &[Token], cursor: &mut usize, intermediate_dir: &s
     Ok(result)
 }
 
+fn parse_entry_section(
+    tokens: &[Token],
+    cursor: &mut usize,
+    section: SectionName,
+    intermediate_dir: &str,
+) -> Result<Entry, Error> {
+    match section {
+        SectionName::Asserts => {
+            let mut asserts = vec![];
+
+            loop {
+                let name = match tokens.get(*cursor) {
+                    Some(Token { kind: TokenKind::String(name), .. }) => {
+                        *cursor += 1;
+                        name.unintern_or_default(intermediate_dir)
+                    },
+                    Some(t) => {
+                        return Err(Error {
+                            kind: ErrorKind::ObjectFileUnexpectedToken {
+                                expected: Some(TokenKind::String(InternedString::dummy()).render()),
+                                got: t.kind.render(),
+                            },
+                            spans: t.span.simple_error(),
+                            note: None,
+                        });
+                    },
+                    None => break,
+                };
+                pop_punct(b':', tokens, cursor)?;
+                let label = match tokens.get(*cursor) {
+                    Some(Token { kind: TokenKind::GlobalLabel(label), .. }) => {
+                        *cursor += 1;
+                        GlobalLabel::new(SpanHash(*label))
+                    },
+                    s => panic!("{s:?}"),
+                };
+
+                // TODO: we have to encode the `is_std` field.
+                asserts.push(Assert { name, label, is_std: false });
+            }
+
+            Ok(Entry::Asserts(asserts))
+        },
+        SectionName::Main => todo!(),
+        _ => unreachable!(),
+    }
+}
+
 fn parse_code(tokens: &[Token], cursor: &mut usize, intermediate_dir: &str) -> Result<Code, Error> {
     let mut effect: Option<FuncEffect> = None;
     let mut name: Option<String> = None;
+    let mut kind: Option<CodeKind> = None;
 
     loop {
         match tokens.get(*cursor) {
@@ -101,7 +162,7 @@ fn parse_code(tokens: &[Token], cursor: &mut usize, intermediate_dir: &str) -> R
                             (Keyword::Proc, _) => { effect = Some(FuncEffect::Proc); },
                             (Keyword::NdetFn, _) => { effect = Some(FuncEffect::NdetFn); },
                             (Keyword::NdetProc, _) => { effect = Some(FuncEffect::NdetProc); },
-                            (k, _) => todo!(),  // error: invalid effect
+                            _ => unreachable!(),
                         },
                         s => panic!("{s:?}"),
                     },
@@ -110,8 +171,21 @@ fn parse_code(tokens: &[Token], cursor: &mut usize, intermediate_dir: &str) -> R
                 Some(Token { kind: TokenKind::Keyword(Keyword::Name), .. }) => match tokens.get(1) {
                     Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. }) => match tokens.get(0) {
                         Some(Token { kind: TokenKind::String(s), .. }) => match &name {
-                            Some(_) => todo!(),  // error `#[name(..)]` appears twice
+                            Some(_) => todo!(),  // error: `#[name(..)]` appears twice
                             None => { name = Some(s.unintern_or_default(intermediate_dir)); },
+                        },
+                        s => panic!("{s:?}"),
+                    },
+                    s => panic!("{s:?}"),
+                },
+                Some(Token { kind: TokenKind::Keyword(Keyword::Kind), .. }) => match tokens.get(1) {
+                    Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. }) => match tokens.get(0) {
+                        Some(Token { kind: TokenKind::Keyword(k @ (Keyword::Fn | Keyword::Let | Keyword::Assert)), .. }) => match (k, kind) {
+                            (_, Some(_)) => todo!(),  // error: `#[kind(..)]` appears twice
+                            (Keyword::Fn, _) => { kind = Some(CodeKind::Fn); },
+                            (Keyword::Let, _) => { kind = Some(CodeKind::Let); },
+                            (Keyword::Assert, _) => { kind = Some(CodeKind::Assert); },
+                            _ => unreachable!(),
                         },
                         s => panic!("{s:?}"),
                     },
@@ -146,6 +220,7 @@ fn parse_code(tokens: &[Token], cursor: &mut usize, intermediate_dir: &str) -> R
             Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. }),
             Some(Token { kind: TokenKind::Punct(b':'), .. }),
         ) => {
+            *cursor += 2;
             let params = parse_ssa_list(tokens)?;
             Some(params.len())
         },
@@ -156,6 +231,8 @@ fn parse_code(tokens: &[Token], cursor: &mut usize, intermediate_dir: &str) -> R
 
     loop {
         match tokens.get(*cursor) {
+            Some(Token { kind: TokenKind::Group { delim: Delim::Decorator, .. }, .. }) |
+            Some(Token { kind: TokenKind::Section(_), .. }) => break,
             _ => {
                 let basic_block = parse_basic_block(tokens, cursor)?;
                 basic_blocks.insert(basic_block.label, basic_block);
@@ -163,7 +240,15 @@ fn parse_code(tokens: &[Token], cursor: &mut usize, intermediate_dir: &str) -> R
         }
     }
 
-    todo!()
+    Ok(Code {
+        label: GlobalLabel::new(SpanHash(global_label)),
+        span: None,
+        kind: kind.unwrap(),
+        name: name.unwrap(),
+        params,
+        effect: effect.unwrap(),
+        basic_blocks,
+    })
 }
 
 fn parse_value(tokens: &[Token], cursor: &mut usize) -> Result<Value, Error> {
@@ -259,10 +344,23 @@ fn parse_basic_block(tokens: &[Token], cursor: &mut usize) -> Result<BasicBlock,
                         Memory::Heap { ptr: SSA::from_u32(*ssa), offset: 0 }
                     },
                     (
-                        Some(Token { kind: TokenKind::SSA(ssa), .. }),
-                        Some(Token { kind: TokenKind::Group { delim: Delim::Bracket, tokens }, .. }),
+                        Some(Token { kind: TokenKind::Punct(b'*'), .. }),
+                        Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span: group_span }),
                         Some(Token { kind: TokenKind::Punct(b'='), .. }),
-                    ) => todo!(),
+                    ) => {
+                        *cursor += 3;
+                        let (ptr, offset) = parse_heap_offset(tokens, group_span)?;
+                        Memory::Heap { ptr, offset }
+                    },
+                    (
+                        Some(Token { kind: TokenKind::SSA(ssa), .. }),
+                        Some(Token { kind: TokenKind::Group { delim: Delim::Bracket, tokens }, span: group_span }),
+                        Some(Token { kind: TokenKind::Punct(b'='), .. }),
+                    ) => {
+                        *cursor += 3;
+                        let offset = parse_single_scalar(tokens, false, group_span)?;
+                        Memory::List { ptr: SSA::from_u32(*ssa), offset }
+                    },
                     s => panic!("{s:?}"),
                 };
                 let c = match (tokens.get(*cursor), tokens.get(*cursor + 1)) {
@@ -273,6 +371,140 @@ fn parse_basic_block(tokens: &[Token], cursor: &mut usize) -> Result<BasicBlock,
                             dst,
                             debug_info: None,
                         }
+                    },
+                    (Some(Token { kind: TokenKind::Scalar(n), .. }), _) => {
+                        *cursor += 1;
+                        Bytecode::Const {
+                            value: InternedValue::Scalar(*n),
+                            dst,
+                            debug_info: None,
+                        }
+                    },
+                    (Some(Token { kind: TokenKind::FuncPointer(p), .. }), _) => {
+                        *cursor += 1;
+                        Bytecode::Const {
+                            value: InternedValue::FuncPointer(SpanHash(*p)),
+                            dst,
+                            debug_info: None,
+                        }
+                    },
+                    (
+                        Some(Token { kind: TokenKind::SSA(ssa), .. }),
+                        Some(Token { kind: TokenKind::Group { delim: Delim::Bracket, tokens }, span: group_span }),
+                    ) => {
+                        *cursor += 2;
+                        let offset = parse_single_scalar(tokens, false, group_span)?;
+                        Bytecode::Move {
+                            src: Memory::List { ptr: SSA::from_u32(*ssa), offset },
+                            dst,
+                        }
+                    },
+                    (
+                        Some(Token { kind: TokenKind::SSA(ssa), .. }),
+                        Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. }),
+                    ) => {
+                        *cursor += 2;
+                        let args = parse_ssa_list(tokens)?;
+                        Bytecode::CallDynamic {
+                            func: SSA::from_u32(*ssa),
+                            args,
+                            dst: Some(dst),
+                            debug_info: None,
+                            effect: None,
+                        }
+                    },
+                    (Some(Token { kind: TokenKind::SSA(ssa), .. }), _) => {
+                        *cursor += 1;
+                        Bytecode::Move {
+                            src: Memory::SSA(SSA::from_u32(*ssa)),
+                            dst,
+                        }
+                    },
+                    (
+                        Some(Token { kind: TokenKind::Punct(b'*'), .. }),
+                        Some(Token { kind: TokenKind::SSA(ssa), .. }),
+                    ) => {
+                        *cursor += 2;
+                        Bytecode::Move {
+                            src: Memory::Heap { ptr: SSA::from_u32(*ssa), offset: 0 },
+                            dst,
+                        }
+                    },
+                    (
+                        Some(Token { kind: TokenKind::Punct(b'*'), .. }),
+                        Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span: group_span }),
+                    ) => {
+                        *cursor += 2;
+                        let (ptr, offset) = parse_heap_offset(tokens, group_span)?;
+                        Bytecode::Move {
+                            src: Memory::Heap { ptr, offset },
+                            dst,
+                        }
+                    },
+                    (
+                        Some(Token { kind: TokenKind::Command(Command::Phi), span: phi_span }),
+                        Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. }),
+                    ) => {
+                        *cursor += 2;
+                        let args = parse_ssa_list(tokens)?;
+                        let (x, y) = match args.len() {
+                            2 => (args[0], args[1]),
+                            _ => {
+                                return Err(Error {
+                                    kind: ErrorKind::ObjectFileWrongNumberOfArgs {
+                                        expected: 2,
+                                        got: args.len(),
+                                    },
+                                    spans: phi_span.simple_error(),
+                                    note: None,
+                                });
+                            },
+                        };
+
+                        Bytecode::Phi {
+                            pair: (x, y),
+                            dst,
+                        }
+                    },
+                    (
+                        Some(Token { kind: TokenKind::Command(command @ (Command::InitList | Command::InitTuple)), .. }),
+                        Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span: group_span }),
+                    ) => {
+                        *cursor += 2;
+                        let elements = parse_single_scalar(tokens, true, group_span)? as usize;
+
+                        if *command == Command::InitList {
+                            Bytecode::InitList {
+                                elements,
+                                dst,
+                                debug_info: None,
+                            }
+                        } else {
+                            Bytecode::InitTuple {
+                                elements,
+                                dst,
+                                debug_info: None,
+                            }
+                        }
+                    },
+                    (
+                        Some(Token { kind: TokenKind::Command(Command::LoadGlobal), .. }),
+                        Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. }),
+                    ) => {
+                        *cursor += 2;
+                        let src = match (tokens.get(0), tokens.get(1)) {
+                            (Some(Token { kind: TokenKind::GlobalValue(val), .. }), None) => GlobalLabel::new(SpanHash(*val)),
+                            s => panic!("{s:?}"),
+                        };
+                        let dst = match dst {
+                            Memory::SSA(ssa) => ssa,
+
+                            // TODO: I have to throw an error with a proper span, but I'm tooooo
+                            // lazy to write the code...
+                            _ => panic!("{dst:?}"),
+                        };
+
+                        Bytecode::LoadGlobal { src, dst }
                     },
                     (
                         Some(Token { kind: TokenKind::Command(command), span: command_span }),
@@ -314,7 +546,6 @@ fn parse_basic_block(tokens: &[Token], cursor: &mut usize) -> Result<BasicBlock,
                             args,
                             dst: Some(dst),
                             debug_info: None,
-                            effect: todo!(),  // how do we know this...
                         }
                     },
                     (Some(t @ Token { span, .. }), _) => {
@@ -330,11 +561,183 @@ fn parse_basic_block(tokens: &[Token], cursor: &mut usize) -> Result<BasicBlock,
 
                 code.push(c);
             },
-            Some(Token { kind: TokenKind::Keyword(Keyword::Return), .. }) => todo!(),
-            Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => todo!(),
-            Some(Token { kind: TokenKind::Command(command), .. }) => match *command {
-                Command::Breakpoint => todo!(),
-                s => panic!("{s:?}"),
+            Some(Token { kind: TokenKind::Keyword(Keyword::Return), .. }) => {
+                *cursor += 1;
+
+                match tokens.get(*cursor) {
+                    Some(Token { kind: TokenKind::SSA(ssa), .. }) => {
+                        *cursor += 1;
+                        pop_punct(b';', tokens, cursor)?;
+                        terminator = Some(Terminator::Return(SSA::from_u32(*ssa)));
+                        break;
+                    },
+                    Some(Token { kind: TokenKind::GlobalLabel(label), .. }) => {
+                        *cursor += 1;
+                        let args = match tokens.get(*cursor) {
+                            Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. }) => parse_ssa_list(tokens)?,
+                            Some(t) => {
+                                return Err(Error {
+                                    kind: ErrorKind::ObjectFileUnexpectedToken {
+                                        expected: Some(TokenKind::Group { delim: Delim::Parenthesis, tokens: vec![] }.render()),
+                                        got: t.kind.render(),
+                                    },
+                                    spans: t.span.simple_error(),
+                                    note: Some(String::from("You forgot the arguments!")),
+                                });
+                            },
+                            None => {
+                                return Err(Error {
+                                    kind: ErrorKind::ObjectFileUnexpectedEog {
+                                        expected: Some(TokenKind::Group { delim: Delim::Parenthesis, tokens: vec![] }.render()),
+                                    },
+                                    spans: vec![],
+                                    note: None,
+                                });
+                            },
+                        };
+                        *cursor += 1;
+                        pop_punct(b';', tokens, cursor)?;
+                        terminator = Some(Terminator::TailCall {
+                            func: GlobalLabel::new(SpanHash(*label)),
+                            args,
+                        });
+                        break;
+                    },
+                    s => panic!("{s:?}"),
+                }
+            },
+            Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => {
+                *cursor += 1;
+
+                match tokens.get(*cursor) {
+                    Some(Token { kind: TokenKind::SSA(cond), .. }) => {
+                        *cursor += 1;
+                        let cond = SSA::from_u32(*cond);
+                        let t_label = parse_jump_in_brace(tokens, cursor)?;
+                        pop_keyword(Keyword::Else, tokens, cursor)?;
+                        let f_label = parse_jump_in_brace(tokens, cursor)?;
+                        terminator = Some(Terminator::JumpIf {
+                            value: cond,
+                            t: t_label,
+                            f: f_label,
+                        });
+                        break;
+                    },
+                    Some(Token { kind: TokenKind::Punct(b'!'), span }) => {
+                        *cursor += 1;
+
+                        match (tokens.get(*cursor), tokens.get(*cursor + 1)) {
+                            (
+                                Some(Token { kind: TokenKind::Command(Command::IsInit), .. }),
+                                Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens: group_tokens }, .. }),
+                            ) => {
+                                *cursor += 2;
+                                let global = match (group_tokens.get(0), group_tokens.get(1)) {
+                                    (Some(Token { kind: TokenKind::GlobalValue(label), .. }), None) => GlobalLabel::new(SpanHash(*label)),
+                                    s => panic!("{s:?}"),
+                                };
+
+                                // We have to parse the curly brace, but I'm toooo lazy to write the
+                                // code... let's just assume that there's no syntax error :)
+                                *cursor += 1;
+
+                                pop_keyword(Keyword::Jump, tokens, cursor)?;
+                                let local = match tokens.get(*cursor) {
+                                    Some(Token { kind: TokenKind::LocalLabel(label), .. }) => LocalLabel::new(*label),
+                                    s => panic!("{s:?}"),
+                                };
+                                *cursor += 1;
+                                pop_punct(b';', tokens, cursor)?;
+                                terminator = Some(Terminator::TryInitGlobal {
+                                    global,
+                                    label: local,
+                                });
+                                break;
+                            },
+                            (Some(t), _) => {
+                                return Err(Error {
+                                    kind: ErrorKind::Todo { id: 534465 },
+                                    spans: t.span.simple_error(),
+                                    note: None,
+                                });
+                            },
+                            (None, _) => {
+                                return Err(Error {
+                                    kind: ErrorKind::ObjectFileUnexpectedEog {
+                                        expected: Some(TokenKind::Command(Command::IsInit).render()),
+                                    },
+                                    spans: span.simple_error(),
+                                    note: None,
+                                });
+                            },
+                        }
+                    },
+                    s => panic!("{s:?}"),
+                }
+            },
+            Some(Token { kind: TokenKind::Keyword(Keyword::Jump), .. }) => {
+                *cursor += 1;
+
+                match tokens.get(*cursor) {
+                    Some(Token { kind: TokenKind::LocalLabel(label), .. }) => {
+                        *cursor += 1;
+                        pop_punct(b';', tokens, cursor)?;
+                        terminator = Some(Terminator::Jump(LocalLabel::new(*label)));
+                        break;
+                    },
+                    s => panic!("{s:?}"),
+                }
+            },
+            Some(Token { kind: TokenKind::Command(command), span }) => {
+                *cursor += 1;
+                let c = match *command {
+                    Command::Breakpoint => Bytecode::Breakpoint,
+                    Command::StoreGlobal => match tokens.get(*cursor) {
+                        Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. }) => match (
+                            tokens.get(0),
+                            tokens.get(1),
+                            tokens.get(2),
+                            tokens.get(3),
+                        ) {
+                            (
+                                Some(Token { kind: TokenKind::SSA(ssa), .. }),
+                                Some(Token { kind: TokenKind::Punct(b','), .. }),
+                                Some(Token { kind: TokenKind::GlobalValue(global), .. }),
+                                None,
+                            ) => {
+                                *cursor += 1;
+                                Bytecode::StoreGlobal {
+                                    src: SSA::from_u32(*ssa),
+                                    dst: GlobalLabel::new(SpanHash(*global)),
+                                }
+                            },
+                            s => panic!("{s:?}"),
+                        },
+                        Some(t) => {
+                            return Err(Error {
+                                kind: ErrorKind::ObjectFileUnexpectedToken {
+                                    expected: Some(TokenKind::Group { delim: Delim::Parenthesis, tokens: vec![] }.render()),
+                                    got: t.kind.render(),
+                                },
+                                spans: t.span.simple_error(),
+                                note: None,
+                            });
+                        },
+                        None => {
+                            return Err(Error {
+                                kind: ErrorKind::ObjectFileUnexpectedEog {
+                                    expected: Some(TokenKind::Group { delim: Delim::Parenthesis, tokens: vec![] }.render()),
+                                },
+                                spans: span.simple_error(),
+                                note: None,
+                            });
+                        },
+                    },
+                    s => panic!("{s:?}"),
+                };
+
+                pop_punct(b';', tokens, cursor)?;
+                code.push(c);
             },
             s => panic!("{s:?}"),
         }
@@ -359,17 +762,209 @@ fn parse_ssa_list(tokens: &[Token]) -> Result<Vec<SSA>, Error> {
                 cursor += 1;
                 result.push(SSA::from_u32(*ssa));
             },
-            s => panic!("{s:?}"),
+            Some(t) => {
+                return Err(Error {
+                    kind: ErrorKind::ObjectFileUnexpectedToken {
+                        expected: Some(TokenKind::SSA(1).render()),
+                        got: t.kind.render(),
+                    },
+                    spans: t.span.simple_error(),
+                    note: None,
+                });
+            },
+            None => break,
         }
 
         match (tokens.get(cursor), tokens.get(cursor + 1)) {
             (Some(Token { kind: TokenKind::Punct(b','), .. }), None) | (None, _) => break,
             (Some(Token { kind: TokenKind::Punct(b','), .. }), _) => { cursor += 1; },
-            (s, _) => panic!("{s:?}"),
+            (Some(t), _) => {
+                return Err(Error {
+                    kind: ErrorKind::ObjectFileUnexpectedToken {
+                        expected: Some(TokenKind::Punct(b',').render()),
+                        got: t.kind.render(),
+                    },
+                    spans: t.span.simple_error(),
+                    note: None,
+                });
+            },
         }
     }
 
     Ok(result)
+}
+
+// It has to consume all the tokens.
+fn parse_single_scalar(
+    tokens: &[Token],
+    allow_trailing_comma: bool,
+    eof_error_span: &Span,
+) -> Result<u32, Error> {
+    match (tokens.get(0), tokens.get(1)) {
+        (
+            Some(Token { kind: TokenKind::Scalar(n), .. }),
+            trail @ (None | Some(Token { kind: TokenKind::Punct(b','), .. })),
+        ) => {
+            if let Some(t) = trail && !allow_trailing_comma {
+                Err(Error {
+                    kind: ErrorKind::ObjectFileUnexpectedToken {
+                        expected: None,
+                        got: t.kind.render(),
+                    },
+                    spans: t.span.simple_error(),
+                    note: None,
+                })
+            } else {
+                Ok(*n)
+            }
+        },
+        (Some(Token { kind: TokenKind::Scalar(_), .. }), Some(t)) => Err(Error {
+            kind: ErrorKind::ObjectFileUnexpectedToken {
+                expected: None,
+                got: t.kind.render(),
+            },
+            spans: t.span.simple_error(),
+            note: None,
+        }),
+        (Some(t), _) => Err(Error {
+            kind: ErrorKind::ObjectFileUnexpectedToken {
+                expected: Some(TokenKind::Scalar(1).render()),
+                got: t.kind.render(),
+            },
+            spans: t.span.simple_error(),
+            note: None,
+        }),
+        (None, _) => Err(Error {
+            kind: ErrorKind::ObjectFileUnexpectedEog {
+                expected: Some(TokenKind::Scalar(1).render()),
+            },
+            spans: eof_error_span.simple_error(),
+            note: None,
+        }),
+    }
+}
+
+fn parse_jump_in_brace(tokens: &[Token], cursor: &mut usize) -> Result<LocalLabel, Error> {
+    match tokens.get(*cursor) {
+        Some(Token { kind: TokenKind::Group { delim: Delim::Brace, tokens }, .. }) => {
+            *cursor += 1;
+            let mut inner_cursor = 0;
+            pop_keyword(Keyword::Jump, tokens, &mut inner_cursor)?;
+
+            match tokens.get(inner_cursor) {
+                Some(Token { kind: TokenKind::LocalLabel(label), .. }) => {
+                    let label = LocalLabel::new(*label);
+                    inner_cursor += 1;
+                    pop_punct(b';', tokens, &mut inner_cursor)?;
+                    return Ok(label);
+                },
+                s => panic!("{s:?}"),
+            }
+        },
+        Some(t) => {
+            return Err(Error {
+                kind: ErrorKind::ObjectFileUnexpectedToken {
+                    expected: Some(TokenKind::Group { delim: Delim::Brace, tokens: vec![] }.render()),
+                    got: t.kind.render(),
+                },
+                spans: t.span.simple_error(),
+                note: None,
+            });
+        },
+        None => {
+            return Err(Error {
+                kind: ErrorKind::ObjectFileUnexpectedEog {
+                    expected: Some(TokenKind::Group { delim: Delim::Brace, tokens: vec![] }.render()),
+                },
+                spans: vec![],
+                note: None,
+            });
+        },
+    }
+}
+
+// It has to consume all the tokens.
+fn parse_heap_offset(tokens: &[Token], eof_error_span: &Span) -> Result<(SSA, u32), Error> {
+    let ssa = match tokens.get(0) {
+        Some(Token { kind: TokenKind::SSA(ssa), .. }) => SSA::from_u32(*ssa),
+        Some(t) => {
+            return Err(Error {
+                kind: ErrorKind::ObjectFileUnexpectedToken {
+                    expected: Some(TokenKind::SSA(1).render()),
+                    got: t.kind.render(),
+                },
+                spans: t.span.simple_error(),
+                note: None,
+            });
+        },
+        None => {
+            return Err(Error {
+                kind: ErrorKind::ObjectFileUnexpectedEog {
+                    expected: Some(TokenKind::SSA(0).render()),
+                },
+                spans: eof_error_span.simple_error(),
+                note: None,
+            });
+        },
+    };
+    let offset = match tokens.get(1) {
+        None => 0,
+        Some(Token { kind: TokenKind::Punct(b'+'), .. }) => match (tokens.get(2), tokens.get(3)) {
+            (Some(Token { kind: TokenKind::Scalar(n), .. }), None) => *n,
+            (Some(Token { kind: TokenKind::Scalar(_), .. }), Some(t)) => {
+                return Err(Error {
+                    kind: ErrorKind::ObjectFileUnexpectedToken {
+                        expected: None,
+                        got: t.kind.render(),
+                    },
+                    spans: t.span.simple_error(),
+                    note: None,
+                });
+            },
+            s => panic!("{s:?}"),
+        },
+        Some(t) => {
+            let is_minus = matches!(&t.kind, TokenKind::Punct(b'-'));
+            return Err(Error {
+                kind: ErrorKind::ObjectFileUnexpectedToken {
+                    expected: Some(TokenKind::Punct(b'+').render()),
+                    got: t.kind.render(),
+                },
+                spans: t.span.simple_error(),
+                note: if is_minus {
+                    Some(String::from("An offset cannot be minus."))
+                } else {
+                    None
+                },
+            });
+        },
+    };
+
+    Ok((ssa, offset))
+}
+
+fn pop_keyword(keyword: Keyword, tokens: &[Token], cursor: &mut usize) -> Result<(), Error> {
+    match tokens.get(*cursor) {
+        Some(Token { kind: TokenKind::Keyword(k), .. }) if *k == keyword => {
+            *cursor += 1;
+            Ok(())
+        },
+        Some(b) => Err(Error {
+            kind: ErrorKind::ObjectFileUnexpectedToken {
+                expected: Some(TokenKind::Keyword(keyword).render()),
+                got: b.kind.render(),
+            },
+            spans: b.span.simple_error(),
+            note: None,
+        }),
+        None => Err(Error {
+            kind: ErrorKind::ObjectFileUnexpectedEog {
+                expected: Some(TokenKind::Keyword(keyword).render()),
+            },
+            spans: vec![],
+            note: None,
+        }),
+    }
 }
 
 fn pop_punct(punct: u8, tokens: &[Token], cursor: &mut usize) -> Result<(), Error> {
@@ -380,7 +975,7 @@ fn pop_punct(punct: u8, tokens: &[Token], cursor: &mut usize) -> Result<(), Erro
         },
         Some(b) => Err(Error {
             kind: ErrorKind::ObjectFileUnexpectedToken {
-                expected: TokenKind::Punct(punct).render(),
+                expected: Some(TokenKind::Punct(punct).render()),
                 got: b.kind.render(),
             },
             spans: b.span.simple_error(),
@@ -405,7 +1000,7 @@ fn pop_section_name(section: SectionName, tokens: &[Token], cursor: &mut usize) 
             },
             Some(b) => Err(Error {
                 kind: ErrorKind::ObjectFileUnexpectedToken {
-                    expected: TokenKind::Section(section).render(),
+                    expected: Some(TokenKind::Section(section).render()),
                     got: b.kind.render(),
                 },
                 spans: b.span.simple_error(),
@@ -421,7 +1016,7 @@ fn pop_section_name(section: SectionName, tokens: &[Token], cursor: &mut usize) 
         },
         Some(b) => Err(Error {
             kind: ErrorKind::ObjectFileUnexpectedToken {
-                expected: TokenKind::Section(section).render(),
+                expected: Some(TokenKind::Section(section).render()),
                 got: b.kind.render(),
             },
             spans: b.span.simple_error(),
