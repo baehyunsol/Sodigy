@@ -1,10 +1,10 @@
 use crate::Block;
 use sodigy_error::{Error, Warning};
-use sodigy_file::File;
+use sodigy_file::FileId;
 use sodigy_lex::Session as LexSession;
 
 pub struct Session {
-    pub file: File,
+    pub file: FileId,
     pub ast: Block,
     pub intermediate_dir: String,
     pub is_std: bool,
@@ -24,3 +24,4 @@ impl Session {
         }
     }
 }
+

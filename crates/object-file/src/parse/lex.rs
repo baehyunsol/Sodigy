@@ -1,12 +1,12 @@
 use super::{Command, Keyword, SectionName, Token, TokenKind};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_number::{Base, BigInt, bi_to_string};
-use sodigy_file::File;
+use sodigy_file::FileId;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::intern_string;
 use sodigy_token::Delim;
 
-pub fn lex(b: &[u8], file: File, intermediate_dir: &str) -> Result<Vec<Token>, Error> {
+pub fn lex(b: &[u8], file: FileId, intermediate_dir: &str) -> Result<Vec<Token>, Error> {
     let mut cursor = 0;
     let mut tokens = vec![];
 
@@ -280,7 +280,7 @@ pub fn lex(b: &[u8], file: File, intermediate_dir: &str) -> Result<Vec<Token>, E
 
 // If there's a valid ident, it just moves the cursor and
 // returns `Ok(())`.
-fn lex_ident(b: &[u8], cursor: &mut usize, file: File) -> Result<(), Error> {
+fn lex_ident(b: &[u8], cursor: &mut usize, file: FileId) -> Result<(), Error> {
     let old_cursor = *cursor;
 
     match b.get(*cursor) {
@@ -311,7 +311,7 @@ fn lex_ident(b: &[u8], cursor: &mut usize, file: File) -> Result<(), Error> {
     }
 }
 
-fn lex_hex_32(b: &[u8], cursor: &mut usize, file: File) -> Result<u32, Error> {
+fn lex_hex_32(b: &[u8], cursor: &mut usize, file: FileId) -> Result<u32, Error> {
     let old_cursor = *cursor;
     let mut buffer: u64 = match b.get(*cursor) {
         Some(b @ b'0'..=b'9') => (*b - b'0') as u64,
@@ -362,7 +362,7 @@ fn lex_hex_32(b: &[u8], cursor: &mut usize, file: File) -> Result<u32, Error> {
     }
 }
 
-fn lex_hex_96(b: &[u8], cursor: &mut usize, file: File) -> Result<u128, Error> {
+fn lex_hex_96(b: &[u8], cursor: &mut usize, file: FileId) -> Result<u128, Error> {
     let old_cursor = *cursor;
     let mut buffer: u128 = match b.get(*cursor) {
         Some(b @ b'0'..=b'9') => (*b - b'0') as u128,
@@ -414,7 +414,7 @@ fn lex_hex_96(b: &[u8], cursor: &mut usize, file: File) -> Result<u128, Error> {
     }
 }
 
-fn lex_hex_128(b: &[u8], cursor: &mut usize, file: File) -> Result<u128, Error> {
+fn lex_hex_128(b: &[u8], cursor: &mut usize, file: FileId) -> Result<u128, Error> {
     let old_cursor = *cursor;
 
     // `lex_hex_96` is way, way cheaper than `lex_hex_large`.
@@ -440,7 +440,7 @@ fn lex_hex_128(b: &[u8], cursor: &mut usize, file: File) -> Result<u128, Error> 
     }
 }
 
-fn lex_hex_large(b: &[u8], cursor: &mut usize, file: File) -> Result<BigInt, Error> {
+fn lex_hex_large(b: &[u8], cursor: &mut usize, file: FileId) -> Result<BigInt, Error> {
     let hex_end = *cursor;
     let start = *cursor;
 
@@ -460,7 +460,7 @@ fn lex_hex_large(b: &[u8], cursor: &mut usize, file: File) -> Result<BigInt, Err
     }
 }
 
-fn lex_dec_32(b: &[u8], cursor: &mut usize, file: File) -> Result<u32, Error> {
+fn lex_dec_32(b: &[u8], cursor: &mut usize, file: FileId) -> Result<u32, Error> {
     let old_cursor = *cursor;
     let mut buffer: u64 = match b.get(*cursor) {
         Some(b @ b'0'..=b'9') => (*b - b'0') as u64,
@@ -502,7 +502,7 @@ fn lex_dec_32(b: &[u8], cursor: &mut usize, file: File) -> Result<u32, Error> {
 }
 
 // `b[cursor]` must be an opening delim
-fn find_matching_group(b: &[u8], mut cursor: usize, file: File) -> Result<usize, Error> {
+fn find_matching_group(b: &[u8], mut cursor: usize, file: FileId) -> Result<usize, Error> {
     let mut stack = vec![];
 
     loop {

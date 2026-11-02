@@ -18,7 +18,7 @@ use sodigy_bytecode::{
     Value,
 };
 use sodigy_error::{Error, ErrorKind, FuncEffect};
-use sodigy_file::File;
+use sodigy_file::FileId;
 use sodigy_number::{BigInt, neg_bi};
 use sodigy_span::{RenderableSpan, Span, SpanHash};
 use sodigy_string::InternedString;
@@ -37,7 +37,7 @@ use token::{
     TokenKind,
 };
 
-pub fn parse(bytes: &[u8], file: File, intermediate_dir: &str) -> Result<ObjectFile, Error> {
+pub fn parse(bytes: &[u8], file: FileId, intermediate_dir: &str) -> Result<ObjectFile, Error> {
     let tokens = lex(bytes, file, intermediate_dir)?;
     let mut cursor = 0;
 

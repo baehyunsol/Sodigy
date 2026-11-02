@@ -7,7 +7,7 @@ use sodigy_error::{
     ErrorLevel,
     Warning as SodigyWarning,
 };
-use sodigy_file::{File, FileOrStd, ModulePath};
+use sodigy_file::{FileId, FileKind, FileOrStd, ModulePath};
 use sodigy_fs_api::{
     FileError,
     FileErrorKind,
@@ -489,7 +489,7 @@ fn compile_bytecode(
         let bytes: Vec<u8> = Endec::decode(&bytes)?;
         ObjectFile::decode(&bytes)?
     } else {
-        let file = File::register(&bytecode_path, "object-file", &ir_dir, true)?;
+        let file = FileId::register(&bytecode_path, "object-file", FileKind::ObjectFile, &ir_dir)?;
         match parse_object_file(&bytes, file, &ir_dir) {
             Ok(obj) => obj,
             Err(e) => {

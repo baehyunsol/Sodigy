@@ -1,11 +1,11 @@
 use crate::{LexState, TokensOrString};
 use sodigy_error::{Error, Warning};
-use sodigy_file::File;
+use sodigy_file::FileId;
 use sodigy_span::Span;
 use sodigy_token::Token;
 
 pub struct Session {
-    pub file: File,
+    pub file: FileId,
     pub(crate) input_bytes: Vec<u8>,
     pub(crate) state: LexState,
     pub(crate) cursor: usize,

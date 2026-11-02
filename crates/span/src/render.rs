@@ -1,5 +1,5 @@
 use crate::Span;
-use sodigy_file::File;
+use sodigy_file::FileId;
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
@@ -74,7 +74,7 @@ pub fn render_spans(
     }
 
     let spans = vec![spans.to_vec(), session.explain_monomorphizations(&monomorphizations)].concat();
-    let mut spans_by_file: HashMap<File, Vec<(RenderableSpan, (usize, usize, usize, usize))>> = HashMap::new();
+    let mut spans_by_file: HashMap<FileId, Vec<(RenderableSpan, (usize, usize, usize, usize))>> = HashMap::new();
     let mut files_with_empty_rects = HashMap::new();
 
     for span in spans.iter() {

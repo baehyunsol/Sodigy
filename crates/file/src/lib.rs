@@ -23,7 +23,7 @@ use file_map::{
     search_file_map_by_module_path,
 };
 
-// The four most significant bits are the type of the file
+// The four most significant bits are for the kind (`FileKind`).
 //   0: source file
 //   1: std
 //   2: object file
@@ -32,19 +32,46 @@ use file_map::{
 // Its `Ord` is for deterministic output of the error messages (it sorts the errors by file).
 // It doesn't sort the files by name.
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct File(u32);
+pub struct FileId(u32);
 
-impl File {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FileKind {
+    Source,
+    Std,
+    ObjectFile,
+}
+
+// TODO: rename this to `File`
+pub struct FileInfo {
+    id: FileId,
+    module_path: String,
+    content: InternedString,
+
+    // This is shown when rendering spans.
+    // You shouldn't use this path to read the file, use the `.content` field!
+    file_path: Option<String>,
+}
+
+impl FileId {
     pub fn std(id: u32) -> Self {
-        File(0x1000_0000 | (id & 0x0fff_ffff))
+        FileId(0x1000_0000 | (id & 0x0fff_ffff))
     }
 
     pub fn id(&self) -> u32 {
         self.0
     }
 
-    pub fn from_id(id: u32) -> Self {
-        File(id)
+    pub fn from_u32(id: u32) -> Self {
+        FileId(id)
+    }
+
+    pub fn kind(&self) -> FileKind {
+        match self.0 >> 28 {
+            0 => FileKind::Source,
+            1 => FileKind::Std,
+            2 => FileKind::ObjectFile,
+            _ => unreachable!(),
+        }
     }
 
     pub fn register(
@@ -56,82 +83,10 @@ impl File {
         // For example, a module with `foo/bar` can be in `src/foo/bar.rs` or `src/foo/bar/mod.rs`.
         module_path: &str,
 
+        kind: FileKind,
         intermediate_dir: &str,
-        is_object_file: bool,
-    ) -> Result<File, FileError> {
-        let module_path_hash = (hash(module_path.as_bytes()) & 0xff) as u32;
-        let file_map_path = join3(
-            intermediate_dir,
-            "file_map",
-            &format!("{module_path_hash:02x}"),
-        )?;
-        let mut file_map_fd = StdFile::options()
-            .read(true)
-            .create(true)
-            .append(true)
-            .open(&file_map_path)
-            .map_err(|e| FileError::from_std(e, &file_map_path))?;
-
-        file_map_fd.lock().map_err(
-            |e| FileError::from_std(e, &file_map_path)
-        )?;
-
-        let mut file_map = vec![];
-        file_map_fd.read_to_end(&mut file_map).map_err(
-            |e| FileError::from_std(e, &file_map_path)
-        )?;
-
-        // file_map is a list of `file_id: u32`, `content_hash: u128`, `module_path: String`
-        let mut file_id = if file_map.is_empty() {
-            module_path_hash
-        } else {
-            match search_file_map_by_module_path(&file_map, module_path, &file_map_path)? {
-                // If it's already registered, it returns the previous one without updating its content_hash.
-                // That means you cannot update a file while a compilation is going on.
-                Some((file_id, _)) => {
-                    return Ok(File(file_id));
-                },
-                None => ((length_file_map(&file_map, &file_map_path)? as u32) << 8) | module_path_hash,
-            }
-        };
-        file_id &= 0x0fff_ffff;
-
-        if is_object_file {
-            file_id |= 0x2000_0000;
-        }
-
-        let content = read_bytes(file_path)?;
-        let content_hash = intern_string(&content, intermediate_dir)?;
-        push_file_map(&mut file_map, file_id, content_hash.0, module_path, file_path);
-        file_map_fd.write_all(&file_map).map_err(
-            |e| FileError::from_std(e, &file_map_path)
-        )?;
-        file_map_fd.unlock().map_err(|e| FileError::from_std(e, &file_map_path))?;
-
-        Ok(File(file_id))
-    }
-
-    pub fn from_module_path(module_path: &str, intermediate_dir: &str) -> Result<File, FileError> {
-        let module_path_hash = (hash(module_path.as_bytes()) & 0xff) as u32;
-        let file_map_path = join3(
-            intermediate_dir,
-            "file_map",
-            &format!("{module_path_hash:02x}"),
-        )?;
-        let file_map = read_bytes(&file_map_path).unwrap_or(vec![]);
-
-        match search_file_map_by_module_path(&file_map, module_path, &file_map_path)? {
-            Some((file_id, _)) => Ok(File(file_id)),
-            None => {
-                for std_file in STD_FILES.iter() {
-                    if std_file.module_path_str == module_path {
-                        return Ok(File(std_file.file_hash()));
-                    }
-                }
-
-                unreachable!()
-            },
-        }
+    ) -> Result<FileId, FileError> {
+        todo!()
     }
 
     // It returns (module_path, file_path).
@@ -200,18 +155,15 @@ impl File {
     }
 }
 
-impl fmt::Debug for File {
+impl fmt::Debug for FileId {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let r#type = self.0 >> 28;
-
-        match r#type {
-            0 => write!(formatter, "File({})", self.0),
-            1 => {
+        match self.kind() {
+            FileKind::Source => write!(formatter, "FileId({})", self.0),
+            FileKind::Std => {
                 let s = STD_FILES[*STD_FILE_INDEXES.get(&self.0).unwrap()].file_path_str.to_string();
-                write!(formatter, "File({s:?})")
+                write!(formatter, "FileId({s:?})")
             },
-            2 => write!(formatter, "File(ObjectFile)"),
-            _ => unreachable!(),
+            FileKind::ObjectFile => write!(formatter, "FileId(ObjectFile)"),
         }
     }
 }

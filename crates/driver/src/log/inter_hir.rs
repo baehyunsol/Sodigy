@@ -6,7 +6,7 @@ use super::{
     render_page_and_save,
 };
 use sodigy_endec::Endec;
-use sodigy_file::File;
+use sodigy_file::FileId;
 use sodigy_fs_api::{
     FileError,
     FileErrorKind,
@@ -31,7 +31,7 @@ use sodigy_span::{
 use sodigy_utils::hash;
 
 pub fn store_inter_hir_log(
-    module: Option<File>,
+    module: Option<FileId>,
     log: Vec<LogEntry>,
     intermediate_dir: &str,
 ) -> Result<(), FileError> {
@@ -61,11 +61,11 @@ pub fn dump_inter_hir_log(intermediate_dir: &str) -> Result<(), FileError> {
         return Ok(());
     }
 
-    let mut logs: Vec<(Option<File>, Vec<LogEntry>)> = vec![];
+    let mut logs: Vec<(Option<FileId>, Vec<LogEntry>)> = vec![];
 
     for file in read_dir(&store_at, true)? {
         let b = read_bytes(&file)?;
-        let log: (Option<File>, Vec<LogEntry>) = Endec::decode(&b).map_err(|_| FileError { kind: FileErrorKind::CannotDecodeFile, given_path: Some(file) })?;
+        let log: (Option<FileId>, Vec<LogEntry>) = Endec::decode(&b).map_err(|_| FileError { kind: FileErrorKind::CannotDecodeFile, given_path: Some(file) })?;
         logs.push(log);
     }
 

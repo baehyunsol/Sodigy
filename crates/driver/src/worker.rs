@@ -13,7 +13,7 @@ use crate::{
 use sodigy_code_gen::Emit;
 use sodigy_endec::Endec;
 use sodigy_error::{Error as SodigyError, Warning as SodigyWarning};
-use sodigy_file::{File, FileOrStd, ModulePath, std_root};
+use sodigy_file::{FileId, FileKind, FileOrStd, ModulePath, std_root};
 use sodigy_fs_api::{FileError, WriteMode, write_bytes};
 use sodigy_hir as hir;
 use sodigy_mir::{self as mir, GlobalContext as MirGlobalContext};
@@ -212,14 +212,14 @@ impl Worker {
                 let (is_std, file) = match &input_file_path {
                     FileOrStd::File(path) => (
                         false,
-                        File::register(
+                        FileId::register(
                             path,
                             &input_module_path.to_string(),
+                            FileKind::Source,
                             &intermediate_dir,
-                            false,  // object_file
                         )?,
                     ),
-                    FileOrStd::Std(n) => (true, File::std(*n)),
+                    FileOrStd::Std(n) => (true, FileId::std(*n)),
                 };
                 let content_hash = file.get_content_hash(&intermediate_dir)?;
 
@@ -566,7 +566,7 @@ impl Worker {
                 let mut has_error = false;
 
                 for (path, span) in modules.iter() {
-                    let file = File::from_module_path(
+                    let file = FileId::from_module_path(
                         &path.to_string(),
                         &intermediate_dir,
                     )?;
@@ -645,7 +645,7 @@ impl Worker {
                 let mut merged_mir_session: Option<mir::Session> = None;
 
                 for path in modules.keys() {
-                    let file = File::from_module_path(
+                    let file = FileId::from_module_path(
                         &path.to_string(),
                         &intermediate_dir,
                     )?;
@@ -704,7 +704,7 @@ impl Worker {
                 let mut items = mir_session.get_item_map();
 
                 for path in modules.keys() {
-                    let file = File::from_module_path(
+                    let file = FileId::from_module_path(
                         &path.to_string(),
                         &intermediate_dir,
                     )?;
@@ -774,7 +774,7 @@ impl Worker {
                 let mut warnings = vec![];
 
                 for path in modules.keys() {
-                    let file = File::from_module_path(
+                    let file = FileId::from_module_path(
                         &path.to_string(),
                         &intermediate_dir,
                     )?;

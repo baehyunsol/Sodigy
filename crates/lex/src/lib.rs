@@ -2,7 +2,7 @@
 //       You know, ... it's 21st century! Everything's gonna be fine.
 
 use sodigy_error::{Error, ErrorKind, ErrorToken};
-use sodigy_file::File;
+use sodigy_file::FileId;
 use sodigy_number::{Base, InternedNumber, intern_number_raw};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_stages::{Stage, Substage};
@@ -72,7 +72,7 @@ pub(crate) enum LexState {
 }
 
 pub fn lex(
-    file: File,
+    file: FileId,
     input: Vec<u8>,
     intermediate_dir: String,
     is_std: bool,
@@ -1945,7 +1945,7 @@ fn group_tokens_recursive(tokens: &[Token]) -> Vec<Token> {
 // Ok(Some((formatter, index))): There's a valid formatter. It also returns the index of '}' character.
 // Ok(None): There's no formatter.
 // Err(e): It seems like a formatter, but there's a syntax error.
-fn parse_formatter(file: File, bytes: &[u8], index: usize) -> Result<Option<(Formatter, usize)>, Error> {
+fn parse_formatter(file: FileId, bytes: &[u8], index: usize) -> Result<Option<(Formatter, usize)>, Error> {
     assert_eq!(bytes[index], b':');
 
     // Currently, every formatter is a single-character.

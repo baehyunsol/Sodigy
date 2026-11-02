@@ -1,14 +1,14 @@
-use crate::{File, ModulePath};
+use crate::{FileId, ModulePath};
 use sodigy_endec::{DecodeError, Endec};
 
-impl Endec for File {
+impl Endec for FileId {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         self.0.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (id, cursor) = u32::decode_impl(buffer, cursor)?;
-        Ok((File(id), cursor))
+        Ok((FileId(id), cursor))
     }
 }
 
