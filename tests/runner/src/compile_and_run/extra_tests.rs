@@ -27,10 +27,6 @@ impl Build {
         match self.output {
             // I don't trust the rust compiler.
             Emit::Exe => false,
-
-            // I wish it's deterministic, but some hash maps are not deterministic
-            // due to performance reasons.
-            Emit::ExecutableBytecode => false,
             _ => true,
         }
     }
@@ -114,7 +110,25 @@ impl Build {
                 false,
                 true,
             ),
-            Emit::Rust => todo!(),  // use `rustc` to run
+            Emit::Rust => {
+                subprocess::run(
+                    "rustc",
+                    &[&output, "-o=rustc-built-exe"],
+                    project_dir,
+                    30.0,
+                    false,
+                    true,
+                )?;
+
+                subprocess::run(
+                    &into_abs_path(&join(project_dir, "rustc-built-exe").unwrap()).unwrap(),
+                    &[],
+                    project_dir,
+                    30.0,
+                    false,
+                    true,
+                )
+            },
             Emit::Exe => subprocess::run(
                 &into_abs_path(&join(project_dir, &output).unwrap()).unwrap(),
                 &[],

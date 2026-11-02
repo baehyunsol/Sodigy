@@ -54,8 +54,20 @@ impl Endec for Assert {
 impl Endec for ObjectFile {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         buffer.extend(b"\0\0SDGOBJ");
-        self.data.encode_impl(buffer);
-        self.code.encode_impl(buffer);
+
+        // I want it to be deterministic
+        let mut data: Vec<(ExprHash, Value)> = self.data.iter().map(
+            |(hash, value)| (*hash, value.clone())
+        ).collect();
+        data.sort_by_key(|(h, _)| *h);
+        data.encode_impl(buffer);
+
+        // I want it to be deterministic
+        let mut code: Vec<(GlobalLabel, Code)> = self.code.iter().map(
+            |(label, code)| (*label, code.clone())
+        ).collect();
+        code.sort_by_key(|(l, _)| *l);
+        code.encode_impl(buffer);
         self.entry.encode_impl(buffer);
     }
 
@@ -66,8 +78,10 @@ impl Endec for ObjectFile {
             return Err(DecodeError::InvalidObjectFileMagicBytes);
         }
 
-        let (data, cursor) = HashMap::<ExprHash, Value>::decode_impl(buffer, cursor)?;
-        let (code, cursor) = HashMap::<GlobalLabel, Code>::decode_impl(buffer, cursor)?;
+        let (data, cursor) = Vec::<(ExprHash, Value)>::decode_impl(buffer, cursor)?;
+        let data = data.into_iter().collect();
+        let (code, cursor) = Vec::<(GlobalLabel, Code)>::decode_impl(buffer, cursor)?;
+        let code = code.into_iter().collect();
         let (entry, cursor) = Entry::decode_impl(buffer, cursor)?;
 
         Ok((ObjectFile { data, code, entry }, cursor))
@@ -82,7 +96,13 @@ impl Endec for Code {
         self.name.encode_impl(buffer);
         self.params.encode_impl(buffer);
         self.effect.encode_impl(buffer);
-        self.basic_blocks.encode_impl(buffer);
+
+        // I want it to be deterministic
+        let mut basic_blocks: Vec<(LocalLabel, BasicBlock)> = self.basic_blocks.iter().map(
+            |(label, block)| (*label, block.clone())
+        ).collect();
+        basic_blocks.sort_by_key(|(l, _)| *l);
+        basic_blocks.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
@@ -92,7 +112,8 @@ impl Endec for Code {
         let (name, cursor) = String::decode_impl(buffer, cursor)?;
         let (params, cursor) = Option::<usize>::decode_impl(buffer, cursor)?;
         let (effect, cursor) = FuncEffect::decode_impl(buffer, cursor)?;
-        let (basic_blocks, cursor) = HashMap::<LocalLabel, BasicBlock>::decode_impl(buffer, cursor)?;
+        let (basic_blocks, cursor) = Vec::<(LocalLabel, BasicBlock)>::decode_impl(buffer, cursor)?;
+        let basic_blocks = basic_blocks.into_iter().collect();
 
         Ok((Code { label, span, kind, name, params, effect, basic_blocks }, cursor))
     }
