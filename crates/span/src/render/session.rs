@@ -1,5 +1,6 @@
 use crate::{MonomorphizationInfo, Span};
 use sodigy_file::FileId;
+use sodigy_string::unintern_string;
 use std::collections::hash_map::{Entry, HashMap};
 
 pub struct Session {
@@ -25,7 +26,7 @@ impl Session {
     pub fn get_bytes(&mut self, span: &Span) -> Option<Vec<u8>> {
         match span.file() {
             Some(file) => match file.read_bytes(&self.intermediate_dir) {
-                Ok(bytes) => {
+                Ok(Some(bytes)) => {
                     if let Entry::Vacant(e) = self.line_breaks.entry(file) {
                         e.insert(bytes.iter().enumerate().filter(
                             |(_, b)| **b == b'\n'
@@ -46,10 +47,10 @@ impl Session {
         match span.file() {
             Some(file) => match self.file_paths.entry(file) {
                 Entry::Occupied(e) => Some(e.get().to_string()),
-                Entry::Vacant(e) => match file.get_path(&self.intermediate_dir) {
-                    Ok((_, file_path)) => {
-                        e.insert(file_path.to_string());
-                        Some(file_path.to_string())
+                Entry::Vacant(e) => match file.get_info(&self.intermediate_dir) {
+                    Ok(Some(file)) => {
+                        e.insert(file.file_path.to_string());
+                        Some(file.file_path.to_string())
                     },
                     _ => None,
                 },
@@ -62,21 +63,11 @@ impl Session {
     pub fn get_rect(&mut self, span: &Span) -> Option<(usize, usize, usize, usize)> {
         match (span.file(), span.get_offset_and_length()) {
             (Some(file), Some((offset, length))) => {
-                let line_breaks = match self.line_breaks.entry(file) {
-                    Entry::Occupied(e) => e.get().to_vec(),
-                    Entry::Vacant(e) => match file.read_bytes(&self.intermediate_dir) {
-                        Ok(bytes) => {
-                            let line_breaks = bytes.iter().enumerate().filter(
-                                |(_, b)| **b == b'\n'
-                            ).map(
-                                |(i, _)| i
-                            ).collect::<Vec<_>>();
-                            e.insert(line_breaks.clone());
-                            line_breaks
-                        },
-                        _ => {
-                            return None;
-                        },
+                let line_breaks = match self.line_breaks.get(&file) {
+                    Some(b) => b.to_vec(),
+                    None => {
+                        self.get_bytes(span)?;
+                        self.line_breaks.get(&file)?.to_vec()
                     },
                 };
 

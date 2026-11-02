@@ -196,6 +196,7 @@ impl Worker {
         self.timings.write_log(&format!("command start {command:?}"));
 
         match command {
+            // FIXME: there are too many unwraps
             Command::PerFileIr {
                 input_file_path,
                 input_module_path,
@@ -221,7 +222,7 @@ impl Worker {
                     ),
                     FileOrStd::Std(n) => (true, FileId::std(*n)),
                 };
-                let content_hash = file.get_content_hash(&intermediate_dir)?;
+                let content_hash = file.get_info(&intermediate_dir)?.unwrap().content.to_u128();
 
                 let mut mir_session = if stop_after >= Stage::Mir && let Some(mir_session_bytes) = get_cached_ir(
                     &intermediate_dir,
@@ -242,7 +243,7 @@ impl Worker {
                         s
                     } else {
                         self.timings.stage_start(Stage::Load, None);
-                        let bytes = file.read_bytes(&intermediate_dir)?;
+                        let bytes = file.read_bytes(&intermediate_dir)?.unwrap();
                         self.timings.stage_end(false);
 
                         let lex_session = sodigy_lex::lex(
@@ -570,7 +571,7 @@ impl Worker {
                         &path.to_string(),
                         &intermediate_dir,
                     )?;
-                    let content_hash = file.get_content_hash(&intermediate_dir)?;
+                    let content_hash = file.get_info(&intermediate_dir)?.unwrap().content.to_u128();
                     let hir_session_bytes = get_cached_ir(
                         &intermediate_dir,
                         Stage::Hir,
@@ -649,7 +650,7 @@ impl Worker {
                         &path.to_string(),
                         &intermediate_dir,
                     )?;
-                    let content_hash = file.get_content_hash(&intermediate_dir)?;
+                    let content_hash = file.get_info(&intermediate_dir)?.unwrap().content.to_u128();
                     let mir_session_bytes = get_cached_ir(
                         &intermediate_dir,
                         Stage::Mir,
@@ -708,7 +709,7 @@ impl Worker {
                         &path.to_string(),
                         &intermediate_dir,
                     )?;
-                    let content_hash = file.get_content_hash(&intermediate_dir)?;
+                    let content_hash = file.get_info(&intermediate_dir)?.unwrap().content.to_u128();
                     let mir_session_bytes = get_cached_ir(
                         &intermediate_dir,
                         Stage::Mir,
@@ -778,7 +779,7 @@ impl Worker {
                         &path.to_string(),
                         &intermediate_dir,
                     )?;
-                    let content_hash = file.get_content_hash(&intermediate_dir)?;
+                    let content_hash = file.get_info(&intermediate_dir)?.unwrap().content.to_u128();
                     let object_file_session_bytes = get_cached_ir(
                         &intermediate_dir,
                         Stage::InsertRefCount,

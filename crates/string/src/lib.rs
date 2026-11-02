@@ -31,9 +31,13 @@ use fs::{insert_fs_map, read_fs_map};
 /// next 6 bits are the least significant bit of the first byte of the content, next 40 bits
 /// are the length of the content, and the remaining 10 bytes are for the hash of the content.
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct InternedString(pub u128);
+pub struct InternedString(u128);
 
 impl InternedString {
+    pub fn to_u128(&self) -> u128 {
+        self.0
+    }
+
     pub fn empty() -> Self {
         intern_short_string(b"")
     }
