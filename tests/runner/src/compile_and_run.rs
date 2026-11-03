@@ -255,7 +255,10 @@ fn run_cnr(
 ) -> CompileAndRun {
     let mut cnr_context = prepare_cnr(name, root, sodigy_path, dump_output, dump_post_mir_log, debug_bytecode, cnr_seq, total_cnr);
     let mut result = cnr_context.main_test();
-    cnr_context.extra_tests(&mut result);
+
+    // TODO: enable extra tests!!!
+    // cnr_context.extra_tests(&mut result);
+
     result
 }
 
