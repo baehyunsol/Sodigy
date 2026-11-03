@@ -534,7 +534,14 @@ fn check_test_output(output: &subprocess::Output, directive: &Directive, expecte
     }
 
     if let Some((cmp, n)) = directive.test_error {
-        todo!();
+        match count_test_errors(&String::from_utf8_lossy(&output.stdout)) {
+            Some(test_errors) => {
+                cmp.check(n, test_errors, "the number of test errors");
+            },
+            None => {
+                return Err(String::from("failed to parse the test result output"));
+            },
+        }
     }
 
     match_lines(&String::from_utf8_lossy(&output.stdout), &expected_output.test_stdout).map_err(|e| format!("expected test.stdout and actual stdout do not match\n{e}"))?;
@@ -544,6 +551,7 @@ fn check_test_output(output: &subprocess::Output, directive: &Directive, expecte
 
 lazy_static! {
     static ref COMPILER_RESULT_RE: Regex = Regex::new(r"^Finished\:\s(\d+)\serror(?:s)?\sand\s(\d+)\swarning(?:s)?.+").unwrap();
+    static ref TEST_RESULT_RE: Regex = Regex::new(r"\s\d+\spassed.+\s(\d+)\sfailed").unwrap();
 }
 
 fn count_compile_errors_and_warnings(output: &str) -> Option<(usize, usize)> {
@@ -553,6 +561,16 @@ fn count_compile_errors_and_warnings(output: &str) -> Option<(usize, usize)> {
                 c.get(1).unwrap().as_str().parse::<usize>().unwrap(),
                 c.get(2).unwrap().as_str().parse::<usize>().unwrap(),
             ));
+        }
+    }
+
+    None
+}
+
+fn count_test_errors(output: &str) -> Option<usize> {
+    for line in output.lines().rev() {
+        if let Some(c) = TEST_RESULT_RE.captures(line) {
+            return Some(c.get(1).unwrap().as_str().parse::<usize>().unwrap());
         }
     }
 
