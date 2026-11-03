@@ -1,8 +1,10 @@
 use crate::{FileOrStd, ModulePath};
+use sodigy_string::InternedString;
 use sodigy_utils::hash;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
+#[derive(Clone, Debug)]
 pub struct StdFile {
     pub module_path: ModulePath,
     pub module_path_str: String,
@@ -15,6 +17,12 @@ impl StdFile {
     pub fn file_hash(&self) -> u32 {
         let FileOrStd::Std(n) = &self.file_path else { unreachable!() };
         *n
+    }
+
+    pub fn from_hash(n: u32) -> Option<StdFile> {
+        let i = STD_FILE_INDEXES.get(&n)?;
+        let s = STD_FILES.get(*i)?;
+        Some(s.clone())
     }
 }
 
@@ -105,6 +113,10 @@ pub static STD_FILE_INDEXES: LazyLock<HashMap<u32, usize>> = LazyLock::new(|| {
 
     result
 });
+
+pub static STD_FILE_BY_MODULE_PATH: LazyLock<HashMap<String, usize>> = LazyLock::new(
+    || STD_FILES.iter().enumerate().map(|(i, file)| (file.module_path_str.to_string(), i)).collect()
+);
 
 pub static STD_ROOT_INDEX: LazyLock<usize> = LazyLock::new(|| {
     for (i, std_file) in STD_FILES.iter().enumerate() {

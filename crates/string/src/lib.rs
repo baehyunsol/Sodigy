@@ -38,6 +38,10 @@ impl InternedString {
         self.0
     }
 
+    pub fn from_u128(n: u128) -> Self {
+        InternedString(n)
+    }
+
     pub fn empty() -> Self {
         intern_short_string(b"")
     }

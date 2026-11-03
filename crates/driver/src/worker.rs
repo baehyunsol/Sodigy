@@ -220,7 +220,7 @@ impl Worker {
                             &intermediate_dir,
                         )?,
                     ),
-                    FileOrStd::Std(n) => (true, FileId::std(*n)),
+                    FileOrStd::Std(n) => (true, FileId::register_std(*n, &intermediate_dir)?.unwrap()),
                 };
                 let content_hash = file.get_info(&intermediate_dir)?.unwrap().content.to_u128();
 
@@ -569,6 +569,7 @@ impl Worker {
                 for (path, span) in modules.iter() {
                     let file = FileId::from_module_path(
                         &path.to_string(),
+                        if path.is_std { FileKind::Std } else { FileKind::Source },
                         &intermediate_dir,
                     )?;
                     let content_hash = file.get_info(&intermediate_dir)?.unwrap().content.to_u128();
@@ -648,6 +649,7 @@ impl Worker {
                 for path in modules.keys() {
                     let file = FileId::from_module_path(
                         &path.to_string(),
+                        if path.is_std { FileKind::Std } else { FileKind::Source },
                         &intermediate_dir,
                     )?;
                     let content_hash = file.get_info(&intermediate_dir)?.unwrap().content.to_u128();
@@ -707,6 +709,7 @@ impl Worker {
                 for path in modules.keys() {
                     let file = FileId::from_module_path(
                         &path.to_string(),
+                        if path.is_std { FileKind::Std } else { FileKind::Source },
                         &intermediate_dir,
                     )?;
                     let content_hash = file.get_info(&intermediate_dir)?.unwrap().content.to_u128();
@@ -777,6 +780,7 @@ impl Worker {
                 for path in modules.keys() {
                     let file = FileId::from_module_path(
                         &path.to_string(),
+                        if path.is_std { FileKind::Std } else { FileKind::Source },
                         &intermediate_dir,
                     )?;
                     let content_hash = file.get_info(&intermediate_dir)?.unwrap().content.to_u128();

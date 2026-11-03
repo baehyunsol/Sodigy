@@ -4,8 +4,8 @@ use std::fmt;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct ModulePath {
-    pub(crate) path: Vec<String>,
-    pub(crate) is_std: bool,
+    pub path: Vec<String>,
+    pub is_std: bool,
 }
 
 impl ModulePath {
@@ -108,3 +108,4 @@ impl fmt::Display for ModulePath {
         )
     }
 }
+

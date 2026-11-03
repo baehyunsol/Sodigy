@@ -1,9 +1,8 @@
-use crate::std_file::{STD_FILES, STD_FILE_INDEXES};
+use crate::std_file::{StdFile, STD_FILES, STD_FILE_BY_MODULE_PATH, STD_FILE_INDEXES};
 use sodigy_fs_api::{FileError, join3, read_bytes};
 use sodigy_string::{InternedString, intern_string, unintern_string};
 use sodigy_utils::hash;
 use std::fmt;
-use std::fs::File as StdFile;
 use std::io::{Read, Write};
 
 mod endec;
@@ -42,6 +41,15 @@ impl FileKind {
             FileKind::ObjectFile => 2,
         }
     }
+
+    pub fn from_u32(n: u32) -> Option<FileKind> {
+        match n {
+            0 => Some(FileKind::Source),
+            1 => Some(FileKind::Std),
+            2 => Some(FileKind::ObjectFile),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -69,12 +77,7 @@ impl FileId {
     }
 
     pub fn kind(&self) -> FileKind {
-        match self.0 >> 28 {
-            0 => FileKind::Source,
-            1 => FileKind::Std,
-            2 => FileKind::ObjectFile,
-            _ => unreachable!(),
-        }
+        FileKind::from_u32(self.0 >> 28).unwrap()
     }
 
     pub fn register(file_path: &str, module_path: &str, kind: FileKind, intermediate_dir: &str) -> Result<FileId, FileError> {
@@ -86,12 +89,24 @@ impl FileId {
         Ok(file.id)
     }
 
+    pub fn register_std(id: u32, intermediate_dir: &str) -> Result<Option<FileId>, FileError> {
+        let Some(std_file) = StdFile::from_hash(id) else { return Ok(None); };
+        let id = FileId::new(id, FileKind::Std);
+        let content = intern_string(std_file.contents, intermediate_dir)?;
+        let file = File { id, module_path: std_file.module_path_str.to_string(), content, file_path: std_file.file_path_str.to_string() };
+        file.update(intermediate_dir)?;
+        Ok(Some(file.id))
+    }
+
     pub fn from_module_path(module_path: &str, kind: FileKind, intermediate_dir: &str) -> Result<FileId, FileError> {
-        FileId::allocate_or_load_id(module_path, kind, intermediate_dir)
+        match kind {
+            FileKind::Std => Ok(FileId(STD_FILES[*STD_FILE_BY_MODULE_PATH.get(module_path).unwrap()].file_path.unwrap_std_id())),
+            FileKind::Source | FileKind::ObjectFile => FileId::allocate_or_load_id(module_path, kind, intermediate_dir),
+        }
     }
 
     pub fn get_info(&self, intermediate_dir: &str) -> Result<Option<File>, FileError> {
-        todo!()
+        File::search_by_id(*self, intermediate_dir)
     }
 
     pub fn read_bytes(&self, intermediate_dir: &str) -> Result<Option<Vec<u8>>, FileError> {
@@ -117,6 +132,15 @@ impl fmt::Debug for FileId {
 pub enum FileOrStd {
     File(String),
     Std(u32),
+}
+
+impl FileOrStd {
+    pub fn unwrap_std_id(&self) -> u32 {
+        match self {
+            FileOrStd::File(_) => panic!(),
+            FileOrStd::Std(id) => *id,
+        }
+    }
 }
 
 impl fmt::Debug for FileOrStd {

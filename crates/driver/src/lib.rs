@@ -1009,8 +1009,6 @@ fn init_ir_dir(
         }
     }
 
-    // TODO: reset file-map (not id, but only hashes)
-    // File::clear_cache(0 /* project id */, intermediate_dir)?;
     Ok(())
 }
 
