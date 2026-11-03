@@ -1,34 +1,19 @@
 use serde::{Deserialize, Serialize};
 use sodigy_fs_api::{FileError, WriteMode, join, write_string};
-use std::collections::hash_map::{Entry, HashMap};
+use std::collections::hash_map::Entry;
 use std::fmt;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Node {
-    pub id: Id,
-    pub title: String,
-    pub flag: Option<Color>,
-    pub metadata: Option<Vec<Graphic>>,
-    pub children: Option<Vec<(String, Id)>>,
-}
+mod color;
+mod graphic;
+mod node;
+mod session;
+mod utils;
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub enum Color {
-    Red,
-    Green,
-    Blue,
-    Yellow,
-}
-
-impl Color {
-    pub fn big_flag(&self) -> String {
-        format!("big {self:?}").to_ascii_lowercase()
-    }
-
-    pub fn small_flag(&self) -> String {
-        format!("small {self:?}").to_ascii_lowercase()
-    }
-}
+pub use color::Color;
+pub use graphic::Graphic;
+pub use node::Node;
+use session::Session;
+use utils::{escape_html, fold_if_long};
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct Id(u64);
@@ -39,59 +24,7 @@ impl fmt::Display for Id {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum Graphic {
-    TextBox(Vec<(Option<Color>, String)>),
-    Text(String),
-    List(Vec<Graphic>),
-}
-
-impl Graphic {
-    pub fn render(&self) -> String {
-        match self {
-            Graphic::TextBox(s) => format!(
-                r#"<pre class="text-box"><code>{}</code></pre>"#,
-                s.iter().map(
-                    |(color, content)| if let Some(color) = color {
-                        format!(
-                            r#"<span class="{}">{}</span>"#,
-                            format!("{color:?}").to_ascii_lowercase(),
-                            escape_html(content),
-                        )
-                    } else {
-                        escape_html(content)
-                    }
-                ).collect::<Vec<_>>().concat(),
-            ),
-            Graphic::Text(s) => format!(r#"<p>{}</p>"#, escape_html(s)),
-            Graphic::List(e) => format!(
-                r#"<ul>{}</ul>"#,
-                e.iter().map(
-                    |e| e.render()
-                ).collect::<Vec<_>>().concat(),
-            ),
-        }
-    }
-}
-
-struct Session {
-    // These data have to be collected before any nodes are rendered.
-    pub title: HashMap<Id, (String, Option<Color>)>,
-    pub children: HashMap<Id, Option<Vec<(String, Id)>>>,
-    pub parent: HashMap<Id, Vec<(Id, usize)>>,
-}
-
-impl Session {
-    pub fn new() -> Session {
-        Session {
-            title: HashMap::new(),
-            children: HashMap::new(),
-            parent: HashMap::new(),
-        }
-    }
-}
-
-fn render_all(nodes: &[Node], root_dir: &str) -> Result<(), FileError> {
+pub fn render_all(nodes: &[Node], root_dir: &str) -> Result<(), FileError> {
     let mut session = Session::new();
 
     for node in nodes.iter() {
@@ -189,21 +122,6 @@ fn render(node: &Node, session: &Session) -> String {
     [title, metadata, children, sidebar].join("\n")
 }
 
-fn fold_if_long(html: String, len: usize) -> String {
-    if len > 5 {
-        todo!()
-    } else {
-        html
-    }
-}
-
-fn escape_html(s: &str) -> String {
-    s
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-}
-
 fn wrap_body(body: &str) -> String {
     format!(r#"
 <html>
@@ -213,4 +131,3 @@ fn wrap_body(body: &str) -> String {
 </html>
 "#)
 }
-
