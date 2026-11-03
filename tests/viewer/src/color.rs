@@ -17,3 +17,4 @@ impl Color {
         format!("small {self:?}").to_ascii_lowercase()
     }
 }
+

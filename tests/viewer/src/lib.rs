@@ -131,3 +131,4 @@ fn wrap_body(body: &str) -> String {
 </html>
 "#)
 }
+
