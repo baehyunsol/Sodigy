@@ -1,5 +1,12 @@
 use serde::{Deserialize, Serialize};
-use sodigy_fs_api::{FileError, WriteMode, join, write_string};
+use sodigy_fs_api::{
+    FileError,
+    WriteMode,
+    create_dir,
+    exists,
+    join,
+    write_string,
+};
 use std::collections::hash_map::Entry;
 use std::fmt;
 
@@ -18,6 +25,12 @@ use utils::{escape_html, fold_if_long};
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct Id(u64);
 
+impl Id {
+    pub fn from_u64(id: u64) -> Id {
+        Id(id)
+    }
+}
+
 impl fmt::Display for Id {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(fmt, "{:x}", self.0)
@@ -25,6 +38,10 @@ impl fmt::Display for Id {
 }
 
 pub fn render_all(nodes: &[Node], root_dir: &str) -> Result<(), FileError> {
+    if !exists(root_dir) {
+        create_dir(root_dir)?;
+    }
+
     let mut session = Session::new();
 
     for node in nodes.iter() {
