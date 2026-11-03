@@ -536,7 +536,7 @@ fn check_test_output(output: &subprocess::Output, directive: &Directive, expecte
     if let Some((cmp, n)) = directive.test_error {
         match count_test_errors(&String::from_utf8_lossy(&output.stdout)) {
             Some(test_errors) => {
-                cmp.check(n, test_errors, "the number of test errors");
+                cmp.check(n, test_errors, "the number of test errors")?;
             },
             None => {
                 return Err(String::from("failed to parse the test result output"));

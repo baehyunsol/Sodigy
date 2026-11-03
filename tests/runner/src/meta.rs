@@ -82,15 +82,15 @@ fn get_os() -> Os {
 fn get_isa() -> Isa {
     if cfg!(target_arch = "aarch64") || cfg!(target_arch = "arm64ec") {
         Isa::Aarch64
-    } else if cfg!(target_arch = "armv7") || cfg!(target_arch = "arm") {
+    } else if cfg!(target_arch = "arm") {
         Isa::Arm32
     } else if cfg!(target_arch = "x86_64") {
         Isa::X64
-    } else if cfg!(target_arch = "i386") || cfg!(target_arch = "i586") || cfg!(target_arch = "i386") {
+    } else if cfg!(target_arch = "x86") {
         Isa::X86
-    } else if cfg!(target_arch = "riscv64gc") {
+    } else if cfg!(target_arch = "riscv64") {
         Isa::Riscv64
-    } else if cfg!(target_arch = "riscv32i") {
+    } else if cfg!(target_arch = "riscv32") {
         Isa::Riscv32
     } else if cfg!(target_arch = "wasm64") {
         Isa::Wasm64
@@ -118,3 +118,4 @@ fn get_rustc_version() -> String {
 
     String::from_utf8_lossy(&output.stdout).trim().to_string()
 }
+
