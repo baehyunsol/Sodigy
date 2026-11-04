@@ -20,7 +20,7 @@ pub use color::Color;
 pub use graphic::Graphic;
 pub use node::Node;
 use session::Session;
-use utils::{escape_html, fold_if_long};
+use utils::escape_html;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct Id(u64);
@@ -37,7 +37,11 @@ impl fmt::Display for Id {
     }
 }
 
-pub fn render_all(nodes: &[Node], root_dir: &str) -> Result<(), FileError> {
+pub fn render_all(
+    nodes: &[Node],
+    index_id: Id,
+    root_dir: &str,
+) -> Result<(), FileError> {
     if !exists(root_dir) {
         create_dir(root_dir)?;
     }
@@ -64,11 +68,20 @@ pub fn render_all(nodes: &[Node], root_dir: &str) -> Result<(), FileError> {
 
     for node in nodes.iter() {
         let body = render(node, &session);
+        let html = wrap_body(&node.title, &body);
         write_string(
             &join(root_dir, &format!("{}.html", node.id))?,
-            &wrap_body(&body),
+            &html,
             WriteMode::CreateOrTruncate,
         )?;
+
+        if node.id == index_id {
+            write_string(
+                &join(root_dir, "index.html")?,
+                &html,
+                WriteMode::CreateOrTruncate,
+            )?;
+        }
     }
 
     Ok(())
@@ -89,60 +102,93 @@ fn render(node: &Node, session: &Session) -> String {
         Some(data) => format!(r#"<div class="metadata">{}</div>"#, data.iter().map(|g| g.render()).collect::<Vec<_>>().concat()),
         None => String::new(),
     };
+
+    // TODO: filter by the color of flags
     let children = match &node.children {
         Some(children) => format!(
             r#"<ol>{}</ol>"#,
             children.iter().map(
                 |(title, child)| {
-                    let (_, flag) = session.title.get(child).unwrap();
-                    let flag = if let Some(flag) = flag {
-                        format!(r#"<span class="{}"></span>"#, flag.small_flag())
-                    } else {
-                        String::new()
-                    };
-
                     let grandchildren = session.children.get(child).unwrap();
                     let grandchildren = if let Some(grandchildren) = grandchildren {
                         let s = format!(
                             r#"<ol>{}</ol>"#,
                             grandchildren.iter().map(
                                 |(title, grandchild)| {
-                                    let (_, flag) = session.title.get(grandchild).unwrap();
-                                    let flag = if let Some(flag) = flag {
-                                        format!(r#"<span class="{}"></span>"#, flag.small_flag())
-                                    } else {
-                                        String::new()
-                                    };
-                                    format!(r#"<li><a href="{grandchild}".html>{title}</a>{flag}</li>"#)
+                                    let grandchild = session.render_entry(title, *grandchild);
+                                    format!(r#"<li>{grandchild}</li>"#)
                                 }
                             ).collect::<Vec<_>>().concat(),
                         );
-                        fold_if_long(s, grandchildren.len())
+                        session.fold_if_long(s, grandchildren.len())
                     } else {
                         String::new()
                     };
 
-                    format!(r#"<li><a href="{child}.html">{title}</a>{flag}{grandchildren}</li>"#)
+                    format!(r#"<li>{}{grandchildren}</li>"#, session.render_entry(title, *child))
                 }
             ).collect::<Vec<_>>().concat(),
         ),
         None => String::new(),
     };
-    let children = fold_if_long(children, node.children.as_ref().map(|children| children.len()).unwrap_or(0));
     let children = format!(r#"<div class="children">{children}</div>"#);
 
     let sidebar = match session.parent.get(&node.id) {
-        Some(parents) if !parents.is_empty() => todo!(),
+        Some(parents) if !parents.is_empty() => {
+            let mut parents: Vec<String> = parents.iter().map(
+                |(parent, i)| {
+                    let siblings = session.children.get(parent).unwrap().as_ref().unwrap();
+                    let siblings = siblings.iter().enumerate().map(
+                        |(j, (title, sibling))| {
+                            let (open, close) = if *i == j {
+                                ("&gt;&gt;&gt; ", " &lt;&lt;&lt;")
+                            } else {
+                                ("", "")
+                            };
+                            format!(r#"<li>{open}{}{close}</li>"#, session.render_entry(title, *sibling))
+                        }
+                    ).collect::<Vec<_>>().concat();
+                    let title = session.render_entry(&session.title.get(parent).unwrap().0, *parent);
+                    format!(r#"<div class="parent-name"><h3>{title}</h3></div><div class="parent-content"><ol>{siblings}</ol></div>"#)
+                }
+            ).collect();
+            let sidebar = if parents.len() == 1 {
+                parents.pop().unwrap()
+            } else {
+                parents.iter().map(
+                    |parent| format!(r#"<div class="parent-selector">???</div>{parent}"#)
+                ).collect::<Vec<_>>().concat()
+            };
+            format!(r#"
+<div class="sidebar"><button class="expand">&lt;&lt;</button>{sidebar}</div>
+<script>
+const button = document.querySelector(".expand");
+
+button.addEventListener("click", () => {{
+    const expanded = document.querySelector(".sidebar").classList.toggle("expanded");
+    button.textContent = expanded ? ">>" : "<<";
+}});
+</script>
+"#)
+        },
         _ => String::new(),
     };
 
     [title, metadata, children, sidebar].join("\n")
 }
 
-fn wrap_body(body: &str) -> String {
+const STYLE: &str = include_str!("../style.css");
+
+fn wrap_body(title: &str, body: &str) -> String {
     format!(r#"
+<!DOCTYPE html>
 <html>
 <head>
+<style>
+{STYLE}
+</style>
+
+<title>{title}</title>
 </head>
 <body>{body}</body>
 </html>

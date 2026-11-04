@@ -1,0 +1,97 @@
+body {
+    background-color: rgb(48, 48, 48);
+    color: rgb(224, 224, 224);
+    font-size: 16px;
+}
+
+summary {
+    cursor: pointer;
+}
+
+h1 {
+    font-size: 32px;
+}
+
+h2 {
+    font-size: 28px;
+}
+
+h3 {
+    font-size: 24px;
+}
+
+a:link {
+    border-bottom: 4px solid rgba(64, 192, 255, 0.5);
+    color: rgb(64, 192, 255);
+    text-decoration: none;
+    transition: border 0.3s;
+}
+
+a:visited {
+    color: rgb(64, 192, 255);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: none;
+    border-bottom: 4px solid rgb(64, 192, 255);
+}
+
+a::selection {
+    color: rgb(192, 64, 0);
+}
+
+pre.text-box {
+    padding: 8px;
+    background-color: rgb(0, 0, 0);
+    color: rgb(255, 255, 255);
+    overflow: auto;
+}
+
+@media (orientation: landscape) {
+    .sidebar {
+        position: fixed;
+        top: 5vh;
+        right: 5vh;
+        width: 30%;
+        height: 90vh;
+        overflow-y: auto;
+	background-color: rgb(0, 0, 0);
+	padding: 16px;
+    }
+
+    .sidebar.expanded {
+        width: 60%;
+    }
+}
+
+.small-circle {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-left: 8px;
+    border-radius: 50%;
+    vertical-align: middle;
+}
+
+.big-circle {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    margin-left: 16px;
+    border-radius: 50%;
+    vertical-align: middle;
+}
+
+.red-bg {
+    background: rgb(192, 32, 32);
+}
+
+.green-bg {
+    background: rgb(32, 192, 32);
+}
+
+.blue-bg {
+    background: rgb(32, 32, 192);
+}
+

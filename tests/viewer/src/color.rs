@@ -10,11 +10,11 @@ pub enum Color {
 
 impl Color {
     pub fn big_flag(&self) -> String {
-        format!("big {self:?}").to_ascii_lowercase()
+        format!("big-circle {self:?}-bg").to_ascii_lowercase()
     }
 
     pub fn small_flag(&self) -> String {
-        format!("small {self:?}").to_ascii_lowercase()
+        format!("small-circle {self:?}-bg").to_ascii_lowercase()
     }
 }
 

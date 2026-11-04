@@ -9,8 +9,8 @@ fn main() {
 fn sample() {
     let mut nodes = vec![];
     let mut id = 0;
-    collect(".", &mut id, &mut nodes);
-    render_all(&nodes, "sample/").unwrap();
+    let index_id = collect(".", &mut id, &mut nodes);
+    render_all(&nodes, Id::from_u64(index_id), "sample/").unwrap();
 }
 
 fn collect(path: &str, id: &mut u64, nodes: &mut Vec<Node>) -> u64 {
