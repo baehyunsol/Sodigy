@@ -1,3 +1,5 @@
 fn main() {
-    sodigy_driver::main_();
+    let args = std::env::args().collect::<Vec<_>>();
+    sodigy_driver::main_(args);
 }
+

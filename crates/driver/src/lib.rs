@@ -83,9 +83,7 @@ pub enum Backend {
     MirInterpret,
 }
 
-pub fn main_() {
-    let args = std::env::args().collect::<Vec<_>>();
-
+pub fn main_(args: Vec<String>) {
     match parse_args(&args) {
         Ok(command) => match run_cli_command(command) {
             Ok(()) => {},
