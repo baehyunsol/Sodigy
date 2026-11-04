@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 pub struct TestHarness {
     pub meta: Meta,
 
+    // If there's a critical error (e.g. you cannot even compile the test runner),
+    // the CI runner will create a json file manually and fill this field.
+    pub critical_error: bool,
+
     // suites that have run
     pub suites: Vec<TestSuite>,
 
@@ -28,3 +32,4 @@ pub enum TestSuite {
     CompileAndRun,
     Fuzz,
 }
+

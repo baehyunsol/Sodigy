@@ -76,6 +76,7 @@ fn main() {
             if let Some(output_path) = output_path {
                 let result = TestHarness {
                     meta: metadata.unwrap(),
+                    critical_error: false,
                     suites: vec![TestSuite::CompileAndRun],
                     crates: None,
                     compile_and_run: Some(result),
@@ -116,6 +117,7 @@ fn main() {
             if let Some(output_path) = output_path {
                 let result = TestHarness {
                     meta: metadata.unwrap(),
+                    critical_error: false,
                     suites: vec![TestSuite::Crates],
                     crates: Some(result),
                     compile_and_run: None,
@@ -245,6 +247,7 @@ fn main() {
 
             let result = TestHarness {
                 meta: metadata,
+                critical_error: false,
                 suites: vec![TestSuite::Crates, TestSuite::CompileAndRun, TestSuite::Fuzz],
                 crates,
                 compile_and_run: compile_and_run_result,
