@@ -37,7 +37,7 @@ fn main() {
         metadata: None,
         children: Some(top_siblings),
     });
-    render_all(&nodes, id, "result").unwrap();
+    render_all(&nodes, id, "../log/rendered").unwrap();
 }
 
 fn load_commits() -> Vec<git::CommitInfo> {
