@@ -26,8 +26,12 @@ use utils::escape_html;
 pub struct Id(u64);
 
 impl Id {
-    pub fn from_u64(id: u64) -> Id {
-        Id(id)
+    pub fn init() -> Self {
+        Id(4096)
+    }
+
+    pub fn increment(&mut self) {
+        *self = Id(self.0 + 1);
     }
 }
 

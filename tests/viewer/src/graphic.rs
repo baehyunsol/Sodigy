@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum Graphic {
+    Title(String),
     TextBox(Vec<(Option<Color>, String)>),
     Text(String),
     List(Vec<Graphic>),
@@ -11,6 +12,7 @@ pub enum Graphic {
 impl Graphic {
     pub fn render(&self) -> String {
         match self {
+            Graphic::Title(t) => format!("<h2>{}</h2>", escape_html(t)),
             Graphic::TextBox(s) => format!(
                 r#"<pre class="text-box"><code>{}</code></pre>"#,
                 s.iter().map(

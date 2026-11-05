@@ -18,6 +18,13 @@ pub struct TestHarness {
 }
 
 impl TestHarness {
+    pub fn has_error(&self) -> bool {
+        self.critical_error ||
+            self.crates.as_ref().map(|c| c.iter().any(|c| c.has_error())).unwrap_or(false) ||
+            self.compile_and_run.as_ref().map(|c| c.iter().any(|c| c.has_error())).unwrap_or(false) ||
+            self.fuzz.as_ref().map(|f| f.iter().any(|f| f.has_error())).unwrap_or(false)
+    }
+
     pub fn get_cnr_blobs(&self) -> Vec<String> {
         match &self.compile_and_run {
             Some(cnrs) => cnrs.iter().map(|cnr| cnr.hash.to_string()).collect(),

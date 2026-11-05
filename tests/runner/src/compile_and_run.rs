@@ -65,6 +65,12 @@ pub struct CompileAndRun {
     pub test_elapsed_ms: Option<u64>,
 }
 
+impl CompileAndRun {
+    pub fn has_error(&self) -> bool {
+        self.error.is_some()
+    }
+}
+
 impl Default for CompileAndRun {
     fn default() -> CompileAndRun {
         CompileAndRun {

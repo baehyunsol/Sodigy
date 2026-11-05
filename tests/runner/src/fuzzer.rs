@@ -31,6 +31,12 @@ pub struct FuzzResult {
     // TODO: compile the artifact with the compiler, and store the stderr of the compilation
 }
 
+impl FuzzResult {
+    pub fn has_error(&self) -> bool {
+        self.artifact.is_some()
+    }
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum FuzzTarget {
     // uses sdg files in `tests/compile-and-run/` as corpus

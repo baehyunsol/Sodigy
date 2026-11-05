@@ -57,6 +57,10 @@ label.flag-filter {
     border-radius: 8px;
 }
 
+li {
+    margin-bottom: 6px;
+}
+
 @media (orientation: landscape) {
     .sidebar {
         position: fixed;
@@ -90,6 +94,14 @@ label.flag-filter {
     margin-left: 16px;
     border-radius: 50%;
     vertical-align: middle;
+}
+
+.red {
+    color: rgb(192, 32, 32);
+}
+
+.yellow {
+    color: rgb(192, 192, 32);
 }
 
 .red-bg {
