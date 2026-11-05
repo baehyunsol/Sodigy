@@ -5,6 +5,7 @@ use sodigy_compiler_test::{
     CompileAndRun,
     CrateTest,
     CrateTestUnit,
+    FuzzResult,
     TestHarness,
     meta::git,
 };
@@ -57,12 +58,12 @@ fn load_commits() -> Vec<git::CommitInfo> {
 }
 
 fn render_commit(
-    c: &git::CommitInfo,
+    commit: &git::CommitInfo,
     test_results: &HashMap<String, Vec<TestHarness>>,
     id: &mut Id,
     nodes: &mut Vec<Node>,
 ) -> Id {
-    let (flag, children) = if let Some(results) = test_results.get(&c.commit_hash) {
+    let (flag, children) = if let Some(results) = test_results.get(&commit.commit_hash) {
         let mut children = Vec::with_capacity(results.len());
         let mut has_error = false;
 
@@ -79,13 +80,18 @@ fn render_commit(
     } else {
         (None, None)
     };
+    let metadata = vec![
+        Graphic::TextBox(vec![(None, format!("{}\n\n{}", commit.title, commit.body.as_ref().unwrap_or(&String::new())))]),
+        // TODO: render timestamp
+        // TODO: render diff
+    ];
 
     id.increment();
     nodes.push(Node {
         id: *id,
-        title: c.commit_hash.to_string(),
+        title: commit.commit_hash.to_string(),
         flag,
-        metadata: None,
+        metadata: Some(metadata),
         children,
     });
     *id
@@ -129,6 +135,11 @@ fn render_test_result(result: &TestHarness, id: &mut Id, nodes: &mut Vec<Node>) 
     if let Some(cnr) = &result.compile_and_run {
         let cnr_node_id = render_cnrs_result(cnr, id, nodes);
         children.push((String::from("cnrs"), cnr_node_id));
+    }
+
+    if let Some(fuzz) = &result.fuzz {
+        let fuzz_node_id = render_fuzzs_result(fuzz, id, nodes);
+        children.push((String::from("fuzz"), fuzz_node_id));
     }
 
     id.increment();
@@ -258,8 +269,67 @@ fn render_cnrs_result(cnrs: &[CompileAndRun], id: &mut Id, nodes: &mut Vec<Node>
 }
 
 fn render_cnr_result(cnr: &CompileAndRun, id: &mut Id, nodes: &mut Vec<Node>) -> Id {
+    // copy-pasted from sodigy-driver/log.rs
+    enum TermColorParseState {
+        Text,
+        Control,
+    }
+
     fn color_ansi_term(s: &str) -> Vec<(Option<Color>, String)> {
-        vec![(None, s.to_string())]  // TODO
+        let mut state = TermColorParseState::Text;
+        let mut content_buffer: Vec<char> = vec![];
+        let mut digits_buffer: Vec<char> = vec![];
+        let mut result = vec![];
+        let mut curr_color = None;
+
+        for ch in s.chars() {
+            match state {
+                TermColorParseState::Text => match ch {
+                    '\u{1b}' => {
+                        digits_buffer = vec![];
+                        result.push((curr_color, content_buffer.drain(..).collect()));
+                        state = TermColorParseState::Control;
+                    },
+                    _ => {
+                        content_buffer.push(ch);
+                    },
+                },
+                TermColorParseState::Control => match ch {
+                    '0'..='9' => {
+                        digits_buffer.push(ch);
+                    },
+                    'm' => {
+                        match digits_buffer.iter().collect::<String>().parse::<u32>() {
+                            Ok(0) => {
+                                curr_color = None;
+                            },
+                            Ok(31) => {
+                                curr_color = Some(Color::Red);
+                            },
+                            Ok(32) => {
+                                curr_color = Some(Color::Green);
+                            },
+                            Ok(33) => {
+                                curr_color = Some(Color::Yellow);
+                            },
+                            Ok(34) => {
+                                curr_color = Some(Color::Blue);
+                            },
+                            _ => unreachable!(),
+                        };
+
+                        state = TermColorParseState::Text;
+                    },
+                    _ => {},
+                },
+            }
+        }
+
+        if !content_buffer.is_empty() {
+            result.push((curr_color, content_buffer.drain(..).collect()));
+        }
+
+        result
     }
 
     let flag = if cnr.has_error() { Some(Color::Red) } else { Some(Color::Green) };
@@ -301,6 +371,49 @@ fn render_cnr_result(cnr: &CompileAndRun, id: &mut Id, nodes: &mut Vec<Node>) ->
     nodes.push(Node {
         id: *id,
         title: cnr.name.to_string(),
+        flag,
+        metadata: Some(metadata),
+        children: None,
+    });
+    *id
+}
+
+fn render_fuzzs_result(fuzzs: &[FuzzResult], id: &mut Id, nodes: &mut Vec<Node>) -> Id {
+    let flag = if fuzzs.iter().any(|f| f.has_error()) { Some(Color::Red) } else { Some(Color::Green) };
+    let mut children = vec![];
+
+    for fuzz in fuzzs.iter() {
+        let fuzz_node_id = render_fuzz_result(fuzz, id, nodes);
+        children.push((fuzz.target.name().to_string(), fuzz_node_id));
+    }
+
+    id.increment();
+    nodes.push(Node {
+        id: *id,
+        title: String::from("fuzz"),
+        flag,
+        metadata: None,
+        children: Some(children),
+    });
+    *id
+}
+
+fn render_fuzz_result(fuzz: &FuzzResult, id: &mut Id, nodes: &mut Vec<Node>) -> Id {
+    let flag = if fuzz.has_error() { Some(Color::Red) } else { Some(Color::Green) };
+    let mut metadata = vec![
+        Graphic::Title(String::from("elapsed ms")),
+        Graphic::Text(render_ms(fuzz.elapsed_ms)),
+    ];
+
+    if let Some(artifact) = &fuzz.artifact {
+        metadata.push(Graphic::Title(String::from("artifact")));
+        metadata.push(Graphic::TextBox(vec![(None, String::from_utf8_lossy(artifact).to_string())]));
+    }
+
+    id.increment();
+    nodes.push(Node {
+        id: *id,
+        title: fuzz.target.name().to_string(),
         flag,
         metadata: Some(metadata),
         children: None,

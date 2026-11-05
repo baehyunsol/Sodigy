@@ -100,6 +100,14 @@ li {
     color: rgb(192, 32, 32);
 }
 
+.green {
+    color: rgb(32, 192, 32);
+}
+
+.blue {
+    color: rgb(32, 32, 192);
+}
+
 .yellow {
     color: rgb(192, 192, 32);
 }

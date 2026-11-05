@@ -489,3 +489,4 @@ fn apply_ansi_term_color(s: &str) -> String {
 
     result.concat()
 }
+
