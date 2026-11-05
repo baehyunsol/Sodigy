@@ -7,7 +7,7 @@ use sodigy_fs_api::{
     join,
     write_string,
 };
-use std::collections::hash_map::Entry;
+use std::collections::hash_map::{Entry, HashMap};
 use std::fmt;
 
 mod color;
@@ -103,32 +103,98 @@ fn render(node: &Node, session: &Session) -> String {
         None => String::new(),
     };
 
-    // TODO: filter by the color of flags
     let children = match &node.children {
-        Some(children) => format!(
-            r#"<ol>{}</ol>"#,
-            children.iter().map(
-                |(title, child)| {
-                    let grandchildren = session.children.get(child).unwrap();
-                    let grandchildren = if let Some(grandchildren) = grandchildren {
-                        let s = format!(
-                            r#"<ol>{}</ol>"#,
-                            grandchildren.iter().map(
-                                |(title, grandchild)| {
-                                    let grandchild = session.render_entry(title, *grandchild);
-                                    format!(r#"<li>{grandchild}</li>"#)
-                                }
-                            ).collect::<Vec<_>>().concat(),
-                        );
-                        session.fold_if_long(s, grandchildren.len())
-                    } else {
-                        String::new()
-                    };
+        Some(children) => {
+            let mut children_by_filter = HashMap::new();
 
-                    format!(r#"<li>{}{grandchildren}</li>"#, session.render_entry(title, *child))
+            for filter in Color::all_filters() {
+                let mut shown = false;
+                let s = format!(
+                    r#"<ol>{}</ol>"#,
+                    children.iter().map(
+                        |(title, child)| {
+                            let mut c_shown = false;
+                            let grandchildren = session.children.get(child).unwrap();
+                            let grandchildren = if let Some(grandchildren) = grandchildren {
+                                let shown_grandchildren = grandchildren.iter().filter(
+                                    |(_, grandchild)| {
+                                        let g_shown = session.check_filter(filter, *grandchild);
+                                        c_shown |= g_shown;
+                                        g_shown
+                                    }
+                                ).map(
+                                    |(title, grandchild)| {
+                                        let grandchild = session.render_entry(title, *grandchild);
+                                        format!(r#"<li>{grandchild}</li>"#)
+                                    }
+                                ).collect::<Vec<_>>();
+                                let shown_grandchildren_len = shown_grandchildren.len();
+                                let shown_grandchildren = shown_grandchildren.concat();
+
+                                let s = if shown_grandchildren_len > 0 {
+                                    format!(r#"<ol>{shown_grandchildren}</ol>"#)
+                                } else {
+                                    String::new()
+                                };
+                                session.fold_if_long(s, shown_grandchildren_len)
+                            } else {
+                                String::new()
+                            };
+                            c_shown |= session.check_filter(filter, *child);
+                            shown |= c_shown;
+
+                            if c_shown {
+                                format!(r#"<li>{}{grandchildren}</li>"#, session.render_entry(title, *child))
+                            } else {
+                                String::new()
+                            }
+                        }
+                    ).collect::<Vec<_>>().concat(),
+                );
+
+                if shown || filter.is_none() {
+                    children_by_filter.insert(filter, s);
                 }
-            ).collect::<Vec<_>>().concat(),
-        ),
+            }
+
+            if children_by_filter.len() == 1 {
+                format!(r#"<div class="children">{}</div>"#, children_by_filter.values().next().unwrap())
+            } else {
+                let mut valid_filters: Vec<_> = children_by_filter.keys().collect();
+                valid_filters.sort();
+                let selectors = valid_filters.iter().enumerate().map(
+                    |(i, filter)| {
+                        let title = match filter {
+                            Some(filter) => format!(r#"<span class="{}"></span>"#, filter.small_flag()),
+                            None => String::from("all"),
+                        };
+                        let checked = if filter.is_none() { " checked" } else { "" };
+                        format!(r#"<label class="flag-filter"><input type="radio" name="flag-filter" value="children-{i}"{checked}>{title}</label>"#)
+                    }
+                ).collect::<Vec<_>>().concat();
+                let divs = valid_filters.iter().enumerate().map(
+                    |(i, filter)| {
+                        let children = children_by_filter.get(filter).unwrap();
+                        let hidden = if filter.is_none() { "" } else { " hidden" };
+                        format!(r#"<div id="children-{i}" class="children"{hidden}>{children}</div>"#)
+                    }
+                ).collect::<Vec<_>>().concat();
+                let script = r#"
+<script>
+const radios = document.querySelectorAll('input[name="flag-filter"]');
+
+radios.forEach((radio) => {
+    radio.addEventListener("change", () => {
+        radios.forEach((r) => {
+            document.getElementById(r.value).hidden = !r.checked;
+        });
+    });
+});
+</script>
+"#;
+                format!("{selectors}{divs}{script}")
+            }
+        },
         None => String::new(),
     };
     let children = format!(r#"<div class="children">{children}</div>"#);

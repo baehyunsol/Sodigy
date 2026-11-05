@@ -1,6 +1,8 @@
 use crate::{Color, Id};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[derive(Deserialize, Serialize)]
 pub struct Session {
     // These data have to be collected before any nodes are rendered.
     pub title: HashMap<Id, (String, Option<Color>)>,
@@ -36,6 +38,15 @@ impl Session {
             String::new()
         };
         format!(r#"<a href="{id}.html">{title}</a>{flag}"#)
+    }
+
+    pub fn check_filter(&self, filter: Option<Color>, id: Id) -> bool {
+        match (filter, self.title.get(&id)) {
+            (None, _) => true,
+            (Some(_), Some((_, None))) => false,
+            (Some(filter), Some((_, Some(flag)))) => filter == *flag,
+            _ => unreachable!(),
+        }
     }
 }
 

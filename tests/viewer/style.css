@@ -42,17 +42,26 @@ a::selection {
 }
 
 pre.text-box {
+    width: 55vw;
     padding: 8px;
     background-color: rgb(0, 0, 0);
     color: rgb(255, 255, 255);
     overflow: auto;
 }
 
+label.flag-filter {
+    padding: 6px;
+    margin-left: 8px;
+    background-color: rgb(128, 128, 128);
+    color: rgb(48, 48, 48);
+    border-radius: 8px;
+}
+
 @media (orientation: landscape) {
     .sidebar {
         position: fixed;
         top: 5vh;
-        right: 5vh;
+        right: 5vw;
         width: 30%;
         height: 90vh;
         overflow-y: auto;
