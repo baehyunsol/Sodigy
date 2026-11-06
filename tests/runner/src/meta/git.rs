@@ -188,3 +188,18 @@ pub fn read_blob(blob_hash: &str) -> Vec<u8> {
     assert!(output.status.success());
     output.stdout
 }
+
+pub fn get_diff(commit_a: &str, commit_b: &str) -> String {
+    let output = Command::new("git")
+        .arg("diff")
+        .arg(commit_a)
+        .arg(commit_b)
+        .arg("--diff-algorithm=patience")
+        .arg("-U5")
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    String::from_utf8(output.stdout).unwrap()
+}
+

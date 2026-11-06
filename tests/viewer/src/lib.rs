@@ -95,7 +95,7 @@ pub fn render_all(
 fn render(node: &Node, session: &Session) -> String {
     let title = format!(
         r#"<h1>{}{}</h1>"#,
-        node.title,
+        session.render_title(&node.title, session.config.main_title_length_limit),
         if let Some(flag) = node.flag {
             format!(r#"<span class="{}"></span>"#, flag.big_flag())
         } else {

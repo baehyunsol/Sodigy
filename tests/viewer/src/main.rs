@@ -14,7 +14,7 @@ use viewer::{Color, Graphic, Id, Node, render_all};
 
 mod s_utils;
 
-use s_utils::{render_ms, trim_if_too_long};
+use s_utils::render_ms;
 
 fn main() {
     let commits = load_commits();
@@ -80,11 +80,17 @@ fn render_commit(
     } else {
         (None, None)
     };
-    let metadata = vec![
+    let mut metadata = vec![
         Graphic::TextBox(vec![(None, format!("{}\n\n{}", commit.title, commit.body.as_ref().unwrap_or(&String::new())))]),
-        // TODO: render timestamp
-        // TODO: render diff
     ];
+
+    if let Some(parent_hash) = &commit.parent_hash {
+        let diff = git::get_diff(&commit.commit_hash, parent_hash);
+        let diff_node_id = render_commit_diff(&diff, format!("{parent_hash} vs {}", commit.commit_hash), id, nodes);
+        metadata.push(Graphic::Link { text: String::from("updated files"), id: diff_node_id });
+    }
+
+    // TODO: render file/dir
 
     id.increment();
     nodes.push(Node {
@@ -93,6 +99,37 @@ fn render_commit(
         flag,
         metadata: Some(metadata),
         children,
+    });
+    *id
+}
+
+fn render_commit_diff(
+    diff: &str,
+    title: String,
+    id: &mut Id,
+    nodes: &mut Vec<Node>,
+) -> Id {
+    let mut lines = vec![];
+
+    for line in diff.lines() {
+        if line.starts_with("+") {
+            lines.push((Some(Color::Green), format!("{line}\n")));
+        } else if line.starts_with("-") {
+            lines.push((Some(Color::Red), format!("{line}\n")));
+        } else if line.starts_with("@") {
+            lines.push((Some(Color::Yellow), format!("{line}\n")));
+        } else {
+            lines.push((None, format!("{line}\n")));
+        }
+    }
+
+    id.increment();
+    nodes.push(Node {
+        id: *id,
+        title,
+        flag: None,
+        metadata: Some(vec![Graphic::TextBox(lines)]),
+        children: None,
     });
     *id
 }
@@ -179,8 +216,7 @@ fn render_crate_result(cr: &CrateTest, id: &mut Id, nodes: &mut Vec<Node>) -> Id
 
     for unit in cr.tests.iter() {
         let unit_node_id = render_crate_unit_result(unit, id, nodes);
-        let title = trim_if_too_long(&unit.command, 20);
-        children.push((title, unit_node_id));
+        children.push((unit.command.to_string(), unit_node_id));
     }
 
     id.increment();
@@ -234,7 +270,7 @@ fn render_crate_unit_result(unit: &CrateTestUnit, id: &mut Id, nodes: &mut Vec<N
     id.increment();
     nodes.push(Node {
         id: *id,
-        title: trim_if_too_long(&unit.command, 64),
+        title: unit.command.to_string(),
         flag,
         metadata: Some(metadata),
         children: None,
@@ -406,8 +442,22 @@ fn render_fuzz_result(fuzz: &FuzzResult, id: &mut Id, nodes: &mut Vec<Node>) -> 
     ];
 
     if let Some(artifact) = &fuzz.artifact {
+        let raw_bytes = if artifact.len() < 16 {
+            format!("{artifact:?}")
+        } else {
+            let mut lines = Vec::with_capacity(artifact.len() / 8 + 1);
+
+            for chunk in artifact.chunks(8) {
+                lines.push(format!("    {},", chunk.iter().map(|b| format!("0x{b:02x}")).collect::<Vec<_>>().join(", ")));
+            }
+
+            format!("[\n{}\n]", lines.join("\n"))
+        };
+
         metadata.push(Graphic::Title(String::from("artifact")));
         metadata.push(Graphic::TextBox(vec![(None, String::from_utf8_lossy(artifact).to_string())]));
+        metadata.push(Graphic::Title(String::from("artifact (raw)")));
+        metadata.push(Graphic::TextBox(vec![(None, raw_bytes)]));
     }
 
     id.increment();

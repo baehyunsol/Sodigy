@@ -1,4 +1,4 @@
-use crate::{Color, escape_html};
+use crate::{Color, Id, escape_html};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -7,6 +7,8 @@ pub enum Graphic {
     TextBox(Vec<(Option<Color>, String)>),
     Text(String),
     List(Vec<Graphic>),
+    Link { text: String, id: Id },
+    Line,
 }
 
 impl Graphic {
@@ -34,6 +36,8 @@ impl Graphic {
                     |e| e.render()
                 ).collect::<Vec<_>>().concat(),
             ),
+            Graphic::Link { text, id } => format!(r#"<a href="{id}.html">{}</a>"#, escape_html(text)),
+            Graphic::Line => todo!(),
         }
     }
 }
