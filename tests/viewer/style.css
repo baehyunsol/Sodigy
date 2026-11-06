@@ -42,7 +42,6 @@ a::selection {
 }
 
 pre.text-box {
-    width: 55vw;
     padding: 8px;
     background-color: rgb(0, 0, 0);
     color: rgb(255, 255, 255);
@@ -75,6 +74,20 @@ li {
 
     .sidebar.expanded {
         width: 60%;
+    }
+
+    pre.text-box {
+        width: 55vw;
+    }
+}
+
+@media (orientation: portrait) {
+    .sidebar {
+	display: none;
+    }
+
+    pre.text-box {
+        width: 85vw;
     }
 }
 
@@ -122,5 +135,9 @@ li {
 
 .blue-bg {
     background: rgb(32, 32, 192);
+}
+
+div.children-container {
+    margin-top: 32px;
 }
 

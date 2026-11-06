@@ -201,7 +201,7 @@ radios.forEach((radio) => {
         },
         None => String::new(),
     };
-    let children = format!(r#"<div class="children">{children}</div>"#);
+    let children = format!(r#"<div class="children-container">{children}</div>"#);
 
     let sidebar = match session.parent.get(&node.id) {
         Some(parents) if !parents.is_empty() => {

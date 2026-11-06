@@ -17,11 +17,15 @@ mod s_utils;
 use s_utils::render_ms;
 
 fn main() {
+    println!("loading commits...");
     let commits = load_commits();
+    println!("loading test results...");
     let results = load_test_results().unwrap();
     let mut id = Id::init();
     let mut nodes = vec![];
     let mut top_siblings = Vec::with_capacity(commits.len());
+
+    println!("initializing nodes...");
 
     for commit in commits.iter() {
         let title = format!("{}: {}", commit.commit_hash, commit.title);
@@ -37,6 +41,8 @@ fn main() {
         metadata: None,
         children: Some(top_siblings),
     });
+
+    println!("rendering nodes...");
     render_all(&nodes, id, "../log/rendered").unwrap();
 }
 
