@@ -168,7 +168,7 @@ fn worker_loop(
 
                     tx_to_main.send(MessageToMain::TimingsLog {
                         worker_id,
-                        entries: worker.timings.log.drain(..).collect(),
+                        entries: std::mem::take(&mut worker.timings.log),
                     })?;
                     return Err(e);
                 }
@@ -176,7 +176,7 @@ fn worker_loop(
             MessageToWorker::Kill => {
                 tx_to_main.send(MessageToMain::TimingsLog {
                     worker_id,
-                    entries: worker.timings.log.drain(..).collect(),
+                    entries: std::mem::take(&mut worker.timings.log),
                 })?;
                 break;
             },
@@ -345,7 +345,7 @@ impl Worker {
 
                     store_inter_hir_log(
                         Some(file),
-                        inter_hir_session.log.drain(..).collect(),
+                        std::mem::take(&mut inter_hir_session.log),
                         &intermediate_dir,
                     )?;
 
@@ -609,7 +609,7 @@ impl Worker {
                 self.timings.stage_start(Stage::InterHir, Some(Substage::StoreInterHirLog));
                 let r = store_inter_hir_log(
                     None,
-                    inter_hir_session.log.drain(..).collect(),
+                    std::mem::take(&mut inter_hir_session.log),
                     &intermediate_dir,
                 );
                 self.timings.stage_end(r.is_err());

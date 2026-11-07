@@ -17,7 +17,6 @@ use crate::{
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_error::{FuncEffect, Error, Warning};
 use sodigy_span::Span;
-use std::collections::HashMap;
 
 impl Endec for Session {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {

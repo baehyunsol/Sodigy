@@ -36,7 +36,7 @@ fn encode_file_map(file_map: &[File], intermediate_dir: &str) -> Result<Vec<u8>,
 }
 
 fn decode_file_map(file_map: &[u8], intermediate_dir: &str) -> Result<Vec<File>, FileError> {
-    if file_map.len() % 52 != 0 {
+    if !file_map.len().is_multiple_of(52) {
         return Err(FileError {
             kind: FileErrorKind::CannotDecodeFile,
             given_path: None,

@@ -143,7 +143,7 @@ impl Func {
                 origin: hir_func.origin,
                 unused_effect: hir_func.unused_effect,
                 breakpoint: hir_func.breakpoint,
-                wildcard_spans: session.wildcard_spans.drain(..).collect(),
+                wildcard_spans: std::mem::take(&mut session.wildcard_spans),
             })
         }
     }
@@ -159,3 +159,4 @@ impl Func {
         }
     }
 }
+

@@ -244,7 +244,7 @@ impl Block {
             lets.push(default_value);
         }
 
-        let mut lambdas: Vec<Func> = block_session.lambdas.drain(..).collect();
+        let mut lambdas: Vec<Func> = std::mem::take(&mut block_session.lambdas);
 
         for (mut func, captured_names) in session.check_captured_names(&mut lambdas) {
             if let Some(captured_names) = &captured_names {

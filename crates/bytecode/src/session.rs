@@ -72,8 +72,8 @@ impl Session<'_, '_> {
             intrinsics: Intrinsic::ALL_WITH_LANG_ITEM.iter().map(
                 |(intrinsic, lang_item)| (mir_session.get_lang_item_span(lang_item), *intrinsic)
             ).collect(),
-            errors: mir_session.errors.drain(..).collect(),
-            warnings: mir_session.warnings.drain(..).collect(),
+            errors: std::mem::take(&mut mir_session.errors),
+            warnings: std::mem::take(&mut mir_session.warnings),
             global_context: mir_session.global_context,
             debug_info: true,  // TODO: make it configurable
         }

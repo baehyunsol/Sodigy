@@ -395,13 +395,13 @@ pub fn solve_type(
     #[cfg(feature = "log")]
     session.render_poly_solver_state_machines();
 
-    let type_warnings: Vec<TypeWarning> = session.type_warnings.drain(..).collect();
+    let type_warnings: Vec<TypeWarning> = std::mem::take(&mut session.type_warnings);
     let type_warnings: Vec<Warning> = type_warnings.into_iter().map(
         |w| session.type_error_to_general_error(w)
     ).collect();
     session.warnings.extend(type_warnings);
 
-    let type_errors: Vec<TypeError> = session.type_errors.drain(..).collect();
+    let type_errors: Vec<TypeError> = std::mem::take(&mut session.type_errors);
     let type_errors: Vec<Error> = type_errors.into_iter().map(
         |e| session.type_error_to_general_error(e)
     ).collect();

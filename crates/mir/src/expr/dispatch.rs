@@ -85,10 +85,7 @@ impl Expr {
             },
             Expr::Call { func, args, arg_group_span, types, given_keyword_args } => {
                 let dispatch = match func {
-                    Callable::Static { span, .. } => match dispatch_map.get(span) {
-                        Some(new_def_span) => Some((new_def_span.clone(), span.clone())),
-                        None => None,
-                    },
+                    Callable::Static { span, .. } => dispatch_map.get(span).map(|new_def_span| (new_def_span.clone(), span.clone())),
                     Callable::Dynamic(f) => {
                         if let Expr::Field { lhs, fields, dotfish } = &**f {
                             assert!(dotfish.last().unwrap().is_none());

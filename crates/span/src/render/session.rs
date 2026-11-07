@@ -1,6 +1,5 @@
 use crate::{MonomorphizationInfo, Span};
 use sodigy_file::FileId;
-use sodigy_string::unintern_string;
 use std::collections::hash_map::{Entry, HashMap};
 
 pub struct Session {

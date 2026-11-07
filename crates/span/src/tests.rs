@@ -7,7 +7,7 @@ use crate::{
     SpanDeriveKind,
     render_spans,
 };
-use sodigy_file::File;
+use sodigy_file::{FileId, FileKind};
 use sodigy_fs_api::{
     FileError,
     WriteMode,
@@ -112,7 +112,15 @@ fn render_test_worker(
         WriteMode::CreateOrTruncate,
     )?;
 
-    let file = File::register("render-test-content", "render-test-content", intermediate_dir, false)?;
+    let file = FileId::register(
+        "render-test-content",
+        "render-test-content",
+
+        // FIXME: It's not an object-file. Maybe we need FileKind::Etc?
+        FileKind::ObjectFile,
+
+        intermediate_dir,
+    )?;
     let mut spans = vec![];
 
     for i in 0..content.len() {

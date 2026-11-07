@@ -180,14 +180,14 @@ impl Session {
             monomorphizations: HashMap::new(),
             associated_funcs: vec![],
             call_to_variant_span: HashMap::new(),
-            types: mir_session.types.drain().collect(),
-            generic_args: mir_session.generic_args.drain().collect(),
+            types: std::mem::take(&mut mir_session.types),
+            generic_args: std::mem::take(&mut mir_session.generic_args),
             func_shapes: mir_session.global_context.func_shapes.take().unwrap().clone(),
             struct_shapes: mir_session.global_context.struct_shapes.take().unwrap().clone(),
             enum_shapes: mir_session.global_context.enum_shapes.take().unwrap().clone(),
             generic_to_def_span: mir_session.global_context.generic_to_def_span.take().unwrap().clone(),
             variant_to_enum_span: mir_session.global_context.variant_to_enum_span.take().unwrap().clone(),
-            equal_generic_params: mir_session.equal_generic_params.drain().collect(),
+            equal_generic_params: std::mem::take(&mut mir_session.equal_generic_params),
             polys: mir_session.global_context.polys.take().unwrap().clone(),
             span_string_map: HashMap::new(),
             lang_items: mir_session.global_context.lang_items.take().unwrap().clone(),
@@ -196,8 +196,8 @@ impl Session {
             intermediate_dir: mir_session.intermediate_dir.to_string(),
             type_errors: vec![],
             type_warnings: vec![],
-            errors: mir_session.errors.drain(..).collect(),
-            warnings: mir_session.warnings.drain(..).collect(),
+            errors: std::mem::take(&mut mir_session.errors),
+            warnings: std::mem::take(&mut mir_session.warnings),
             maybe_type_errors: vec![],
             log: vec![],
         }
@@ -217,10 +217,7 @@ impl Session {
     pub fn get_item_shape<'s>(&'s self, def_span: &Span) -> Option<ItemShape<'s>> {
         match self.struct_shapes.get(def_span) {
             Some(s) => Some(ItemShape::Struct(s)),
-            None => match self.enum_shapes.get(def_span) {
-                Some(e) => Some(ItemShape::Enum(e)),
-                None => None,
-            },
+            None => self.enum_shapes.get(def_span).map(|e| ItemShape::Enum(e)),
         }
     }
 
@@ -231,7 +228,7 @@ impl Session {
         let mut has_error = false;
 
         for (intrinsic, lang_item) in Intrinsic::ALL_WITH_LANG_ITEM.iter() {
-            let func_span = match self.lang_items.get(&lang_item.to_string()) {
+            let func_span = match self.lang_items.get(*lang_item) {
                 Some(s) => s.clone(),
                 None => {
                     has_error = true;

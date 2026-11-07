@@ -220,10 +220,7 @@ impl Session {
     pub fn get_item_shape<'s>(&'s mut self, def_span: &Span) -> Option<ItemShapeMut<'s>> {
         match self.struct_shapes.get_mut(def_span) {
             Some(s) => Some(ItemShapeMut::Struct(s)),
-            None => match self.enum_shapes.get_mut(def_span) {
-                Some(e) => Some(ItemShapeMut::Enum(e)),
-                None => None,
-            },
+            None => self.enum_shapes.get_mut(def_span).map(|e| ItemShapeMut::Enum(e)),
         }
     }
 

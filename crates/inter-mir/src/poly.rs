@@ -460,12 +460,12 @@ impl PolySolver {
         }
     }
 
-    pub fn solve<'a, 'b, 'c>(
+    pub fn solve<'a>(
         &'a self,
-        generics: &'b HashMap<Span, Type>,
+        generics: &HashMap<Span, Type>,
 
         // It's for a tmp-session.
-        session: &'c Session,
+        session: &Session,
     ) -> Vec<(Span, &'a HashMap<Span, Type>)> {
         let mut matched = vec![];
         let impls = self.impls.keys().cloned().collect::<Vec<_>>();
@@ -660,7 +660,7 @@ pub enum SimpleType {
 }
 
 impl StateMachine {
-    pub fn get_candidates<'a, 'b>(&'a self, generics: &'b HashMap<Span, Type>) -> &'a [Span] {
+    pub fn get_candidates<'a>(&'a self, generics: &HashMap<Span, Type>) -> &'a [Span] {
         let simple_type = generics.get(&self.generic_param).map(
             |r#type| SimpleType::from_type_arg(r#type)
         ).unwrap_or(SimpleType::Var);
@@ -1009,14 +1009,11 @@ fn solve_fn_types(
 
     if errors.is_empty() {
         Ok(type_vars.iter().filter_map(
-            |type_var| match tmp_session.types.get(type_var) {
-                Some(r#type) => Some((type_var.clone(), r#type.clone())),
-
-                // Let's say `poly` has 2 generic parameters `T` and `U` but
-                // `U` is not used anywhere. Then this parameter won't be in `types`
-                // and has nothing to do with solving this poly.
-                None => None,
-            }
+            // Let's say `poly` has 2 generic parameters `T` and `U` but
+            // `U` is not used anywhere. Then this parameter won't be in `types`
+            // and has nothing to do with solving this poly.
+            // Hence, it's None when `tmp_session.types` doesn't have an entry for `type_var`.
+            |type_var| tmp_session.types.get(type_var).map(|r#type| (type_var.clone(), r#type.clone()))
         ).collect())
     }
 

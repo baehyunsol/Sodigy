@@ -60,7 +60,7 @@ impl Session {
 
         timings_session.stage_start(Stage::InterHir, Some(Substage::ResolveAssociatedItems));
         let mut has_error = false;
-        let mut associated_items = self.associated_items.drain(..).collect::<Vec<_>>();
+        let mut associated_items: Vec<AssociatedItem> = std::mem::take(&mut self.associated_items);
 
         'associated_items: for associated_item in associated_items.iter_mut() {
             if let Err(()) = self.resolve_type(&mut associated_item.r#type, &mut vec![]) {
