@@ -9,6 +9,7 @@ pub enum Graphic {
     List(Vec<Graphic>),
     Link { text: String, id: Id },
     Line,
+    // TODO: Image
 }
 
 impl Graphic {

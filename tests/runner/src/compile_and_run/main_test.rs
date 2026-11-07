@@ -8,10 +8,10 @@ use super::{
     match_lines,
     remove_ansi_characters,
 };
-use lazy_static::lazy_static;
 use regex::Regex;
 use sodigy_fs_api::{FileError, WriteMode, join, join3, read_string, write_string};
 use sodigy_subprocess::{self as subprocess, SubprocessError};
+use std::sync::LazyLock;
 use std::time::Instant;
 
 pub struct ExpectedOutput {
@@ -549,10 +549,8 @@ fn check_test_output(output: &subprocess::Output, directive: &Directive, expecte
     Ok(())
 }
 
-lazy_static! {
-    static ref COMPILER_RESULT_RE: Regex = Regex::new(r"^Finished\:\s(\d+)\serror(?:s)?\sand\s(\d+)\swarning(?:s)?.+").unwrap();
-    static ref TEST_RESULT_RE: Regex = Regex::new(r"\s\d+\spassed.+\s(\d+)\sfailed").unwrap();
-}
+static COMPILER_RESULT_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^Finished\:\s(\d+)\serror(?:s)?\sand\s(\d+)\swarning(?:s)?.+").unwrap());
+static TEST_RESULT_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s\d+\spassed.+\s(\d+)\sfailed").unwrap());
 
 fn count_compile_errors_and_warnings(output: &str) -> Option<(usize, usize)> {
     for line in output.lines().rev() {

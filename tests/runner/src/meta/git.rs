@@ -1,7 +1,7 @@
-use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
+use std::sync::LazyLock;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CommitInfo {
@@ -56,11 +56,9 @@ pub fn get_curr_commit() -> String {
     String::from_utf8_lossy(&output.stdout).trim().get(0..9).unwrap().to_string()
 }
 
-lazy_static! {
-    static ref TREE_RE: Regex = Regex::new(r"^tree\s([0-9a-f]+)").unwrap();
-    static ref PARENT_RE: Regex = Regex::new(r"^parent\s([0-9a-f]+)").unwrap();
-    static ref COMMITTER_RE: Regex = Regex::new(r"^committer\s([a-zA-Z0-9_@.-]+)\s<([a-zA-Z0-9_@.-]+)>\s(\d+)\s([+-]?\d+)").unwrap();
-}
+static TREE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^tree\s([0-9a-f]+)").unwrap());
+static PARENT_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^parent\s([0-9a-f]+)").unwrap());
+static COMMITTER_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^committer\s([a-zA-Z0-9_@.-]+)\s<([a-zA-Z0-9_@.-]+)>\s(\d+)\s([+-]?\d+)").unwrap());
 
 pub fn get_commit_info(commit_hash: &str) -> CommitInfo {
     let output = Command::new("git")
@@ -129,9 +127,7 @@ pub fn get_commit_info(commit_hash: &str) -> CommitInfo {
     }
 }
 
-lazy_static! {
-    static ref TREE_INFO_RE: Regex = Regex::new(r"(\d{6})\s([a-z]+)\s([0-9a-f]+)\s(.+)").unwrap();
-}
+static TREE_INFO_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\d{6})\s([a-z]+)\s([0-9a-f]+)\s(.+)").unwrap());
 
 #[derive(Clone, Debug)]
 pub struct TreeEntry {
@@ -189,7 +185,37 @@ pub fn read_blob(blob_hash: &str) -> Vec<u8> {
     output.stdout
 }
 
-pub fn get_diff(commit_a: &str, commit_b: &str) -> String {
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct CommitDiff {
+    pub commits: (String, String),
+    pub add: usize,
+    pub remove: usize,
+    pub diffs: Vec<((String, String), Vec<Hunk>)>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Hunk {
+    pub add: usize,
+    pub remove: usize,
+    pub line_diffs: Vec<LineDiff>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct LineDiff {
+    pub kind: DiffKind,
+    pub line: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum DiffKind {
+    Add,
+    Remove,
+    Context,
+}
+
+static LINE_HEADER_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"diff --git "?a/(.+)"? "?b/(.+)"?"#).unwrap());
+
+pub fn get_diff(commit_a: &str, commit_b: &str) -> CommitDiff {
     let output = Command::new("git")
         .arg("diff")
         .arg(commit_a)
@@ -200,6 +226,110 @@ pub fn get_diff(commit_a: &str, commit_b: &str) -> String {
         .unwrap();
 
     assert!(output.status.success());
-    String::from_utf8(output.stdout).unwrap()
+    let output: &str = &String::from_utf8_lossy(&output.stdout);
+
+    let mut add = 0;
+    let mut remove = 0;
+    let mut diffs = vec![];
+
+    let mut curr_file_a = String::new();
+    let mut curr_file_b = String::new();
+    let mut curr_hunks = vec![];
+    let mut curr_hunk = vec![];
+    let mut curr_hunk_add = 0;
+    let mut curr_hunk_remove = 0;
+    let mut ignore_until_triple_plus = false;
+
+    for line in output.lines() {
+        if ignore_until_triple_plus {
+            if line.starts_with("+++ ") {
+                ignore_until_triple_plus = false;
+            }
+        }
+
+        else if let Some(cap) = LINE_HEADER_RE.captures(line) {
+            if !curr_hunk.is_empty() {
+                curr_hunks.push(Hunk {
+                    add: curr_hunk_add,
+                    remove: curr_hunk_remove,
+                    line_diffs: std::mem::take(&mut curr_hunk),
+                });
+                add += curr_hunk_add;
+                remove += curr_hunk_remove;
+            }
+
+            if !curr_hunks.is_empty() {
+                diffs.push(((curr_file_a.clone(), curr_file_b.clone()), std::mem::take(&mut curr_hunks)));
+            }
+
+            curr_file_a = cap.get(1).unwrap().as_str().to_string();
+            curr_file_b = cap.get(2).unwrap().as_str().to_string();
+            ignore_until_triple_plus = true;
+        }
+
+        else if line.starts_with("@@") {
+            if !curr_hunk.is_empty() {
+                curr_hunks.push(Hunk {
+                    add: curr_hunk_add,
+                    remove: curr_hunk_remove,
+                    line_diffs: std::mem::take(&mut curr_hunk),
+                });
+                add += curr_hunk_add;
+                remove += curr_hunk_remove;
+                curr_hunk_add = 0;
+                curr_hunk_remove = 0;
+            }
+        }
+
+        else if line.starts_with("+") {
+            curr_hunk.push(LineDiff {
+                kind: DiffKind::Add,
+                line: line.get(1..).unwrap().to_string(),
+            });
+            curr_hunk_add += 1;
+        }
+
+        else if line.starts_with("-") {
+            curr_hunk.push(LineDiff {
+                kind: DiffKind::Remove,
+                line: line.get(1..).unwrap().to_string(),
+            });
+            curr_hunk_remove += 1;
+        }
+
+        else if line.starts_with(" ") {
+            curr_hunk.push(LineDiff {
+                kind: DiffKind::Context,
+                line: line.get(1..).unwrap().to_string(),
+            });
+        }
+
+        else if line.starts_with("\\ No newline") {}
+
+        else {
+            panic!("{line:?}")
+        }
+    }
+
+    if !curr_hunk.is_empty() {
+        curr_hunks.push(Hunk {
+            add: curr_hunk_add,
+            remove: curr_hunk_remove,
+            line_diffs: std::mem::take(&mut curr_hunk),
+        });
+        add += curr_hunk_add;
+        remove += curr_hunk_remove;
+    }
+
+    if !curr_hunks.is_empty() {
+        diffs.push(((curr_file_a.clone(), curr_file_b.clone()), std::mem::take(&mut curr_hunks)));
+    }
+
+    CommitDiff {
+        commits: (commit_a.to_string(), commit_b.to_string()),
+        add,
+        remove,
+        diffs,
+    }
 }
 

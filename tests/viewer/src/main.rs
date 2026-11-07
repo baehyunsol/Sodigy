@@ -91,9 +91,9 @@ fn render_commit(
     ];
 
     if let Some(parent_hash) = &commit.parent_hash {
-        let diff = git::get_diff(&commit.commit_hash, parent_hash);
-        let diff_node_id = render_commit_diff(&diff, format!("{parent_hash} vs {}", commit.commit_hash), id, nodes);
-        metadata.push(Graphic::Link { text: String::from("updated files"), id: diff_node_id });
+        let diff = git::get_diff(parent_hash, &commit.commit_hash);
+        let diff_node_id = render_commit_diff(&diff, id, nodes);
+        metadata.push(Graphic::Link { text: format!("updated files (+{}, -{})", diff.add, diff.remove), id: diff_node_id });
     }
 
     // TODO: render file/dir
@@ -109,32 +109,42 @@ fn render_commit(
     *id
 }
 
-fn render_commit_diff(
-    diff: &str,
-    title: String,
-    id: &mut Id,
-    nodes: &mut Vec<Node>,
-) -> Id {
-    let mut lines = vec![];
+fn render_commit_diff(diff: &git::CommitDiff, id: &mut Id, nodes: &mut Vec<Node>) -> Id {
+    let (commit_a, commit_b) = diff.commits.clone();
+    let mut rendered = vec![Graphic::List(vec![
+        Graphic::Text(format!("add: {}", diff.add)),
+        Graphic::Text(format!("remove: {}", diff.remove)),
+    ])];
 
-    for line in diff.lines() {
-        if line.starts_with("+") {
-            lines.push((Some(Color::Green), format!("{line}\n")));
-        } else if line.starts_with("-") {
-            lines.push((Some(Color::Red), format!("{line}\n")));
-        } else if line.starts_with("@") {
-            lines.push((Some(Color::Yellow), format!("{line}\n")));
-        } else {
-            lines.push((None, format!("{line}\n")));
+    for ((file_a, file_b), hunks) in diff.diffs.iter() {
+        rendered.push(Graphic::Title(format!("{file_a} -> {file_b}")));
+
+        for hunk in hunks.iter() {
+            let mut lines = vec![];
+
+            for line in hunk.line_diffs.iter() {
+                let (color, pre) = match line.kind {
+                    git::DiffKind::Add => (Some(Color::Green), "+"),
+                    git::DiffKind::Remove => (Some(Color::Red), "-"),
+                    git::DiffKind::Context => (None, " "),
+                };
+
+                lines.push((
+                    color,
+                    format!("{pre}{}\n", line.line),
+                ));
+            }
+
+            rendered.push(Graphic::TextBox(lines));
         }
     }
 
     id.increment();
     nodes.push(Node {
         id: *id,
-        title,
+        title: format!("{commit_a} vs {commit_b}"),
         flag: None,
-        metadata: Some(vec![Graphic::TextBox(lines)]),
+        metadata: Some(rendered),
         children: None,
     });
     *id
