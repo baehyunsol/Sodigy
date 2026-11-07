@@ -178,6 +178,11 @@ fn load_test_results() -> Result<HashMap<String /* commit_hash */, Vec<TestHarne
 
 fn render_test_result(result: &TestHarness, id: &mut Id, nodes: &mut Vec<Node>) -> Id {
     let flag = if result.has_error() { Some(Color::Red) } else { Some(Color::Green) };
+    let mut metadata = vec![Graphic::List(vec![
+        Graphic::Text(format!("cargo version: {}", result.meta.cargo_version)),
+        Graphic::Text(format!("rustc version: {}", result.meta.rustc_version)),
+        Graphic::Text(format!("started at: {}", result.meta.started_at)),
+    ])];
     let mut children = vec![];
 
     if let Some(crates) = &result.crates {
@@ -200,7 +205,7 @@ fn render_test_result(result: &TestHarness, id: &mut Id, nodes: &mut Vec<Node>) 
         id: *id,
         title: result.meta.get_result_file_name(),
         flag,
-        metadata: None,
+        metadata: Some(metadata),
         children: Some(children),
     });
     *id
