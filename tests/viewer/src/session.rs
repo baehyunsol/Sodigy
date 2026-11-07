@@ -8,11 +8,13 @@ pub struct Session {
     pub title: HashMap<Id, (String, Option<Color>)>,
     pub children: HashMap<Id, Option<Vec<(String, Id)>>>,
     pub parent: HashMap<Id, Vec<(Id, usize)>>,
+    pub comparisons: HashMap<Id, Vec<(String, Id)>>,
 
+    pub leaves: HashMap<Id, Vec<(Vec<String>, Option<Color>)>>,
     pub config: Config,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub struct Config {
     pub fold_threshold: usize,
     pub main_title_length_limit: Option<usize>,
@@ -20,12 +22,14 @@ pub struct Config {
 }
 
 impl Session {
-    pub fn new() -> Session {
+    pub fn new(config: Config) -> Session {
         Session {
             title: HashMap::new(),
             children: HashMap::new(),
             parent: HashMap::new(),
-            config: Config::default(),
+            comparisons: HashMap::new(),
+            leaves: HashMap::new(),
+            config,
         }
     }
 

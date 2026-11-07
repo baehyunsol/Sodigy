@@ -11,6 +11,7 @@ use std::collections::hash_map::{Entry, HashMap};
 use std::fmt;
 
 mod color;
+mod compare;
 mod graphic;
 mod node;
 mod session;
@@ -19,6 +20,7 @@ mod utils;
 pub use color::Color;
 pub use graphic::Graphic;
 pub use node::Node;
+pub use session::Config;
 use session::Session;
 use utils::escape_html;
 
@@ -33,6 +35,10 @@ impl Id {
     pub fn increment(&mut self) {
         *self = Id(self.0 + 1);
     }
+
+    pub fn random() -> Self {
+        Id(rand::random())
+    }
 }
 
 impl fmt::Display for Id {
@@ -45,12 +51,15 @@ pub fn render_all(
     nodes: &[Node],
     index_id: Id,
     root_dir: &str,
+    config: Config,
+    comparisons: Option<Vec<(String, Id)>>,
 ) -> Result<(), FileError> {
     if !exists(root_dir) {
         create_dir(root_dir)?;
     }
 
-    let mut session = Session::new();
+    let mut session = Session::new(config);
+    let mut extra_nodes = vec![];
 
     for node in nodes.iter() {
         session.title.insert(node.id, (node.title.clone(), node.flag));
@@ -70,7 +79,41 @@ pub fn render_all(
         }
     }
 
-    for node in nodes.iter() {
+    if let Some(comparisons) = comparisons && !comparisons.is_empty() {
+        let nodes_by_id: HashMap<Id, &Node> = nodes.iter().map(|node| (node.id, node)).collect();
+        extra_nodes = Vec::with_capacity(comparisons.len() * (comparisons.len() - 1));
+
+        for (i, (title_a, node_id_a)) in comparisons.iter().enumerate() {
+            let node_a = nodes_by_id.get(node_id_a).unwrap();
+
+            for (title_b, node_id_b) in comparisons.iter().skip(i + 1) {
+                let node_b = nodes_by_id.get(node_id_b).unwrap();
+                let (id1, id2) = (Id::random(), Id::random());
+                session.compare_nodes(title_a, title_b, node_a, node_b, id1, id2, &mut extra_nodes);
+                session.compare_nodes(title_b, title_a, node_b, node_a, id2, id1, &mut extra_nodes);
+
+                match session.comparisons.entry(*node_id_a) {
+                    Entry::Occupied(mut e) => {
+                        e.get_mut().push((title_b.to_string(), id2));
+                    },
+                    Entry::Vacant(e) => {
+                        e.insert(vec![(title_b.to_string(), id2)]);
+                    },
+                }
+
+                match session.comparisons.entry(*node_id_b) {
+                    Entry::Occupied(mut e) => {
+                        e.get_mut().push((title_a.to_string(), id1));
+                    },
+                    Entry::Vacant(e) => {
+                        e.insert(vec![(title_a.to_string(), id1)]);
+                    },
+                }
+            }
+        }
+    }
+
+    for node in nodes.iter().chain(extra_nodes.iter()) {
         let body = render(node, &session);
         let html = wrap_body(&node.title, &body);
         write_string(
@@ -103,7 +146,24 @@ fn render(node: &Node, session: &Session) -> String {
         },
     );
     let metadata = match &node.metadata {
-        Some(data) => format!(r#"<div class="metadata">{}</div>"#, data.iter().map(|g| g.render()).collect::<Vec<_>>().concat()),
+        Some(graphics) => {
+            let pre_graphics = match session.comparisons.get(&node.id) {
+                Some(comparisons) => vec![
+                    Graphic::List(
+                        comparisons.iter().map(
+                            |(title, id)| Graphic::Link { text: format!("vs {title}"), id: *id }
+                        ).collect(),
+                    ),
+                    Graphic::Line,
+                ],
+                None => vec![],
+            };
+
+            format!(
+                r#"<div class="metadata">{}</div>"#,
+                pre_graphics.iter().chain(graphics.iter()).map(|g| g.render(false)).collect::<Vec<_>>().concat(),
+            )
+        },
         None => String::new(),
     };
 

@@ -1,5 +1,6 @@
+use chrono::DateTime;
 use regex::Regex;
-use sodigy_fs_api::{FileError, basename, join, read_dir, read_string};
+use sodigy_fs_api::{FileError, basename, read_dir, read_string};
 use sodigy_compiler_test::{
     CompileAndRun,
     CrateTest,
@@ -10,7 +11,7 @@ use sodigy_compiler_test::{
 };
 use std::collections::hash_map::{Entry, HashMap};
 use std::sync::LazyLock;
-use viewer::{Color, Graphic, Id, Node, render_all};
+use viewer::{Color, Config, Graphic, Id, Node, render_all};
 
 mod s_utils;
 
@@ -18,19 +19,27 @@ use s_utils::render_ms;
 
 fn main() {
     println!("loading commits...");
-    let commits = load_commits();
+    let commits = load_commits(100);
     println!("loading test results...");
-    let results = load_test_results().unwrap();
+    let results = load_test_results("../log/").unwrap();
     let mut id = Id::init();
     let mut nodes = vec![];
     let mut top_siblings = Vec::with_capacity(commits.len());
     let mut trees: HashMap<String, Id> = HashMap::new();
+    let mut test_result_nodes: Vec<(String, Id)> = Vec::with_capacity(results.len());
 
     println!("initializing nodes...");
 
     for commit in commits.iter() {
         let title = format!("{}: {}", commit.commit_hash, commit.title);
-        let commit_node_id = render_commit(commit, &results, &mut trees, &mut id, &mut nodes);
+        let commit_node_id = render_commit(
+            commit,
+            &results,
+            &mut test_result_nodes,
+            &mut trees,
+            &mut id,
+            &mut nodes,
+        );
         top_siblings.push((title, commit_node_id));
     }
 
@@ -44,14 +53,22 @@ fn main() {
     });
 
     println!("rendering nodes...");
-    render_all(&nodes, id, "../log/rendered").unwrap();
+    let config = Config::default();
+
+    render_all(
+        &nodes,
+        id,
+        "../log/rendered/",
+        config,
+        Some(test_result_nodes),
+    ).unwrap();
 }
 
-fn load_commits() -> Vec<git::CommitInfo> {
+fn load_commits(limit: usize) -> Vec<git::CommitInfo> {
     let mut curr_commit = git::get_curr_commit();
     let mut result = vec![];
 
-    for _ in 0..300 {
+    for _ in 0..limit {
         let commit_info = git::get_commit_info(&curr_commit);
         result.push(commit_info.clone());
 
@@ -67,6 +84,7 @@ fn load_commits() -> Vec<git::CommitInfo> {
 fn render_commit(
     commit: &git::CommitInfo,
     test_results: &HashMap<String, Vec<TestHarness>>,
+    test_result_nodes: &mut Vec<(String, Id)>,
     git_obj_nodes: &mut HashMap<String, Id>,
     id: &mut Id,
     nodes: &mut Vec<Node>,
@@ -81,6 +99,10 @@ fn render_commit(
             has_error |= result.has_error();
 
             children.push((title, result_node_id));
+            test_result_nodes.push((
+                format!("{}-{:?}-{:?}", result.meta.commit.commit_hash, result.meta.os, result.meta.isa).to_ascii_lowercase(),
+                result_node_id,
+            ));
         }
 
         let flag = if has_error { Some(Color::Red) } else { Some(Color::Green) };
@@ -91,16 +113,20 @@ fn render_commit(
     let mut metadata = vec![
         Graphic::TextBox(vec![(None, format!("{}\n\n{}", commit.title, commit.body.as_ref().unwrap_or(&String::new())))]),
     ];
+    let mut metadata_metadata = vec![
+        Graphic::Text(format!("Author: {} <{}>", commit.author, commit.author_email)),
+        Graphic::Text(DateTime::from_timestamp(commit.timestamp, 0).unwrap().to_rfc3339()),
+    ];
 
     if let Some(parent_hash) = &commit.parent_hash {
         let diff = git::get_diff(parent_hash, &commit.commit_hash);
         let diff_node_id = render_commit_diff(&diff, id, nodes);
-        metadata.push(Graphic::Link { text: format!("updated files (+{}, -{})", diff.add, diff.remove), id: diff_node_id });
-        metadata.push(Graphic::Text(String::new()));
+        metadata_metadata.push(Graphic::Link { text: format!("updated files (+{}, -{})", diff.add, diff.remove), id: diff_node_id });
     }
 
     let tree_node_id = render_tree(&commit.tree_hash, git_obj_nodes, id, nodes);
-    metadata.push(Graphic::Link { text: String::from("browse tree"), id: tree_node_id });
+    metadata_metadata.push(Graphic::Link { text: String::from("browse tree"), id: tree_node_id });
+    metadata.push(Graphic::List(metadata_metadata));
 
     id.increment();
     nodes.push(Node {
@@ -206,8 +232,7 @@ fn render_blob(blob_hash: &str, obj_nodes: &mut HashMap<String, Id>, id: &mut Id
 
 static TEST_RESULT_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"sodigy-test-([0-9a-f]+)-([^-]+)-([^-]+)\.json").unwrap());
 
-fn load_test_results() -> Result<HashMap<String /* commit_hash */, Vec<TestHarness>>, FileError> {
-    let results_at = join("..", "log")?;
+fn load_test_results(results_at: &str) -> Result<HashMap<String /* commit_hash */, Vec<TestHarness>>, FileError> {
     let mut results: HashMap<String, Vec<TestHarness>> = HashMap::new();
 
     for file in read_dir(&results_at, true)? {
@@ -255,7 +280,7 @@ fn render_test_result(result: &TestHarness, id: &mut Id, nodes: &mut Vec<Node>) 
     id.increment();
     nodes.push(Node {
         id: *id,
-        title: result.meta.get_result_file_name(),
+        title: format!("{}-{:?}-{:?}", result.meta.commit.commit_hash, result.meta.os, result.meta.isa).to_ascii_lowercase(),
         flag,
         metadata: Some(metadata),
         children: Some(children),

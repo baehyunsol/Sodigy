@@ -13,7 +13,7 @@ pub enum Graphic {
 }
 
 impl Graphic {
-    pub fn render(&self) -> String {
+    pub fn render(&self, li: bool) -> String {
         match self {
             Graphic::Title(t) => format!("<h2>{}</h2>", escape_html(t)),
             Graphic::TextBox(s) => format!(
@@ -30,15 +30,19 @@ impl Graphic {
                     }
                 ).collect::<Vec<_>>().concat(),
             ),
-            Graphic::Text(s) => format!(r#"<p>{}</p>"#, escape_html(s)),
+            Graphic::Text(s) => if li {
+                escape_html(s)
+            } else {
+                format!(r#"<p>{}</p>"#, escape_html(s))
+            },
             Graphic::List(e) => format!(
                 r#"<ul>{}</ul>"#,
                 e.iter().map(
-                    |e| e.render()
+                    |e| format!("<li>{}</li>", e.render(true))
                 ).collect::<Vec<_>>().concat(),
             ),
             Graphic::Link { text, id } => format!(r#"<a href="{id}.html">{}</a>"#, escape_html(text)),
-            Graphic::Line => todo!(),
+            Graphic::Line => String::from("<hr/>"),
         }
     }
 }
