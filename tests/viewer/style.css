@@ -65,19 +65,20 @@ li {
         position: fixed;
         top: 5vh;
         right: 5vw;
-        width: 30%;
+        width: 25vw;
         height: 90vh;
         overflow-y: auto;
 	background-color: rgb(0, 0, 0);
 	padding: 16px;
+	border: 6px solid rgb(255, 255, 255);
     }
 
     .sidebar.expanded {
-        width: 60%;
+        width: 60vw;
     }
 
     pre.text-box {
-        width: 55vw;
+        width: 60vw;
     }
 }
 
@@ -135,6 +136,10 @@ li {
 
 .blue-bg {
     background: rgb(32, 32, 192);
+}
+
+.yellow-bg {
+    background: rgb(192, 192, 32);
 }
 
 div.children-container {

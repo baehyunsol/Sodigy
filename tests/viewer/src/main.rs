@@ -24,12 +24,13 @@ fn main() {
     let mut id = Id::init();
     let mut nodes = vec![];
     let mut top_siblings = Vec::with_capacity(commits.len());
+    let mut trees: HashMap<String, Id> = HashMap::new();
 
     println!("initializing nodes...");
 
     for commit in commits.iter() {
         let title = format!("{}: {}", commit.commit_hash, commit.title);
-        let commit_node_id = render_commit(commit, &results, &mut id, &mut nodes);
+        let commit_node_id = render_commit(commit, &results, &mut trees, &mut id, &mut nodes);
         top_siblings.push((title, commit_node_id));
     }
 
@@ -66,6 +67,7 @@ fn load_commits() -> Vec<git::CommitInfo> {
 fn render_commit(
     commit: &git::CommitInfo,
     test_results: &HashMap<String, Vec<TestHarness>>,
+    git_obj_nodes: &mut HashMap<String, Id>,
     id: &mut Id,
     nodes: &mut Vec<Node>,
 ) -> Id {
@@ -94,9 +96,11 @@ fn render_commit(
         let diff = git::get_diff(parent_hash, &commit.commit_hash);
         let diff_node_id = render_commit_diff(&diff, id, nodes);
         metadata.push(Graphic::Link { text: format!("updated files (+{}, -{})", diff.add, diff.remove), id: diff_node_id });
+        metadata.push(Graphic::Text(String::new()));
     }
 
-    // TODO: render file/dir
+    let tree_node_id = render_tree(&commit.tree_hash, git_obj_nodes, id, nodes);
+    metadata.push(Graphic::Link { text: String::from("browse tree"), id: tree_node_id });
 
     id.increment();
     nodes.push(Node {
@@ -148,6 +152,56 @@ fn render_commit_diff(diff: &git::CommitDiff, id: &mut Id, nodes: &mut Vec<Node>
         children: None,
     });
     *id
+}
+
+fn render_tree(tree_hash: &str, obj_nodes: &mut HashMap<String, Id>, id: &mut Id, nodes: &mut Vec<Node>) -> Id {
+    match obj_nodes.get(tree_hash) {
+        Some(e) => *e,
+        None => {
+            let entries = git::get_tree_info(tree_hash);
+            let mut children = Vec::with_capacity(entries.len());
+
+            for entry in entries.iter() {
+                match entry.object_type {
+                    git::ObjectType::Tree => {
+                        children.push((format!("{}/", entry.name), render_tree(&entry.hash, obj_nodes, id, nodes)));
+                    },
+                    git::ObjectType::Blob => {
+                        children.push((entry.name.to_string(), render_blob(&entry.hash, obj_nodes, id, nodes)));
+                    },
+                }
+            }
+
+            id.increment();
+            nodes.push(Node {
+                id: *id,
+                title: tree_hash.to_string(),
+                flag: Some(Color::Yellow),
+                metadata: None,
+                children: Some(children),
+            });
+            obj_nodes.insert(tree_hash.to_string(), *id);
+            *id
+        },
+    }
+}
+
+fn render_blob(blob_hash: &str, obj_nodes: &mut HashMap<String, Id>, id: &mut Id, nodes: &mut Vec<Node>) -> Id {
+    match obj_nodes.get(blob_hash) {
+        Some(e) => *e,
+        None => {
+            id.increment();
+            nodes.push(Node {
+                id: *id,
+                title: blob_hash.to_string(),
+                flag: Some(Color::Blue),
+                metadata: Some(vec![Graphic::TextBox(vec![(None, String::from_utf8_lossy(&git::read_blob(blob_hash)).to_string())])]),
+                children: None,
+            });
+            obj_nodes.insert(blob_hash.to_string(), *id);
+            *id
+        },
+    }
 }
 
 static TEST_RESULT_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"sodigy-test-([0-9a-f]+)-([^-]+)-([^-]+)\.json").unwrap());
