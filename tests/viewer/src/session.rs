@@ -74,7 +74,7 @@ impl Default for Config {
         Config {
             fold_threshold: 5,
             main_title_length_limit: Some(88),
-            entry_title_length_limit: Some(36),
+            entry_title_length_limit: Some(48),
         }
     }
 }

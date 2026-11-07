@@ -1,4 +1,3 @@
-use lazy_static::lazy_static;
 use regex::Regex;
 use sodigy_fs_api::{FileError, basename, join, read_dir, read_string};
 use sodigy_compiler_test::{
@@ -10,6 +9,7 @@ use sodigy_compiler_test::{
     meta::git,
 };
 use std::collections::hash_map::{Entry, HashMap};
+use std::sync::LazyLock;
 use viewer::{Color, Graphic, Id, Node, render_all};
 
 mod s_utils;
@@ -150,16 +150,14 @@ fn render_commit_diff(diff: &git::CommitDiff, id: &mut Id, nodes: &mut Vec<Node>
     *id
 }
 
-lazy_static! {
-    static ref TEST_RESULT_RE: Regex = Regex::new(r"sodigy-test-([0-9a-f]+)-([^-]+)-([^-]+)\.json").unwrap();
-}
+static TEST_RESULT_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"sodigy-test-([0-9a-f]+)-([^-]+)-([^-]+)\.json").unwrap());
 
 fn load_test_results() -> Result<HashMap<String /* commit_hash */, Vec<TestHarness>>, FileError> {
     let results_at = join("..", "log")?;
     let mut results: HashMap<String, Vec<TestHarness>> = HashMap::new();
 
     for file in read_dir(&results_at, true)? {
-        if let Some(cap) = TEST_RESULT_RE.captures(&basename(&file)?) {
+        if TEST_RESULT_RE.is_match(&basename(&file)?) {
             let result: TestHarness = serde_json::from_str(&read_string(&file)?).unwrap();
 
             match results.entry(result.meta.commit.commit_hash.to_string()) {
@@ -178,7 +176,7 @@ fn load_test_results() -> Result<HashMap<String /* commit_hash */, Vec<TestHarne
 
 fn render_test_result(result: &TestHarness, id: &mut Id, nodes: &mut Vec<Node>) -> Id {
     let flag = if result.has_error() { Some(Color::Red) } else { Some(Color::Green) };
-    let mut metadata = vec![Graphic::List(vec![
+    let metadata = vec![Graphic::List(vec![
         Graphic::Text(format!("cargo version: {}", result.meta.cargo_version)),
         Graphic::Text(format!("rustc version: {}", result.meta.rustc_version)),
         Graphic::Text(format!("started at: {}", result.meta.started_at)),
@@ -212,7 +210,13 @@ fn render_test_result(result: &TestHarness, id: &mut Id, nodes: &mut Vec<Node>) 
 }
 
 fn render_crates_result(crates: &[CrateTest], id: &mut Id, nodes: &mut Vec<Node>) -> Id {
-    let flag = if crates.iter().any(|c| c.has_error()) { Some(Color::Red) } else { Some(Color::Green) };
+    let (mut pass, mut fail) = (0, 0);
+
+    for cr in crates.iter() {
+        if cr.has_error() { fail += 1; } else { pass += 1; }
+    }
+
+    let flag = if fail > 0 { Some(Color::Red) } else { Some(Color::Green) };
     let mut children = vec![];
 
     for cr in crates.iter() {
@@ -225,7 +229,7 @@ fn render_crates_result(crates: &[CrateTest], id: &mut Id, nodes: &mut Vec<Node>
         id: *id,
         title: String::from("crate tests"),
         flag,
-        metadata: None,
+        metadata: Some(vec![Graphic::Text(format!("pass: {pass}, fail: {fail}"))]),
         children: Some(children),
     });
     *id
