@@ -417,10 +417,7 @@ impl Func {
             session.warn_unused_names(
                 &names,
                 &params.iter().filter_map(
-                    |param| match &param.unused_name {
-                        Some(attr) => Some((param.name, attr.clone())),
-                        None => None,
-                    }
+                    |param| param.unused_name.as_ref().map(|attr| (param.name, attr.clone()))
                 ).collect(),
             );
         }

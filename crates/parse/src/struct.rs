@@ -120,7 +120,7 @@ impl<'t, 's> Tokens<'t, 's> {
     /// `if p == Person { age: 30, name: "Bae" } { foo() }` is valid, but the parser cannot
     /// parse this. So the parser rejects this syntax instead of throwing very unreadable
     /// error message.
-    pub fn check_ambiguous_struct_initialization(&mut self) -> Result<(), Vec<Error>> {
+    pub fn check_ambiguous_struct_initialization(&self) -> Result<(), Vec<Error>> {
         match (self.peek_prev(), self.peek2()) {
             (
                 Some(Token { kind: TokenKind::Ident(_), .. }),

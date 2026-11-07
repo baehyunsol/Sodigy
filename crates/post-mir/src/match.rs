@@ -231,7 +231,7 @@ pub enum PatternField {
     ListElements,
 }
 
-pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Result<Expr, ()> {
+pub(crate) fn lower_match(match_expr: &Match, session: &mut Session) -> Result<Expr, ()> {
     let scrutinee_type = type_of(&match_expr.scrutinee, session.global_context.clone()).expect("Internal Compiler Error: Type-check is complete, but it failed to solve an expression!");
 
     // We use `index: usize` of each arm as an id of the arm.

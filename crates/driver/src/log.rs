@@ -71,7 +71,7 @@ fn render_page_and_save(
 
     let first_index = if index != 0 && let Some(call) = calls.get(0) { Some(call.call_index) } else { None };
     let prev_index = if index > 0 { Some(calls[index - 1].call_index) } else { None };
-    let next_index = if let Some(call) = calls.get(index + 1) { Some(call.call_index) } else { None };
+    let next_index = calls.get(index + 1).map(|call| call.call_index);
     let last_index = if index != calls.len() - 1 && let Some(call) = calls.last() { Some(call.call_index) } else { None };
 
     fn create_button(title: &str, index: Option<usize>) -> String {

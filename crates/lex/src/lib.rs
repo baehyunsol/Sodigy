@@ -683,7 +683,7 @@ impl Session {
                 (Some(b'"'), Some(b'"'), Some(b'"')) => {
                     let quote_count = count_quotes(&self.input_bytes, self.cursor).unwrap_or(256);
 
-                    if quote_count % 2 == 0 && quote_count > 254 || quote_count % 2 == 1 && quote_count > 127 {
+                    if quote_count.is_multiple_of(2) && quote_count > 254 || quote_count % 2 == 1 && quote_count > 127 {
                         return Err(Error {
                             kind: ErrorKind::TooManyQuotes,
 

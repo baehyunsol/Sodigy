@@ -221,10 +221,7 @@ impl Block {
             session.warn_unused_names(
                 &names,
                 &lets.iter().filter_map(
-                    |r#let| match &r#let.unused_name {
-                        Some(attr) => Some((r#let.name, attr.clone())),
-                        None => None,
-                    }
+                    |r#let| r#let.unused_name.as_ref().map(|attr| (r#let.name, attr.clone()))
                 ).collect(),
             );
         }

@@ -571,8 +571,8 @@ impl Attribute {
     }
 
     pub fn lang_item_generics(&self, intermediate_dir: &str) -> Option<(Span, Vec<String>)> {
-        match self.decorators.get(&intern_string(b"lang_item_generics", intermediate_dir).unwrap()) {
-            Some(d) => Some((
+        self.decorators.get(&intern_string(b"lang_item_generics", intermediate_dir).unwrap()).map(
+            |d| (
                 d.name_span.clone(),
                 d.args.iter().map(
                     |arg| match arg {
@@ -580,9 +580,8 @@ impl Attribute {
                         _ => unreachable!(),
                     }
                 ).collect(),
-            )),
-            None => None,
-        }
+            )
+        )
     }
 }
 

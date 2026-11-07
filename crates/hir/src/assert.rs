@@ -188,7 +188,7 @@ impl AssertAttribute {
     // It never fails because `Attribute::from_ast` does all the checks.
     pub fn from_attribute(
         attribute: &Attribute,
-        session: &mut Session,
+        session: &Session,
     ) -> AssertAttribute {
         let mut name = None;
         let mut note = None;
