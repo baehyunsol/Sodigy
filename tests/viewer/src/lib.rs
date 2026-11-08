@@ -113,6 +113,12 @@ pub fn render_all(
         }
     }
 
+    // I'm not collecting parent of extra nodes, and that's intentional.
+    for node in extra_nodes.iter() {
+        session.title.insert(node.id, (node.title.clone(), node.flag));
+        session.children.insert(node.id, node.children.clone());
+    }
+
     for node in nodes.iter().chain(extra_nodes.iter()) {
         let body = render(node, &session);
         let html = wrap_body(&node.title, &body);
