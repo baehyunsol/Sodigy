@@ -1,5 +1,6 @@
 use chrono::DateTime;
 use regex::Regex;
+use sodigy_dashboard::{Color, Config, Graphic, Id, Node, render_all};
 use sodigy_fs_api::{FileError, basename, read_dir, read_string};
 use sodigy_compiler_test::{
     CompileAndRun,
@@ -11,18 +12,16 @@ use sodigy_compiler_test::{
 };
 use std::collections::hash_map::{Entry, HashMap};
 use std::sync::LazyLock;
-use viewer::{Color, Config, Graphic, Id, Node, render_all};
 
-mod s_utils;
+mod utils;
 
-use s_utils::render_ms;
+use utils::render_ms;
 
 fn main() {
     println!("loading commits...");
-    let commits = load_commits(100);
+    let commits = load_commits(300);
     println!("loading test results...");
     let results = load_test_results("../log/").unwrap();
-    let mut id = Id::init();
     let mut nodes = vec![];
     let mut top_siblings = Vec::with_capacity(commits.len());
     let mut trees: HashMap<String, Id> = HashMap::new();
@@ -37,13 +36,12 @@ fn main() {
             &results,
             &mut test_result_nodes,
             &mut trees,
-            &mut id,
             &mut nodes,
         );
         top_siblings.push((title, commit_node_id));
     }
 
-    id.increment();
+    let id = Id::new();
     nodes.push(Node {
         id,
         title: String::from("Sodigy CI"),
@@ -86,7 +84,6 @@ fn render_commit(
     test_results: &HashMap<String, Vec<TestHarness>>,
     test_result_nodes: &mut Vec<(String, Id)>,
     git_obj_nodes: &mut HashMap<String, Id>,
-    id: &mut Id,
     nodes: &mut Vec<Node>,
 ) -> Id {
     let (flag, children) = if let Some(results) = test_results.get(&commit.commit_hash) {
@@ -94,7 +91,7 @@ fn render_commit(
         let mut has_error = false;
 
         for result in results.iter() {
-            let result_node_id = render_test_result(result, id, nodes);
+            let result_node_id = render_test_result(result, nodes);
             let title = format!("{:?}-{:?}", result.meta.os, result.meta.isa).to_ascii_lowercase();
             has_error |= result.has_error();
 
@@ -120,26 +117,26 @@ fn render_commit(
 
     if let Some(parent_hash) = &commit.parent_hash {
         let diff = git::get_diff(parent_hash, &commit.commit_hash);
-        let diff_node_id = render_commit_diff(&diff, id, nodes);
+        let diff_node_id = render_commit_diff(&diff, nodes);
         metadata_metadata.push(Graphic::Link { text: format!("updated files (+{}, -{})", diff.add, diff.remove), id: diff_node_id });
     }
 
-    let tree_node_id = render_tree(&commit.tree_hash, git_obj_nodes, id, nodes);
+    let tree_node_id = render_tree(&commit.tree_hash, git_obj_nodes, nodes);
     metadata_metadata.push(Graphic::Link { text: String::from("browse tree"), id: tree_node_id });
     metadata.push(Graphic::List(metadata_metadata));
 
-    id.increment();
+    let id = Id::new();
     nodes.push(Node {
-        id: *id,
+        id,
         title: commit.commit_hash.to_string(),
         flag,
         metadata: Some(metadata),
         children,
     });
-    *id
+    id
 }
 
-fn render_commit_diff(diff: &git::CommitDiff, id: &mut Id, nodes: &mut Vec<Node>) -> Id {
+fn render_commit_diff(diff: &git::CommitDiff, nodes: &mut Vec<Node>) -> Id {
     let (commit_a, commit_b) = diff.commits.clone();
     let mut rendered = vec![Graphic::List(vec![
         Graphic::Text(format!("add: {}", diff.add)),
@@ -169,18 +166,18 @@ fn render_commit_diff(diff: &git::CommitDiff, id: &mut Id, nodes: &mut Vec<Node>
         }
     }
 
-    id.increment();
+    let id = Id::new();
     nodes.push(Node {
-        id: *id,
+        id,
         title: format!("{commit_a} vs {commit_b}"),
         flag: None,
         metadata: Some(rendered),
         children: None,
     });
-    *id
+    id
 }
 
-fn render_tree(tree_hash: &str, obj_nodes: &mut HashMap<String, Id>, id: &mut Id, nodes: &mut Vec<Node>) -> Id {
+fn render_tree(tree_hash: &str, obj_nodes: &mut HashMap<String, Id>, nodes: &mut Vec<Node>) -> Id {
     match obj_nodes.get(tree_hash) {
         Some(e) => *e,
         None => {
@@ -190,42 +187,42 @@ fn render_tree(tree_hash: &str, obj_nodes: &mut HashMap<String, Id>, id: &mut Id
             for entry in entries.iter() {
                 match entry.object_type {
                     git::ObjectType::Tree => {
-                        children.push((format!("{}/", entry.name), render_tree(&entry.hash, obj_nodes, id, nodes)));
+                        children.push((format!("{}/", entry.name), render_tree(&entry.hash, obj_nodes, nodes)));
                     },
                     git::ObjectType::Blob => {
-                        children.push((entry.name.to_string(), render_blob(&entry.hash, obj_nodes, id, nodes)));
+                        children.push((entry.name.to_string(), render_blob(&entry.hash, obj_nodes, nodes)));
                     },
                 }
             }
 
-            id.increment();
+            let id = Id::new();
             nodes.push(Node {
-                id: *id,
+                id,
                 title: tree_hash.to_string(),
                 flag: Some(Color::Yellow),
                 metadata: None,
                 children: Some(children),
             });
-            obj_nodes.insert(tree_hash.to_string(), *id);
-            *id
+            obj_nodes.insert(tree_hash.to_string(), id);
+            id
         },
     }
 }
 
-fn render_blob(blob_hash: &str, obj_nodes: &mut HashMap<String, Id>, id: &mut Id, nodes: &mut Vec<Node>) -> Id {
+fn render_blob(blob_hash: &str, obj_nodes: &mut HashMap<String, Id>, nodes: &mut Vec<Node>) -> Id {
     match obj_nodes.get(blob_hash) {
         Some(e) => *e,
         None => {
-            id.increment();
+            let id = Id::new();
             nodes.push(Node {
-                id: *id,
+                id,
                 title: blob_hash.to_string(),
                 flag: Some(Color::Blue),
                 metadata: Some(vec![Graphic::TextBox(vec![(None, String::from_utf8_lossy(&git::read_blob(blob_hash)).to_string())])]),
                 children: None,
             });
-            obj_nodes.insert(blob_hash.to_string(), *id);
-            *id
+            obj_nodes.insert(blob_hash.to_string(), id);
+            id
         },
     }
 }
@@ -253,7 +250,7 @@ fn load_test_results(results_at: &str) -> Result<HashMap<String /* commit_hash *
     Ok(results)
 }
 
-fn render_test_result(result: &TestHarness, id: &mut Id, nodes: &mut Vec<Node>) -> Id {
+fn render_test_result(result: &TestHarness, nodes: &mut Vec<Node>) -> Id {
     let flag = if result.has_error() { Some(Color::Red) } else { Some(Color::Green) };
     let metadata = vec![Graphic::List(vec![
         Graphic::Text(format!("cargo version: {}", result.meta.cargo_version)),
@@ -263,32 +260,32 @@ fn render_test_result(result: &TestHarness, id: &mut Id, nodes: &mut Vec<Node>) 
     let mut children = vec![];
 
     if let Some(crates) = &result.crates {
-        let crates_node_id = render_crates_result(crates, id, nodes);
+        let crates_node_id = render_crates_result(crates, nodes);
         children.push((String::from("crates"), crates_node_id));
     }
 
     if let Some(cnr) = &result.compile_and_run {
-        let cnr_node_id = render_cnrs_result(cnr, id, nodes);
+        let cnr_node_id = render_cnrs_result(cnr, nodes);
         children.push((String::from("cnrs"), cnr_node_id));
     }
 
     if let Some(fuzz) = &result.fuzz {
-        let fuzz_node_id = render_fuzzs_result(fuzz, id, nodes);
+        let fuzz_node_id = render_fuzzs_result(fuzz, nodes);
         children.push((String::from("fuzz"), fuzz_node_id));
     }
 
-    id.increment();
+    let id = Id::new();
     nodes.push(Node {
-        id: *id,
+        id,
         title: format!("{}-{:?}-{:?}", result.meta.commit.commit_hash, result.meta.os, result.meta.isa).to_ascii_lowercase(),
         flag,
         metadata: Some(metadata),
         children: Some(children),
     });
-    *id
+    id
 }
 
-fn render_crates_result(crates: &[CrateTest], id: &mut Id, nodes: &mut Vec<Node>) -> Id {
+fn render_crates_result(crates: &[CrateTest], nodes: &mut Vec<Node>) -> Id {
     let (mut pass, mut fail) = (0, 0);
 
     for cr in crates.iter() {
@@ -299,42 +296,42 @@ fn render_crates_result(crates: &[CrateTest], id: &mut Id, nodes: &mut Vec<Node>
     let mut children = vec![];
 
     for cr in crates.iter() {
-        let cr_node_id = render_crate_result(cr, id, nodes);
+        let cr_node_id = render_crate_result(cr, nodes);
         children.push((cr.name.to_string(), cr_node_id));
     }
 
-    id.increment();
+    let id = Id::new();
     nodes.push(Node {
-        id: *id,
+        id,
         title: String::from("crate tests"),
         flag,
         metadata: Some(vec![Graphic::Text(format!("pass: {pass}, fail: {fail}"))]),
         children: Some(children),
     });
-    *id
+    id
 }
 
-fn render_crate_result(cr: &CrateTest, id: &mut Id, nodes: &mut Vec<Node>) -> Id {
+fn render_crate_result(cr: &CrateTest, nodes: &mut Vec<Node>) -> Id {
     let flag = if cr.has_error() { Some(Color::Red) } else { Some(Color::Green) };
     let mut children = vec![];
 
     for unit in cr.tests.iter() {
-        let unit_node_id = render_crate_unit_result(unit, id, nodes);
+        let unit_node_id = render_crate_unit_result(unit, nodes);
         children.push((unit.command.to_string(), unit_node_id));
     }
 
-    id.increment();
+    let id = Id::new();
     nodes.push(Node {
-        id: *id,
+        id,
         title: cr.name.to_string(),
         flag,
         metadata: None,
         children: Some(children),
     });
-    *id
+    id
 }
 
-fn render_crate_unit_result(unit: &CrateTestUnit, id: &mut Id, nodes: &mut Vec<Node>) -> Id {
+fn render_crate_unit_result(unit: &CrateTestUnit, nodes: &mut Vec<Node>) -> Id {
     fn color_errors_and_warnings(stderr: &str) -> Vec<(Option<Color>, String)> {
         let mut result = vec![];
 
@@ -371,18 +368,18 @@ fn render_crate_unit_result(unit: &CrateTestUnit, id: &mut Id, nodes: &mut Vec<N
 
     ];
 
-    id.increment();
+    let id = Id::new();
     nodes.push(Node {
-        id: *id,
+        id,
         title: unit.command.to_string(),
         flag,
         metadata: Some(metadata),
         children: None,
     });
-    *id
+    id
 }
 
-fn render_cnrs_result(cnrs: &[CompileAndRun], id: &mut Id, nodes: &mut Vec<Node>) -> Id {
+fn render_cnrs_result(cnrs: &[CompileAndRun], nodes: &mut Vec<Node>) -> Id {
     let (mut pass, mut fail) = (0, 0);
 
     for cnr in cnrs.iter() {
@@ -393,22 +390,22 @@ fn render_cnrs_result(cnrs: &[CompileAndRun], id: &mut Id, nodes: &mut Vec<Node>
     let mut children = vec![];
 
     for cnr in cnrs.iter() {
-        let cnr_node_id = render_cnr_result(cnr, id, nodes);
+        let cnr_node_id = render_cnr_result(cnr, nodes);
         children.push((cnr.name.to_string(), cnr_node_id));
     }
 
-    id.increment();
+    let id = Id::new();
     nodes.push(Node {
-        id: *id,
+        id,
         title: String::from("Compile & Run tests"),
         flag,
         metadata: Some(vec![Graphic::Text(format!("pass: {pass}, fail: {fail}"))]),
         children: Some(children),
     });
-    *id
+    id
 }
 
-fn render_cnr_result(cnr: &CompileAndRun, id: &mut Id, nodes: &mut Vec<Node>) -> Id {
+fn render_cnr_result(cnr: &CompileAndRun, nodes: &mut Vec<Node>) -> Id {
     // copy-pasted from sodigy-driver/log.rs
     enum TermColorParseState {
         Text,
@@ -507,38 +504,38 @@ fn render_cnr_result(cnr: &CompileAndRun, id: &mut Id, nodes: &mut Vec<Node>) ->
         }
     }
 
-    id.increment();
+    let id = Id::new();
     nodes.push(Node {
-        id: *id,
+        id,
         title: cnr.name.to_string(),
         flag,
         metadata: Some(metadata),
         children: None,
     });
-    *id
+    id
 }
 
-fn render_fuzzs_result(fuzzs: &[FuzzResult], id: &mut Id, nodes: &mut Vec<Node>) -> Id {
+fn render_fuzzs_result(fuzzs: &[FuzzResult], nodes: &mut Vec<Node>) -> Id {
     let flag = if fuzzs.iter().any(|f| f.has_error()) { Some(Color::Red) } else { Some(Color::Green) };
     let mut children = vec![];
 
     for fuzz in fuzzs.iter() {
-        let fuzz_node_id = render_fuzz_result(fuzz, id, nodes);
+        let fuzz_node_id = render_fuzz_result(fuzz, nodes);
         children.push((fuzz.target.name().to_string(), fuzz_node_id));
     }
 
-    id.increment();
+    let id = Id::new();
     nodes.push(Node {
-        id: *id,
+        id,
         title: String::from("fuzz"),
         flag,
         metadata: None,
         children: Some(children),
     });
-    *id
+    id
 }
 
-fn render_fuzz_result(fuzz: &FuzzResult, id: &mut Id, nodes: &mut Vec<Node>) -> Id {
+fn render_fuzz_result(fuzz: &FuzzResult, nodes: &mut Vec<Node>) -> Id {
     let flag = if fuzz.has_error() { Some(Color::Red) } else { Some(Color::Green) };
     let mut metadata = vec![
         Graphic::Title(String::from("elapsed ms")),
@@ -564,14 +561,14 @@ fn render_fuzz_result(fuzz: &FuzzResult, id: &mut Id, nodes: &mut Vec<Node>) -> 
         metadata.push(Graphic::TextBox(vec![(None, raw_bytes)]));
     }
 
-    id.increment();
+    let id = Id::new();
     nodes.push(Node {
-        id: *id,
+        id,
         title: fuzz.target.name().to_string(),
         flag,
         metadata: Some(metadata),
         children: None,
     });
-    *id
+    id
 }
 

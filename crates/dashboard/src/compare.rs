@@ -54,7 +54,7 @@ impl Session {
                 |(path, id)| (join_path(path), *id)
             ).collect();
 
-            let child_id = Id::random();
+            let child_id = Id::new();
             nodes.push(Node {
                 id: child_id,
                 title: format!("in {title_a}, but not in {title_b}"),
@@ -70,7 +70,7 @@ impl Session {
                 |(path, id)| (join_path(path), *id)
             ).collect();
 
-            let child_id = Id::random();
+            let child_id = Id::new();
             nodes.push(Node {
                 id: child_id,
                 title: format!("in {title_b}, but not in {title_a}"),
@@ -88,7 +88,7 @@ impl Session {
             let mut change_children = vec![];
 
             for (path, id_a, id_b) in flag_change.get(&(*flag_1, *flag_2)).unwrap().iter() {
-                let comp_node_id = Id::random();
+                let comp_node_id = Id::new();
                 nodes.push(Node {
                     id: comp_node_id,
                     title: join_path(path),
@@ -102,7 +102,7 @@ impl Session {
                 change_children.push((join_path(path), comp_node_id));
             }
 
-            let child_id = Id::random();
+            let child_id = Id::new();
             nodes.push(Node {
                 id: child_id,
                 title: format!("{title_a} {} -> {title_b} {}", title_markup(*flag_1), title_markup(*flag_2)),

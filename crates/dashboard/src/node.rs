@@ -1,7 +1,6 @@
 use crate::{Color, Graphic, Id};
-use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug)]
 pub struct Node {
     pub id: Id,
     pub title: String,

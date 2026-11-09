@@ -1,0 +1,8 @@
+[package]
+name = "sodigy-dashboard"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sodigy-fs-api = { version = "0.1.0", path = "../fs-api" }
+

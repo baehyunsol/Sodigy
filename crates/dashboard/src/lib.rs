@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use sodigy_fs_api::{
     FileError,
     WriteMode,
@@ -9,6 +8,7 @@ use sodigy_fs_api::{
 };
 use std::collections::hash_map::{Entry, HashMap};
 use std::fmt;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 mod color;
 mod compare;
@@ -24,20 +24,15 @@ pub use session::Config;
 use session::Session;
 use utils::escape_html;
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub struct Id(u64);
+static NEXT_ID: AtomicU32 = AtomicU32::new(4096);
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct Id(u32);
 
 impl Id {
-    pub fn init() -> Self {
-        Id(4096)
-    }
-
-    pub fn increment(&mut self) {
-        *self = Id(self.0 + 1);
-    }
-
-    pub fn random() -> Self {
-        Id(rand::random())
+    // It returns a unique ID.
+    pub fn new() -> Self {
+        Id(NEXT_ID.fetch_add(1, Ordering::Relaxed))
     }
 }
 
@@ -88,7 +83,7 @@ pub fn render_all(
 
             for (title_b, node_id_b) in comparisons.iter().skip(i + 1) {
                 let node_b = nodes_by_id.get(node_id_b).unwrap();
-                let (id1, id2) = (Id::random(), Id::random());
+                let (id1, id2) = (Id::new(), Id::new());
                 session.compare_nodes(title_a, title_b, node_a, node_b, id1, id2, &mut extra_nodes);
                 session.compare_nodes(title_b, title_a, node_b, node_a, id2, id1, &mut extra_nodes);
 

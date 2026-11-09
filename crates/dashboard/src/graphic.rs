@@ -1,7 +1,6 @@
 use crate::{Color, Id, escape_html};
-use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug)]
 pub enum Graphic {
     Title(String),
     TextBox(Vec<(Option<Color>, String)>),

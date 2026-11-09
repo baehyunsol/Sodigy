@@ -1,8 +1,6 @@
 use crate::{Color, Id, escape_html};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Deserialize, Serialize)]
 pub struct Session {
     // These data have to be collected before any nodes are rendered.
     pub title: HashMap<Id, (String, Option<Color>)>,
@@ -14,7 +12,7 @@ pub struct Session {
     pub config: Config,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug)]
 pub struct Config {
     pub fold_threshold: usize,
     pub main_title_length_limit: Option<usize>,
@@ -104,7 +102,7 @@ fn apply_markup(title: &str, limit: Option<usize>) -> String {
                     Some((tag, new_cursor)) => {
                         cursor = new_cursor;
                         tokens.push(Token::Content(String::from_utf8_lossy(&buffer).to_string()));
-                        tokens.push(Token::Tag(String::from_utf8_lossy(&tag).to_string()));
+                        tokens.push(Token::Tag(String::from_utf8_lossy(tag).to_string()));
                         buffer.clear();
                     },
                     None => {
