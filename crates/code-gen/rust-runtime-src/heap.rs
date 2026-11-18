@@ -1,27 +1,385 @@
-// FIXME: This is a dummy implementation. I have to implement a real one...
+use std::collections::hash_map::{Entry, HashMap};
+
+// hhh  rrr  d00  d01  d02  ...
+//
+// hhh: header of this block
+//   - the first bit is whether this block is used or not (1 for used)
+//   - the remaining 31 bits is the size of this block (only counting `d` scalars)
+// rrr: ref count of this block
+// d00..: actual data
+//
+// pointer points to `d00`, not `hhh`.
 
 pub struct Heap {
     pub data: Vec<u32>,
-    pub global_values: std::collections::HashMap<u128, u32>,
+
+    // Global values are lazy-evaluated.
+    // Global values are static: once initialized, it's alive until the end of the program.
+    pub global_values: HashMap<u128, u32>,
+
+    // Func pointers are also lazy-evaluated.
+    pub func_pointers: HashMap<u128, u32>,
+    pub func_pointers_rev: HashMap<u32, u128>,
+
+    // Each `usize` value is a pointer, where `self.data[pointer]` is the first data of a block.
+    // `freelist_3` holds pointers to blocks that have 3 scalars for data (total 5 scalar, including the 2 scalar metadata).
+    // Every block in a freelist has the same size.
+    pub freelist_3: Vec<usize>,
+    pub freelist_8: Vec<usize>,
+    pub freelist_18: Vec<usize>,
+    pub freelist_38: Vec<usize>,
+    pub freelist_158: Vec<usize>,
+    pub freelist_638: Vec<usize>,
+    pub freelist_2558: Vec<usize>,
+
+    // for blocks bigger than 2558 scalars
+    pub freelist_large: Vec<usize>,
 }
 
 impl Heap {
     pub fn new() -> Heap {
         Heap {
             data: vec![],
-            global_values: std::collections::HashMap::new(),
+            global_values: HashMap::new(),
+            func_pointers: HashMap::new(),
+            func_pointers_rev: HashMap::new(),
+            freelist_3: vec![],
+            freelist_8: vec![],
+            freelist_18: vec![],
+            freelist_38: vec![],
+            freelist_158: vec![],
+            freelist_638: vec![],
+            freelist_2558: vec![],
+            freelist_large: vec![],
         }
     }
 
-    pub fn alloc(&mut self, size: usize) -> usize {
-        todo!()
+    // It always creates 512 blocks. Linear grow is okay because `Vec<T>` grows exponentially.
+    pub fn expand_3(&mut self) {
+        let mut cursor = self.data.len() + 2;
+        let mut new_buffer = vec![0; 2560];
+
+        for i in 0..512 {
+            new_buffer[i * 5] = 3;
+            self.freelist_3.push(cursor);
+            cursor += 5;
+        }
+
+        self.data.extend(new_buffer);
+    }
+
+    pub fn expand_8(&mut self) {
+        let mut cursor = self.data.len() + 2;
+        let mut new_buffer = vec![0; 2560];
+
+        for i in 0..256 {
+            new_buffer[i * 10] = 8;
+            self.freelist_8.push(cursor);
+            cursor += 10;
+        }
+
+        self.data.extend(new_buffer);
+    }
+
+    pub fn expand_18(&mut self) {
+        let mut cursor = self.data.len() + 2;
+        let mut new_buffer = vec![0; 2560];
+
+        for i in 0..128 {
+            new_buffer[i * 20] = 18;
+            self.freelist_18.push(cursor);
+            cursor += 20;
+        }
+
+        self.data.extend(new_buffer);
+    }
+
+    pub fn expand_38(&mut self) {
+        let mut cursor = self.data.len() + 2;
+        let mut new_buffer = vec![0; 2560];
+
+        for i in 0..64 {
+            new_buffer[i * 40] = 38;
+            self.freelist_38.push(cursor);
+            cursor += 40;
+        }
+
+        self.data.extend(new_buffer);
+    }
+
+    pub fn expand_158(&mut self) {
+        let mut cursor = self.data.len() + 2;
+        let mut new_buffer = vec![0; 2560];
+
+        for i in 0..16 {
+            new_buffer[i * 160] = 158;
+            self.freelist_158.push(cursor);
+            cursor += 160;
+        }
+
+        self.data.extend(new_buffer);
+    }
+
+    pub fn expand_638(&mut self) {
+        let mut cursor = self.data.len() + 2;
+        let mut new_buffer = vec![0; 2560];
+
+        for i in 0..4 {
+            new_buffer[i * 640] = 638;
+            self.freelist_638.push(cursor);
+            cursor += 640;
+        }
+
+        self.data.extend(new_buffer);
+    }
+
+    pub fn expand_2558(&mut self) {
+        let mut new_buffer = vec![0; 2560];
+        new_buffer[0] = 2558;
+        self.freelist_2558.push(self.data.len() + 2);
+        self.data.extend(new_buffer);
+    }
+
+    pub fn expand_large(&mut self, size: usize) {
+        // TODO: assert size < 0x7fff_ffff
+        //      -> runtime error vs panic?
+
+        let mut new_buffer = vec![0; size + 2];
+        new_buffer[0] = size as u32;
+        self.freelist_large.push(self.data.len() + 2);
+        self.data.extend(new_buffer);
     }
 
     pub fn alloc_int(&mut self, is_neg: bool, nums: &[u32]) -> u32 {
-        todo!()
+        let ptr = self.alloc(nums.len() + 1) as u32;
+        let mut metadata = nums.len() as u32;
+
+        if is_neg {
+            metadata |= 0x8000_0000;
+        }
+
+        self.data[ptr as usize] = metadata;
+
+        for (i, n) in nums.iter().enumerate() {
+            self.data[ptr as usize + 1 + i] = *n;
+        }
+
+        ptr
     }
 
-    pub fn inspect_int(&self, ptr: u32) -> (bool, &[u32]) {
-        todo!()
+    // `size` is of data, not block. A block has 1 scalar for header,
+    // 1 scalar for ref_count, and scalars for data. If you call `alloc(8)`,
+    // the returned block will have 10 scalars, where the first
+    // 2 scalars are header and ref_count, and the remaining scalars are for data.
+    pub fn alloc(&mut self, size: usize) -> usize {
+        match size {
+            ..=3 => {
+                if let Some(ptr) = self.freelist_3.pop() {
+                    self.data[ptr - 2] = 0x8000_0003;
+                    ptr
+                } else if let Some(ptr) = self.freelist_8.pop() {
+                    self.data[ptr - 2] = 0x8000_0003;
+                    self.data[ptr + 3] = 0x0000_0003;
+                    self.freelist_3.push(ptr + 5);
+                    ptr
+                } else {
+                    self.expand_3();
+                    self.alloc(size)
+                }
+            },
+            ..=8 => {
+                if let Some(ptr) = self.freelist_8.pop() {
+                    self.data[ptr - 2] = 0x8000_0008;
+                    ptr
+                } else if let Some(ptr) = self.freelist_18.pop() {
+                    self.data[ptr - 2] = 0x8000_0008;
+                    self.data[ptr + 8] = 0x0000_0008;
+                    self.freelist_8.push(ptr + 10);
+                    ptr
+                } else {
+                    self.expand_8();
+                    self.alloc(size)
+                }
+            },
+            ..=18 => {
+                if let Some(ptr) = self.freelist_18.pop() {
+                    self.data[ptr - 2] = 0x8000_0012;
+                    ptr
+                } else if let Some(ptr) = self.freelist_38.pop() {
+                    self.data[ptr - 2] = 0x8000_0012;
+                    self.data[ptr + 18] = 0x0000_0012;
+                    self.freelist_18.push(ptr + 20);
+                    ptr
+                } else {
+                    self.expand_18();
+                    self.alloc(size)
+                }
+            },
+            ..=38 => {
+                if let Some(ptr) = self.freelist_38.pop() {
+                    self.data[ptr - 2] = 0x8000_0026;
+                    ptr
+                } else if let Some(ptr) = self.freelist_158.pop() {
+                    self.data[ptr - 2] = 0x8000_0026;
+
+                    self.data[ptr + 38] = 0x0000_0026;
+                    self.freelist_38.push(ptr + 40);
+                    self.data[ptr + 78] = 0x0000_0026;
+                    self.freelist_38.push(ptr + 80);
+                    self.data[ptr + 118] = 0x0000_0026;
+                    self.freelist_38.push(ptr + 120);
+
+                    ptr
+                } else {
+                    self.expand_38();
+                    self.alloc(size)
+                }
+            },
+            ..=158 => {
+                if let Some(ptr) = self.freelist_158.pop() {
+                    self.data[ptr - 2] = 0x8000_009e;
+                    ptr
+                } else if let Some(ptr) = self.freelist_638.pop() {
+                    self.data[ptr - 2] = 0x8000_009e;
+
+                    self.data[ptr + 158] = 0x0000_009e;
+                    self.freelist_158.push(ptr + 160);
+                    self.data[ptr + 318] = 0x0000_009e;
+                    self.freelist_158.push(ptr + 320);
+                    self.data[ptr + 478] = 0x0000_009e;
+                    self.freelist_158.push(ptr + 480);
+
+                    ptr
+                } else {
+                    self.expand_158();
+                    self.alloc(size)
+                }
+            },
+            ..=638 => {
+                if let Some(ptr) = self.freelist_638.pop() {
+                    self.data[ptr - 2] = 0x8000_027e;
+                    ptr
+                } else if let Some(ptr) = self.freelist_2558.pop() {
+                    self.data[ptr - 2] = 0x8000_027e;
+
+                    self.data[ptr + 638] = 0x0000_027e;
+                    self.freelist_638.push(ptr + 640);
+                    self.data[ptr + 1278] = 0x0000_027e;
+                    self.freelist_638.push(ptr + 1280);
+                    self.data[ptr + 1918] = 0x0000_027e;
+                    self.freelist_638.push(ptr + 1920);
+
+                    ptr
+                } else {
+                    self.expand_638();
+                    self.alloc(size)
+                }
+            },
+            ..=2558 => {
+                if let Some(ptr) = self.freelist_2558.pop() {
+                    self.data[ptr - 2] = 0x8000_09fe;
+                    ptr
+                } else {
+                    self.expand_2558();
+                    self.alloc(size)
+                }
+            },
+            // It checks the last 2 free blocks, and uses if there's an available one.
+            _ => match (self.freelist_large.pop(), self.freelist_large.pop()) {
+                (Some(ptr1), Some(ptr2)) => {
+                    let block_size1 = self.data[ptr1 - 2] as usize;
+                    let block_size2 = self.data[ptr2 - 2] as usize;
+
+                    match (block_size1 >= size, block_size2 >= size) {
+                        // If both are okay, we use a smaller block.
+                        (true, true) => {
+                            if block_size1 < block_size2 {
+                                self.freelist_large.push(ptr2);
+                                self.data[ptr1 - 2] |= 0x8000_0000;
+                                ptr1
+                            }
+
+                            else {
+                                self.freelist_large.push(ptr1);
+                                self.data[ptr2 - 2] |= 0x8000_0000;
+                                ptr2
+                            }
+                        },
+                        (true, false) => {
+                            self.freelist_large.push(ptr2);
+                            self.data[ptr1 - 2] |= 0x8000_0000;
+                            ptr1
+                        },
+                        (false, true) => {
+                            self.freelist_large.push(ptr2);
+                            self.data[ptr1 - 2] |= 0x8000_0000;
+                            ptr1
+                        },
+                        (false, false) => {
+                            self.freelist_large.push(ptr1);
+                            self.freelist_large.push(ptr2);
+                            self.expand_large(size);
+                            self.alloc(size)
+                        },
+                    }
+                },
+                (Some(ptr), None) => {
+                    let block_size = self.data[ptr - 2] as usize;
+
+                    if block_size >= size {
+                        self.data[ptr - 2] |= 0x8000_0000;
+                        ptr
+                    } else {
+                        self.freelist_large.push(ptr);
+                        self.expand_large(size);
+                        self.alloc(size)
+                    }
+                },
+                _ => {
+                    self.expand_large(size);
+                    self.alloc(size)
+                },
+            },
+        }
+    }
+
+    fn free(&mut self, ptr: usize) {
+        let size = self.data[ptr - 2] & 0x7fff_ffff;
+        self.data[ptr - 2] = size;
+
+        match size {
+            3 => { self.freelist_3.push(ptr); },
+            8 => { self.freelist_8.push(ptr); },
+            38 => { self.freelist_38.push(ptr); },
+            158 => { self.freelist_158.push(ptr); },
+            638 => { self.freelist_638.push(ptr); },
+            _ => { self.freelist_large.push(ptr); },
+        }
+    }
+
+    pub fn inc_rc(&mut self, ptr: usize) {
+        self.data[ptr - 1] += 1;
+    }
+
+    pub fn dec_rc(&mut self, ptr: usize) {
+        self.data[ptr - 1] -= 1;
+    }
+
+    pub fn try_drop(&mut self, ptr: usize) {
+        if self.data[ptr - 1] == 0 {
+            // TODO: drop
+
+            self.free(ptr);
+        }
+    }
+
+    fn inspect_int(&self, ptr: u32) -> (bool, &[u32]) {
+        let ptr = ptr as usize;
+        let metadata = self.data[ptr];
+        let is_neg = metadata > 0x7fff_ffff;
+        let length = metadata & 0x7fff_ffff;
+        let nums = &self.data[(ptr + 1)..(ptr + 1 + length as usize)];
+        (is_neg, nums)
     }
 }
+

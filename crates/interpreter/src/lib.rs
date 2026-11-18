@@ -679,3 +679,4 @@ fn inspect_list(heap: &[u32], ptr: usize) -> &[u32] {
     let length = heap[ptr + 2] as usize;
     &heap[(slice_ptr + start + 1)..(slice_ptr + start + length + 1)]
 }
+
