@@ -1,6 +1,7 @@
 use sodigy_bytecode::{
     Bytecode,
     ExprHash,
+    GlobalLabel,
     InternedValue,
     LocalLabel,
     Memory,
@@ -244,17 +245,24 @@ fn lower_code(mut code: Code) -> RustFunc {
     let mut session = Session::from_inspection(&inspection);
     let name = format!("c_{}", code.label.hex(20));
     let param_count = code.params.unwrap_or(0);
-    let params = match param_count {
-        0 => "heap: &mut Heap, _: u32, _: u32",
-        1 => "heap: &mut Heap, x0: u32, _: u32",
-        2 => "heap: &mut Heap, x0: u32, x1: u32",
-        _ => "heap: &mut Heap, x0: u32, x1: u32, xs: Vec<u32>",
+    let params = match (param_count, inspection.has_recursion) {
+        (0, _) => "heap: &mut Heap, _: u32, _: u32",
+        (1, false) => "heap: &mut Heap, x0: u32, _: u32",
+        (1, true) => "heap: &mut Heap, mut x0: u32, _: u32",
+        (2, false) => "heap: &mut Heap, x0: u32, x1: u32",
+        (2, true) => "heap: &mut Heap, mut x0: u32, mut x1: u32",
+        (_, false) => "heap: &mut Heap, x0: u32, x1: u32, xs: Vec<u32>",
+        (_, true) => "heap: &mut Heap, mut x0: u32, mut x1: u32, xs: Vec<u32>",
     };
     let mut body: Vec<String> = vec![];
 
     if param_count > 2 {
         for i in 2..param_count {
-            body.push(format!("    let x{i}: u32 = *xs.get_unchecked({});", i - 2));
+            body.push(format!(
+                "    let {}x{i}: u32 = *xs.get_unchecked({});",
+                if inspection.has_recursion { "mut " } else { "" },
+                i - 2,
+            ));
         }
     }
 
@@ -275,35 +283,53 @@ fn lower_code(mut code: Code) -> RustFunc {
         body.push(format!("    let mut {global}: u32 = 0;"));
     }
 
-    match (inspection.shape, inspection.has_recursion) {
-        (Shape::Single, true) => {  // loop { stmts; }  # tail-call to self will continue the loop
-            body.push(String::from(r#"    todo!("Shape::Single with recursion")"#));
-        },
-        (Shape::Single, false) => {  // { stmts; }
+    match inspection.shape {
+        // no-recursion: { stmts; }
+        // with-recursion: loop { stmts; }  # tail-call to self will continue the loop
+        Shape::Single => {
             let basic_block = code.basic_blocks.get(&LocalLabel::start()).unwrap();
-            lower_basic_block(basic_block, true, 4, &mut session, &mut body);
+            let indent = if inspection.has_recursion {
+                body.push(String::from("    loop {"));
+                8
+            } else {
+                4
+            };
+
+            lower_basic_block(code.label, inspection.shape, basic_block, true, indent, &mut session, &mut body);
+
+            if inspection.has_recursion {
+                body.push(String::from("    }"));
+            }
         },
-        (Shape::Triple, true) => {  // loop { stmts; }
-            body.push(String::from(r#"    todo!("Shape::Triple with recursion")"#));
-        },
-        (Shape::Triple, false) => {  // { stmts; if cond { stmts; } else { stmts; } }
+        // no-recursion: { stmts; if cond { stmts; } else { stmts; } }
+        // with-recursion: loop { stmts; if cond { stmts; } else { stmts; } }
+        Shape::Triple => {
+            let indent = if inspection.has_recursion {
+                body.push(String::from("    loop {"));
+                8
+            } else {
+                4
+            };
+
             let init_block = code.basic_blocks.get(&LocalLabel::start()).unwrap();
             let Terminator::JumpIf { value: cond, t, f } = &init_block.terminator else { unreachable!() };
-            lower_basic_block(init_block, false, 4, &mut session, &mut body);
-            body.push(format!("    if {} == 0 {{", to_rvalue(&Memory::SSA(*cond), &session)));
+            lower_basic_block(code.label, inspection.shape, init_block, false, indent, &mut session, &mut body);
+            body.push(format!("{}if {} == 0 {{", " ".repeat(indent), to_rvalue(&Memory::SSA(*cond), &session)));
 
             let false_block = code.basic_blocks.get(f).unwrap();
-            lower_basic_block(false_block, true, 8, &mut session, &mut body);
-            body.push(String::from("    } else {"));
+            lower_basic_block(code.label, inspection.shape, false_block, true, indent + 4, &mut session, &mut body);
+            body.push(format!("{}}} else {{", " ".repeat(indent)));
 
             let true_block = code.basic_blocks.get(t).unwrap();
-            lower_basic_block(true_block, true, 8, &mut session, &mut body);
-            body.push(String::from("    }"));
+            lower_basic_block(code.label, inspection.shape, true_block, true, indent + 4, &mut session, &mut body);
+            body.push(format!("{}}}", " ".repeat(indent)));
+
+            if inspection.has_recursion {
+                body.push(String::from("    }"));
+            }
         },
-        (Shape::Multi, true) => {  // loop: 'recursion { let mut label = 0; loop: 'basic_blocks { match label { 0 => { stmts; }, .. } } }
-            body.push(String::from(r#"    todo!("Shape::Multi with recursion")"#));
-        },
-        (Shape::Multi, false) => {  // { let mut label = 0; loop { match label { 0 => { stmts; }, .. } } }
+        // TODO: if there's no recursion, the initial basic block doesn't have to be in the loop!!
+        Shape::Multi => {  // { let mut label = 0; loop { match label { 0 => { stmts; }, .. } } }
             body.push(format!("    let mut label = {};", LocalLabel::start().index()));
             body.push(String::from("    loop {"));
             body.push(String::from("        match label {"));
@@ -319,7 +345,7 @@ fn lower_code(mut code: Code) -> RustFunc {
                     body.push(format!("            {} => {{", label.index()));
                 }
 
-                lower_basic_block(basic_block, true, 16, &mut session, &mut body);
+                lower_basic_block(code.label, inspection.shape, basic_block, true, 16, &mut session, &mut body);
                 body.push(String::from("            },"));
             }
 
@@ -339,13 +365,14 @@ fn lower_code(mut code: Code) -> RustFunc {
 }
 
 fn lower_basic_block(
+    func: GlobalLabel,
+    func_shape: Shape,
     basic_block: &BasicBlock,
-    lower_terminator: bool,
+    lower_terminator_flag: bool,
     indent: usize,
     session: &mut Session,
     lines: &mut Vec<String>,
 ) {
-    let indent_s = " ".repeat(indent);
     let mut early_return = false;
 
     for code in basic_block.code.iter() {
@@ -356,52 +383,76 @@ fn lower_basic_block(
         return;
     }
 
-    if lower_terminator {
-        match &basic_block.terminator {
-            Terminator::Jump(n) => {
-                lines.push(format!("{indent_s}label = {};", n.index()));
-            },
-            Terminator::TailCall { func, args } => {
-                if args.len() < 3 {
-                    lines.push(format!(
-                        "{indent_s}return CallResult::TailCallShort {{ f: c_{}, x0: {}, x1: {} }};",
-                        func.hex(20),
-                        args.get(0).map(|i| to_rvalue(&Memory::SSA(*i), session)).unwrap_or_else(|| String::from("0")),
-                        args.get(1).map(|i| to_rvalue(&Memory::SSA(*i), session)).unwrap_or_else(|| String::from("0")),
-                    ));
-                }
+    if lower_terminator_flag {
+        lower_terminator(func, func_shape, &basic_block.terminator, indent, session, lines);
+    }
+}
 
-                else {
-                    lines.push(format!(
-                        "{indent_s}return CallResult::TailCallLong {{ f: c_{}, x0: {}, x1: {}, xs: vec![{}] }};",
-                        func.hex(20),
-                        to_rvalue(&Memory::SSA(args[0]), session),
-                        to_rvalue(&Memory::SSA(args[1]), session),
-                        args[2..].iter().map(|i| to_rvalue(&Memory::SSA(*i), session)).collect::<Vec<_>>().join(", "),
-                    ));
+fn lower_terminator(
+    func: GlobalLabel,
+    func_shape: Shape,
+    terminator: &Terminator,
+    indent: usize,
+    session: &Session,
+    lines: &mut Vec<String>,
+) {
+    let indent_s = " ".repeat(indent);
+
+    match terminator {
+        Terminator::Jump(n) => {
+            lines.push(format!("{indent_s}label = {};", n.index()));
+        },
+        Terminator::TailCall { func: target, args } if *target == func => {
+            for (i, arg) in args.iter().enumerate() {
+                if arg.to_u32() as usize != i {
+                    lines.push(format!("{indent_s}{} = {};", to_lvalue(&Memory::SSA(SSA::from_u32(i as u32)), session), to_rvalue(&Memory::SSA(*arg), session)));
                 }
-            },
-            Terminator::TailCallDynamic { .. } => todo!(),
-            Terminator::JumpIf { value, t, f } => {
+            }
+
+            if func_shape == Shape::Multi {
+                lines.push(format!("{indent_s}label = 0;"));
+            }
+        },
+        Terminator::TailCall { func, args } => {
+            if args.len() < 3 {
                 lines.push(format!(
-                    "{indent_s}label = if {} == 0 {{ {} }} else {{ {} }};",
-                    to_rvalue(&Memory::SSA(*value), session),
-                    f.index(),
-                    t.index(),
+                    "{indent_s}return CallResult::TailCallShort {{ f: c_{}, x0: {}, x1: {} }};",
+                    func.hex(20),
+                    args.get(0).map(|i| to_rvalue(&Memory::SSA(*i), session)).unwrap_or_else(|| String::from("0")),
+                    args.get(1).map(|i| to_rvalue(&Memory::SSA(*i), session)).unwrap_or_else(|| String::from("0")),
                 ));
-            },
-            Terminator::TryInitGlobal { global, label } => {
+            }
+
+            else {
                 lines.push(format!(
-                    "{indent_s}if !heap.global_values.contains_key(&0x{}) {{ c_{}(heap, 0, 0); }}\n{indent_s}label = {};",
-                    global.hex(20),
-                    global.hex(20),
-                    label.index(),
+                    "{indent_s}return CallResult::TailCallLong {{ f: c_{}, x0: {}, x1: {}, xs: vec![{}] }};",
+                    func.hex(20),
+                    to_rvalue(&Memory::SSA(args[0]), session),
+                    to_rvalue(&Memory::SSA(args[1]), session),
+                    args[2..].iter().map(|i| to_rvalue(&Memory::SSA(*i), session)).collect::<Vec<_>>().join(", "),
                 ));
-            },
-            Terminator::Return(src) => {
-                lines.push(format!("{indent_s}return CallResult::Return({});", to_rvalue(&Memory::SSA(*src), session)));
-            },
-        }
+            }
+        },
+        Terminator::TailCallDynamic { .. } => todo!(),
+        Terminator::JumpIf { value, t, f } => {
+            lines.push(format!(
+                "{indent_s}label = if {} == 0 {{ {} }} else {{ {} }};",
+                to_rvalue(&Memory::SSA(*value), session),
+                f.index(),
+                t.index(),
+            ));
+        },
+        Terminator::TryInitGlobal { global, label } => {
+            lines.push(format!(
+                "{indent_s}if !heap.global_values.contains_key(&0x{}) {{ c_{}(heap, 0, 0); }}\n{indent_s}label = {};",
+                global.hex(20),
+                global.hex(20),
+                label.index(),
+            ));
+        },
+        Terminator::Return(src) => {
+            lines.push(format!("{indent_s}return CallResult::Return({});", to_rvalue(&Memory::SSA(*src), session)));
+        },
     }
 }
 

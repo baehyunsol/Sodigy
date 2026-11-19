@@ -26,7 +26,7 @@ pub struct BasicBlocksInspection {
     pub has_recursion: bool,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Shape {
     // Single basic block
     Single,
