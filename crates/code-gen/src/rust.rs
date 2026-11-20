@@ -600,6 +600,11 @@ fn lower_bytecode(
                 // TODO: How can I guarantee that sodigy.Bool.True is always 1 and sodigy.Bool.False is always 0?
                 lines.push(format!("{indent_s}{} = {func}(lhs_is_neg, lhs_nums, rhs_is_neg, rhs_nums) as u32;", to_lvalue(dst, session)));
             },
+            Intrinsic::BitAndInt => todo!(),
+            Intrinsic::BitOrInt => todo!(),
+            Intrinsic::ShrInt => todo!(),
+            Intrinsic::ShlInt => todo!(),
+            Intrinsic::Ilog2Int => todo!(),
             Intrinsic::AddScalar => {
                 lines.push(format!("{indent_s}{} = {} + {};", to_lvalue(dst, session), to_rvalue(&Memory::SSA(args[0]), session), to_rvalue(&Memory::SSA(args[1]), session)));
             },
@@ -624,17 +629,58 @@ fn lower_bytecode(
             Intrinsic::GtScalar => {
                 lines.push(format!("{indent_s}{} = ({} > {}) as u32;", to_lvalue(dst, session), to_rvalue(&Memory::SSA(args[0]), session), to_rvalue(&Memory::SSA(args[1]), session)));
             },
+            Intrinsic::BitAndScalar => {
+                lines.push(format!("{indent_s}{} = {} & {};", to_lvalue(dst, session), to_rvalue(&Memory::SSA(args[0]), session), to_rvalue(&Memory::SSA(args[1]), session)));
+            },
+            Intrinsic::BitOrScalar => {
+                lines.push(format!("{indent_s}{} = {} | {};", to_lvalue(dst, session), to_rvalue(&Memory::SSA(args[0]), session), to_rvalue(&Memory::SSA(args[1]), session)));
+            },
+            Intrinsic::ScalarToInt => todo!(),
+            Intrinsic::IntToScalar => todo!(),
+            Intrinsic::IndexList => todo!(),
+            Intrinsic::LenList => {
+                lines.push(format!("{indent_s}let slice_ptr = {};", to_rvalue(&Memory::SSA(args[0]), session)));
+                lines.push(format!("{indent_s}{} = *heap.data.get_unchecked(slice_ptr + 2);", to_lvalue(dst, session)));
+            },
+            Intrinsic::SliceList => {
+                lines.push(format!("{indent_s}let slice_ptr = {};", to_rvalue(&Memory::SSA(args[0]), session)));
+                lines.push(format!("{indent_s}let slice_start = {};", to_rvalue(&Memory::SSA(args[1]), session)));
+                lines.push(format!("{indent_s}let slice_end = {};", to_rvalue(&Memory::SSA(args[2]), session)));
+                lines.push(format!("{indent_s}let buffer_ptr = *heap.data.get_unchecked(slice_ptr);"));
+                lines.push(format!("{indent_s}let start = *heap.data.get_unchecked(slice_ptr + 1);"));
+                lines.push(format!("{indent_s}let new_slice_ptr = {};", alloc(3).0));
+                lines.push(format!("{indent_s}*heap.data.get_unchecked_mut(new_slice_ptr) = buffer_ptr;"));
+                lines.push(format!("{indent_s}*heap.data.get_unchecked_mut(new_slice_ptr + 1) = start + slice_start;"));
+                lines.push(format!("{indent_s}*heap.data.get_unchecked_mut(new_slice_ptr + 2) = slice_end - slice_start;"));
+                lines.push(format!("{indent_s}{} = new_slice_ptr;", to_lvalue(dst, session)));
+            },
+            Intrinsic::SliceRightList => {
+                lines.push(format!("{indent_s}let slice_ptr = {};", to_rvalue(&Memory::SSA(args[0]), session)));
+                lines.push(format!("{indent_s}let slice_start = {};", to_rvalue(&Memory::SSA(args[1]), session)));
+                lines.push(format!("{indent_s}let buffer_ptr = *heap.data.get_unchecked(slice_ptr);"));
+                lines.push(format!("{indent_s}let start = *heap.data.get_unchecked(slice_ptr + 1);"));
+                lines.push(format!("{indent_s}let length = *heap.data.get_unchecked(slice_ptr + 2);"));
+                lines.push(format!("{indent_s}let new_slice_ptr = {};", alloc(3).0));
+                lines.push(format!("{indent_s}*heap.data.get_unchecked_mut(new_slice_ptr) = buffer_ptr;"));
+                lines.push(format!("{indent_s}*heap.data.get_unchecked_mut(new_slice_ptr + 1) = start + slice_start;"));
+                lines.push(format!("{indent_s}*heap.data.get_unchecked_mut(new_slice_ptr + 2) = length - slice_start;"));
+                lines.push(format!("{indent_s}{} = new_slice_ptr;", to_lvalue(dst, session)));
+            },
+            Intrinsic::AppendList => todo!(),
+            Intrinsic::PrependList => todo!(),
             Intrinsic::Exit => {
                 *early_return = true;
                 lines.push(format!("{indent_s}return CallResult::Exit({} as u8);", to_rvalue(&Memory::SSA(args[0]), session)));
             },
+            Intrinsic::Print => todo!(),
+            Intrinsic::EPrint => todo!(),
+            Intrinsic::Debug => todo!(),
+            Intrinsic::RandomInt => todo!(),
+            Intrinsic::Sleep => todo!(),
             Intrinsic::Nop0 | Intrinsic::Nop1 => {
                 // Some bytecode might read the return value of this operation.
                 // So the rust compiler won't let me compile this code if the result is not assigned.
                 lines.push(format!("{indent_s}{} = 0;", to_lvalue(dst, session)));
-            },
-            i => {
-                lines.push(format!(r#"{indent_s}{} = todo!("{i:?}");"#, to_lvalue(dst, session)));
             },
         },
         Bytecode::InitTuple { elements, dst, .. } => {
