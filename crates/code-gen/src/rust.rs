@@ -571,14 +571,16 @@ fn lower_bytecode(
             Intrinsic::SubInt |
             Intrinsic::MulInt |
             Intrinsic::DivInt |
-            Intrinsic::RemInt => {
+            Intrinsic::RemInt |
+            Intrinsic::BitAndInt |
+            Intrinsic::BitOrInt => {
                 let func = match intrinsic {
                     Intrinsic::AddInt => "add_bi",
                     Intrinsic::SubInt => "sub_bi",
                     Intrinsic::MulInt => "mul_bi",
                     Intrinsic::DivInt => "div_bi",
                     Intrinsic::RemInt => "rem_bi",
-                    _ => unreachable!(),
+                    _ => todo!(),
                 };
                 lines.push(format!("{indent_s}let (lhs_is_neg, lhs_nums) = heap.inspect_int({});", to_rvalue(&Memory::SSA(args[0]), session)));
                 lines.push(format!("{indent_s}let (rhs_is_neg, rhs_nums) = heap.inspect_int({});", to_rvalue(&Memory::SSA(args[1]), session)));
@@ -600,8 +602,6 @@ fn lower_bytecode(
                 // TODO: How can I guarantee that sodigy.Bool.True is always 1 and sodigy.Bool.False is always 0?
                 lines.push(format!("{indent_s}{} = {func}(lhs_is_neg, lhs_nums, rhs_is_neg, rhs_nums) as u32;", to_lvalue(dst, session)));
             },
-            Intrinsic::BitAndInt => todo!(),
-            Intrinsic::BitOrInt => todo!(),
             Intrinsic::ShrInt => todo!(),
             Intrinsic::ShlInt => todo!(),
             Intrinsic::Ilog2Int => todo!(),
@@ -637,7 +637,13 @@ fn lower_bytecode(
             },
             Intrinsic::ScalarToInt => todo!(),
             Intrinsic::IntToScalar => todo!(),
-            Intrinsic::IndexList => todo!(),
+            Intrinsic::IndexList => {
+                lines.push(format!("{indent_s}let slice_ptr = {};", to_rvalue(&Memory::SSA(args[0]), session)));
+                lines.push(format!("{indent_s}let index = {};", to_rvalue(&Memory::SSA(args[1]), session)));
+                lines.push(format!("{indent_s}let buffer_ptr = *heap.data.get_unchecked(slice_ptr);"));
+                lines.push(format!("{indent_s}let start = *heap.data.get_unchecked(slice_ptr + 1);"));
+                lines.push(format!("{indent_s}{} = *heap.get_unchecked(buffer_ptr + start + index + 1);", to_lvalue(dst, session)));
+            },
             Intrinsic::LenList => {
                 lines.push(format!("{indent_s}let slice_ptr = {};", to_rvalue(&Memory::SSA(args[0]), session)));
                 lines.push(format!("{indent_s}{} = *heap.data.get_unchecked(slice_ptr + 2);", to_lvalue(dst, session)));
