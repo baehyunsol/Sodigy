@@ -602,9 +602,22 @@ fn lower_bytecode(
                 // TODO: How can I guarantee that sodigy.Bool.True is always 1 and sodigy.Bool.False is always 0?
                 lines.push(format!("{indent_s}{} = {func}(lhs_is_neg, lhs_nums, rhs_is_neg, rhs_nums) as u32;", to_lvalue(dst, session)));
             },
-            Intrinsic::ShrInt => todo!(),
-            Intrinsic::ShlInt => todo!(),
-            Intrinsic::Ilog2Int => todo!(),
+            Intrinsic::ShrInt | Intrinsic::ShlInt => {
+                let func = match intrinsic {
+                    Intrinsic::ShrInt => "shr_ubi",
+                    Intrinsic::ShlInt => "shl_ubi",
+                    _ => unreachable!(),
+                };
+
+                lines.push(format!("{indent_s}let (is_neg, lhs) = heap.inspect_int({})", to_rvalue(&Memory::SSA(args[0]), session)));
+                lines.push(format!("{indent_s}let rhs = {};", to_rvalue(&Memory::SSA(args[1]), session)));
+                lines.push(format!("{indent_s}let nums = {func}(lhs, rhs);"));
+                lines.push(format!("{indent_s}{} = heap.alloc_int(is_neg, &nums);", to_lvalue(dst, session)));
+            },
+            Intrinsic::Ilog2Int => {
+                lines.push(format!("{indent_s}let (_, nums) = heap.inspect_int({})", to_rvalue(&Memory::SSA(args[0]), session)));
+                lines.push(format!("{indent_s}{} = ilog2_ubi(&nums)", to_lvalue(dst, session)));
+            },
             Intrinsic::AddScalar => {
                 lines.push(format!("{indent_s}{} = {} + {};", to_lvalue(dst, session), to_rvalue(&Memory::SSA(args[0]), session), to_rvalue(&Memory::SSA(args[1]), session)));
             },
@@ -635,8 +648,13 @@ fn lower_bytecode(
             Intrinsic::BitOrScalar => {
                 lines.push(format!("{indent_s}{} = {} | {};", to_lvalue(dst, session), to_rvalue(&Memory::SSA(args[0]), session), to_rvalue(&Memory::SSA(args[1]), session)));
             },
-            Intrinsic::ScalarToInt => todo!(),
-            Intrinsic::IntToScalar => todo!(),
+            Intrinsic::ScalarToInt => {
+                lines.push(format!("{indent_s}{} = heap.alloc_int_from_u32({});", to_lvalue(dst, session), to_rvalue(&Memory::SSA(args[0]), session)));
+            },
+            Intrinsic::IntToScalar => {
+                lines.push(format!("{indent_s}let (_, nums) = heap.inspect_int({});", to_rvalue(&Memory::SSA(args[0]), session)));
+                lines.push(format!("{indent_s}{} = *nums.get_unchecked(0);", to_rvalue(dst, session)));
+            },
             Intrinsic::IndexList => {
                 lines.push(format!("{indent_s}let slice_ptr = {};", to_rvalue(&Memory::SSA(args[0]), session)));
                 lines.push(format!("{indent_s}let index = {};", to_rvalue(&Memory::SSA(args[1]), session)));
